@@ -1,0 +1,236 @@
+"""
+ADL Lite — Parser
+
+Three standard tools:
+    - PyYAML  → Front Matter (L1)
+    - regex   → ADL code blocks (L3)
+    - str.split → Markdown body (L2)
+
+Implements the three-layer syntax:
+    L1: YAML Front Matter  — identity, type, status, evidence refs, scope
+    L2: Markdown Body      — natural language, [[Wiki Links]], lists
+    L3: ```adl:* blocks    — relation graphs, evidence chains, formal seals
+
+References:
+    - ADL Lite Spec §7.2: Three-layer syntax
+    - ADL Lite Spec §7.3: Full example
+"""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+from typing import List, Optional, Tuple
+
+try:
+    import yaml
+except ImportError:  # pragma: no cover
+    yaml = None  # type: ignore[assignment]
+
+from .models import (
+    ADLBlock,
+    ADLDocument,
+    ADLEvidenceBlock,
+    ADLFormalSealBlock,
+    ADLFrontMatter,
+    ADLRelationBlock,
+    ADLType,
+    DiscoveryStatus,
+    EvidenceType,
+    MechanismType,
+    ProvisionalNames,
+)
+
+
+# ---------------------------------------------------------------------------
+# Regex patterns for L3 ADL blocks
+# ---------------------------------------------------------------------------
+
+# Matches ```adl:<subtype> ... ``` blocks (non-greedy)
+_RE_ADL_BLOCK = re.compile(
+    r'^```adl:(?P<block_type>\w+)\s*\n'
+    r'(?P<body>.*?)'
+    r'^```',
+    re.MULTILINE | re.DOTALL,
+)
+
+# Inline YAML inside ADL blocks — key: value pairs
+_RE_KV_LINE = re.compile(r'^(\w+):\s*(.+)$', re.MULTILINE)
+
+
+class ADLParser:
+    """
+    Stateless parser for ADL Lite Markdown documents.
+
+    Usage:
+        parser = ADLParser()
+        doc = parser.parse_file("examples/capital_reflux_trap.md")
+        doc = parser.parse_text(raw_markdown_string)
+    """
+
+    def __init__(self) -> None:
+        if yaml is None:
+            raise ImportError("PyYAML is required. Install: pip install pyyaml")
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def parse_file(self, path: str | Path) -> ADLDocument:
+        """Parse an ADL Lite document from a file path."""
+        path = Path(path)
+        text = path.read_text(encoding="utf-8")
+        doc = self.parse_text(text)
+        doc.source_path = str(path)
+        return doc
+
+    def parse_text(self, text: str) -> ADLDocument:
+        """
+        Parse raw Markdown text into an ADLDocument.
+
+        Algorithm:
+            1. Split L1 (YAML Front Matter) from L2+L3 (Body)
+            2. Parse YAML → ADLFrontMatter
+            3. Extract L3 blocks from body → ADLBlock list
+            4. Remove L3 blocks from body → clean L2 Markdown
+        """
+        front_matter_raw, body = self._split_front_matter(text)
+        fm = self._parse_front_matter(front_matter_raw)
+        blocks, clean_body = self._extract_adl_blocks(body)
+        return ADLDocument(
+            front_matter=fm,
+            markdown_body=clean_body.strip(),
+            adl_blocks=blocks,
+        )
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _split_front_matter(text: str) -> Tuple[str, str]:
+        """
+        Split YAML front matter (---\n...\n---\n) from the rest.
+        Returns (front_matter_yaml, remaining_body).
+        """
+        text = text.lstrip()
+        if not text.startswith("---"):
+            return "", text
+
+        # Find the closing ---
+        end_idx = text.find("\n---", 3)
+        if end_idx == -1:
+            return "", text
+
+        front = text[3:end_idx].strip()
+        body = text[end_idx + 4 :]  # skip past \n---\n
+        return front, body
+
+    @classmethod
+    def _parse_front_matter(cls, raw_yaml: str) -> ADLFrontMatter:
+        """Parse YAML string into ADLFrontMatter model."""
+        if not raw_yaml:
+            raise ADLParseError("Empty or missing YAML front matter")
+
+        data: dict = yaml.safe_load(raw_yaml) or {}
+
+        # Handle provisional_names which may be a plain dict
+        pn = data.get("provisional_names", {})
+        if isinstance(pn, dict):
+            data["provisional_names"] = ProvisionalNames(**pn)
+
+        # Coerce string enums
+        if "adl_type" in data and isinstance(data["adl_type"], str):
+            data["adl_type"] = ADLType(data["adl_type"])
+        if "status" in data and isinstance(data["status"], str):
+            data["status"] = DiscoveryStatus(data["status"])
+        if "mechanism" in data and isinstance(data["mechanism"], str):
+            data["mechanism"] = MechanismType(data["mechanism"])
+
+        # Add timestamps if missing
+        if not data.get("created_at"):
+            from datetime import datetime, timezone
+            data["created_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+        return ADLFrontMatter(**data)
+
+    @classmethod
+    def _extract_adl_blocks(cls, body: str) -> Tuple[List[ADLBlock], str]:
+        """
+        Extract all ```adl:* blocks from the Markdown body.
+        Returns (list_of_blocks, body_with_blocks_removed).
+        """
+        blocks: List[ADLBlock] = []
+        clean_body = body
+
+        for match in _RE_ADL_BLOCK.finditer(body):
+            block_type = match.group("block_type")
+            block_body = match.group("body")
+
+            # Parse key-value pairs inside the block
+            kv = dict(_RE_KV_LINE.findall(block_body))
+
+            block = cls._dispatch_block(block_type, kv)
+            if block:
+                blocks.append(block)
+
+            # Remove this block from clean body
+            clean_body = clean_body.replace(match.group(0), "")
+
+        return blocks, clean_body
+
+    @classmethod
+    def _dispatch_block(cls, block_type: str, kv: dict) -> Optional[ADLBlock]:
+        """Route parsed KV dict to the correct block constructor."""
+        try:
+            if block_type == "relation":
+                return ADLRelationBlock(
+                    source=kv.get("source", "").strip('"'),
+                    relation=kv.get("relation", "").strip('"'),
+                    target=kv.get("target", "").strip('"'),
+                    mapping_type=kv.get("mapping_type"),
+                    confidence=float(kv.get("confidence", "1.0")),
+                )
+            elif block_type == "evidence":
+                return ADLEvidenceBlock(
+                    evidence_type=EvidenceType(kv.get("evidence_type", "empirical_observation").strip('"')),
+                    data_ref=kv.get("data_ref", "").strip('"'),
+                    description=kv.get("description", "").strip('"') or None,
+                    confidence=float(kv.get("confidence", "1.0")),
+                    observed_at=kv.get("observed_at", "").strip('"') or None,
+                )
+            elif block_type == "seal":
+                return ADLFormalSealBlock(
+                    assertion=kv.get("assertion", "").strip('"'),
+                    language=kv.get("language", "lean4").strip('"'),  # type: ignore[arg-type]
+                    proof_ref=kv.get("proof_ref"),
+                    status=kv.get("status", "pending").strip('"'),  # type: ignore[arg-type]
+                    verified_by=kv.get("verified_by"),
+                )
+            else:
+                # Unknown block type — silently skip for forward compatibility
+                return None
+        except (ValueError, KeyError) as exc:
+            raise ADLParseError(f"Invalid {block_type} block: {exc}") from exc
+
+
+# ---------------------------------------------------------------------------
+# Exceptions
+# ---------------------------------------------------------------------------
+
+class ADLParseError(Exception):
+    """Raised when an ADL Lite document cannot be parsed."""
+
+
+# ---------------------------------------------------------------------------
+# Convenience
+# ---------------------------------------------------------------------------
+
+def parse_file(path: str | Path) -> ADLDocument:
+    """One-shot parse a file."""
+    return ADLParser().parse_file(path)
+
+
+def parse_text(text: str) -> ADLDocument:
+    """One-shot parse a string."""
+    return ADLParser().parse_text(text)
