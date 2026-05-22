@@ -34,7 +34,7 @@ In the observed AML network, illicit flows deliberately route through
 peripheral nodes with high clustering coefficient, creating a topological
 illusion of dispersion while actually funneling toward a common sink.
 
-This is **isomorphic** to the "gradient explosion" problem in deep learning:
+The capital trap pattern is **isomorphic** to the "gradient explosion" problem in deep learning:
 - Gradient explosion: small weights amplify errors through multiplicative paths
 - Capital trap: peripheral nodes amplify obscurity through structural camouflage
 

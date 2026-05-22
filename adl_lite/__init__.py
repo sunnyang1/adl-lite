@@ -19,24 +19,24 @@ Quick Start:
     mem.store(doc)
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
-from .parser import ADLParser, ADLParseError, parse_file, parse_text
+from .consensus import ConceptChain, ConsensusEngine, ForkManager, ForkResolution
+from .memory import ADLMemory, HotIndex, WarmIndex
 from .models import (
     ADLDocument,
-    ADLFrontMatter,
-    ADLRelationBlock,
     ADLEvidenceBlock,
     ADLFormalSealBlock,
+    ADLFrontMatter,
+    ADLRelationBlock,
+    ADLType,
     ConceptSkeleton,
     DiscoveryStatus,
-    ADLType,
     EvidenceType,
     MechanismType,
 )
+from .parser import ADLParseError, ADLParser, extract_wiki_links, parse_file, parse_text
 from .validator import ADLValidator
-from .consensus import ConsensusEngine, ConceptChain, ForkManager, ForkResolution
-from .memory import ADLMemory, HotIndex, WarmIndex
 
 __all__ = [
     # Version
@@ -46,6 +46,7 @@ __all__ = [
     "ADLParseError",
     "parse_file",
     "parse_text",
+    "extract_wiki_links",
     # Models
     "ADLDocument",
     "ADLFrontMatter",

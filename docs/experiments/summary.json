@@ -1,0 +1,36 @@
+{
+  "generated_at": "2026-05-22T23:49:54.240226+00:00",
+  "pilot": true,
+  "rq1_ambiguity": {
+    "metric": "pronoun_rate",
+    "adl_rate": 0.0,
+    "plain_baseline_rate": 0.0261,
+    "ambiguity_reduction_pct": 100.0,
+    "n_docs": 5,
+    "pilot": true
+  },
+  "rq2_consensus": {
+    "metric": "consensus_transitions",
+    "adl_transitions": 8,
+    "adl_validated_count": 3,
+    "baseline_transitions": 0,
+    "n_docs": 5,
+    "pilot": true
+  },
+  "rq3_retrieval": {
+    "metric": "recall_at_10",
+    "adl_recall": 1.0,
+    "plain_baseline_recall": 1.0,
+    "delta": 0.0,
+    "n_queries": 15,
+    "pilot": true
+  },
+  "rq4_leakage": {
+    "metric": "scope_leak_count",
+    "adl_leaks": 0,
+    "denied_access": 60,
+    "probes": 60,
+    "baseline_leaks_uncontrolled": 0,
+    "pilot": true
+  }
+}

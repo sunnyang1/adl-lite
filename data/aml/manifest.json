@@ -1,0 +1,126 @@
+{
+  "version": "0.1",
+  "count": 20,
+  "concepts": [
+    {
+      "adl_id": "aml-smurfing",
+      "path": "concepts/aml-smurfing.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    },
+    {
+      "adl_id": "aml-layering",
+      "path": "concepts/aml-layering.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    },
+    {
+      "adl_id": "aml-shell-co",
+      "path": "concepts/aml-shell-co.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    },
+    {
+      "adl_id": "aml-trade-mis",
+      "path": "concepts/aml-trade-mis.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    },
+    {
+      "adl_id": "aml-crypto-mix",
+      "path": "concepts/aml-crypto-mix.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    },
+    {
+      "adl_id": "aml-pep-link",
+      "path": "concepts/aml-pep-link.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    },
+    {
+      "adl_id": "aml-rapid-move",
+      "path": "concepts/aml-rapid-move.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    },
+    {
+      "adl_id": "aml-cash-int",
+      "path": "concepts/aml-cash-int.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    },
+    {
+      "adl_id": "aml-ben-owner",
+      "path": "concepts/aml-ben-owner.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    },
+    {
+      "adl_id": "aml-round-trip",
+      "path": "concepts/aml-round-trip.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    },
+    {
+      "adl_id": "aml-ctr-avoid",
+      "path": "concepts/aml-ctr-avoid.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    },
+    {
+      "adl_id": "aml-mule-acct",
+      "path": "concepts/aml-mule-acct.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    },
+    {
+      "adl_id": "aml-trade-base",
+      "path": "concepts/aml-trade-base.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    },
+    {
+      "adl_id": "aml-casino",
+      "path": "concepts/aml-casino.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    },
+    {
+      "adl_id": "aml-real-estate",
+      "path": "concepts/aml-real-estate.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    },
+    {
+      "adl_id": "aml-hawala",
+      "path": "concepts/aml-hawala.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    },
+    {
+      "adl_id": "aml-nesting",
+      "path": "concepts/aml-nesting.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    },
+    {
+      "adl_id": "aml-virtual-asset",
+      "path": "concepts/aml-virtual-asset.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    },
+    {
+      "adl_id": "aml-trade-loop",
+      "path": "concepts/aml-trade-loop.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    },
+    {
+      "adl_id": "aml-attention-trap",
+      "path": "concepts/aml-attention-trap.md",
+      "domain": "financial_aml",
+      "scope": "private/ceiec-aml"
+    }
+  ]
+}

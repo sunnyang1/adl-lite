@@ -1,0 +1,111 @@
+{
+  "version": "0.1",
+  "queries": [
+    {
+      "id": "q01",
+      "text": "small deposit structuring smurfing",
+      "relevant": [
+        "aml-smurfing"
+      ]
+    },
+    {
+      "id": "q02",
+      "text": "multi hop layering obfuscation",
+      "relevant": [
+        "aml-layering"
+      ]
+    },
+    {
+      "id": "q03",
+      "text": "shell company paper entity",
+      "relevant": [
+        "aml-shell-co"
+      ]
+    },
+    {
+      "id": "q04",
+      "text": "trade misinvoicing over invoice",
+      "relevant": [
+        "aml-trade-mis"
+      ]
+    },
+    {
+      "id": "q05",
+      "text": "crypto mixer tumbler blockchain",
+      "relevant": [
+        "aml-crypto-mix"
+      ]
+    },
+    {
+      "id": "q06",
+      "text": "politically exposed person pep",
+      "relevant": [
+        "aml-pep-link"
+      ]
+    },
+    {
+      "id": "q07",
+      "text": "rapid cross border movement velocity",
+      "relevant": [
+        "aml-rapid-move"
+      ]
+    },
+    {
+      "id": "q08",
+      "text": "cash integration legitimate business",
+      "relevant": [
+        "aml-cash-int"
+      ]
+    },
+    {
+      "id": "q09",
+      "text": "beneficial owner opacity ubo",
+      "relevant": [
+        "aml-ben-owner"
+      ]
+    },
+    {
+      "id": "q10",
+      "text": "round trip funds re-enter jurisdiction",
+      "relevant": [
+        "aml-round-trip"
+      ]
+    },
+    {
+      "id": "q11",
+      "text": "ctr threshold avoidance reporting limit",
+      "relevant": [
+        "aml-ctr-avoid"
+      ]
+    },
+    {
+      "id": "q12",
+      "text": "money mule pass through account",
+      "relevant": [
+        "aml-mule-acct"
+      ]
+    },
+    {
+      "id": "q13",
+      "text": "trade based laundering commodity",
+      "relevant": [
+        "aml-trade-base"
+      ]
+    },
+    {
+      "id": "q14",
+      "text": "casino chip gaming conversion",
+      "relevant": [
+        "aml-casino"
+      ]
+    },
+    {
+      "id": "q15",
+      "text": "peripheral node attention trap concentration",
+      "relevant": [
+        "aml-attention-trap",
+        "aml-layering"
+      ]
+    }
+  ]
+}

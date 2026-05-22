@@ -20,10 +20,8 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
-from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
 
-from .models import ADLDocument, ADLFrontMatter, ADLRelationBlock, ConceptSkeleton, DiscoveryStatus
+from .models import ADLDocument, ADLRelationBlock, ConceptSkeleton, DiscoveryStatus
 
 # Optional NetworkX — gracefully degrade if absent
 try:
@@ -44,7 +42,7 @@ class HotIndex:
     """
 
     def __init__(self) -> None:
-        self._store: Dict[str, ConceptSkeleton] = {}
+        self._store: dict[str, ConceptSkeleton] = {}
         self._lock = threading.RLock()
 
     # CRUD
@@ -53,7 +51,7 @@ class HotIndex:
         with self._lock:
             self._store[skeleton.adl_id] = skeleton
 
-    def get(self, adl_id: str) -> Optional[ConceptSkeleton]:
+    def get(self, adl_id: str) -> ConceptSkeleton | None:
         with self._lock:
             return self._store.get(adl_id)
 
@@ -61,16 +59,16 @@ class HotIndex:
         with self._lock:
             self._store.pop(adl_id, None)
 
-    def keys(self) -> Set[str]:
+    def keys(self) -> set[str]:
         with self._lock:
             return set(self._store.keys())
 
     def filter(
         self,
-        status: Optional[DiscoveryStatus] = None,
-        domain: Optional[str] = None,
-        scope_prefix: Optional[str] = None,
-    ) -> List[ConceptSkeleton]:
+        status: DiscoveryStatus | None = None,
+        domain: str | None = None,
+        scope_prefix: str | None = None,
+    ) -> list[ConceptSkeleton]:
         """Fast pre-filter before hitting Warm layer."""
         with self._lock:
             results = list(self._store.values())
@@ -141,7 +139,7 @@ class WarmIndex:
         self.conn.commit()
 
         # Relation graph (optional NetworkX)
-        self.graph: Optional["nx.DiGraph"] = nx.DiGraph() if HAS_NETWORKX else None
+        self.graph: nx.DiGraph | None = nx.DiGraph() if HAS_NETWORKX else None
 
     # Document storage
 
@@ -172,7 +170,7 @@ class WarmIndex:
         for rel in doc.relations:
             self._add_relation(rel)
 
-    def get_document(self, adl_id: str) -> Optional[ADLDocument]:
+    def get_document(self, adl_id: str) -> ADLDocument | None:
         row = self.conn.execute(
             "SELECT raw_json FROM documents WHERE adl_id = ?", (adl_id,)
         ).fetchone()
@@ -205,7 +203,7 @@ class WarmIndex:
         if self.graph and HAS_NETWORKX:
             self.graph.add_edge(rel.source, rel.target, relation=rel.relation, confidence=rel.confidence)
 
-    def get_related(self, concept_id: str, depth: int = 1) -> List[Tuple[str, str, float]]:
+    def get_related(self, concept_id: str, depth: int = 1) -> list[tuple[str, str, float]]:
         """
         BFS traversal of the relation graph.
         Returns list of (related_concept, relation, confidence).
@@ -216,11 +214,11 @@ class WarmIndex:
         # Fallback: SQL traversal
         return self._sql_bfs(concept_id, depth)
 
-    def _graph_bfs(self, concept_id: str, depth: int) -> List[Tuple[str, str, float]]:
+    def _graph_bfs(self, concept_id: str, depth: int) -> list[tuple[str, str, float]]:
         if not HAS_NETWORKX or self.graph is None:
             return []
 
-        results: List[Tuple[str, str, float]] = []
+        results: list[tuple[str, str, float]] = []
         visited = {concept_id}
         queue = [(concept_id, 0)]
 
@@ -242,8 +240,8 @@ class WarmIndex:
 
         return results
 
-    def _sql_bfs(self, concept_id: str, depth: int) -> List[Tuple[str, str, float]]:
-        results: List[Tuple[str, str, float]] = []
+    def _sql_bfs(self, concept_id: str, depth: int) -> list[tuple[str, str, float]]:
+        results: list[tuple[str, str, float]] = []
         visited = {concept_id}
         current_level = {concept_id}
 
@@ -277,15 +275,15 @@ class WarmIndex:
 
     def cascade_filter(
         self,
-        status: Optional[DiscoveryStatus] = None,
-        domain: Optional[str] = None,
-        scope_prefix: Optional[str] = None,
-    ) -> List[str]:
+        status: DiscoveryStatus | None = None,
+        domain: str | None = None,
+        scope_prefix: str | None = None,
+    ) -> list[str]:
         """
         Multi-stage pre-filtering returning candidate adl_ids.
         """
         conditions = []
-        params: List = []
+        params: list = []
 
         if status:
             conditions.append("status = ?")
@@ -337,7 +335,7 @@ class ADLMemory:
         # Warm: full document + relations
         self.warm.insert_document(doc)
 
-    def retrieve(self, adl_id: str) -> Optional[ADLDocument]:
+    def retrieve(self, adl_id: str) -> ADLDocument | None:
         """Retrieve full document from Warm layer."""
         return self.warm.get_document(adl_id)
 
@@ -348,16 +346,16 @@ class ADLMemory:
 
     def find_related(
         self, adl_id: str, depth: int = 1
-    ) -> List[Tuple[str, str, float]]:
+    ) -> list[tuple[str, str, float]]:
         """Graph traversal for related concepts."""
         return self.warm.get_related(adl_id, depth)
 
     def prefilter(
         self,
-        status: Optional[DiscoveryStatus] = None,
-        domain: Optional[str] = None,
-        scope_prefix: Optional[str] = None,
-    ) -> List[ConceptSkeleton]:
+        status: DiscoveryStatus | None = None,
+        domain: str | None = None,
+        scope_prefix: str | None = None,
+    ) -> list[ConceptSkeleton]:
         """
         Fast pre-filter using Hot layer.
         Falls back to Warm layer if Hot miss.

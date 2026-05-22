@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "adl-lite"
-version = "0.1.0"
+version = "0.2.0"
 description = "ADL Lite — Agent Discovery Language for Multi-Agent Concept Consensus"
 readme = "README.md"
 license = {text = "MIT"}
@@ -36,6 +36,9 @@ dev = [
     "mypy>=1.0",
     "ruff>=0.1.0",
 ]
+
+[project.scripts]
+adl-lite = "adl_lite.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/sunnyang1/adl-lite"

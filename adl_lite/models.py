@@ -12,10 +12,8 @@ References:
 
 from __future__ import annotations
 
-import re
-from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -65,8 +63,8 @@ class EvidenceType(str, Enum):
 
 class ProvisionalNames(BaseModel):
     """Multilingual provisional naming."""
-    zh: Optional[str] = None
-    en: Optional[str] = None
+    zh: str | None = None
+    en: str | None = None
 
 
 class ADLFrontMatter(BaseModel):
@@ -80,13 +78,13 @@ class ADLFrontMatter(BaseModel):
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     novelty: float = Field(default=0.0, ge=0.0, le=1.0)
     domain: str = Field(default="", description="Domain tag, e.g. 'financial_aml'")
-    mechanism: Optional[MechanismType] = None
+    mechanism: MechanismType | None = None
     scope: str = Field(default="public", description="Namespace scope")
-    validators: List[str] = Field(default_factory=list)
+    validators: list[str] = Field(default_factory=list)
     provisional_names: ProvisionalNames = Field(default_factory=ProvisionalNames)
-    evidence_refs: List[str] = Field(default_factory=list)
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    evidence_refs: list[str] = Field(default_factory=list)
+    created_at: str | None = None
+    updated_at: str | None = None
 
     @field_validator("scope")
     @classmethod
@@ -129,7 +127,7 @@ class ADLRelationBlock(BaseModel):
     source: str = Field(..., description="Source concept name or URI")
     relation: str = Field(..., description="Relation predicate, e.g. 'isomorphic-to'")
     target: str = Field(..., description="Target concept URI or name")
-    mapping_type: Optional[str] = None
+    mapping_type: str | None = None
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
     @field_validator("source", "target")
@@ -151,9 +149,9 @@ class ADLEvidenceBlock(BaseModel):
     block_type: Literal["evidence"] = "evidence"
     evidence_type: EvidenceType
     data_ref: str = Field(..., description="Pointer to data (vecdb://, file://, etc.)")
-    description: Optional[str] = None
+    description: str | None = None
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
-    observed_at: Optional[str] = None
+    observed_at: str | None = None
 
 
 class ADLFormalSealBlock(BaseModel):
@@ -164,9 +162,9 @@ class ADLFormalSealBlock(BaseModel):
     block_type: Literal["seal"] = "seal"
     assertion: str = Field(..., description="Formal assertion statement")
     language: Literal["lean4", "coq", "z3", "fol"] = "lean4"
-    proof_ref: Optional[str] = None
+    proof_ref: str | None = None
     status: Literal["pending", "verified", "failed"] = "pending"
-    verified_by: Optional[str] = None
+    verified_by: str | None = None
 
 
 # Union type for all ADL blocks
@@ -187,7 +185,7 @@ class ConceptSkeleton(BaseModel):
     domain_tag: str
     status: DiscoveryStatus
     scope: str
-    relation_summary: List[str] = Field(default_factory=list)
+    relation_summary: list[str] = Field(default_factory=list)
     evidence_count: int = 0
     confidence: float = 0.0
     novelty: float = 0.0
@@ -216,8 +214,8 @@ class ADLDocument(BaseModel):
     """
     front_matter: ADLFrontMatter
     markdown_body: str = ""
-    adl_blocks: List[ADLBlock] = Field(default_factory=list)
-    source_path: Optional[str] = None
+    adl_blocks: list[ADLBlock] = Field(default_factory=list)
+    source_path: str | None = None
 
     # --- Computed properties ---
 
@@ -240,16 +238,23 @@ class ADLDocument(BaseModel):
         return names.en or names.zh or self.adl_id
 
     @property
-    def relations(self) -> List[ADLRelationBlock]:
+    def relations(self) -> list[ADLRelationBlock]:
         return [b for b in self.adl_blocks if isinstance(b, ADLRelationBlock)]
 
     @property
-    def evidence(self) -> List[ADLEvidenceBlock]:
+    def evidence(self) -> list[ADLEvidenceBlock]:
         return [b for b in self.adl_blocks if isinstance(b, ADLEvidenceBlock)]
 
     @property
-    def seals(self) -> List[ADLFormalSealBlock]:
+    def seals(self) -> list[ADLFormalSealBlock]:
         return [b for b in self.adl_blocks if isinstance(b, ADLFormalSealBlock)]
+
+    @property
+    def wiki_links(self) -> list[str]:
+        """L2 wiki-link slugs extracted from markdown body."""
+        from .parser import extract_wiki_links
+
+        return extract_wiki_links(self.markdown_body)
 
     def to_skeleton(self) -> ConceptSkeleton:
         """Derive the Hot-storage skeleton from this document."""
@@ -260,7 +265,7 @@ class ADLDocument(BaseModel):
         sk.evidence_count = len(self.evidence)
         return sk
 
-    def validate_semantics(self) -> List[str]:
+    def validate_semantics(self) -> list[str]:
         """Run semantic validation and return list of errors."""
         from .validator import ADLValidator
         validator = ADLValidator()

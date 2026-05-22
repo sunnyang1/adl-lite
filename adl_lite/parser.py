@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 try:
     import yaml
@@ -41,7 +40,6 @@ from .models import (
     ProvisionalNames,
 )
 
-
 # ---------------------------------------------------------------------------
 # Regex patterns for L3 ADL blocks
 # ---------------------------------------------------------------------------
@@ -56,6 +54,9 @@ _RE_ADL_BLOCK = re.compile(
 
 # Inline YAML inside ADL blocks — key: value pairs
 _RE_KV_LINE = re.compile(r'^(\w+):\s*(.+)$', re.MULTILINE)
+
+# Obsidian-style wiki links in L2 body
+_RE_WIKI_LINK = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]")
 
 
 class ADLParser:
@@ -108,7 +109,7 @@ class ADLParser:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _split_front_matter(text: str) -> Tuple[str, str]:
+    def _split_front_matter(text: str) -> tuple[str, str]:
         """
         Split YAML front matter (---\n...\n---\n) from the rest.
         Returns (front_matter_yaml, remaining_body).
@@ -155,12 +156,12 @@ class ADLParser:
         return ADLFrontMatter(**data)
 
     @classmethod
-    def _extract_adl_blocks(cls, body: str) -> Tuple[List[ADLBlock], str]:
+    def _extract_adl_blocks(cls, body: str) -> tuple[list[ADLBlock], str]:
         """
         Extract all ```adl:* blocks from the Markdown body.
         Returns (list_of_blocks, body_with_blocks_removed).
         """
-        blocks: List[ADLBlock] = []
+        blocks: list[ADLBlock] = []
         clean_body = body
 
         for match in _RE_ADL_BLOCK.finditer(body):
@@ -180,7 +181,7 @@ class ADLParser:
         return blocks, clean_body
 
     @classmethod
-    def _dispatch_block(cls, block_type: str, kv: dict) -> Optional[ADLBlock]:
+    def _dispatch_block(cls, block_type: str, kv: dict) -> ADLBlock | None:
         """Route parsed KV dict to the correct block constructor."""
         try:
             if block_type == "relation":
@@ -234,3 +235,8 @@ def parse_file(path: str | Path) -> ADLDocument:
 def parse_text(text: str) -> ADLDocument:
     """One-shot parse a string."""
     return ADLParser().parse_text(text)
+
+
+def extract_wiki_links(text: str) -> list[str]:
+    """Extract [[Wiki Link]] slugs from Markdown body text."""
+    return _RE_WIKI_LINK.findall(text)

@@ -15,14 +15,12 @@ References:
 from __future__ import annotations
 
 import re
-from typing import List
 
 from .models import (
     ADLDocument,
     ADLFrontMatter,
     ADLRelationBlock,
     ADLType,
-    DiscoveryStatus,
 )
 
 # ---------------------------------------------------------------------------
@@ -58,12 +56,12 @@ class ADLValidator:
     # Public API
     # ------------------------------------------------------------------
 
-    def validate_document(self, doc: ADLDocument) -> List[str]:
+    def validate_document(self, doc: ADLDocument) -> list[str]:
         """
         Run all validation checks on a parsed ADLDocument.
         Returns a list of human-readable error strings (empty = valid).
         """
-        errors: List[str] = []
+        errors: list[str] = []
         errors.extend(self._validate_front_matter(doc.front_matter))
         errors.extend(self._validate_markdown_body(doc.markdown_body))
         for block in doc.adl_blocks:
@@ -89,8 +87,8 @@ class ADLValidator:
     # Internal checks
     # ------------------------------------------------------------------
 
-    def _validate_front_matter(self, fm: ADLFrontMatter) -> List[str]:
-        errors: List[str] = []
+    def _validate_front_matter(self, fm: ADLFrontMatter) -> list[str]:
+        errors: list[str] = []
 
         # Scope format
         if not _SCOPE_PATTERN.match(fm.scope):
@@ -120,8 +118,8 @@ class ADLValidator:
 
         return errors
 
-    def _validate_markdown_body(self, body: str) -> List[str]:
-        errors: List[str] = []
+    def _validate_markdown_body(self, body: str) -> list[str]:
+        errors: list[str] = []
         lowered = body.lower()
 
         # Pronoun check — fuzzy referents destroy cross-agent consensus
@@ -136,8 +134,8 @@ class ADLValidator:
 
         return errors
 
-    def _validate_relation_block(self, block: ADLRelationBlock) -> List[str]:
-        errors: List[str] = []
+    def _validate_relation_block(self, block: ADLRelationBlock) -> list[str]:
+        errors: list[str] = []
 
         # Source / target must not be empty
         if not block.source.strip():

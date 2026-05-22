@@ -24,7 +24,6 @@ from adl_lite import (
     parse_text,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -166,6 +165,10 @@ class TestParser:
         assert sk.evidence_count == 1
         assert len(sk.relation_summary) == 1
 
+    def test_wiki_link_extraction(self):
+        doc = parse_text(SAMPLE_DOC)
+        assert doc.wiki_links == ["Gradient Explosion"]
+
 
 # ---------------------------------------------------------------------------
 # Semantic Validation Tests
@@ -213,7 +216,9 @@ provisional_names:
 
 Test document.
 """
-        with pytest.raises(Exception):
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
             parse_text(bad_doc)
 
 

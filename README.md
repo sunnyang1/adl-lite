@@ -61,6 +61,10 @@ confidence: 0.91
 
 **Agent 看到的是**：类型化的 `ADLDocument` 对象，包含关系图、证据链、共识状态
 
+## 实施计划
+
+Phase 1 任务分解与时间表见 [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md)，勾选清单见 [`docs/PHASE1_CHECKLIST.md`](docs/PHASE1_CHECKLIST.md)。设计起源见 [`ADL_Lite_对话全记录.md`](ADL_Lite_对话全记录.md)。
+
 ## 快速开始
 
 ### 安装
@@ -71,7 +75,29 @@ cd adl-lite
 pip install -e ".[dev]"
 ```
 
-### 解析文档
+### CLI
+
+Normative syntax: [`docs/SPEC.md`](docs/SPEC.md).
+
+```bash
+# Parse summary (or JSON)
+adl-lite parse examples/capital_reflux_trap.md
+adl-lite parse examples/capital_reflux_trap.md -o json
+
+# Validate (exit 1 on errors)
+adl-lite validate examples/*.md
+
+# Store and graph neighbors
+adl-lite store examples/capital_reflux_trap.md --db my_adl.db
+adl-lite related disc-capital-trap --db my_adl.db --depth 2
+
+# Consensus chain (state in adl_consensus.json by default)
+adl-lite consensus register examples/capital_reflux_trap.md
+adl-lite consensus transition disc-capital-trap --to validated --actor agent_1 --reason "approved"
+adl-lite consensus verify disc-capital-trap
+```
+
+### 解析文档（Python API）
 
 ```python
 from adl_lite import parse_file
@@ -83,12 +109,11 @@ print(doc.concept_name)                      # Capital Attention Trap
 print(f"Relations: {len(doc.relations)}")    # 2
 print(f"Evidence:  {len(doc.evidence)}")     # 3
 
-# 语义验证
 errors = doc.validate_semantics()
 assert len(errors) == 0, f"Validation failed: {errors}"
 ```
 
-### 存储与检索
+### 存储与检索（Python API）
 
 ```python
 from adl_lite import ADLMemory, parse_file
@@ -97,40 +122,25 @@ mem = ADLMemory(db_path="my_adl.db")
 doc = parse_file("examples/capital_reflux_trap.md")
 mem.store(doc)
 
-# O(1) 骨架查询
 skeleton = mem.hot.get("disc-capital-trap")
-
-# 图遍历
 related = mem.find_related("disc-capital-trap", depth=2)
 for concept, relation, conf in related:
     print(f"  {concept} via {relation} ({conf:.2f})")
 ```
 
-### 共识管理
+### 共识管理（Python API）
 
 ```python
 from adl_lite import ConsensusEngine, DiscoveryStatus
 
 engine = ConsensusEngine()
 engine.register(doc)
-
-# 状态转换
 engine.transition(
     "disc-capital-trap",
     DiscoveryStatus.VALIDATED,
     actor="agent_reviewer_1",
-    reason="Cross-agent agreement reached"
+    reason="Cross-agent agreement reached",
 )
-
-# 分叉（竞争性假设）
-engine.fork(
-    "disc-capital-trap",
-    "disc-capital-trap-v2",
-    actor="agent_skeptic",
-    reason="Alternative mechanism: compositional blend"
-)
-
-# 验证链完整性
 assert engine.verify_all()["disc-capital-trap"]
 ```
 
@@ -138,6 +148,7 @@ assert engine.verify_all()["disc-capital-trap"]
 
 ```bash
 pytest tests/ -v
+adl-lite validate examples/*.md
 ```
 
 ## 项目结构
@@ -146,16 +157,25 @@ pytest tests/ -v
 adl-lite/
 ├── adl_lite/
 │   ├── __init__.py       # 公开 API
+│   ├── cli.py            # adl-lite 命令行
 │   ├── parser.py         # L1/L2/L3 三层解析器
 │   ├── models.py         # Pydantic 语义类型模型
 │   ├── validator.py      # SSA 语义验证器
 │   ├── consensus.py      # 概念共识链 + 分叉管理
 │   └── memory.py         # 三层混合索引 (Hot/Warm/Cold)
+├── docs/
+│   ├── SPEC.md           # 规范（L1/L2/L3、作用域、状态机）
+│   └── IMPLEMENTATION_PLAN.md
 ├── tests/
-│   └── test_parser.py    # 解析器 + 共识引擎测试
+│   ├── test_parser.py
+│   ├── test_cli.py
+│   └── test_scope_access.py
 ├── examples/
-│   └── capital_reflux_trap.md   # 完整示例文档
+│   ├── capital_reflux_trap.md
+│   ├── gradient_explosion.md
+│   └── attention_residual_discovery.md
 ├── pyproject.toml
+├── CHANGELOG.md
 └── README.md
 ```
 

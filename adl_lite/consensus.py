@@ -24,10 +24,8 @@ import hashlib
 import json
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, List, Optional, Set
 
 from .models import ADLDocument, DiscoveryStatus
-
 
 # ---------------------------------------------------------------------------
 # Enums
@@ -109,7 +107,7 @@ class ConceptChain:
 
     def __init__(self, adl_id: str) -> None:
         self.adl_id = adl_id
-        self.entries: List[ConsensusEntry] = []
+        self.entries: list[ConsensusEntry] = []
 
     def append(self, entry: ConsensusEntry) -> None:
         """Append a new entry, linking its parent hash to the previous tail."""
@@ -129,7 +127,7 @@ class ConceptChain:
             return "0" * 64
         return self.entries[-1].hash
 
-    def history(self) -> List[dict]:
+    def history(self) -> list[dict]:
         return [e.to_dict() for e in self.entries]
 
     def verify_integrity(self) -> bool:
@@ -161,9 +159,9 @@ class ForkManager:
 
     def __init__(self) -> None:
         # concept_id → list of forked concept_ids
-        self.forks: Dict[str, List[str]] = {}
+        self.forks: dict[str, list[str]] = {}
         # concept_id → creation timestamp
-        self.creation_times: Dict[str, str] = {}
+        self.creation_times: dict[str, str] = {}
 
     def register_fork(
         self,
@@ -193,7 +191,7 @@ class ForkManager:
             return ForkResolution.MERGED
         return ForkResolution.PARALLEL
 
-    def should_prune(self, concept_id: str, last_accessed: Optional[str] = None) -> bool:
+    def should_prune(self, concept_id: str, last_accessed: str | None = None) -> bool:
         """
         Check if a concept should be pruned (archived).
 
@@ -216,7 +214,7 @@ class ForkManager:
 
         return age_days > self.PRUNE_MIN_ENTRIES and idle_days > self.PRUNE_AGE_DAYS
 
-    def get_fork_tree(self, concept_id: str) -> Dict:
+    def get_fork_tree(self, concept_id: str) -> dict:
         """Return the fork tree rooted at concept_id."""
         return {
             "root": concept_id,
@@ -240,7 +238,7 @@ class ConsensusEngine:
     """
 
     def __init__(self) -> None:
-        self.chains: Dict[str, ConceptChain] = {}
+        self.chains: dict[str, ConceptChain] = {}
         self.fork_manager = ForkManager()
 
     # -- Chain lifecycle --
@@ -266,7 +264,7 @@ class ConsensusEngine:
         to_status: DiscoveryStatus,
         actor: str,
         reason: str = "",
-    ) -> Optional[ConsensusEntry]:
+    ) -> ConsensusEntry | None:
         """
         Transition a concept to a new status.
         Validates the transition is legal.
@@ -323,7 +321,7 @@ class ConsensusEngine:
 
     # -- Queries --
 
-    def get_history(self, adl_id: str) -> List[dict]:
+    def get_history(self, adl_id: str) -> list[dict]:
         if adl_id not in self.chains:
             return []
         return self.chains[adl_id].history()
@@ -333,7 +331,7 @@ class ConsensusEngine:
             return DiscoveryStatus.PROVISIONAL
         return self.chains[adl_id].latest_status
 
-    def verify_all(self) -> Dict[str, bool]:
+    def verify_all(self) -> dict[str, bool]:
         """Verify integrity of all chains."""
         return {cid: chain.verify_integrity() for cid, chain in self.chains.items()}
 

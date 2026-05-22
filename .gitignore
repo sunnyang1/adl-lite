@@ -13,6 +13,8 @@ htmlcov/
 .ruff_cache/
 *.db
 *.db-journal
+experiments/logs/*.jsonl
+!experiments/logs/.gitkeep
 .DS_Store
 .vscode/
 .idea/
