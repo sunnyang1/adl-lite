@@ -93,6 +93,9 @@ def test_run_judges_for_entry_mock(monkeypatch):
 
 def test_build_summary_aggregates():
     template = json.loads(DEFAULT_TEMPLATE.read_text(encoding="utf-8"))
+    # Isolate the scaffold case: summaries count every row with discovery_path populated.
+    for e in template["entries"][3:]:
+        e["discovery_path"] = ""
     for e in template["entries"][:3]:
         e["llm_judge_openai"] = {"score": 4, "model": "gpt-4o-mini", "rationale": "a"}
         e["llm_judge_claude"] = {"score": 5, "model": "claude-test", "rationale": "b"}

@@ -15,7 +15,7 @@
 |----|--------|---------------|----------|------------|
 | **RQ1** | Pilot ambiguity reduction | ~100% (rubric) | fair plain paired | Pilot complete |
 | **RQ1** | Human eval scaffold | `experiments/rq1_human_eval.py` + `data/eval/human_rq1_template.json` | — | **Template ready** (ratings pending) |
-| **RQ1** | LLM-as-judge (Cursor proxy, no user API keys) | `data/eval/human_rq1_template.json`, `docs/experiments/rq1_llm_judge_summary.json` | — | **Scored** (Judge A: `gpt-5.3-codex`, Judge B: `composer-2-fast`; Claude skipped by region) |
+| **RQ1** | LLM-as-judge (Cursor proxy, no user API keys) | `data/eval/human_rq1_template.json`, `docs/experiments/rq1_llm_judge_summary.json` | — | **Scored** n=15 (Judge A: `gpt-5.3-codex`, Judge B: `composer-2-fast`; Claude skipped by region) |
 | **RQ2** | Scripted consensus transitions | 8 (3 validated) | 0 (plain) | +8 vs plain |
 | **RQ2** | LLM batch (MiMo, n=10) | mean transitions **2.0** (σ=0), success **100%**, mean attempts **1.7**, revised **70%** | scripted 8 | Δ **−6.0** vs scripted; see `rq2_llm_summary.json` |
 | **RQ3** | Hit recall @10 (TF-IDF, n=25) | **1.00** | 0.80 fair plain | **+0.20** |
@@ -82,14 +82,14 @@ Structured slots + pronoun ban reduce fuzzy referents in L2 prose.
 - Script: `experiments/rq1_ambiguity.py`
 - Pilot compares ADL examples vs synthetic plain text with injected pronouns
 
-**MiMo batch discovery (2026-05-23):** `python -m experiments.rq1_batch_discover`
+**MiMo batch discovery:** `python -m experiments.rq1_batch_discover` — expand with **`--target-complete 15`** (rotates peripheral-trap → smurfing → crypto-mixer across empty template rows; **`--max-retries 2`** recommended).
 
 | Item | Value |
 |------|-------|
 | Provider | Xiaomi MiMo Token Plan CN (`mimo-v2.5-pro` @ `token-plan-cn.xiaomimimo.com`) |
-| Scenarios | 3 AML discoveries (peripheral trap, smurfing, crypto mixer) |
-| Validator pass | **3/3** (100%) after L2 rephrase on crypto-mixer (`that`+`have` false positive) |
-| Outputs | `experiments/outputs/llm_discovery_{peripheral-trap,smurfing-pattern,crypto-mixer}.md` |
+| Scenarios | 3 AML topic templates, expanded to **15** discoveries (canonical 3 + `*_batch*.md`) |
+| Validator pass | **15/15** (100%) on Track B pilot run (**2026-05-23** UTC) |
+| Outputs | `experiments/outputs/llm_discovery_{peripheral-trap,smurfing-pattern,crypto-mixer}.md` plus `llm_discovery_*_batch*.md` |
 | Template | `data/eval/human_rq1_template.json` updated with paths + `validator_pass` |
 | Human ratings | **Pending** (`referent_clarity` null; run `experiments/rq1_human_eval.py` after rating) |
 
@@ -100,14 +100,14 @@ Structured slots + pronoun ban reduce fuzzy referents in L2 prose.
 | Prompt | `prompts/judge_referent_clarity.md` (1–5 referent clarity, L2 only) |
 | Judges | Judge A: `gpt-5.3-codex (cursor-proxy)` (strict entity resolution), Judge B: `composer-2-fast (cursor-proxy)` (careful referent tracing) |
 | Claude status | Skipped (model unavailable in current region) |
-| Discoveries | n=3 MiMo outputs (same paths as human template) |
-| Fair plain | Paired L2 via `adl_to_fair_plain` on the same discovery paths (ADL vs plain Δ reported) |
+| Discoveries | **n=15** MiMo outputs (canonical + batch-expanded rows on the human template) |
+| Fair plain | Paired L2 via `adl_to_fair_plain` on the same discovery paths (identical wording to stripped L2 for these parses → Δ ≈ **0**) |
 | Output | `docs/experiments/rq1_llm_judge_summary.json`; scores written to `llm_judge_openai` / `llm_judge_composer` (+ `_plain`) on template entries |
 | Disagreement | Flag when \|Judge A − Judge B\| ≥ 2 on same discovery |
 
-Pilot scores (proxy run): mean ADL score **4.33** for both judges, disagreement count **0**, ADL-vs-plain mean Δ **0.00** for both judges.
+Proxy scores (**2026-05-24**, n=15): mean ADL score **4.067** (Judge A, codex-proxy), **4.600** (Judge B), mean of judge means ≈ **4.333**, **1** pairwise disagreement (crypto-mixer `batch009`, \|3−5\|), ADL-vs-plain mean Δ **0.00** for both judges.
 
-Retries: peripheral-trap 2 attempts (revised); smurfing 1 attempt; crypto-mixer 3 batch + 4 retry attempts (validator quirk on relative `that have`; one-line L2 rephrase applied).
+Retries (expand run): peripheral-trap batch rows often took **2** attempts (one revision cycle); crypto-mixer batches were mostly **1** attempt; canonical crypto-mixer (2026-05-23) needed L2 rephrase for validator pronoun heuristic.
 
 ### RQ2 — Consensus rounds
 
