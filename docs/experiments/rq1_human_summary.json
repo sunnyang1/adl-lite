@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-05-23T14:14:01.743266+00:00",
+  "metric": "human_referent_clarity",
+  "n_entries": 20,
+  "n_rated": 0,
+  "mean_referent_clarity": null,
+  "validator_pass_count": 3,
+  "n_with_discovery": 3,
+  "adl_mean_ambiguity": 0.0555,
+  "plain_mean_ambiguity": 0.0555,
+  "ambiguity_reduction_pct": 0.0,
+  "paired_details": [
+    {
+      "adl_id": "disc-llm-peripheral-trap",
+      "discovery_path": "experiments/outputs/llm_discovery_peripheral-trap.md",
+      "referent_clarity": null,
+      "validator_pass": true,
+      "adl_ambiguity": 0.08620689655172414,
+      "plain_ambiguity": 0.08620689655172414
+    },
+    {
+      "adl_id": "disc-llm-smurfing-pattern",
+      "discovery_path": "experiments/outputs/llm_discovery_smurfing-pattern.md",
+      "referent_clarity": null,
+      "validator_pass": true,
+      "adl_ambiguity": 0.08032128514056225,
+      "plain_ambiguity": 0.08032128514056225
+    },
+    {
+      "adl_id": "disc-llm-crypto-mixer",
+      "discovery_path": "experiments/outputs/llm_discovery_crypto-mixer.md",
+      "referent_clarity": null,
+      "validator_pass": true,
+      "adl_ambiguity": 0.0,
+      "plain_ambiguity": 0.0
+    }
+  ]
+}

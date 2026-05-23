@@ -72,6 +72,19 @@ Structured slots + pronoun ban reduce fuzzy referents in L2 prose.
 - Script: `experiments/rq1_ambiguity.py`
 - Pilot compares ADL examples vs synthetic plain text with injected pronouns
 
+**MiMo batch discovery (2026-05-23):** `python -m experiments.rq1_batch_discover`
+
+| Item | Value |
+|------|-------|
+| Provider | Xiaomi MiMo Token Plan CN (`mimo-v2.5-pro` @ `token-plan-cn.xiaomimimo.com`) |
+| Scenarios | 3 AML discoveries (peripheral trap, smurfing, crypto mixer) |
+| Validator pass | **3/3** (100%) after L2 rephrase on crypto-mixer (`that`+`have` false positive) |
+| Outputs | `experiments/outputs/llm_discovery_{peripheral-trap,smurfing-pattern,crypto-mixer}.md` |
+| Template | `data/eval/human_rq1_template.json` updated with paths + `validator_pass` |
+| Human ratings | **Pending** (`referent_clarity` null; run `experiments/rq1_human_eval.py` after rating) |
+
+Retries: peripheral-trap 2 attempts (revised); smurfing 1 attempt; crypto-mixer 3 batch + 4 retry attempts (validator quirk on relative `that have`; one-line L2 rephrase applied).
+
 ### RQ2 — Consensus rounds
 
 ADL records explicit transitions; plain Markdown has no lifecycle chain.

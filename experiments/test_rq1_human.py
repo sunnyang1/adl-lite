@@ -44,6 +44,8 @@ def test_summarize_mean_referent_clarity():
 def test_summarize_with_discovery_paths(tmp_path):
     example = ROOT / "examples" / "gradient_explosion.md"
     template = load_eval_template(TEMPLATE)
+    for entry in template["entries"]:
+        entry["discovery_path"] = ""
     template["entries"][0]["discovery_path"] = str(example.relative_to(ROOT))
     template["entries"][0]["referent_clarity"] = 5
 
@@ -70,6 +72,8 @@ def test_run_with_plain_stub(tmp_path):
 
     example = ROOT / "examples" / "gradient_explosion.md"
     template = load_eval_template(TEMPLATE)
+    for entry in template["entries"]:
+        entry["discovery_path"] = ""
     template["entries"][0]["discovery_path"] = str(example.relative_to(ROOT))
 
     summary = summarize(template, plain_stub=stub)

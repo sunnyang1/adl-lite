@@ -4,30 +4,30 @@
   "entries": [
     {
       "adl_id": "disc-llm-peripheral-trap",
-      "discovery_path": "",
-      "scenario": "Peripheral Attention Trap — graph peripheral node concentration while value consolidates toward a hidden sink; align with aml-attention-trap monitoring signals",
+      "discovery_path": "experiments/outputs/llm_discovery_peripheral-trap.md",
+      "scenario": "Peripheral Attention Trap \u2014 graph peripheral node concentration while value consolidates toward a hidden sink; align with aml-attention-trap monitoring signals",
       "referent_clarity": null,
-      "validator_pass": null,
+      "validator_pass": true,
       "rater": null,
       "notes": null
     },
     {
       "adl_id": "disc-llm-smurfing-pattern",
-      "discovery_path": "",
-      "scenario": "Smurfing Pattern — sub-threshold deposit structuring across a beneficial-owner network; align with aml-smurfing CTR threshold heuristics",
+      "discovery_path": "experiments/outputs/llm_discovery_smurfing-pattern.md",
+      "scenario": "Smurfing Pattern \u2014 sub-threshold deposit structuring across a beneficial-owner network; align with aml-smurfing CTR threshold heuristics",
       "referent_clarity": null,
-      "validator_pass": null,
+      "validator_pass": true,
       "rater": null,
       "notes": null
     },
     {
       "adl_id": "disc-llm-crypto-mixer",
-      "discovery_path": "",
-      "scenario": "Crypto Mixer Exposure — wallet activity linked to tumbler contracts with peel-chain off-ramp patterns; align with aml-crypto-mix monitoring signals",
+      "discovery_path": "experiments/outputs/llm_discovery_crypto-mixer.md",
+      "scenario": "Crypto Mixer Exposure \u2014 wallet activity linked to tumbler contracts with peel-chain off-ramp patterns; align with aml-crypto-mix monitoring signals",
       "referent_clarity": null,
-      "validator_pass": null,
+      "validator_pass": true,
       "rater": null,
-      "notes": null
+      "notes": "MiMo batch 2026-05-23; L2 rephrase for validator that+have false positive"
     },
     {
       "adl_id": null,
