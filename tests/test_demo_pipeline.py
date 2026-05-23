@@ -30,6 +30,7 @@ def test_scripted_pipeline_end_to_end(tmp_path: Path):
     assert "ADL Lite Demo Pipeline" in proc.stdout
     assert "disc-capital-trap" in proc.stdout
     assert "Stored" in proc.stdout
+    assert "isomorphic-to" in proc.stdout or "related concept" in proc.stdout.lower()
 
 
 def test_scripted_pipeline_default_mode(tmp_path: Path):

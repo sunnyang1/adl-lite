@@ -52,6 +52,14 @@ class PipelineSummary:
     skip_reason: str = ""
 
 
+def _resolve_query_key(mem: ADLMemory, query_id: str) -> str:
+    """Map adl_id to graph node label (concept name) when stored."""
+    doc = mem.warm.get_document(query_id)
+    if doc is not None:
+        return doc.concept_name
+    return query_id
+
+
 def _parse_validate_store(
     path: Path,
     validator: ADLValidator,
@@ -104,7 +112,8 @@ def run_scripted_pipeline(
 
         sim_log = run_scripted_sim(db_path=db_path)
         mem = ADLMemory(db_path=str(db_path))
-        related = mem.find_related(query_id, depth=depth)
+        query_key = _resolve_query_key(mem, query_id)
+        related = mem.find_related(query_key, depth=depth)
         mem.close()
         return PipelineSummary(
             mode="scripted-sim",
@@ -122,7 +131,8 @@ def run_scripted_pipeline(
     for path in paths:
         results.append(_parse_validate_store(path, validator, mem))
 
-    related = mem.find_related(query_id, depth=depth)
+    query_key = _resolve_query_key(mem, query_id)
+    related = mem.find_related(query_key, depth=depth)
     mem.close()
 
     return PipelineSummary(
@@ -189,7 +199,8 @@ def run_llm_pipeline(
         doc_results.append(_parse_validate_store(path, validator, mem))
 
     query_id = doc_results[0].adl_id
-    related = mem.find_related(query_id, depth=depth) if query_id else []
+    query_key = _resolve_query_key(mem, query_id) if query_id else ""
+    related = mem.find_related(query_key, depth=depth) if query_key else []
     mem.close()
 
     return PipelineSummary(
@@ -232,7 +243,7 @@ def print_summary(summary: PipelineSummary) -> None:
                 print(f"         - {err}")
 
     print()
-    print(f"Related query: {summary.query_id} (depth=2)")
+    print(f"Related query: {summary.query_id} (depth=2, graph key resolved from adl_id)")
     if summary.related:
         for concept, relation, conf in summary.related:
             print(f"  • {concept}  via {relation}  (conf={conf:.2f})")
