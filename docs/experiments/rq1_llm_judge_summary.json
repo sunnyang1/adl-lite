@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-23T18:13:07.050750+00:00",
+  "generated_at": "2026-05-23T18:34:08.369393+00:00",
   "metric": "llm_referent_clarity",
   "label": "LLM-as-judge (Cursor proxy, no user API keys)",
   "n_discoveries": 15,
@@ -37,24 +37,24 @@
     }
   },
   "plain_llm": {
-    "label": "ADL Markdown L2 vs MiMo unstructured plain baseline (fixture or live judging)",
+    "label": "ADL Markdown L2 vs MiMo unstructured plain baseline (live adjudication artifact or bundled fixture fallback)",
     "per_judge": {
       "openai_proxy": {
-        "model": "gpt-5.3-codex (fixture)",
+        "model": "gpt-5.3-codex (cursor-proxy)",
         "n_scored": 15,
-        "mean_plain_llm": 3.0,
-        "mean_delta_adl_minus_plain_llm": 1.0667
+        "mean_plain_llm": 2.6667,
+        "mean_delta_adl_minus_plain_llm": 1.4
       },
       "composer_proxy": {
-        "model": "composer-2-fast (fixture)",
+        "model": "composer-2-fast (cursor-proxy)",
         "n_scored": 15,
         "mean_plain_llm": 3.0,
         "mean_delta_adl_minus_plain_llm": 1.6
       }
     },
-    "plain_llm_judge_disagreement_count": 5,
-    "mean_across_judges_plain_llm": 3.0,
-    "mean_delta_adl_minus_plain_llm_between_judges_mean": 1.3334
+    "plain_llm_judge_disagreement_count": 0,
+    "mean_across_judges_plain_llm": 2.8334,
+    "mean_delta_adl_minus_plain_llm_between_judges_mean": 1.5
   },
   "entries": [
     {
@@ -74,9 +74,9 @@
             "rationale": "The fair-plain rendering preserves explicit node and account references, with only minor abstraction around ownership boundaries."
           },
           "plain_llm": {
-            "score": 3,
-            "model": "gpt-5.3-codex (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=openai_proxy"
+            "score": 2,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "Demonstratives and bare pronouns (they/it/this/that) dominate; only sparse generic anchors remain, forcing repeated inference."
           }
         },
         "composer_proxy": {
@@ -92,8 +92,8 @@
           },
           "plain_llm": {
             "score": 2,
-            "model": "composer-2-fast (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=composer_proxy"
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Heading states the AML pattern, yet every sentence leans on pronouns without pinning which accounts, corridors, or graph roles are referenced."
           }
         }
       },
@@ -118,9 +118,9 @@
             "rationale": "Plain L2 still keeps each actor, threshold, and transfer phase explicitly grounded by name."
           },
           "plain_llm": {
-            "score": 4,
-            "model": "gpt-5.3-codex (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=openai_proxy"
+            "score": 3,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "CTR thresholds and structuring vocabulary ground the AML story; pronouns still blur which depositors versus consolidation accounts execute each hop."
           }
         },
         "composer_proxy": {
@@ -136,8 +136,8 @@
           },
           "plain_llm": {
             "score": 3,
-            "model": "composer-2-fast (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=composer_proxy"
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Regulatory jargon provides partial anchors, though they/it/them swaps keep counterparties ambiguous from sentence to sentence."
           }
         }
       },
@@ -162,9 +162,9 @@
             "rationale": "Plain L2 retains explicit naming for wallet behavior and contract interactions, with only small inferential gaps in comparative phrasing."
           },
           "plain_llm": {
-            "score": 2,
-            "model": "gpt-5.3-codex (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=openai_proxy"
+            "score": 3,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "Mixer hops, peels, fiat spikes, and wallet clusters mostly name observable entities yet chained they/it tails still muddy upstream custody."
           }
         },
         "composer_proxy": {
@@ -180,14 +180,14 @@
           },
           "plain_llm": {
             "score": 4,
-            "model": "composer-2-fast (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=composer_proxy"
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Despite pronoun-heavy phrasing, each paragraph restates wallets, hops, fiat ramps, or peel chains so laundering roles largely stay traceable."
           }
         }
       },
       "abs_diff_a_b": 0,
       "judge_disagreement": false,
-      "pll_judge_disagreement": true
+      "pll_judge_disagreement": false
     },
     {
       "adl_id": "disc-llm-peripheral-trap-batch001",
@@ -206,9 +206,9 @@
             "rationale": "Entity references (monitoring architectures, flagged nodes, sink nodes) remain explicit; a few condensed policy phrases mildly compress beneficiary-level detail. Plain rendering matches stripped L2."
           },
           "plain_llm": {
-            "score": 3,
-            "model": "gpt-5.3-codex (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=openai_proxy"
+            "score": 2,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "Demonstratives and bare pronouns (they/it/this/that) dominate; only sparse generic anchors remain, forcing repeated inference."
           }
         },
         "composer_proxy": {
@@ -224,8 +224,8 @@
           },
           "plain_llm": {
             "score": 2,
-            "model": "composer-2-fast (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=composer_proxy"
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Heading states the AML pattern, yet every sentence leans on pronouns without pinning which accounts, corridors, or graph roles are referenced."
           }
         }
       },
@@ -250,9 +250,9 @@
             "rationale": "Stages and CTR framing are grounded; common smurfing nicknames lean on jargon rather than always restating counterparties. Plain rendering matches stripped L2."
           },
           "plain_llm": {
-            "score": 4,
-            "model": "gpt-5.3-codex (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=openai_proxy"
+            "score": 3,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "CTR thresholds and structuring vocabulary ground the AML story; pronouns still blur which depositors versus consolidation accounts execute each hop."
           }
         },
         "composer_proxy": {
@@ -268,8 +268,8 @@
           },
           "plain_llm": {
             "score": 3,
-            "model": "composer-2-fast (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=composer_proxy"
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Regulatory jargon provides partial anchors, though they/it/them swaps keep counterparties ambiguous from sentence to sentence."
           }
         }
       },
@@ -294,9 +294,9 @@
             "rationale": "Mixer and peel-chain roles are spelled out, yet one compressed abstraction asks for careful reading before wallet routes lock in. Plain rendering matches stripped L2."
           },
           "plain_llm": {
-            "score": 2,
-            "model": "gpt-5.3-codex (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=openai_proxy"
+            "score": 3,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "Mixer hops, peels, fiat spikes, and wallet clusters mostly name observable entities yet chained they/it tails still muddy upstream custody."
           }
         },
         "composer_proxy": {
@@ -312,14 +312,14 @@
           },
           "plain_llm": {
             "score": 4,
-            "model": "composer-2-fast (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=composer_proxy"
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Despite pronoun-heavy phrasing, each paragraph restates wallets, hops, fiat ramps, or peel chains so laundering roles largely stay traceable."
           }
         }
       },
       "abs_diff_a_b": 0,
       "judge_disagreement": false,
-      "pll_judge_disagreement": true
+      "pll_judge_disagreement": false
     },
     {
       "adl_id": "disc-llm-peripheral-trap-batch004",
@@ -338,9 +338,9 @@
             "rationale": "Hub versus peripheral contrasts are vivid; shorthand for monitoring assumptions maps cleanly back to centrality biases. Plain rendering matches stripped L2."
           },
           "plain_llm": {
-            "score": 3,
-            "model": "gpt-5.3-codex (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=openai_proxy"
+            "score": 2,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "Demonstratives and bare pronouns (they/it/this/that) dominate; only sparse generic anchors remain, forcing repeated inference."
           }
         },
         "composer_proxy": {
@@ -356,8 +356,8 @@
           },
           "plain_llm": {
             "score": 2,
-            "model": "composer-2-fast (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=composer_proxy"
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Heading states the AML pattern, yet every sentence leans on pronouns without pinning which accounts, corridors, or graph roles are referenced."
           }
         }
       },
@@ -382,9 +382,9 @@
             "rationale": "Quantitative deposit cues anchor the story; generalized references to differentiated depositors barely narrow counterparties. Plain rendering matches stripped L2."
           },
           "plain_llm": {
-            "score": 4,
-            "model": "gpt-5.3-codex (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=openai_proxy"
+            "score": 3,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "CTR thresholds and structuring vocabulary ground the AML story; pronouns still blur which depositors versus consolidation accounts execute each hop."
           }
         },
         "composer_proxy": {
@@ -400,8 +400,8 @@
           },
           "plain_llm": {
             "score": 3,
-            "model": "composer-2-fast (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=composer_proxy"
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Regulatory jargon provides partial anchors, though they/it/them swaps keep counterparties ambiguous from sentence to sentence."
           }
         }
       },
@@ -426,9 +426,9 @@
             "rationale": "Hop counts and fiat gateways read clearly while stacked risk idioms omit repeating each intermediary nickname. Plain rendering matches stripped L2."
           },
           "plain_llm": {
-            "score": 2,
-            "model": "gpt-5.3-codex (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=openai_proxy"
+            "score": 3,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "Mixer hops, peels, fiat spikes, and wallet clusters mostly name observable entities yet chained they/it tails still muddy upstream custody."
           }
         },
         "composer_proxy": {
@@ -444,14 +444,14 @@
           },
           "plain_llm": {
             "score": 4,
-            "model": "composer-2-fast (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=composer_proxy"
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Despite pronoun-heavy phrasing, each paragraph restates wallets, hops, fiat ramps, or peel chains so laundering roles largely stay traceable."
           }
         }
       },
       "abs_diff_a_b": 0,
       "judge_disagreement": false,
-      "pll_judge_disagreement": true
+      "pll_judge_disagreement": false
     },
     {
       "adl_id": "disc-llm-peripheral-trap-batch007",
@@ -470,9 +470,9 @@
             "rationale": "Centrality thresholds and simulations are precise; parallelism slightly abstracts concrete account identifiers. Plain rendering matches stripped L2."
           },
           "plain_llm": {
-            "score": 3,
-            "model": "gpt-5.3-codex (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=openai_proxy"
+            "score": 2,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "Demonstratives and bare pronouns (they/it/this/that) dominate; only sparse generic anchors remain, forcing repeated inference."
           }
         },
         "composer_proxy": {
@@ -488,8 +488,8 @@
           },
           "plain_llm": {
             "score": 2,
-            "model": "composer-2-fast (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=composer_proxy"
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Heading states the AML pattern, yet every sentence leans on pronouns without pinning which accounts, corridors, or graph roles are referenced."
           }
         }
       },
@@ -514,9 +514,9 @@
             "rationale": "CTR/SAR scaffolding is concrete; analogy-rich graph jargon recovers identifiable roles quickly. Plain rendering matches stripped L2."
           },
           "plain_llm": {
-            "score": 4,
-            "model": "gpt-5.3-codex (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=openai_proxy"
+            "score": 3,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "CTR thresholds and structuring vocabulary ground the AML story; pronouns still blur which depositors versus consolidation accounts execute each hop."
           }
         },
         "composer_proxy": {
@@ -532,8 +532,8 @@
           },
           "plain_llm": {
             "score": 3,
-            "model": "composer-2-fast (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=composer_proxy"
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Regulatory jargon provides partial anchors, though they/it/them swaps keep counterparties ambiguous from sentence to sentence."
           }
         }
       },
@@ -558,9 +558,9 @@
             "rationale": "Opening cluster description delays which wallets lead the SAR cohort until clauses downstream repair the ambiguity. Plain rendering matches stripped L2."
           },
           "plain_llm": {
-            "score": 2,
-            "model": "gpt-5.3-codex (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=openai_proxy"
+            "score": 3,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "Mixer hops, peels, fiat spikes, and wallet clusters mostly name observable entities yet chained they/it tails still muddy upstream custody."
           }
         },
         "composer_proxy": {
@@ -576,14 +576,14 @@
           },
           "plain_llm": {
             "score": 4,
-            "model": "composer-2-fast (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=composer_proxy"
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Despite pronoun-heavy phrasing, each paragraph restates wallets, hops, fiat ramps, or peel chains so laundering roles largely stay traceable."
           }
         }
       },
       "abs_diff_a_b": 2,
       "judge_disagreement": true,
-      "pll_judge_disagreement": true
+      "pll_judge_disagreement": false
     },
     {
       "adl_id": "disc-llm-peripheral-trap-batch010",
@@ -602,9 +602,9 @@
             "rationale": "Compliance cognitive-load narration names metrics and sinks yet stacked nominalizations add mild parsing friction. Plain rendering matches stripped L2."
           },
           "plain_llm": {
-            "score": 3,
-            "model": "gpt-5.3-codex (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=openai_proxy"
+            "score": 2,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "Demonstratives and bare pronouns (they/it/this/that) dominate; only sparse generic anchors remain, forcing repeated inference."
           }
         },
         "composer_proxy": {
@@ -620,8 +620,8 @@
           },
           "plain_llm": {
             "score": 2,
-            "model": "composer-2-fast (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=composer_proxy"
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Heading states the AML pattern, yet every sentence leans on pronouns without pinning which accounts, corridors, or graph roles are referenced."
           }
         }
       },
@@ -646,9 +646,9 @@
             "rationale": "CTR/SAR filings and funnel accounts enumerated with negligible unresolved referents. Plain rendering matches stripped L2."
           },
           "plain_llm": {
-            "score": 4,
-            "model": "gpt-5.3-codex (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=openai_proxy"
+            "score": 3,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "CTR thresholds and structuring vocabulary ground the AML story; pronouns still blur which depositors versus consolidation accounts execute each hop."
           }
         },
         "composer_proxy": {
@@ -664,8 +664,8 @@
           },
           "plain_llm": {
             "score": 3,
-            "model": "composer-2-fast (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=composer_proxy"
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Regulatory jargon provides partial anchors, though they/it/them swaps keep counterparties ambiguous from sentence to sentence."
           }
         }
       },
@@ -690,9 +690,9 @@
             "rationale": "Heuristic composites are spelled out although dense metric stacking rewards slow reading. Plain rendering matches stripped L2."
           },
           "plain_llm": {
-            "score": 2,
-            "model": "gpt-5.3-codex (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=openai_proxy"
+            "score": 3,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "Mixer hops, peels, fiat spikes, and wallet clusters mostly name observable entities yet chained they/it tails still muddy upstream custody."
           }
         },
         "composer_proxy": {
@@ -708,14 +708,14 @@
           },
           "plain_llm": {
             "score": 4,
-            "model": "composer-2-fast (fixture)",
-            "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=composer_proxy"
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Despite pronoun-heavy phrasing, each paragraph restates wallets, hops, fiat ramps, or peel chains so laundering roles largely stay traceable."
           }
         }
       },
       "abs_diff_a_b": 0,
       "judge_disagreement": false,
-      "pll_judge_disagreement": true
+      "pll_judge_disagreement": false
     }
   ],
   "judges_scored": [
@@ -729,18 +729,14 @@
     "composer_proxy": 0.0
   },
   "adl_vs_plain_plain_llm_delta_mean": {
-    "openai_proxy": 1.0667,
+    "openai_proxy": 1.4,
     "composer_proxy": 1.6
   },
   "judges_skipped_note": "Claude direct API deliberately unused; Composer proxy substitutes via Anthropic-compatible tests.",
   "judges_skipped": [],
   "plain_llm_fixture_merge_note": {
     "n_updated": 15,
-    "note": "Fixture merge (offline demo adjudication)"
-  },
-  "wave5a_live_proxy_attempt": {
-    "status": "blocked",
-    "reason": "OPENAI_API_KEY not set; ANTHROPIC_API_KEY not set during --all --plain-llm-live rerun",
-    "attempted_at": "2026-05-23T18:12:35Z"
+    "note": "Live Cursor proxy scores merged from JSON artifact",
+    "source": "/Users/michelleye/Documents/Allen's files/adl-lite/data/eval/rq1_plain_llm_live_proxy_wave6b.json"
   }
 }

@@ -1,6 +1,6 @@
 # Evaluation (draft)
 
-This section summarizes the Phase B pilot methodology and headline metrics for Research Questions **RQ1–RQ4**. All figures below appear in **`docs/experiments/summary_phase_b.json`**, **`docs/experiments/rq1_llm_judge_summary.json`**, **`docs/experiments/rq2_llm_summary.json`**, and the narrative tables in **`docs/experiments/RESULTS.md`**; where a standalone `rq3_ablation.json` file is unavailable, retrieval splits follow those documented sources (scenario queries **q01–q20**, **n = 20**, versus five **q21–q25** anchors designed as **L3-only** opaque-anchor probes that strip indexed-phrase relation signal from the fair-plain baseline—in other words, the “Table 1 / ablation” story is articulated in **`RESULTS.md`** Phase B prose rather than a separate JSON ledger).
+This section summarizes the Phase B pilot methodology and headline metrics for Research Questions **RQ1–RQ4**. All figures below appear in **`docs/experiments/summary_phase_b.json`**, **`docs/experiments/rq1_llm_judge_summary.json`**, **`docs/experiments/rq2_llm_summary.json`**, **`docs/experiments/rq3_ablation.json`**, and **`docs/paper/table2_results.md`** (combined Table 2 roll-up), with narrative exposition in **`docs/experiments/RESULTS.md`**. Retrieval splits follow scenario queries **`q01`–`q20`** (**`n = 20`**) versus five **`q21`–`q25`** anchors staged as **L3-only** opaque-anchor probes stripping indexed-phrase relation signal from fair-plain indexing.
 
 ## Setup and corpus
 
@@ -8,7 +8,7 @@ Indexing and retrieval pilots run over the AML mini corpus under **`data/aml/`**
 
 Consensus pilots pair a scripted five-document harness (**`experiments/rq2_consensus.py`**) against an optional MiMo-driven batch summarized post hoc (**n = 10** runs recorded in **`rq2_llm_summary.json`**).
 
-Ambiguity pilots combine the Phase **B** heuristic ambiguity rubric on **twenty-five paired documents** (**`rq1_ambiguity.n_pairs`: 25** in `summary_phase_b.json`; note `n_docs: 25` in the ambiguity block aligns with paired coverage) with a separate **LLM-as-judge referent clarity** pass over **n = 15** MiMo-expanded discoveries (**`rq1_llm_judge_summary.json`**, `n_discoveries: 15`), including a **fair plain** comparator (paired stripped L2) and an unstructured **plain-LLM** track whose aggregated scores presently merge demonstration fixture adjudication (see **`plain_llm`** field and **`plain_llm_fixture_merge_note`** in the same summary).
+Ambiguity pilots combine the Phase **B** heuristic ambiguity rubric on **twenty-five paired documents** (**`rq1_ambiguity.n_pairs`: 25** in `summary_phase_b.json`; note `n_docs: 25` in the ambiguity block aligns with paired coverage) with a separate **LLM-as-judge referent clarity** pass over **n = 15** MiMo-expanded discoveries (**`rq1_llm_judge_summary.json`**, `n_discoveries: 15`), including a **fair plain** comparator (paired stripped L2) and an unstructured **plain-LLM** track summarized under **`plain_llm`**. **`plain_llm_fixture_merge_note`** records either Wave 6b live merges (`merge_plain_llm_live_scores`) or legacy demo fixtures, so reruns distinguish committed adjudication payloads without invoking OpenAI/Anthropic CLI keys when the Cursor-proxy JSON path is used.
 
 Scope pilots issue **sixty validator probes**, all registering as denials (**`rq4_leakage`**: `denied_access: 60`, `probes: 60`, **`adl_leaks: 0`**).
 
@@ -18,9 +18,9 @@ The Phase B ambiguity rubric reports symmetric means between ADL and fair plain 
 
 Independent LLM-as-judge scores on **`n_discoveries: 15`** yield mean ADL clarity **4.0667** (strict proxy judge) versus **fair plain mean 4.0667**, and mean ADL clarity **4.6** versus **fair plain 4.6** (alternate proxy judge), producing **mean ADL − fair plain = 0.0** for both judges (**`fair_plain_comparison.adl_vs_plain_delta_mean`**). Aggregated judge means cite **mean_across_judges_adl: 4.3333**.
 
-The unstructured **plain-LLM** arm—documented separately under **`plain_llm`**—reports pooled judge means for the plain writings of **3.0**, with mean ADL-minus-plain-LLM deltas **1.0667** and **1.6000** respectively, yielding a between-judge mean delta of approximately **1.3334**. Judge disagreement thresholds (Δ ≥ **2**) register **five** disputed rows specifically on the plain-LLM strand (`plain_llm_judge_disagreement_count`). Across the fifteen ADL/fair-plain rows, adjudicators disagree widely on only **one** discovery (`disagreement_count` **1** in the aggregate summary).
+The unstructured **plain-LLM** arm—documented under **`plain_llm`**—pools three MiMo unstructured writings (one AML slug scenario each) reused across all fifteen templated discoveries. Means on that baseline are **2.667** (Judge A) and **3.000** (Judge B) with pooled ADL − plain deltas **+1.400** and **+1.600** respectively (**≈ +1.500** averaging those judge-specific deltas); **`plain_llm_judge_disagreement_count`** falls to **0** because adjudication attaches to slug-level prose bundles where inter-judge spread stays beneath the disagreement threshold (**\|3 − 4\| < 2** after Wave 6b refresh). Across the fifteen ADL / fair-plain pairings adjudicators diverge materially on exactly **one** discovery (`disagreement_count` **1**).
 
-**Limitations (RQ1):** Sample size is bounded (**n = 15** judge pass; rubric **`n_pairs` = 25**). Judgments stem from Cursor-proxy LLM adjudication—not human labeling—supporting reproducibility probes over population claims. Fixture-merged **`plain_llm`** scores denote demo adjudication; authors must replace fixtures with fully live runs before treating that arm as externally validated evidence.
+**Limitations (RQ1):** Sample size is bounded (**n = 15** judge pass; rubric **`n_pairs` = 25**). Plain-LLM judgments remain proxy adjudication mediated through Cursor—not human-rated gold labels—although Wave 6b removes API-key gated fixture dependence for unstructured snapshots.
 
 ## RQ2 — Consensus transitions
 
@@ -30,7 +30,7 @@ The scripted Phase B harness records **eight ADL transitions** validating **thre
 
 ## RQ3 — Retrieval recall @10
 
-Because **`docs/experiments/rq3_ablation.json`** is absent, we anchor ablation narration to **`summary_phase_b.json` / RESULTS Phase B**:
+Splits below mirror **`docs/experiments/rq3_ablation.json`** (frozen Phase B reruns) and **`table2_results.md`** formatting:
 
 - Aggregate TF-IDF run (**`n_queries` = 25**): **hit recall 1.00** (ADL) versus **0.80** fair plain (**`delta` = +0.20**); label recall **0.9667** versus **0.7267** (**`label_recall_delta` ≈ +0.24**, matching **RESULTS.md** rounding).
 - Scenario-only cohort (**q01–q20**, **`scenario_n_queries` = 20**): **`scenario_hit_delta` = +0.00**, **`scenario_label_delta` ≈ +0.05**.
@@ -47,4 +47,4 @@ The pilot emits **`adl_leaks` = 0** with **`60/60` probes denied** via **`valida
 
 ---
 
-In sum, the Phase B aggregates establish measurable retrieval uplift under explicit L3 signal, mechanically traceable consensus events, deterministic scope denial on curated probes, and mixed ambiguity outcomes depending on fairness controls—all documented with exact JSON provenance cited above—while underscoring LLM adjudication, fixture reuse, retrieval ablations, and harness heterogeneity as open threats to external validity pending Track 3 consolidation (e.g., formal **Table 1** packaging once retrieval ablations are frozen in standalone artifacts).
+In sum, the Phase B aggregates establish measurable retrieval uplift under explicit L3 signal, mechanically traceable consensus events, deterministic scope denial on curated probes, and mixed ambiguity outcomes depending on fairness controls—all documented with provenance cited above—including **Table 2** (`docs/paper/table2_results.md`) as a consolidated pilot ledger while acknowledging proxy adjudication workload heterogeneity across RQs pending larger human-rated studies.

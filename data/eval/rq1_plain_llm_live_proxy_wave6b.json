@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "note": "Wave 6b live Cursor-proxy adjudication of unstructured plain_discovery_*.md (no external judge APIs). Judges applied prompts/judge_referent_clarity.md to prose bodies only.",
+  "generated_at": "2026-05-24T12:00:00+00:00",
+  "per_slug": {
+    "peripheral-trap": {
+      "openai_proxy": {
+        "score": 2,
+        "rationale": "Demonstratives and bare pronouns (they/it/this/that) dominate; only sparse generic anchors remain, forcing repeated inference."
+      },
+      "composer_proxy": {
+        "score": 2,
+        "rationale": "Heading states the AML pattern, yet every sentence leans on pronouns without pinning which accounts, corridors, or graph roles are referenced."
+      }
+    },
+    "smurfing-pattern": {
+      "openai_proxy": {
+        "score": 3,
+        "rationale": "CTR thresholds and structuring vocabulary ground the AML story; pronouns still blur which depositors versus consolidation accounts execute each hop."
+      },
+      "composer_proxy": {
+        "score": 3,
+        "rationale": "Regulatory jargon provides partial anchors, though they/it/them swaps keep counterparties ambiguous from sentence to sentence."
+      }
+    },
+    "crypto-mixer": {
+      "openai_proxy": {
+        "score": 3,
+        "rationale": "Mixer hops, peels, fiat spikes, and wallet clusters mostly name observable entities yet chained they/it tails still muddy upstream custody."
+      },
+      "composer_proxy": {
+        "score": 4,
+        "rationale": "Despite pronoun-heavy phrasing, each paragraph restates wallets, hops, fiat ramps, or peel chains so laundering roles largely stay traceable."
+      }
+    }
+  }
+}

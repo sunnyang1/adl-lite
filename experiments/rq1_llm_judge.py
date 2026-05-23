@@ -10,6 +10,8 @@ written by ``experiments/rq1_plain_discover.py`` comparisons.
 
 Examples:
   python -m experiments.rq1_llm_judge --summarize-from-template --plain-fixture experiments/fixtures/plain_llm_judge_scores_demo.json
+  python -m experiments.rq1_llm_judge --summarize-from-template --proxy-only                 # merges data/eval/rq1_plain_llm_live_proxy_wave6b.json
+  python -m experiments.rq1_llm_judge --summarize-from-template --plain-live-scores PATH.json
   python -m experiments.rq1_llm_judge --discovery experiments/outputs/llm_discovery_peripheral-trap.md
 """
 
@@ -32,7 +34,11 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_TEMPLATE = ROOT / "data" / "eval" / "human_rq1_template.json"
 DEFAULT_SUMMARY = ROOT / "docs" / "experiments" / "rq1_llm_judge_summary.json"
 DEFAULT_PLAIN_LLM_FIXTURE = ROOT / "experiments" / "fixtures" / "plain_llm_judge_scores_demo.json"
+DEFAULT_PLAIN_LLM_LIVE_PROXY = ROOT / "data" / "eval" / "rq1_plain_llm_live_proxy_wave6b.json"
 JUDGE_PROMPT_PATH = ROOT / "prompts" / "judge_referent_clarity.md"
+
+_MODEL_OPENAI_PROXY = "gpt-5.3-codex (cursor-proxy)"
+_MODEL_COMPOSER_PROXY = "composer-2-fast (cursor-proxy)"
 
 FIELD_OPENAI = "llm_judge_openai"
 FIELD_COMPOSER = "llm_judge_composer"
@@ -124,6 +130,65 @@ def judge_text(
 
 def plain_llm_fixture_path(fixture: Path | None) -> Path:
     return fixture or DEFAULT_PLAIN_LLM_FIXTURE
+
+
+def _unpack_proxy_score(bundle: dict[str, Any] | int | float | None, *, rationale_hint: str) -> tuple[int, str]:
+    """Return integral score plus rationale pulled from ints or richer dict payloads."""
+    if bundle is None:
+        raise ValueError("missing proxied judge score")
+    if isinstance(bundle, dict):
+        scr = bundle.get("score")
+        rationale = str(bundle.get("rationale") or "").strip()
+        if scr is None:
+            raise ValueError("score dict missing score field")
+        if not rationale:
+            rationale = rationale_hint
+        return int(scr), rationale
+    return int(bundle), rationale_hint
+
+
+def merge_plain_llm_live_scores(
+    template: dict,
+    scores_json: Path,
+    *,
+    note: str = "Live Cursor proxy scores merged from JSON artifact",
+) -> dict[str, Any]:
+    """Hydrate unstructured plain-baseline judgments without invoking external APIs."""
+    data = json.loads(scores_json.read_text(encoding="utf-8"))
+    per_slug = data.get("per_slug", data)
+    if not isinstance(per_slug, dict):
+        raise ValueError("scores JSON must expose per_slug mapping")
+
+    models = {"openai_proxy": _MODEL_OPENAI_PROXY, "composer_proxy": _MODEL_COMPOSER_PROXY}
+
+    updated = 0
+    for entry in template.get("entries", []):
+        slug = slug_from_adl_id(entry.get("adl_id"))
+        if slug is None or not str(entry.get("discovery_path") or "").strip():
+            continue
+        slug_bundle = per_slug.get(slug)
+        if slug_bundle is None or not isinstance(slug_bundle, dict):
+            raise KeyError(f"scores JSON missing slug payload for {slug}")
+
+        ao_bundle = slug_bundle.get("openai_proxy")
+        bc_bundle = slug_bundle.get("composer_proxy")
+
+        ao, ao_rationale = _unpack_proxy_score(
+            cast(dict[str, Any] | int | float | None, ao_bundle),
+            rationale_hint=f"{note} slug={slug} judge=A",
+        )
+        bc, bc_rationale = _unpack_proxy_score(
+            cast(dict[str, Any] | int | float | None, bc_bundle),
+            rationale_hint=f"{note} slug={slug} judge=B",
+        )
+
+        entry[FIELD_OPENAI_PLLM] = {"score": int(ao), "model": models["openai_proxy"], "rationale": ao_rationale}
+        entry[FIELD_COMPOSER_PLLM] = {"score": int(bc), "model": models["composer_proxy"], "rationale": bc_rationale}
+        entry["referent_clarity_openai_plain_llm"] = int(ao)
+        entry["referent_clarity_composer_plain_llm"] = int(bc)
+        updated += 1
+
+    return {"n_updated": updated, "note": note, "source": str(scores_json)}
 
 
 def merge_plain_llm_fixture(
@@ -317,7 +382,7 @@ def summarize_from_template(
         "per_judge": {},
         "fair_plain_comparison": {},
         "plain_llm": {
-            "label": "ADL Markdown L2 vs MiMo unstructured plain baseline (fixture or live judging)",
+            "label": "ADL Markdown L2 vs MiMo unstructured plain baseline (live adjudication artifact or bundled fixture fallback)",
             "per_judge": {},
             "plain_llm_judge_disagreement_count": 0,
         },
@@ -488,6 +553,8 @@ def run(
     summarize_only: bool = False,
     merge_plain_fixture_auto: bool = True,
     plain_fixture: Path | None = None,
+    plain_live_scores: Path | None = None,
+    proxy_only: bool = False,
     write_template: bool = True,
     system_prompt: str | None = None,
     chat_fn: JudgeChatFn | None = None,
@@ -496,11 +563,33 @@ def run(
 
     merged_note: dict[str, Any] | None = None
     if summarize_only:
-        fx = plain_fixture if plain_fixture is not None else (DEFAULT_PLAIN_LLM_FIXTURE if merge_plain_fixture_auto else None)
-        if fx is not None and Path(fx).exists():
-            merged_note = merge_plain_llm_fixture(template, Path(fx))
-            if write_template:
-                save_template(template, template_path)
+        merge_performed = False
+
+        liv_path = Path(plain_live_scores).expanduser().resolve() if plain_live_scores is not None else None
+        if liv_path is not None:
+            if not liv_path.exists():
+                raise FileNotFoundError(liv_path)
+            merged_note = merge_plain_llm_live_scores(template, liv_path)
+            merge_performed = True
+        elif proxy_only:
+            score_path = DEFAULT_PLAIN_LLM_LIVE_PROXY
+            if not score_path.exists():
+                raise FileNotFoundError(score_path)
+            merged_note = merge_plain_llm_live_scores(template, score_path)
+            merge_performed = True
+        elif plain_fixture is not None:
+            cand = plain_llm_fixture_path(plain_fixture)
+            merged_note = merge_plain_llm_fixture(template, cand)
+            merge_performed = True
+        elif merge_plain_fixture_auto:
+            fx = plain_llm_fixture_path(None)
+            if fx.exists():
+                merged_note = merge_plain_llm_fixture(template, fx)
+                merge_performed = True
+
+        if write_template and merge_performed:
+            save_template(template, template_path)
+
     elif plain_fixture:
         merged_note = merge_plain_llm_fixture(template, plain_llm_fixture_path(plain_fixture))
         if write_template:
@@ -561,10 +650,21 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--summarize-from-template",
         action="store_true",
-        help="Rebuild summary JSON; merges bundled plain-LLM fixture unless overridden",
+        help="Rebuild summary JSON; merges plain prose scores (fixture by default)",
     )
     parser.add_argument("--plain-fixture", type=Path, default=None, help="Alternate plain-LLM score fixture")
     parser.add_argument("--no-plain-fixture", action="store_true")
+    parser.add_argument(
+        "--proxy-only",
+        action="store_true",
+        help="Prefer live Cursor-proxy JSON (default data/eval/rq1_plain_llm_live_proxy_wave6b.json) during summarize-only",
+    )
+    parser.add_argument(
+        "--plain-live-scores",
+        type=Path,
+        default=None,
+        help="Explicit plain-LLM adjudication artifact (structured like data/eval/rq1_plain_llm_live_proxy_wave6b.json)",
+    )
     parser.add_argument(
         "--plain-llm-live",
         action="store_true",
@@ -598,6 +698,8 @@ def main(argv: list[str] | None = None) -> None:
         summarize_only=args.summarize_from_template,
         merge_plain_fixture_auto=not args.no_plain_fixture,
         plain_fixture=args.plain_fixture,
+        plain_live_scores=args.plain_live_scores,
+        proxy_only=args.proxy_only,
         write_template=not args.no_write_template,
     )
     print(json.dumps(summary, indent=2))

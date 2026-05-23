@@ -53,16 +53,16 @@ Discoverer → Reviewer → Skeptic → Merger → Librarian (`docs/AGENT_WORKFL
 
 ## 5. Evaluation
 
-- Dataset: `data/aml/` — 20 concepts, 15 queries
-- Baselines: plain Markdown, YAML-only wiki
-- Results: `docs/experiments/RESULTS.md` (**pilot numbers**)
+- Dataset: `data/aml/` — 20 concepts, 25 queries @ k=10
+- Baselines: plain Markdown fair-plain + unstructured MiMo stubs
+- Results: **`docs/experiments/RESULTS.md`**, condensed **Table 2** in **`table2_results.md`** (paper folder)
 
 ### 5.1 RQ1 — Referential ambiguity
 
-- **Claim:** ADL enforces high referent clarity, but post-v0.3.0 fair-plain comparisons do not show a measurable ADL-vs-plain gain.
-- **Method:** Ran `experiments/rq1_ambiguity.py` on Phase B pairs and a post-v0.3.0 LLM-as-judge pass (`docs/experiments/rq1_llm_judge_summary.json`) over three MiMo-generated discoveries using a shared L2 rubric.
-- **Key numbers:** Phase B ambiguity rubric: `adl_mean_ambiguity=0.0`, `plain_mean_ambiguity=0.0`, `ambiguity_reduction_pct=0.0` (`n_pairs=25`). LLM-as-judge: `n_discoveries=3`, mean ADL score `4.3333` for both judges, mean ADL-minus-plain `0.0`, disagreement count `0`.
-- **Limitations:** Only `n=3` post-v0.3.0 discoveries were judged; the judge pass is LLM-as-judge (not human annotation), so it supports consistency checks rather than human-grounded quality claims.
+- **Claim:** Structured **ADL L2** aligns with fairness-stripped prose while retaining higher clarity than unstructured plain baselines laden with banned pronouns in this pilot snapshot.
+- **Method:** Combine `experiments/rq1_ambiguity.py`, `human_rq1_template.json`, and `docs/experiments/rq1_llm_judge_summary.json`.
+- **Key numbers (Wave 6b):** `n_discoveries=15`; fair-plain deltas `≈0` for paired judgings; unstructured plain pooled means **`2.667` / `3.000`** with ADL-plain deltas **`+1.400` / `+1.600` (~`+1.500` pooled)**; disagreement on ADL **1** ×15 pairing; unstructured judge disagreement **`0`** owing to reused slug adjudications.
+- **Limitations:** Proxy adjudication substitutes for blind human labeling; unstructured writing sample count remains **three** prose bodies expanded across rows.
 
 ### 5.2 RQ2 — Consensus transitions
 
@@ -74,7 +74,7 @@ Discoverer → Reviewer → Skeptic → Merger → Librarian (`docs/AGENT_WORKFL
 ### 5.3 RQ3 — Retrieval recall@10
 
 - **Claim:** ADL retrieval outperforms fair plain overall, with gains concentrated in relation-aware query settings rather than base scenario-only queries.
-- **Method:** Ran `experiments/rq3_retrieval.py` in Phase B at `k=10` for TF-IDF and hybrid scorers, then split metrics across scenario (`q01`-`q20`), L3-only (`q21`-`q25`), and full query sets.
+- **Method:** Ran `experiments/rq3_retrieval.py` in Phase B at `k=10` for TF-IDF and hybrid scorers, then split metrics across scenario (`q01`-`q20`), L3-only (`q21`-`q25`), and full query sets (see `docs/experiments/rq3_ablation.json` + **`table2_results.md`** alongside Table 1 here).
 - **Table 1 (hit recall@10 ablation):**
 
 | Subset | Scorer | ADL recall | Plain | Delta |

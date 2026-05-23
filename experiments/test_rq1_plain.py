@@ -57,6 +57,48 @@ def test_next_plain_need_index_requires_discovery():
     assert next_plain_need_index(template) == 1
 
 
+def test_merge_plain_live_scores(tmp_path):
+    from experiments.rq1_llm_judge import merge_plain_llm_live_scores, summarize_from_template
+
+    tpl = {
+        "entries": [
+            {
+                "adl_id": "disc-llm-peripheral-trap",
+                "discovery_path": "experiments/outputs/d1.md",
+                "plain_discovery_path": "experiments/outputs/p1.md",
+                "llm_judge_openai": {"score": 4, "model": "m", "rationale": "adl"},
+                "llm_judge_composer": {"score": 4, "model": "m", "rationale": "adl"},
+                "llm_judge_openai_plain": {"score": 4, "model": "m", "rationale": "fp"},
+                "llm_judge_composer_plain": {"score": 4, "model": "m", "rationale": "fp"},
+            }
+        ]
+    }
+    live = tmp_path / "live_scores.json"
+    live.write_text(
+        json.dumps(
+            {
+                "per_slug": {
+                    "peripheral-trap": {
+                        "openai_proxy": {"score": 3, "rationale": "test-a"},
+                        "composer_proxy": {"score": 2, "rationale": "test-b"},
+                    }
+                }
+            },
+        ),
+        encoding="utf-8",
+    )
+
+    note = merge_plain_llm_live_scores(tpl, live)
+    summary = summarize_from_template(tpl)
+    assert note["n_updated"] == 1
+    pll = summary["plain_llm"]["per_judge"]["openai_proxy"]
+    assert pll["mean_plain_llm"] == 3.0
+    assert pll["mean_delta_adl_minus_plain_llm"] == 1.0
+    packed = tpl["entries"][0]["llm_judge_openai_plain_llm"]
+    assert packed["score"] == 3
+    assert "(cursor-proxy)" in packed["model"]
+
+
 def test_fixture_merge_flow(tmp_path):
     from experiments.rq1_llm_judge import merge_plain_llm_fixture, summarize_from_template
 
