@@ -16,7 +16,7 @@ Multi-agent systems generate overlapping conceptual discoveries in unstructured 
 
 ## 2. Related Work
 
-See [`RELATED_WORK.md`](RELATED_WORK.md).
+Draft: [`draft_related_work.md`](draft_related_work.md).
 
 ## 3. Research Questions
 
@@ -28,6 +28,8 @@ See [`RELATED_WORK.md`](RELATED_WORK.md).
 | RQ4 | Does scope ACL prevent leakage? | Cross-scope leak count |
 
 ## 4. Method
+
+Draft: [`draft_method.md`](draft_method.md).
 
 ### 4.1 Three-layer syntax (L1/L2/L3)
 
@@ -102,6 +104,8 @@ Discoverer → Reviewer → Skeptic → Merger → Librarian (`docs/AGENT_WORKFL
 ## 7. Conclusion
 
 ADL Lite demonstrates that Markdown-native SSA is sufficient for Phase 1 consensus traceability and scope guarantees; retrieval gains are strongest when L3 relation signal is query-relevant, and ambiguity claims remain provisional pending larger human-rated studies.
+
+Draft: [`draft_conclusion.md`](draft_conclusion.md).
 
 ## Appendix
 
