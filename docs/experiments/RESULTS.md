@@ -8,6 +8,7 @@
 |----|--------|---------------|----------|------------|
 | **RQ1** | Pilot ambiguity reduction | ~100% (rubric) | fair plain paired | Pilot complete |
 | **RQ1** | Human eval scaffold | `experiments/rq1_human_eval.py` + `data/eval/human_rq1_template.json` | — | **Template ready** (ratings pending) |
+| **RQ1** | LLM-as-judge (OpenAI + Claude) | `experiments/rq1_llm_judge.py` | — | **Scaffold ready** (set `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) |
 | **RQ2** | Scripted consensus transitions | 8 (3 validated) | 0 (plain) | +8 vs plain |
 | **RQ2** | LLM batch (MiMo, n=10) | mean transitions **2.0** (σ=0), success **100%**, mean attempts **1.7**, revised **70%** | scripted 8 | Δ **−6.0** vs scripted; see `rq2_llm_summary.json` |
 | **RQ3** | Hit recall @10 (TF-IDF, n=25) | **1.00** | 0.80 fair plain | **+0.20** |
@@ -84,6 +85,25 @@ Structured slots + pronoun ban reduce fuzzy referents in L2 prose.
 | Outputs | `experiments/outputs/llm_discovery_{peripheral-trap,smurfing-pattern,crypto-mixer}.md` |
 | Template | `data/eval/human_rq1_template.json` updated with paths + `validator_pass` |
 | Human ratings | **Pending** (`referent_clarity` null; run `experiments/rq1_human_eval.py` after rating) |
+
+**LLM-as-judge referent clarity (not human rubric):** separate providers from MiMo discoverer.
+
+```bash
+pip install -e ".[dev,experiments]"
+source .env   # OPENAI_API_KEY, ANTHROPIC_API_KEY
+python -m experiments.rq1_llm_judge --all --judges openai,claude
+```
+
+| Item | Value |
+|------|-------|
+| Prompt | `prompts/judge_referent_clarity.md` (1–5 referent clarity, L2 only) |
+| Judges | OpenAI (`OPENAI_JUDGE_MODEL`, default `gpt-4o-mini`), Claude (`ANTHROPIC_JUDGE_MODEL`, default `claude-sonnet-4-20250514`) |
+| Discoveries | n=3 MiMo outputs (same paths as human template) |
+| Fair plain | Optional paired L2 via `adl_to_fair_plain` (ADL vs plain Δ in summary) |
+| Output | `docs/experiments/rq1_llm_judge_summary.json`; scores written to `llm_judge_openai` / `llm_judge_claude` on template entries |
+| Disagreement | Flag when \|OpenAI − Claude\| ≥ 2 on same discovery |
+
+Pilot scores: run locally with API keys; summary records `judges_skipped` when keys are missing.
 
 Retries: peripheral-trap 2 attempts (revised); smurfing 1 attempt; crypto-mixer 3 batch + 4 retry attempts (validator quirk on relative `that have`; one-line L2 rephrase applied).
 

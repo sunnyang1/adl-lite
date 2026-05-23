@@ -1,0 +1,62 @@
+{
+  "generated_at": "2026-05-23T16:36:46.513718+00:00",
+  "metric": "llm_referent_clarity",
+  "label": "LLM-as-judge (not human evaluation)",
+  "n_discoveries": 3,
+  "disagreement_threshold": 2,
+  "per_judge": {},
+  "entries": [
+    {
+      "adl_id": "disc-llm-peripheral-trap",
+      "discovery_path": "experiments/outputs/llm_discovery_peripheral-trap.md",
+      "judges": {},
+      "skipped": [
+        {
+          "provider": "openai",
+          "reason": "openai API not configured"
+        },
+        {
+          "provider": "claude",
+          "reason": "claude API not configured"
+        }
+      ]
+    },
+    {
+      "adl_id": "disc-llm-smurfing-pattern",
+      "discovery_path": "experiments/outputs/llm_discovery_smurfing-pattern.md",
+      "judges": {},
+      "skipped": [
+        {
+          "provider": "openai",
+          "reason": "openai API not configured"
+        },
+        {
+          "provider": "claude",
+          "reason": "claude API not configured"
+        }
+      ]
+    },
+    {
+      "adl_id": "disc-llm-crypto-mixer",
+      "discovery_path": "experiments/outputs/llm_discovery_crypto-mixer.md",
+      "judges": {},
+      "skipped": [
+        {
+          "provider": "openai",
+          "reason": "openai API not configured"
+        },
+        {
+          "provider": "claude",
+          "reason": "claude API not configured"
+        }
+      ]
+    }
+  ],
+  "judges_scored": [],
+  "mean_across_judges_adl": null,
+  "disagreement_count": 0,
+  "judges_skipped": [
+    "claude",
+    "openai"
+  ]
+}
