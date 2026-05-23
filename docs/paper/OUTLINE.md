@@ -6,7 +6,7 @@
 
 ## Abstract (stub)
 
-Multi-agent systems generate overlapping conceptual discoveries in unstructured prose, causing ambiguity, scope leakage, and fork chaos. ADL Lite embeds Structured Semantic Anchoring (SSA) in Markdown via L1 YAML, L2 prose, and L3 typed blocks, with a hybrid memory index and blockchain-isomorphic consensus chains. Pilot evaluation on a 20-concept AML dataset shows zero scope leaks and measurable ambiguity reduction vs plain Markdown baselines.
+Multi-agent systems generate overlapping conceptual discoveries in unstructured prose, causing ambiguity, scope leakage, and fork chaos. ADL Lite embeds Structured Semantic Anchoring (SSA) in Markdown via L1 YAML, L2 prose, and L3 typed blocks, with a hybrid memory index and blockchain-isomorphic consensus chains. Phase B and post-v0.3.0 pilots show zero scope leaks, higher retrieval recall, and explicit lifecycle traces, while ambiguity gains are mixed under fair-plain pairings.
 
 ## 1. Introduction
 
@@ -53,6 +53,35 @@ Discoverer → Reviewer → Skeptic → Merger → Librarian (`docs/AGENT_WORKFL
 - Baselines: plain Markdown, YAML-only wiki
 - Results: `docs/experiments/RESULTS.md` (**pilot numbers**)
 
+### 5.1 RQ1 — Referential ambiguity
+
+- **Claim:** ADL enforces high referent clarity, but post-v0.3.0 fair-plain comparisons do not show a measurable ADL-vs-plain gain.
+- **Method:** Ran `experiments/rq1_ambiguity.py` on Phase B pairs and a post-v0.3.0 LLM-as-judge pass (`docs/experiments/rq1_llm_judge_summary.json`) over three MiMo-generated discoveries using a shared L2 rubric.
+- **Key numbers:** Phase B ambiguity rubric: `adl_mean_ambiguity=0.0`, `plain_mean_ambiguity=0.0`, `ambiguity_reduction_pct=0.0` (`n_pairs=25`). LLM-as-judge: `n_discoveries=3`, mean ADL score `4.3333` for both judges, mean ADL-minus-plain `0.0`, disagreement count `0`.
+- **Limitations:** Only `n=3` post-v0.3.0 discoveries were judged; the judge pass is LLM-as-judge (not human annotation), so it supports consistency checks rather than human-grounded quality claims.
+
+### 5.2 RQ2 — Consensus transitions
+
+- **Claim:** ADL records explicit consensus lifecycle steps, while plain Markdown has no transition chain.
+- **Method:** Used scripted consensus simulation (`experiments/rq2_consensus.py`) and post-v0.3.0 MiMo batch runs summarized in `docs/experiments/rq2_llm_summary.json`.
+- **Key numbers:** Scripted Phase B: `8` ADL transitions (`3` validated docs, `n_docs=5`) vs plain baseline `0`. LLM batch (`n=10`): mean transitions `2.0` (std `0.0`), success rate `1.0`, mean attempts `1.7`, revised rate `0.7`, delta vs scripted `-6.0`.
+- **Limitations:** LLM runs reached only register+validate (`2` transitions) per single-discovery run, while scripted totals (`8`) aggregate a multi-document harness; these counts are not a direct like-for-like efficiency comparison.
+
+### 5.3 RQ3 — Retrieval recall@10
+
+- **Claim:** ADL retrieval outperforms fair plain overall, with gains concentrated in relation-aware query settings rather than base scenario-only queries.
+- **Method:** Ran `experiments/rq3_retrieval.py` in Phase B TF-IDF mode on the AML query set with ADL indexing (L2+L3) versus fair plain (L2-only).
+- **Key numbers:** Full set (`n_queries=25`): hit recall `1.00` vs `0.80` (delta `+0.20`), label recall `0.9667` vs `0.7267` (delta `+0.24`). Scenario subset (`q01`-`q20`, `n=20`): hit delta `+0.00`, label delta `+0.05`.
+- **Limitations:** The full-set delta includes `q21`-`q25` L3-only opaque-anchor queries; scenario-only deltas are smaller, so reported overall gains should be read with that ablation split.
+- **Ablation note:** `q01`-`q20` (scenario) captures base retrieval behavior, while `q21`-`q25` isolates L3-only signal that drives most of the hit-recall gap.
+
+### 5.4 RQ4 — Scope leakage
+
+- **Claim:** ADL scope ACL blocked all tested cross-scope accesses in the pilot.
+- **Method:** Ran scope probes through `experiments/rq4_leakage.py` using `ADLValidator.validate_scope_access`.
+- **Key numbers:** `adl_leaks=0`, `denied_access=60`, `probes=60` (60/60 denied).
+- **Limitations:** Baseline leakage control is not equivalently instrumented (`baseline_leaks_uncontrolled=0` in summary JSON), so this result is strongest as an ADL safety smoke test rather than a strict comparative benchmark.
+
 ## 6. Discussion
 
 - Scripted sim as reproducibility anchor
@@ -61,7 +90,7 @@ Discoverer → Reviewer → Skeptic → Merger → Librarian (`docs/AGENT_WORKFL
 
 ## 7. Conclusion
 
-ADL Lite demonstrates that Markdown-native SSA is sufficient for Phase 1 consensus and scope guarantees; semantic retrieval gains require warm-layer vectors (future work).
+ADL Lite demonstrates that Markdown-native SSA is sufficient for Phase 1 consensus traceability and scope guarantees; retrieval gains are strongest when L3 relation signal is query-relevant, and ambiguity claims remain provisional pending larger human-rated studies.
 
 ## Appendix
 

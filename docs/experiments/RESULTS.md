@@ -2,6 +2,13 @@
 
 > **Label:** All numbers below are **pilot / synthetic** metrics from the scripted simulation and token-overlap retrieval rubric. Re-run commands locally to reproduce.
 
+> [!summary] Paper-ready summary (RQ1-RQ4)
+> - **RQ1 (ambiguity):** Phase B fair-plain rerun reports `0.0%` ambiguity reduction (`n_pairs=25`), and post-v0.3.0 LLM-as-judge on `n=3` discoveries shows mean ADL-minus-plain `0.00` (both judges mean ADL score `4.33`).
+> - **RQ2 (consensus):** Scripted ADL chain logs `8` transitions (`3` validated docs, `n_docs=5`) vs plain `0`; post-v0.3.0 MiMo batch (`n=10`) averages `2.0` transitions/run (std `0.0`, success `100%`, revised `70%`), `-6.0` vs scripted total.
+> - **RQ3 (retrieval):** Phase B TF-IDF (`n=25`) reaches hit recall `1.00` vs `0.80` (`+0.20`) and label recall `0.97` vs `0.73` (`+0.24`); scenario-only `q01-q20` deltas are smaller (hit `+0.00`, label `+0.05`), with `q21-q25` as L3-only ablation anchors.
+> - **RQ4 (scope):** Scope ACL shows `0` leaks with `60/60` cross-scope probes denied.
+> - **Reproduce (one line):** `pytest tests/ -v && python -m experiments.run_phase_b && ./scripts/demo_pipeline.sh --scripted && python -m experiments.rq1_llm_judge`
+
 ## Phase B summary (v0.3.0)
 
 | RQ | Metric | ADL / Phase B | Baseline | Δ / status |
