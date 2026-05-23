@@ -1,0 +1,8 @@
+{
+  "note": "Demo rubric-aligned scores for unstructured plain-LLM baselines (pronoun-heavy stubs). Substitute Cursor proxy judge JSON after live adjudication.",
+  "per_slug": {
+    "peripheral-trap": {"openai_proxy": 3, "composer_proxy": 2},
+    "smurfing-pattern": {"openai_proxy": 4, "composer_proxy": 3},
+    "crypto-mixer": {"openai_proxy": 2, "composer_proxy": 4}
+  }
+}

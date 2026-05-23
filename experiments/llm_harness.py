@@ -84,7 +84,8 @@ def _provider_label() -> str:
     return "openai"
 
 
-def _call_llm(system: str, user: str, model: str | None = None) -> str:
+def call_discovery_llm(system: str, user: str, model: str | None = None) -> str:
+    """Call MiMo (if configured) or OpenAI; shared by ADL simulator and plain baseline."""
     if mimo_config():
         return mimo_chat(system, user, model=model)
     try:
@@ -107,6 +108,10 @@ def _call_llm(system: str, user: str, model: str | None = None) -> str:
         temperature=0.2,
     )
     return resp.choices[0].message.content or ""
+
+
+def _call_llm(system: str, user: str, model: str | None = None) -> str:
+    return call_discovery_llm(system, user, model=model)
 
 
 def resolve_model(cli_model: str | None) -> str | None:

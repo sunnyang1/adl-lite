@@ -77,6 +77,22 @@ Requirements:
 ]
 
 # Canonical IDs (backward compatibility + tests.test_batch_scenarios_match_template).
+CANON_SCENARIO_SLUGS = ("peripheral-trap", "smurfing-pattern", "crypto-mixer")
+
+
+def slug_from_adl_id(adl_id: str | None) -> str | None:
+    """Resolve AML scenario slug from `disc-llm-*` YAML id (including batch suffix)."""
+    if not isinstance(adl_id, str):
+        return None
+    if not adl_id.startswith("disc-llm-"):
+        return None
+    tail = adl_id.removeprefix("disc-llm-")
+    tail = re.sub(r"-batch\d+$", "", tail)
+    if tail not in CANON_SCENARIO_SLUGS:
+        return None
+    return tail
+
+
 SCENARIOS = [
     {
         "adl_id": "disc-llm-peripheral-trap",
@@ -182,6 +198,11 @@ def _entry_skeleton(
         "llm_judge_composer_plain": None,
         "referent_clarity_openai_proxy": None,
         "referent_clarity_composer_proxy": None,
+        "plain_discovery_path": "",
+        "referent_clarity_openai_plain_llm": None,
+        "referent_clarity_composer_plain_llm": None,
+        "llm_judge_openai_plain_llm": None,
+        "llm_judge_composer_plain_llm": None,
     }
 
 

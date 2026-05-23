@@ -31,7 +31,20 @@
         "rationale": "Referent flow stays explicit in plain L2, and each mechanism maps to a named entity without ambiguity."
       },
       "referent_clarity_openai_proxy": 4,
-      "referent_clarity_composer_proxy": 5
+      "referent_clarity_composer_proxy": 5,
+      "plain_discovery_path": "experiments/outputs/plain_discovery_peripheral-trap.md",
+      "referent_clarity_openai_plain_llm": 3,
+      "referent_clarity_composer_plain_llm": 2,
+      "llm_judge_openai_plain_llm": {
+        "score": 3,
+        "model": "gpt-5.3-codex (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=openai_proxy"
+      },
+      "llm_judge_composer_plain_llm": {
+        "score": 2,
+        "model": "composer-2-fast (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=composer_proxy"
+      }
     },
     {
       "adl_id": "disc-llm-smurfing-pattern",
@@ -62,7 +75,20 @@
         "rationale": "Most referents are explicit and traceable, though a small number of generalized category mentions reduce maximal clarity."
       },
       "referent_clarity_openai_proxy": 5,
-      "referent_clarity_composer_proxy": 4
+      "referent_clarity_composer_proxy": 4,
+      "plain_discovery_path": "experiments/outputs/plain_discovery_smurfing-pattern.md",
+      "referent_clarity_openai_plain_llm": 4,
+      "referent_clarity_composer_plain_llm": 3,
+      "llm_judge_openai_plain_llm": {
+        "score": 4,
+        "model": "gpt-5.3-codex (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=openai_proxy"
+      },
+      "llm_judge_composer_plain_llm": {
+        "score": 3,
+        "model": "composer-2-fast (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=composer_proxy"
+      }
     },
     {
       "adl_id": "disc-llm-crypto-mixer",
@@ -93,7 +119,20 @@
         "rationale": "The prose keeps referents mostly explicit and stable across steps, with minor underspecification in shorthand contrasts."
       },
       "referent_clarity_openai_proxy": 4,
-      "referent_clarity_composer_proxy": 4
+      "referent_clarity_composer_proxy": 4,
+      "plain_discovery_path": "experiments/outputs/plain_discovery_crypto-mixer.md",
+      "referent_clarity_openai_plain_llm": 2,
+      "referent_clarity_composer_plain_llm": 4,
+      "llm_judge_openai_plain_llm": {
+        "score": 2,
+        "model": "gpt-5.3-codex (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=openai_proxy"
+      },
+      "llm_judge_composer_plain_llm": {
+        "score": 4,
+        "model": "composer-2-fast (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=composer_proxy"
+      }
     },
     {
       "adl_id": "disc-llm-peripheral-trap-batch001",
@@ -124,7 +163,20 @@
         "rationale": "Peripheral mechanisms, hops, and alert thresholds trace clearly throughout with steady naming of sinks and laundering routes. Plain rendering matches stripped L2."
       },
       "referent_clarity_openai_proxy": 4,
-      "referent_clarity_composer_proxy": 5
+      "referent_clarity_composer_proxy": 5,
+      "plain_discovery_path": "experiments/outputs/plain_discovery_peripheral-trap.md",
+      "referent_clarity_openai_plain_llm": 3,
+      "referent_clarity_composer_plain_llm": 2,
+      "llm_judge_openai_plain_llm": {
+        "score": 3,
+        "model": "gpt-5.3-codex (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=openai_proxy"
+      },
+      "llm_judge_composer_plain_llm": {
+        "score": 2,
+        "model": "composer-2-fast (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=composer_proxy"
+      }
     },
     {
       "adl_id": "disc-llm-smurfing-pattern-batch002",
@@ -155,7 +207,20 @@
         "rationale": "Sub-threshold deposits, consolidation phases, and system boundaries read as fully traceable with minimal inference. Plain rendering matches stripped L2."
       },
       "referent_clarity_openai_proxy": 4,
-      "referent_clarity_composer_proxy": 5
+      "referent_clarity_composer_proxy": 5,
+      "plain_discovery_path": "experiments/outputs/plain_discovery_smurfing-pattern.md",
+      "referent_clarity_openai_plain_llm": 4,
+      "referent_clarity_composer_plain_llm": 3,
+      "llm_judge_openai_plain_llm": {
+        "score": 4,
+        "model": "gpt-5.3-codex (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=openai_proxy"
+      },
+      "llm_judge_composer_plain_llm": {
+        "score": 3,
+        "model": "composer-2-fast (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=composer_proxy"
+      }
     },
     {
       "adl_id": "disc-llm-crypto-mixer-batch003",
@@ -186,7 +251,20 @@
         "rationale": "Wallet, mixer-contract, peel-chain and gateway roles stay aligned across paragraphs with only shorthand labels at the margins. Plain rendering matches stripped L2."
       },
       "referent_clarity_openai_proxy": 4,
-      "referent_clarity_composer_proxy": 4
+      "referent_clarity_composer_proxy": 4,
+      "plain_discovery_path": "experiments/outputs/plain_discovery_crypto-mixer.md",
+      "referent_clarity_openai_plain_llm": 2,
+      "referent_clarity_composer_plain_llm": 4,
+      "llm_judge_openai_plain_llm": {
+        "score": 2,
+        "model": "gpt-5.3-codex (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=openai_proxy"
+      },
+      "llm_judge_composer_plain_llm": {
+        "score": 4,
+        "model": "composer-2-fast (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=composer_proxy"
+      }
     },
     {
       "adl_id": "disc-llm-peripheral-trap-batch004",
@@ -217,7 +295,20 @@
         "rationale": "Graph roles (hubs, peripheral accounts, sinks) recur explicitly with almost no orphaned noun phrases. Plain rendering matches stripped L2."
       },
       "referent_clarity_openai_proxy": 4,
-      "referent_clarity_composer_proxy": 5
+      "referent_clarity_composer_proxy": 5,
+      "plain_discovery_path": "experiments/outputs/plain_discovery_peripheral-trap.md",
+      "referent_clarity_openai_plain_llm": 3,
+      "referent_clarity_composer_plain_llm": 2,
+      "llm_judge_openai_plain_llm": {
+        "score": 3,
+        "model": "gpt-5.3-codex (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=openai_proxy"
+      },
+      "llm_judge_composer_plain_llm": {
+        "score": 2,
+        "model": "composer-2-fast (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=composer_proxy"
+      }
     },
     {
       "adl_id": "disc-llm-smurfing-pattern-batch005",
@@ -248,7 +339,20 @@
         "rationale": "Flow topology descriptions keep accounts, thresholds, and edges identifiable end-to-end. Plain rendering matches stripped L2."
       },
       "referent_clarity_openai_proxy": 4,
-      "referent_clarity_composer_proxy": 5
+      "referent_clarity_composer_proxy": 5,
+      "plain_discovery_path": "experiments/outputs/plain_discovery_smurfing-pattern.md",
+      "referent_clarity_openai_plain_llm": 4,
+      "referent_clarity_composer_plain_llm": 3,
+      "llm_judge_openai_plain_llm": {
+        "score": 4,
+        "model": "gpt-5.3-codex (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=openai_proxy"
+      },
+      "llm_judge_composer_plain_llm": {
+        "score": 3,
+        "model": "composer-2-fast (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=composer_proxy"
+      }
     },
     {
       "adl_id": "disc-llm-crypto-mixer-batch006",
@@ -279,7 +383,20 @@
         "rationale": "Most entities\u2014mixer withdrawals, peels, fiat gateways\u2014are named; contrasts survive with modest shorthand. Plain rendering matches stripped L2."
       },
       "referent_clarity_openai_proxy": 4,
-      "referent_clarity_composer_proxy": 4
+      "referent_clarity_composer_proxy": 4,
+      "plain_discovery_path": "experiments/outputs/plain_discovery_crypto-mixer.md",
+      "referent_clarity_openai_plain_llm": 2,
+      "referent_clarity_composer_plain_llm": 4,
+      "llm_judge_openai_plain_llm": {
+        "score": 2,
+        "model": "gpt-5.3-codex (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=openai_proxy"
+      },
+      "llm_judge_composer_plain_llm": {
+        "score": 4,
+        "model": "composer-2-fast (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=composer_proxy"
+      }
     },
     {
       "adl_id": "disc-llm-peripheral-trap-batch007",
@@ -310,7 +427,20 @@
         "rationale": "Peripheral sinks, thresholds, and monitoring rules stay explicit sentence to sentence. Plain rendering matches stripped L2."
       },
       "referent_clarity_openai_proxy": 4,
-      "referent_clarity_composer_proxy": 5
+      "referent_clarity_composer_proxy": 5,
+      "plain_discovery_path": "experiments/outputs/plain_discovery_peripheral-trap.md",
+      "referent_clarity_openai_plain_llm": 3,
+      "referent_clarity_composer_plain_llm": 2,
+      "llm_judge_openai_plain_llm": {
+        "score": 3,
+        "model": "gpt-5.3-codex (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=openai_proxy"
+      },
+      "llm_judge_composer_plain_llm": {
+        "score": 2,
+        "model": "composer-2-fast (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=composer_proxy"
+      }
     },
     {
       "adl_id": "disc-llm-smurfing-pattern-batch008",
@@ -341,7 +471,20 @@
         "rationale": "Regulatory filings and transactional phases stay crisply anchored with clear fan-in narration. Plain rendering matches stripped L2."
       },
       "referent_clarity_openai_proxy": 4,
-      "referent_clarity_composer_proxy": 5
+      "referent_clarity_composer_proxy": 5,
+      "plain_discovery_path": "experiments/outputs/plain_discovery_smurfing-pattern.md",
+      "referent_clarity_openai_plain_llm": 4,
+      "referent_clarity_composer_plain_llm": 3,
+      "llm_judge_openai_plain_llm": {
+        "score": 4,
+        "model": "gpt-5.3-codex (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=openai_proxy"
+      },
+      "llm_judge_composer_plain_llm": {
+        "score": 3,
+        "model": "composer-2-fast (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=composer_proxy"
+      }
     },
     {
       "adl_id": "disc-llm-crypto-mixer-batch009",
@@ -372,7 +515,20 @@
         "rationale": "After the introductory clause, SARs, mixer contracts, peels, and exchange ingress read as fully chained laundering instruments. Plain rendering matches stripped L2."
       },
       "referent_clarity_openai_proxy": 3,
-      "referent_clarity_composer_proxy": 5
+      "referent_clarity_composer_proxy": 5,
+      "plain_discovery_path": "experiments/outputs/plain_discovery_crypto-mixer.md",
+      "referent_clarity_openai_plain_llm": 2,
+      "referent_clarity_composer_plain_llm": 4,
+      "llm_judge_openai_plain_llm": {
+        "score": 2,
+        "model": "gpt-5.3-codex (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=openai_proxy"
+      },
+      "llm_judge_composer_plain_llm": {
+        "score": 4,
+        "model": "composer-2-fast (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=composer_proxy"
+      }
     },
     {
       "adl_id": "disc-llm-peripheral-trap-batch010",
@@ -403,7 +559,20 @@
         "rationale": "Analyst-queue and centrality-versus-sink contrasts stay tethered to observable graph roles. Plain rendering matches stripped L2."
       },
       "referent_clarity_openai_proxy": 4,
-      "referent_clarity_composer_proxy": 4
+      "referent_clarity_composer_proxy": 4,
+      "plain_discovery_path": "experiments/outputs/plain_discovery_peripheral-trap.md",
+      "referent_clarity_openai_plain_llm": 3,
+      "referent_clarity_composer_plain_llm": 2,
+      "llm_judge_openai_plain_llm": {
+        "score": 3,
+        "model": "gpt-5.3-codex (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=openai_proxy"
+      },
+      "llm_judge_composer_plain_llm": {
+        "score": 2,
+        "model": "composer-2-fast (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=peripheral-trap judge=composer_proxy"
+      }
     },
     {
       "adl_id": "disc-llm-smurfing-pattern-batch011",
@@ -434,7 +603,20 @@
         "rationale": "Funnel-structure explanation keeps counterparties and filing triggers explicit throughout. Plain rendering matches stripped L2."
       },
       "referent_clarity_openai_proxy": 5,
-      "referent_clarity_composer_proxy": 5
+      "referent_clarity_composer_proxy": 5,
+      "plain_discovery_path": "experiments/outputs/plain_discovery_smurfing-pattern.md",
+      "referent_clarity_openai_plain_llm": 4,
+      "referent_clarity_composer_plain_llm": 3,
+      "llm_judge_openai_plain_llm": {
+        "score": 4,
+        "model": "gpt-5.3-codex (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=openai_proxy"
+      },
+      "llm_judge_composer_plain_llm": {
+        "score": 3,
+        "model": "composer-2-fast (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=smurfing-pattern judge=composer_proxy"
+      }
     },
     {
       "adl_id": "disc-llm-crypto-mixer-batch012",
@@ -465,7 +647,20 @@
         "rationale": "Mixer, peel-chain, SAR cohort and archetype cues remain mapped to observable wallet behaviors. Plain rendering matches stripped L2."
       },
       "referent_clarity_openai_proxy": 4,
-      "referent_clarity_composer_proxy": 4
+      "referent_clarity_composer_proxy": 4,
+      "plain_discovery_path": "experiments/outputs/plain_discovery_crypto-mixer.md",
+      "referent_clarity_openai_plain_llm": 2,
+      "referent_clarity_composer_plain_llm": 4,
+      "llm_judge_openai_plain_llm": {
+        "score": 2,
+        "model": "gpt-5.3-codex (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=openai_proxy"
+      },
+      "llm_judge_composer_plain_llm": {
+        "score": 4,
+        "model": "composer-2-fast (fixture)",
+        "rationale": "[Fixture] Compressed pronoun-heavy baseline vs anchored ADL L2 prose. experiments/fixtures/plain_llm_judge_scores_demo.json slug=crypto-mixer judge=composer_proxy"
+      }
     },
     {
       "adl_id": null,
@@ -474,7 +669,12 @@
       "referent_clarity": null,
       "validator_pass": null,
       "rater": null,
-      "notes": null
+      "notes": null,
+      "plain_discovery_path": "",
+      "referent_clarity_openai_plain_llm": null,
+      "referent_clarity_composer_plain_llm": null,
+      "llm_judge_openai_plain_llm": null,
+      "llm_judge_composer_plain_llm": null
     },
     {
       "adl_id": null,
@@ -483,7 +683,12 @@
       "referent_clarity": null,
       "validator_pass": null,
       "rater": null,
-      "notes": null
+      "notes": null,
+      "plain_discovery_path": "",
+      "referent_clarity_openai_plain_llm": null,
+      "referent_clarity_composer_plain_llm": null,
+      "llm_judge_openai_plain_llm": null,
+      "llm_judge_composer_plain_llm": null
     },
     {
       "adl_id": null,
@@ -492,7 +697,12 @@
       "referent_clarity": null,
       "validator_pass": null,
       "rater": null,
-      "notes": null
+      "notes": null,
+      "plain_discovery_path": "",
+      "referent_clarity_openai_plain_llm": null,
+      "referent_clarity_composer_plain_llm": null,
+      "llm_judge_openai_plain_llm": null,
+      "llm_judge_composer_plain_llm": null
     },
     {
       "adl_id": null,
@@ -501,7 +711,12 @@
       "referent_clarity": null,
       "validator_pass": null,
       "rater": null,
-      "notes": null
+      "notes": null,
+      "plain_discovery_path": "",
+      "referent_clarity_openai_plain_llm": null,
+      "referent_clarity_composer_plain_llm": null,
+      "llm_judge_openai_plain_llm": null,
+      "llm_judge_composer_plain_llm": null
     },
     {
       "adl_id": null,
@@ -510,7 +725,12 @@
       "referent_clarity": null,
       "validator_pass": null,
       "rater": null,
-      "notes": null
+      "notes": null,
+      "plain_discovery_path": "",
+      "referent_clarity_openai_plain_llm": null,
+      "referent_clarity_composer_plain_llm": null,
+      "llm_judge_openai_plain_llm": null,
+      "llm_judge_composer_plain_llm": null
     }
   ]
 }

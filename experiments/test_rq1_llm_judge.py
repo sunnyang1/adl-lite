@@ -56,21 +56,25 @@ def test_l2_plain_strips_blocks():
     assert adl == plain
 
 
-def _mock_chat(provider: str, system: str, user: str, *, model: str | None = None) -> str:
-    if provider == "openai":
+def _mock_chat(proxy: str, system: str, user: str) -> str:
+    if proxy == "openai_proxy":
         score = 5 if "Peripheral" in user else 4
-    else:
+    elif proxy == "composer_proxy":
         score = 3 if "Peripheral" in user else 4
-    return json.dumps({"referent_clarity": score, "rationale": f"mock-{provider}"})
+    else:
+        score = 4
+    return json.dumps({"referent_clarity": score, "rationale": f"mock-{proxy}"})
 
 
 def test_judge_text_mock(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
-    result = judge_text("Sample L2 about Peripheral Attention Trap.", "openai", chat_fn=_mock_chat)
+    result = judge_text(
+        "Sample L2 about Peripheral Attention Trap.", proxy="openai_proxy", chat_fn=_mock_chat
+    )
     assert result["score"] == 5
     assert result["model"]
-    assert "mock-openai" in result["rationale"]
+    assert "mock-openai_proxy" in result["rationale"]
 
 
 def test_run_judges_for_entry_mock(monkeypatch):
@@ -83,12 +87,18 @@ def test_run_judges_for_entry_mock(monkeypatch):
         "adl_id": "disc-llm-peripheral-trap",
         "discovery_path": "experiments/outputs/llm_discovery_peripheral-trap.md",
     }
-    row = run_judges_for_entry(entry, ["openai", "claude"], chat_fn=_mock_chat)
-    assert entry["referent_clarity_openai"] == 5
-    assert entry["referent_clarity_claude"] == 3
+    row = run_judges_for_entry(
+        entry,
+        ["openai_proxy", "composer_proxy"],
+        include_fair_plain=True,
+        include_plain_llm_live=False,
+        chat_fn=_mock_chat,
+    )
+    assert entry["referent_clarity_openai_proxy"] == 5
+    assert entry["referent_clarity_composer_proxy"] == 3
     assert row["judge_disagreement"] is True
-    assert "openai" in row["judges"]
-    assert "claude" in row["judges"]
+    assert "openai_proxy" in row["judges"]
+    assert "composer_proxy" in row["judges"]
 
 
 def test_build_summary_aggregates():
@@ -97,18 +107,22 @@ def test_build_summary_aggregates():
     for e in template["entries"][3:]:
         e["discovery_path"] = ""
     for e in template["entries"][:3]:
-        e["llm_judge_openai"] = {"score": 4, "model": "gpt-4o-mini", "rationale": "a"}
-        e["llm_judge_claude"] = {"score": 5, "model": "claude-test", "rationale": "b"}
-        e["llm_judge_openai_plain"] = {"score": 3, "model": "gpt-4o-mini", "rationale": "c"}
-        e["llm_judge_claude_plain"] = {"score": 3, "model": "claude-test", "rationale": "d"}
+        e["llm_judge_openai"] = {"score": 4, "model": "gpt-test", "rationale": "a"}
+        e["llm_judge_composer"] = {"score": 5, "model": "composer-test", "rationale": "b"}
+        e["llm_judge_openai_plain"] = {"score": 3, "model": "gpt-test", "rationale": "c"}
+        e["llm_judge_composer_plain"] = {"score": 3, "model": "composer-test", "rationale": "d"}
+        e["llm_judge_openai_plain_llm"] = {"score": 2, "model": "gpt-test", "rationale": "p"}
+        e["llm_judge_composer_plain_llm"] = {"score": 2, "model": "composer-test", "rationale": "p"}
 
     rows = [{"judge_disagreement": True}, {"judge_disagreement": False}, {"judge_disagreement": False}]
     summary = build_summary(template, rows)
     assert summary["metric"] == "llm_referent_clarity"
     assert summary["n_discoveries"] == 3
-    assert summary["per_judge"]["openai"]["mean_adl"] == 4.0
-    assert summary["per_judge"]["claude"]["mean_adl"] == 5.0
+    assert summary["per_judge"]["openai_proxy"]["mean_adl"] == 4.0
+    assert summary["per_judge"]["composer_proxy"]["mean_adl"] == 5.0
     assert summary["disagreement_count"] == 1
+    pa = summary["plain_llm"]["per_judge"]["openai_proxy"]
+    assert pa["mean_plain_llm"] == 2.0
 
 
 def test_run_writes_summary(tmp_path, monkeypatch):
@@ -126,7 +140,6 @@ def test_run_writes_summary(tmp_path, monkeypatch):
         template_path=tpl_copy,
         summary_path=out,
         discovery=DISCOVERY,
-        judges=["openai", "claude"],
         write_template=False,
         chat_fn=_mock_chat,
     )
@@ -149,7 +162,8 @@ def test_run_skips_missing_keys(monkeypatch, tmp_path):
         template_path=tpl_copy,
         summary_path=out,
         all_discoveries=True,
-        judges=["openai", "claude"],
         write_template=False,
+        chat_fn=None,
     )
-    assert "openai" in summary["judges_skipped"] or "claude" in summary["judges_skipped"]
+    assert isinstance(summary["judges_skipped"], list)
+    assert summary["judges_skipped"], "Providers should record skips when APIs missing"
