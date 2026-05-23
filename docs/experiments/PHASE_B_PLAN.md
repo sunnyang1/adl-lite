@@ -58,6 +58,8 @@ python -m experiments.run_sim --llm
 **脚本：** `experiments/rq2_consensus.py`  
 **Phase B 升级：** 用 `run_sim --llm` 或多次 scripted run，统计到 `validated` 的 transition 数；与「无 chain 的 plain wiki」对比。
 
+**LLM 批量分析：** `python -m experiments.rq2_llm_batch --n 10` 跑 N 次 LLM 共识模拟并写入 `experiments/logs/llm_run.jsonl`；`--dry-run` 用 mock 结果（无需 API）；`--analyze-only` 仅解析已有日志。输出 `docs/experiments/rq2_llm_summary.json`，含 consensus_transitions 均值/标准差、success_rate、mean attempts、revised rate，并与 `rq2_consensus.run()` scripted baseline 对比。
+
 **你要做的：**
 1. 设计 3 个 discovery 任务（同一现象，2 个 agent 各写一版）
 2. 记录 ADL 显式 transition vs plain 的「口头达成一致」轮数（人工或日志）

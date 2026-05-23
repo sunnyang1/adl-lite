@@ -1,0 +1,28 @@
+{
+  "generated_at": "2026-05-23T12:18:48.671477+00:00",
+  "phase": "B",
+  "rq": "RQ2",
+  "dry_run": true,
+  "log_path": "/Users/michelleye/Documents/Allen's files/adl-lite/experiments/logs/llm_run.jsonl",
+  "llm": {
+    "n_runs": 5,
+    "consensus_transitions": {
+      "mean": 1.6,
+      "std": 0.8944271909999159
+    },
+    "success_rate": 0.8,
+    "mean_attempts": 1.4,
+    "revised_rate": 0.4
+  },
+  "scripted_baseline": {
+    "consensus_transitions": 8,
+    "adl_validated_count": 3,
+    "baseline_transitions": 0,
+    "n_docs": 5
+  },
+  "comparison": {
+    "llm_mean_transitions": 1.6,
+    "scripted_transitions": 8,
+    "delta_llm_minus_scripted": -6.4
+  }
+}
