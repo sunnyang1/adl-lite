@@ -120,10 +120,30 @@ Phase B adds query-aligned relation overlap + neighbor propagation boost; zero-s
 
 Dataset: `data/aml/queries.json` v0.3 — 20 scenario queries + 5 **L3-only** opaque anchor queries (`q21`–`q25`) with `indexed-phrase` relations stripped from the plain baseline.
 
+## Phase B+ RQ3 (optional hybrid embeddings)
+
+```bash
+pip install -e ".[dev,experiments-embeddings]"
+python -m experiments.rq3_retrieval --mode phase_b --scorer hybrid -k 10
+```
+
+| Metric @10 (n=25) | ADL hybrid | Fair plain | Δ |
+|-------------------|------------|------------|---|
+| Hit recall | 1.00 | 0.80 | **+0.20** |
+| Label recall | 0.98 | 0.73 | **+0.25** |
+
+| Scenario subset (q01–q20, n=20) | Δ hit | Δ label |
+|----------------------------------|-------|---------|
+| Hybrid vs fair plain | **+0.00** | **+0.07** |
+
+Scoring: `normalize(tfidf + l3_boost) + 0.5 * normalize(embedding)` over ADL index text (L2 + L3); plain baseline stays TF-IDF on L2-only fair plain. Model: `sentence-transformers/all-MiniLM-L6-v2` (lazy-loaded; CI runs without it via mock provider tests).
+
+TF-IDF-only baseline (no embeddings): `--scorer tfidf` (default).
+
 ## Limitations (pilot)
 
 - RQ pilots default to scripted transitions; LLM mode is optional and needs API credentials
-- RQ3 retrieval uses lexical overlap, not embeddings
+- RQ3 retrieval defaults to TF-IDF; optional hybrid embeddings via `experiments-embeddings` extra
 - Dataset concepts are generated minimal stubs
 - Statistical significance not claimed; numbers are reproducible smoke metrics
 
@@ -131,6 +151,5 @@ Dataset: `data/aml/queries.json` v0.3 — 20 scenario queries + 5 **L3-only** op
 
 - Human rubric labels for RQ1 on LLM-generated discoveries
 - Enrich AML corpus per DATASET_GUIDE (expert relevance labels)
-- Optional sentence-transformers for RQ3 if TF-IDF delta remains 0
 - Statistical tests when n ≥ 30 queries
 

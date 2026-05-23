@@ -4,6 +4,7 @@ RQ3: Retrieval Recall@k on AML query set.
 - pilot: token overlap + relation boost
 - phase_b: TF-IDF + L3 relation text + query-aligned / graph propagation boost
   vs fair plain (L2 only, L3 blocks stripped)
+- phase_b+ (optional): sentence-transformers embedding or hybrid scorer
 """
 
 from __future__ import annotations
@@ -11,13 +12,17 @@ from __future__ import annotations
 import json
 import tempfile
 from pathlib import Path
+from typing import Literal
 
 from adl_lite import parse_file
 from adl_lite.models import ADLDocument
 from data.aml.loader import ensure_dataset, index_all, load_queries
 from experiments.baselines.fair_plain import adl_to_fair_plain
 from experiments.baselines.plain_markdown import index_plain_markdown
+from experiments.embeddings import EmbeddingIndex, EmbeddingProvider, embeddings_available
 from experiments.tfidf import TfidfIndex, _tokenize
+
+Scorer = Literal["tfidf", "embedding", "hybrid"]
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data" / "aml"
@@ -25,6 +30,7 @@ DATA = ROOT / "data" / "aml"
 # Phase B graph boost: propagate score to relation targets in top pool
 _GRAPH_NEIGHBOR_WEIGHT = 0.35
 _RELATION_OVERLAP_WEIGHT = 0.3
+_SCORE_EPS = 1e-12
 
 
 def _tokenize_set(text: str) -> set[str]:
@@ -105,34 +111,79 @@ def _graph_neighbor_boost(
     return neighbor_boost
 
 
+def _l3_boost(
+    doc_id: str,
+    docs_by_id: dict[str, ADLDocument],
+    query_tokens: set[str],
+    name_lookup: dict[str, str],
+    neighbors: dict[str, float],
+) -> float:
+    doc = docs_by_id[doc_id]
+    return neighbors.get(doc_id, 0.0) + _relation_overlap_boost(doc, query_tokens, name_lookup)
+
+
+def _normalize_scores(scores: dict[str, float]) -> dict[str, float]:
+    if not scores:
+        return {}
+    mn = min(scores.values())
+    mx = max(scores.values())
+    span = mx - mn
+    if span < _SCORE_EPS:
+        return {doc_id: 0.0 for doc_id in scores}
+    return {doc_id: (score - mn) / span for doc_id, score in scores.items()}
+
+
 def _rank_adl(
     index: TfidfIndex,
     docs_by_id: dict[str, ADLDocument],
     name_lookup: dict[str, str],
     query: str,
     k: int,
+    *,
+    scorer: Scorer = "tfidf",
+    embed_index: EmbeddingIndex | None = None,
 ) -> list[tuple[str, float]]:
     q_tokens = _tokenize_set(query)
     base = index.rank(query, k=k * 3)
     neighbors = _graph_neighbor_boost(base, docs_by_id, k)
 
-    def total_score(item: tuple[str, float]) -> float:
-        doc_id, tfidf = item
-        doc = docs_by_id[doc_id]
-        return (
-            tfidf
-            + neighbors.get(doc_id, 0.0)
-            + _relation_overlap_boost(doc, q_tokens, name_lookup)
-        )
+    if scorer == "tfidf":
 
-    return sorted(base, key=total_score, reverse=True)
+        def total_score(item: tuple[str, float]) -> float:
+            doc_id, tfidf = item
+            return tfidf + _l3_boost(doc_id, docs_by_id, q_tokens, name_lookup, neighbors)
 
+        return sorted(base, key=total_score, reverse=True)
 
-_SCORE_EPS = 1e-12
+    doc_ids = [doc_id for doc_id, _ in base]
+    tfidf_l3 = {
+        doc_id: tfidf + _l3_boost(doc_id, docs_by_id, q_tokens, name_lookup, neighbors)
+        for doc_id, tfidf in base
+    }
+    norm_tfidf_l3 = _normalize_scores(tfidf_l3)
+
+    if scorer == "embedding":
+        if embed_index is None:
+            raise ValueError("embed_index required for embedding scorer")
+        embed_ranked = embed_index.rank(query, k=len(docs_by_id))
+        embed_map = dict(embed_ranked)
+        final = {doc_id: embed_map.get(doc_id, 0.0) for doc_id in doc_ids}
+    else:
+        if embed_index is None:
+            raise ValueError("embed_index required for hybrid scorer")
+        embed_ranked = embed_index.rank(query, k=len(docs_by_id))
+        norm_embed = _normalize_scores(dict(embed_ranked))
+        final = {
+            doc_id: norm_tfidf_l3.get(doc_id, 0.0) + 0.5 * norm_embed.get(doc_id, 0.0)
+            for doc_id in doc_ids
+        }
+
+    ranked = sorted(((doc_id, final[doc_id]) for doc_id in doc_ids), key=lambda x: x[1], reverse=True)
+    return ranked
 
 
 def _top_hits(ranked: list[tuple[str, float]], k: int) -> set[str]:
-    """Docs in top-k with strictly positive TF-IDF (ignore tie-break noise at zero)."""
+    """Docs in top-k with strictly positive score (ignore tie-break noise at zero)."""
     return {doc_id for doc_id, score in ranked[:k] if score > _SCORE_EPS}
 
 
@@ -188,22 +239,34 @@ def recall_at_k_pilot(
         return hits / max(total, 1)
 
 
-def recall_at_k_tfidf_pair(
+def _scenario_queries(queries: list[dict]) -> list[dict]:
+    return [q for q in queries if not q.get("l3_only")]
+
+
+def _aggregate_recall(
     paths: list[Path],
     queries: list[dict],
-    k: int = 10,
+    k: int,
+    scorer: Scorer,
+    embed_provider: EmbeddingProvider | None = None,
 ) -> dict[str, float]:
-    """Return hit/label recall for ADL vs fair plain."""
     name_lookup = build_concept_name_lookup(paths)
     docs_by_id: dict[str, ADLDocument] = {}
     adl_index = TfidfIndex()
     plain_index = TfidfIndex()
+    embed_index: EmbeddingIndex | None = None
 
     for path in paths:
         doc = parse_file(path)
         docs_by_id[doc.adl_id] = doc
         adl_index.add(doc.adl_id, adl_index_text(doc, name_lookup))
         plain_index.add(doc.adl_id, _plain_index_text(path))
+
+    if scorer in ("embedding", "hybrid"):
+        embed_index = EmbeddingIndex(provider=embed_provider)
+        for doc_id, doc in docs_by_id.items():
+            embed_index.add(doc_id, adl_index_text(doc, name_lookup))
+        embed_index.build()
 
     adl_hits = 0.0
     plain_hits = 0.0
@@ -213,7 +276,15 @@ def recall_at_k_tfidf_pair(
 
     for q in queries:
         relevant = set(q["relevant"])
-        adl_ranked = _rank_adl(adl_index, docs_by_id, name_lookup, q["text"], k)
+        adl_ranked = _rank_adl(
+            adl_index,
+            docs_by_id,
+            name_lookup,
+            q["text"],
+            k,
+            scorer=scorer,
+            embed_index=embed_index,
+        )
         plain_ranked = plain_index.rank(q["text"], k=k)
 
         adl_hits += _hit_recall(adl_ranked, relevant, k)
@@ -229,7 +300,31 @@ def recall_at_k_tfidf_pair(
     }
 
 
-def run(mode: str = "pilot", k: int = 10) -> dict:
+def recall_at_k_tfidf_pair(
+    paths: list[Path],
+    queries: list[dict],
+    k: int = 10,
+    *,
+    scorer: Scorer = "tfidf",
+    embed_provider: EmbeddingProvider | None = None,
+) -> dict[str, float]:
+    """Return hit/label recall for ADL vs fair plain."""
+    return _aggregate_recall(paths, queries, k, scorer, embed_provider)
+
+
+def _scorer_label(scorer: Scorer) -> str:
+    if scorer == "tfidf":
+        return "tfidf_fair_plain"
+    return f"{scorer}_fair_plain"
+
+
+def run(
+    mode: str = "pilot",
+    k: int = 10,
+    *,
+    scorer: Scorer = "tfidf",
+    embed_provider: EmbeddingProvider | None = None,
+) -> dict:
     ensure_dataset()
     paths = [
         DATA / e["path"]
@@ -238,19 +333,31 @@ def run(mode: str = "pilot", k: int = 10) -> dict:
     queries = load_queries()
 
     if mode == "phase_b":
-        scores = recall_at_k_tfidf_pair(paths, queries, k=k)
+        if scorer in ("embedding", "hybrid") and embed_provider is None and not embeddings_available():
+            raise ImportError(
+                "sentence-transformers required for embedding/hybrid scorer; "
+                "pip install adl-lite[experiments-embeddings]"
+            )
+        scores = recall_at_k_tfidf_pair(
+            paths, queries, k=k, scorer=scorer, embed_provider=embed_provider
+        )
+        scenario = _scenario_queries(queries)
+        scenario_scores = recall_at_k_tfidf_pair(
+            paths, scenario, k=k, scorer=scorer, embed_provider=embed_provider
+        )
         adl_recall = scores["hit_adl"]
         plain_recall = scores["hit_plain"]
         label_adl = scores["label_adl"]
         label_plain = scores["label_plain"]
-        label = "tfidf_fair_plain"
+        label = _scorer_label(scorer)
     else:
         adl_recall = recall_at_k_pilot(paths, queries, k=k, use_relations=True)
         plain_recall = recall_at_k_pilot(paths, queries, k=k, use_relations=False)
         label_adl = label_plain = 0.0
+        scenario_scores = None
         label = "token_overlap"
 
-    return {
+    result = {
         "metric": f"recall_at_{k}",
         "scorer": label,
         "adl_recall": round(adl_recall, 4),
@@ -263,6 +370,15 @@ def run(mode: str = "pilot", k: int = 10) -> dict:
         "pilot": mode == "pilot",
         "phase_b": mode == "phase_b",
     }
+    if scenario_scores is not None:
+        result["scenario_n_queries"] = len(scenario)
+        result["scenario_hit_delta"] = round(
+            scenario_scores["hit_adl"] - scenario_scores["hit_plain"], 4
+        )
+        result["scenario_label_delta"] = round(
+            scenario_scores["label_adl"] - scenario_scores["label_plain"], 4
+        )
+    return result
 
 
 if __name__ == "__main__":
@@ -270,6 +386,7 @@ if __name__ == "__main__":
 
     p = argparse.ArgumentParser()
     p.add_argument("--mode", choices=("pilot", "phase_b"), default="pilot")
+    p.add_argument("--scorer", choices=("tfidf", "embedding", "hybrid"), default="tfidf")
     p.add_argument("-k", type=int, default=10)
     args = p.parse_args()
-    print(json.dumps(run(mode=args.mode, k=args.k), indent=2))
+    print(json.dumps(run(mode=args.mode, k=args.k, scorer=args.scorer), indent=2))

@@ -39,6 +39,9 @@ dev = [
 experiments = [
     "openai>=1.0",
 ]
+experiments-embeddings = [
+    "sentence-transformers>=2.2",
+]
 
 [project.scripts]
 adl-lite = "adl_lite.cli:main"
