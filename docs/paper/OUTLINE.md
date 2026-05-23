@@ -70,8 +70,19 @@ Discoverer → Reviewer → Skeptic → Merger → Librarian (`docs/AGENT_WORKFL
 ### 5.3 RQ3 — Retrieval recall@10
 
 - **Claim:** ADL retrieval outperforms fair plain overall, with gains concentrated in relation-aware query settings rather than base scenario-only queries.
-- **Method:** Ran `experiments/rq3_retrieval.py` in Phase B TF-IDF mode on the AML query set with ADL indexing (L2+L3) versus fair plain (L2-only).
-- **Key numbers:** Full set (`n_queries=25`): hit recall `1.00` vs `0.80` (delta `+0.20`), label recall `0.9667` vs `0.7267` (delta `+0.24`). Scenario subset (`q01`-`q20`, `n=20`): hit delta `+0.00`, label delta `+0.05`.
+- **Method:** Ran `experiments/rq3_retrieval.py` in Phase B at `k=10` for TF-IDF and hybrid scorers, then split metrics across scenario (`q01`-`q20`), L3-only (`q21`-`q25`), and full query sets.
+- **Table 1 (hit recall@10 ablation):**
+
+| Subset | Scorer | ADL recall | Plain | Delta |
+|--------|--------|------------|-------|-------|
+| Scenario (`q01`-`q20`, `n=20`) | TF-IDF | 1.00 | 1.00 | +0.00 |
+| L3-only (`q21`-`q25`, `n=5`) | TF-IDF | 1.00 | 0.00 | +1.00 |
+| Full (`n=25`) | TF-IDF | 1.00 | 0.80 | +0.20 |
+| Scenario (`q01`-`q20`, `n=20`) | Hybrid | 1.00 | 1.00 | +0.00 |
+| L3-only (`q21`-`q25`, `n=5`) | Hybrid | 1.00 | 0.00 | +1.00 |
+| Full (`n=25`) | Hybrid | 1.00 | 0.80 | +0.20 |
+
+- **Key numbers:** Label recall deltas mirror the same pattern: TF-IDF scenario `+0.05`, L3-only `+1.00`, full `+0.24`; Hybrid scenario `+0.0667`, L3-only `+1.00`, full `+0.2533`.
 - **Limitations:** The full-set delta includes `q21`-`q25` L3-only opaque-anchor queries; scenario-only deltas are smaller, so reported overall gains should be read with that ablation split.
 - **Ablation note:** `q01`-`q20` (scenario) captures base retrieval behavior, while `q21`-`q25` isolates L3-only signal that drives most of the hit-recall gap.
 

@@ -243,6 +243,26 @@ def _scenario_queries(queries: list[dict]) -> list[dict]:
     return [q for q in queries if not q.get("l3_only")]
 
 
+def _l3_only_queries(queries: list[dict]) -> list[dict]:
+    return [q for q in queries if q.get("l3_only")]
+
+
+def _subset_block(scores: dict[str, float], n_queries: int) -> dict[str, float | int]:
+    hit_adl = scores["hit_adl"]
+    hit_plain = scores["hit_plain"]
+    label_adl = scores["label_adl"]
+    label_plain = scores["label_plain"]
+    return {
+        "n_queries": n_queries,
+        "adl_recall": round(hit_adl, 4),
+        "plain_baseline_recall": round(hit_plain, 4),
+        "delta": round(hit_adl - hit_plain, 4),
+        "label_recall_adl": round(label_adl, 4),
+        "label_recall_plain": round(label_plain, 4),
+        "label_recall_delta": round(label_adl - label_plain, 4),
+    }
+
+
 def _aggregate_recall(
     paths: list[Path],
     queries: list[dict],
@@ -342,8 +362,12 @@ def run(
             paths, queries, k=k, scorer=scorer, embed_provider=embed_provider
         )
         scenario = _scenario_queries(queries)
+        l3_only = _l3_only_queries(queries)
         scenario_scores = recall_at_k_tfidf_pair(
             paths, scenario, k=k, scorer=scorer, embed_provider=embed_provider
+        )
+        l3_only_scores = recall_at_k_tfidf_pair(
+            paths, l3_only, k=k, scorer=scorer, embed_provider=embed_provider
         )
         adl_recall = scores["hit_adl"]
         plain_recall = scores["hit_plain"]
@@ -378,6 +402,8 @@ def run(
         result["scenario_label_delta"] = round(
             scenario_scores["label_adl"] - scenario_scores["label_plain"], 4
         )
+        result["scenario_subset"] = _subset_block(scenario_scores, len(scenario))
+        result["l3_only_subset"] = _subset_block(l3_only_scores, len(l3_only))
     return result
 
 

@@ -51,6 +51,8 @@ def test_phase_b_rq3_runs():
     assert out["delta"] > 0
     assert out["label_recall_delta"] is not None
     assert out["label_recall_delta"] > 0
+    assert out["scenario_subset"]["n_queries"] == 20
+    assert out["l3_only_subset"]["n_queries"] == 5
 
 
 def test_llm_sim_skips_without_key(monkeypatch):

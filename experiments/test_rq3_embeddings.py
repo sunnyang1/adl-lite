@@ -95,3 +95,5 @@ def test_phase_b_scenario_metrics_with_mock():
     assert "scenario_hit_delta" in out
     assert "scenario_label_delta" in out
     assert out["scenario_label_delta"] >= 0
+    assert out["scenario_subset"]["n_queries"] == 20
+    assert out["l3_only_subset"]["n_queries"] == 5
