@@ -9,13 +9,15 @@
 | **RQ1** | Pilot ambiguity reduction | ~100% (rubric) | fair plain paired | Pilot complete |
 | **RQ1** | Human eval scaffold | `experiments/rq1_human_eval.py` + `data/eval/human_rq1_template.json` | — | **Template ready** (ratings pending) |
 | **RQ2** | Scripted consensus transitions | 8 (3 validated) | 0 (plain) | +8 vs plain |
-| **RQ2** | LLM batch (dry-run, n=5) | mean transitions **1.6** (σ≈0.89), success **80%**, mean attempts **1.4**, revised **40%** | scripted 8 | See `rq2_llm_summary.json` |
+| **RQ2** | LLM batch (MiMo, n=10) | mean transitions **2.0** (σ=0), success **100%**, mean attempts **1.7**, revised **70%** | scripted 8 | Δ **−6.0** vs scripted; see `rq2_llm_summary.json` |
 | **RQ3** | Hit recall @10 (TF-IDF, n=25) | **1.00** | 0.80 fair plain | **+0.20** |
 | **RQ3** | Label recall @10 (TF-IDF) | **0.97** | 0.73 | **+0.24** |
 | **RQ3** | Scenario q01–q20 (hybrid) | hit Δ **+0.00**, label Δ **+0.07** | fair plain | Phase B+ optional |
 | **RQ4** | Scope leaks | **0** | uncontrolled baseline | 60/60 probes denied |
 
 **LLM sim smoke (2026-05-23):** `python -m experiments.run_sim --llm` → `status: completed`, 1 attempt, 2 consensus transitions to `validated` (when API configured).
+
+**RQ2 LLM batch (2026-05-23, MiMo n=10):** `python -m experiments.rq2_llm_batch --n 10` → 10/10 completed, mean **2.0** consensus transitions per discovery (register + validate), **70%** required one revision pass, vs scripted multi-doc baseline **8** transitions across 5 example docs.
 
 **End-to-end demo:**
 
@@ -91,6 +93,8 @@ ADL records explicit transitions; plain Markdown has no lifecycle chain.
 
 - Script: `experiments/rq2_consensus.py`
 - Metric: count of `ConsensusEntry` append operations to reach `validated`
+- **Scripted baseline:** 8 transitions (3 docs validated, 5 docs total)
+- **LLM batch (MiMo `mimo-v2.5-pro`, n=10):** mean **2.0** transitions/run (σ=0), **100%** success, **1.7** mean attempts, **70%** revised — single-discovery sim vs multi-doc scripted harness; see `docs/experiments/rq2_llm_summary.json`
 
 ### RQ3 — Retrieval Recall@10
 
@@ -145,6 +149,8 @@ python -m experiments.run_sim --scripted
 **Validator (RQ1):** Blocks demonstrative/vague referents (`This shows…`, `because it`, Chinese pronouns). Allows grammatical **relative** `that` (e.g. `nodes that feed into…`).
 
 **Smoke status (2026-05-23):** `run_sim --llm` → `status: completed`, 1 attempt, 2 consensus transitions to `validated`.
+
+**Batch (2026-05-23):** `python -m experiments.rq2_llm_batch --n 10` with MiMo Token Plan CN — provider `mimo:mimo-v2.5-pro@https://token-plan-cn.xiaomimimo.com/v1`; 10/10 completed, 0 failures.
 
 ## Phase B RQ3 (TF-IDF + L3 graph boost)
 
