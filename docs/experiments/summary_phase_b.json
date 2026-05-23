@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-23T12:18:23.378805+00:00",
+  "generated_at": "2026-05-23T12:58:59.097967+00:00",
   "phase": "B",
   "pilot": false,
   "rq1_ambiguity": {
@@ -104,7 +104,10 @@
     "label_recall_delta": 0.24,
     "n_queries": 25,
     "pilot": false,
-    "phase_b": true
+    "phase_b": true,
+    "scenario_n_queries": 20,
+    "scenario_hit_delta": 0.0,
+    "scenario_label_delta": 0.05
   },
   "rq4_leakage": {
     "metric": "scope_leak_count",

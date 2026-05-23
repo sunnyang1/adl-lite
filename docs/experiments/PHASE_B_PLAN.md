@@ -39,6 +39,10 @@ python -m experiments.run_sim --llm
 
 输出：`docs/experiments/summary_phase_b.json`
 
+# 端到端 demo
+./scripts/demo_pipeline.sh --scripted
+
+
 ---
 
 ## 四条研究问题 — Phase B 操作手册
@@ -49,7 +53,9 @@ python -m experiments.run_sim --llm
 **方法：** 对每条 ADL 文档生成 fair plain 配对，用 `experiments/rubric.py` 比较 composite ambiguity score。
 
 **你要做的：**
-1. 把 `examples/` 和 `data/aml/concepts/` 写成**无模糊代词**、实体名显式出现
+- [x] Phase B rubric 路径与 `run_phase_b` 已跑通
+- [x] Human eval scaffold（`rq1_human_eval.py`, `human_rq1_template.json`）
+- [ ] 把 `examples/` 和 `data/aml/concepts/` 写成**无模糊代词**、实体名显式出现
 2. 跑 Phase B，记录 `ambiguity_reduction_pct`
 3. （进阶）抽 20 条 LLM 生成发现，**人工 1–5 分** referent clarity，写入 `data/eval/human_rq1.json`
 
@@ -61,7 +67,8 @@ python -m experiments.run_sim --llm
 **LLM 批量分析：** `python -m experiments.rq2_llm_batch --n 10` 跑 N 次 LLM 共识模拟并写入 `experiments/logs/llm_run.jsonl`；`--dry-run` 用 mock 结果（无需 API）；`--analyze-only` 仅解析已有日志。输出 `docs/experiments/rq2_llm_summary.json`，含 consensus_transitions 均值/标准差、success_rate、mean attempts、revised rate，并与 `rq2_consensus.run()` scripted baseline 对比。
 
 **你要做的：**
-1. 设计 3 个 discovery 任务（同一现象，2 个 agent 各写一版）
+- [x] `rq2_llm_batch.py` + dry-run 汇总 (`rq2_llm_summary.json`)
+- [ ] 设计 3 个 discovery 任务（同一现象，2 个 agent 各写一版）
 2. 记录 ADL 显式 transition vs plain 的「口头达成一致」轮数（人工或日志）
 
 ### RQ3 — 检索 Recall@10
@@ -70,7 +77,9 @@ python -m experiments.run_sim --llm
 **方法：** TF-IDF + L3 relation boost vs 无 relation 的 TF-IDF。
 
 **你要做的：**
-1. 在 `data/aml/queries.json` 增加 **expert 标注** relevant ids（可多标签）
+- [x] TF-IDF + L3 boost，Δ hit **+0.20** (n=25)
+- [x] 可选 hybrid embeddings (`experiments-embeddings`)
+- [ ] 在 `data/aml/queries.json` 增加 **expert 标注** relevant ids（可多标签）
 2. 若 TF-IDF 仍打平，加 `sentence-transformers` 作为 Phase B+（可选依赖）
 3. 目标：ADL delta > 0 且 n=15 查询可复现
 
@@ -79,7 +88,9 @@ python -m experiments.run_sim --llm
 **脚本：** `experiments/rq4_leakage.py`  
 **现状：** ADL ACL 已可报告 leaks=0。论文中强调 baseline「无 ACL」的 `baseline_leaks_uncontrolled`。
 
-**你要做的：** 保持 0；若加新 scope 规则，补 `tests/test_scope_access.py`
+**你要做的：**
+- [x] ADL leaks=0（60 probes）
+- [ ] 保持 0；若加新 scope 规则，补 `tests/test_scope_access.py`
 
 ---
 
@@ -111,9 +122,9 @@ python -m experiments.run_sim --llm
 
 | 周 | 产出 |
 |----|------|
-| 1 | Phase B 跑通 + `summary_phase_b.json` 进 repo |
-| 2 | 3 条人工标注 RQ1 + 查询集修订 |
-| 3 | 1 次完整 LLM 5-agent 实验 + 日志 |
+| 1 | Phase B 跑通 + `summary_phase_b.json` 进 repo | ✅ |
+| 2 | 3 条人工标注 RQ1 + 查询集修订 | scaffold only |
+| 3 | 1 次完整 LLM 5-agent 实验 + 日志 | smoke + batch dry-run |
 | 4 | `docs/paper/OUTLINE.md` Method/Evaluation 填入真实数字 |
 | 5–8 | 扩 corpus、显著性检验（可选 scipy）、内部审阅 |
 
