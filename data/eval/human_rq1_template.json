@@ -1,0 +1,186 @@
+{
+  "version": 1,
+  "description": "Human referent clarity ratings for RQ1 (1=ambiguous, 5=explicit entity anchors)",
+  "entries": [
+    {
+      "adl_id": "disc-llm-peripheral-trap",
+      "discovery_path": "",
+      "scenario": "Peripheral Attention Trap — graph peripheral node concentration while value consolidates toward a hidden sink; align with aml-attention-trap monitoring signals",
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    },
+    {
+      "adl_id": "disc-llm-smurfing-pattern",
+      "discovery_path": "",
+      "scenario": "Smurfing Pattern — sub-threshold deposit structuring across a beneficial-owner network; align with aml-smurfing CTR threshold heuristics",
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    },
+    {
+      "adl_id": "disc-llm-crypto-mixer",
+      "discovery_path": "",
+      "scenario": "Crypto Mixer Exposure — wallet activity linked to tumbler contracts with peel-chain off-ramp patterns; align with aml-crypto-mix monitoring signals",
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    },
+    {
+      "adl_id": null,
+      "discovery_path": "",
+      "scenario": null,
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    },
+    {
+      "adl_id": null,
+      "discovery_path": "",
+      "scenario": null,
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    },
+    {
+      "adl_id": null,
+      "discovery_path": "",
+      "scenario": null,
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    },
+    {
+      "adl_id": null,
+      "discovery_path": "",
+      "scenario": null,
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    },
+    {
+      "adl_id": null,
+      "discovery_path": "",
+      "scenario": null,
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    },
+    {
+      "adl_id": null,
+      "discovery_path": "",
+      "scenario": null,
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    },
+    {
+      "adl_id": null,
+      "discovery_path": "",
+      "scenario": null,
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    },
+    {
+      "adl_id": null,
+      "discovery_path": "",
+      "scenario": null,
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    },
+    {
+      "adl_id": null,
+      "discovery_path": "",
+      "scenario": null,
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    },
+    {
+      "adl_id": null,
+      "discovery_path": "",
+      "scenario": null,
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    },
+    {
+      "adl_id": null,
+      "discovery_path": "",
+      "scenario": null,
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    },
+    {
+      "adl_id": null,
+      "discovery_path": "",
+      "scenario": null,
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    },
+    {
+      "adl_id": null,
+      "discovery_path": "",
+      "scenario": null,
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    },
+    {
+      "adl_id": null,
+      "discovery_path": "",
+      "scenario": null,
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    },
+    {
+      "adl_id": null,
+      "discovery_path": "",
+      "scenario": null,
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    },
+    {
+      "adl_id": null,
+      "discovery_path": "",
+      "scenario": null,
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    },
+    {
+      "adl_id": null,
+      "discovery_path": "",
+      "scenario": null,
+      "referent_clarity": null,
+      "validator_pass": null,
+      "rater": null,
+      "notes": null
+    }
+  ]
+}

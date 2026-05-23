@@ -121,6 +121,7 @@ def _build_revise_prompt(
     *,
     validation_errors: list[str] | None = None,
     parse_error: str | None = None,
+    expected_adl_id: str = "disc-llm-peripheral-trap",
 ) -> str:
     """Ask the model to fix a failed draft using validator/parser feedback."""
     issues: list[str] = []
@@ -133,7 +134,7 @@ def _build_revise_prompt(
     return f"""\
 The ADL Lite document below failed checks. Produce a corrected FULL document.
 
-Fix ONLY the listed issues. Keep the same adl_id (disc-llm-peripheral-trap) unless parse error requires YAML repair.
+Fix ONLY the listed issues. Keep the same adl_id ({expected_adl_id}) unless parse error requires YAML repair.
 Output RAW markdown only — no ```markdown wrapper.
 
 Issues:
@@ -156,6 +157,9 @@ def run_llm_sim(
     model: str | None = None,
     output_dir: Path | None = None,
     max_retries: int = 1,
+    discovery_task: str | None = None,
+    expected_adl_id: str | None = None,
+    output_name: str | None = None,
 ) -> LLMSimResult:
     """LLM discoverer + reviewer; on failure, ask LLM to revise up to max_retries times."""
     if not llm_available():
@@ -182,7 +186,9 @@ def run_llm_sim(
     out_dir = output_dir or OUTPUT_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
-    discovery_path = out_dir / f"llm_discovery_{ts}.md"
+    task = discovery_task or DISCOVERY_TASK
+    adl_id_hint = expected_adl_id or "disc-llm-peripheral-trap"
+    discovery_path = out_dir / (output_name or f"llm_discovery_{ts}.md")
 
     validator = ADLValidator()
     cleaned = ""
@@ -194,10 +200,11 @@ def run_llm_sim(
 
     for attempt in range(max_attempts):
         attempts = attempt + 1
-        user_msg = DISCOVERY_TASK if attempt == 0 else _build_revise_prompt(
+        user_msg = task if attempt == 0 else _build_revise_prompt(
             cleaned,
             validation_errors=validation_errors or None,
             parse_error=parse_error,
+            expected_adl_id=adl_id_hint,
         )
         action = "emit_llm" if attempt == 0 else "revise_llm"
 
