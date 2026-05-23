@@ -8,6 +8,8 @@
 
 Multi-agent systems generate overlapping conceptual discoveries in unstructured prose, causing ambiguity, scope leakage, and fork chaos. ADL Lite embeds Structured Semantic Anchoring (SSA) in Markdown via L1 YAML, L2 prose, and L3 typed blocks, with a hybrid memory index and blockchain-isomorphic consensus chains. Phase B and post-v0.3.0 pilots show zero scope leaks, higher retrieval recall, and explicit lifecycle traces, while ambiguity gains are mixed under fair-plain pairings.
 
+Draft abstract: [`draft_abstract.md`](draft_abstract.md). Full manuscript draft: [`DRAFT.md`](DRAFT.md).
+
 ## 1. Introduction
 
 - Problem: agents share discoveries as opaque Markdown
