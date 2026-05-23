@@ -9,7 +9,29 @@
       "referent_clarity": null,
       "validator_pass": true,
       "rater": null,
-      "notes": null
+      "notes": "Cursor proxy judges only (no user API keys); Claude unavailable in region",
+      "llm_judge_openai": {
+        "score": 4,
+        "model": "gpt-5.3-codex (cursor-proxy)",
+        "rationale": "Entity anchors are mostly explicit (nodes, actors, sink accounts), but one or two abstract phrases still require light inference about exact operational ownership."
+      },
+      "llm_judge_composer": {
+        "score": 5,
+        "model": "composer-2-fast (cursor-proxy)",
+        "rationale": "Referents remain traceable sentence-to-sentence with clear naming of systems, nodes, and beneficiary accounts, and no unresolved pronoun chains."
+      },
+      "llm_judge_openai_plain": {
+        "score": 4,
+        "model": "gpt-5.3-codex (cursor-proxy)",
+        "rationale": "The fair-plain rendering preserves explicit node and account references, with only minor abstraction around ownership boundaries."
+      },
+      "llm_judge_composer_plain": {
+        "score": 5,
+        "model": "composer-2-fast (cursor-proxy)",
+        "rationale": "Referent flow stays explicit in plain L2, and each mechanism maps to a named entity without ambiguity."
+      },
+      "referent_clarity_openai_proxy": 4,
+      "referent_clarity_composer_proxy": 5
     },
     {
       "adl_id": "disc-llm-smurfing-pattern",
@@ -18,7 +40,29 @@
       "referent_clarity": null,
       "validator_pass": true,
       "rater": null,
-      "notes": null
+      "notes": "Cursor proxy judges only (no user API keys); Claude unavailable in region",
+      "llm_judge_openai": {
+        "score": 5,
+        "model": "gpt-5.3-codex (cursor-proxy)",
+        "rationale": "Entities and phases are concretely named throughout (sub-threshold deposits, linked accounts, consolidation transfer), leaving no meaningful referent ambiguity."
+      },
+      "llm_judge_composer": {
+        "score": 4,
+        "model": "composer-2-fast (cursor-proxy)",
+        "rationale": "Referents are consistently identifiable, with only minor underspecification in a few broad category phrases."
+      },
+      "llm_judge_openai_plain": {
+        "score": 5,
+        "model": "gpt-5.3-codex (cursor-proxy)",
+        "rationale": "Plain L2 still keeps each actor, threshold, and transfer phase explicitly grounded by name."
+      },
+      "llm_judge_composer_plain": {
+        "score": 4,
+        "model": "composer-2-fast (cursor-proxy)",
+        "rationale": "Most referents are explicit and traceable, though a small number of generalized category mentions reduce maximal clarity."
+      },
+      "referent_clarity_openai_proxy": 5,
+      "referent_clarity_composer_proxy": 4
     },
     {
       "adl_id": "disc-llm-crypto-mixer",
@@ -27,7 +71,29 @@
       "referent_clarity": null,
       "validator_pass": true,
       "rater": null,
-      "notes": "MiMo batch 2026-05-23; L2 rephrase for validator that+have false positive"
+      "notes": "MiMo batch 2026-05-23; L2 rephrase for validator that+have false positive. Cursor proxy judges only (no user API keys); Claude unavailable in region",
+      "llm_judge_openai": {
+        "score": 4,
+        "model": "gpt-5.3-codex (cursor-proxy)",
+        "rationale": "Core entities are named clearly (wallets, mixer contracts, peel-chain, off-ramp), with minor abstraction in comparative statements."
+      },
+      "llm_judge_composer": {
+        "score": 4,
+        "model": "composer-2-fast (cursor-proxy)",
+        "rationale": "Referent tracing is reliable across paragraphs, but a few high-level contrasts still depend on implied pairing rather than explicit restatement."
+      },
+      "llm_judge_openai_plain": {
+        "score": 4,
+        "model": "gpt-5.3-codex (cursor-proxy)",
+        "rationale": "Plain L2 retains explicit naming for wallet behavior and contract interactions, with only small inferential gaps in comparative phrasing."
+      },
+      "llm_judge_composer_plain": {
+        "score": 4,
+        "model": "composer-2-fast (cursor-proxy)",
+        "rationale": "The prose keeps referents mostly explicit and stable across steps, with minor underspecification in shorthand contrasts."
+      },
+      "referent_clarity_openai_proxy": 4,
+      "referent_clarity_composer_proxy": 4
     },
     {
       "adl_id": null,

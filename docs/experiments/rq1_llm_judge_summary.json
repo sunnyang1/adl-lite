@@ -1,62 +1,139 @@
 {
-  "generated_at": "2026-05-23T16:36:46.513718+00:00",
+  "generated_at": "2026-05-24T00:00:00+08:00",
   "metric": "llm_referent_clarity",
-  "label": "LLM-as-judge (not human evaluation)",
+  "label": "LLM-as-judge (Cursor proxy, no user API keys)",
   "n_discoveries": 3,
   "disagreement_threshold": 2,
-  "per_judge": {},
+  "judge_setup": {
+    "judge_a": "gpt-5.3-codex (cursor-proxy)",
+    "judge_b": "composer-2-fast (cursor-proxy)",
+    "claude_status": "skipped_unavailable_region"
+  },
+  "per_judge": {
+    "openai_proxy": {
+      "model": "gpt-5.3-codex (cursor-proxy)",
+      "n_scored": 3,
+      "mean_adl": 4.3333,
+      "mean_plain": 4.3333,
+      "mean_delta_adl_minus_plain": 0.0
+    },
+    "composer_proxy": {
+      "model": "composer-2-fast (cursor-proxy)",
+      "n_scored": 3,
+      "mean_adl": 4.3333,
+      "mean_plain": 4.3333,
+      "mean_delta_adl_minus_plain": 0.0
+    }
+  },
   "entries": [
     {
       "adl_id": "disc-llm-peripheral-trap",
       "discovery_path": "experiments/outputs/llm_discovery_peripheral-trap.md",
-      "judges": {},
-      "skipped": [
-        {
-          "provider": "openai",
-          "reason": "openai API not configured"
+      "judges": {
+        "openai_proxy": {
+          "adl": {
+            "score": 4,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "Entity anchors are mostly explicit (nodes, actors, sink accounts), but one or two abstract phrases still require light inference about exact operational ownership."
+          },
+          "plain": {
+            "score": 4,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "The fair-plain rendering preserves explicit node and account references, with only minor abstraction around ownership boundaries."
+          }
         },
-        {
-          "provider": "claude",
-          "reason": "claude API not configured"
+        "composer_proxy": {
+          "adl": {
+            "score": 5,
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Referents remain traceable sentence-to-sentence with clear naming of systems, nodes, and beneficiary accounts, and no unresolved pronoun chains."
+          },
+          "plain": {
+            "score": 5,
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Referent flow stays explicit in plain L2, and each mechanism maps to a named entity without ambiguity."
+          }
         }
-      ]
+      },
+      "abs_diff_a_b": 1,
+      "judge_disagreement": false
     },
     {
       "adl_id": "disc-llm-smurfing-pattern",
       "discovery_path": "experiments/outputs/llm_discovery_smurfing-pattern.md",
-      "judges": {},
-      "skipped": [
-        {
-          "provider": "openai",
-          "reason": "openai API not configured"
+      "judges": {
+        "openai_proxy": {
+          "adl": {
+            "score": 5,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "Entities and phases are concretely named throughout (sub-threshold deposits, linked accounts, consolidation transfer), leaving no meaningful referent ambiguity."
+          },
+          "plain": {
+            "score": 5,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "Plain L2 still keeps each actor, threshold, and transfer phase explicitly grounded by name."
+          }
         },
-        {
-          "provider": "claude",
-          "reason": "claude API not configured"
+        "composer_proxy": {
+          "adl": {
+            "score": 4,
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Referents are consistently identifiable, with only minor underspecification in a few broad category phrases."
+          },
+          "plain": {
+            "score": 4,
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Most referents are explicit and traceable, though a small number of generalized category mentions reduce maximal clarity."
+          }
         }
-      ]
+      },
+      "abs_diff_a_b": 1,
+      "judge_disagreement": false
     },
     {
       "adl_id": "disc-llm-crypto-mixer",
       "discovery_path": "experiments/outputs/llm_discovery_crypto-mixer.md",
-      "judges": {},
-      "skipped": [
-        {
-          "provider": "openai",
-          "reason": "openai API not configured"
+      "judges": {
+        "openai_proxy": {
+          "adl": {
+            "score": 4,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "Core entities are named clearly (wallets, mixer contracts, peel-chain, off-ramp), with minor abstraction in comparative statements."
+          },
+          "plain": {
+            "score": 4,
+            "model": "gpt-5.3-codex (cursor-proxy)",
+            "rationale": "Plain L2 retains explicit naming for wallet behavior and contract interactions, with only small inferential gaps in comparative phrasing."
+          }
         },
-        {
-          "provider": "claude",
-          "reason": "claude API not configured"
+        "composer_proxy": {
+          "adl": {
+            "score": 4,
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "Referent tracing is reliable across paragraphs, but a few high-level contrasts still depend on implied pairing rather than explicit restatement."
+          },
+          "plain": {
+            "score": 4,
+            "model": "composer-2-fast (cursor-proxy)",
+            "rationale": "The prose keeps referents mostly explicit and stable across steps, with minor underspecification in shorthand contrasts."
+          }
         }
-      ]
+      },
+      "abs_diff_a_b": 0,
+      "judge_disagreement": false
     }
   ],
-  "judges_scored": [],
-  "mean_across_judges_adl": null,
+  "judges_scored": [
+    "openai_proxy",
+    "composer_proxy"
+  ],
+  "mean_across_judges_adl": 4.3333,
   "disagreement_count": 0,
+  "adl_vs_plain_delta_mean": {
+    "openai_proxy": 0.0,
+    "composer_proxy": 0.0
+  },
   "judges_skipped": [
-    "claude",
-    "openai"
+    "claude"
   ]
 }

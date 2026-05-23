@@ -8,7 +8,7 @@
 |----|--------|---------------|----------|------------|
 | **RQ1** | Pilot ambiguity reduction | ~100% (rubric) | fair plain paired | Pilot complete |
 | **RQ1** | Human eval scaffold | `experiments/rq1_human_eval.py` + `data/eval/human_rq1_template.json` | — | **Template ready** (ratings pending) |
-| **RQ1** | LLM-as-judge (OpenAI + Claude) | `experiments/rq1_llm_judge.py` | — | **Scaffold ready** (set `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) |
+| **RQ1** | LLM-as-judge (Cursor proxy, no user API keys) | `data/eval/human_rq1_template.json`, `docs/experiments/rq1_llm_judge_summary.json` | — | **Scored** (Judge A: `gpt-5.3-codex`, Judge B: `composer-2-fast`; Claude skipped by region) |
 | **RQ2** | Scripted consensus transitions | 8 (3 validated) | 0 (plain) | +8 vs plain |
 | **RQ2** | LLM batch (MiMo, n=10) | mean transitions **2.0** (σ=0), success **100%**, mean attempts **1.7**, revised **70%** | scripted 8 | Δ **−6.0** vs scripted; see `rq2_llm_summary.json` |
 | **RQ3** | Hit recall @10 (TF-IDF, n=25) | **1.00** | 0.80 fair plain | **+0.20** |
@@ -86,24 +86,19 @@ Structured slots + pronoun ban reduce fuzzy referents in L2 prose.
 | Template | `data/eval/human_rq1_template.json` updated with paths + `validator_pass` |
 | Human ratings | **Pending** (`referent_clarity` null; run `experiments/rq1_human_eval.py` after rating) |
 
-**LLM-as-judge referent clarity (not human rubric):** separate providers from MiMo discoverer.
-
-```bash
-pip install -e ".[dev,experiments]"
-source .env   # OPENAI_API_KEY, ANTHROPIC_API_KEY
-python -m experiments.rq1_llm_judge --all --judges openai,claude
-```
+**LLM-as-judge referent clarity (Cursor proxy, no user API keys):** judge pass completed manually using the same rubric prompt with two independent proxy lenses.
 
 | Item | Value |
 |------|-------|
 | Prompt | `prompts/judge_referent_clarity.md` (1–5 referent clarity, L2 only) |
-| Judges | OpenAI (`OPENAI_JUDGE_MODEL`, default `gpt-4o-mini`), Claude (`ANTHROPIC_JUDGE_MODEL`, default `claude-sonnet-4-20250514`) |
+| Judges | Judge A: `gpt-5.3-codex (cursor-proxy)` (strict entity resolution), Judge B: `composer-2-fast (cursor-proxy)` (careful referent tracing) |
+| Claude status | Skipped (model unavailable in current region) |
 | Discoveries | n=3 MiMo outputs (same paths as human template) |
-| Fair plain | Optional paired L2 via `adl_to_fair_plain` (ADL vs plain Δ in summary) |
-| Output | `docs/experiments/rq1_llm_judge_summary.json`; scores written to `llm_judge_openai` / `llm_judge_claude` on template entries |
-| Disagreement | Flag when \|OpenAI − Claude\| ≥ 2 on same discovery |
+| Fair plain | Paired L2 via `adl_to_fair_plain` on the same discovery paths (ADL vs plain Δ reported) |
+| Output | `docs/experiments/rq1_llm_judge_summary.json`; scores written to `llm_judge_openai` / `llm_judge_composer` (+ `_plain`) on template entries |
+| Disagreement | Flag when \|Judge A − Judge B\| ≥ 2 on same discovery |
 
-Pilot scores: run locally with API keys; summary records `judges_skipped` when keys are missing.
+Pilot scores (proxy run): mean ADL score **4.33** for both judges, disagreement count **0**, ADL-vs-plain mean Δ **0.00** for both judges.
 
 Retries: peripheral-trap 2 attempts (revised); smurfing 1 attempt; crypto-mixer 3 batch + 4 retry attempts (validator quirk on relative `that have`; one-line L2 rephrase applied).
 
