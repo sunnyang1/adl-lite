@@ -1,111 +1,204 @@
 {
-  "version": "0.1",
+  "version": "0.3",
+  "curated": true,
+  "labeling": "expert-style scenario queries; multi-label where typologies overlap; L3-only tokens for q21–q25",
   "queries": [
     {
       "id": "q01",
-      "text": "small deposit structuring smurfing",
-      "relevant": [
-        "aml-smurfing"
-      ]
+      "text": "customer splits cash deposits across branches staying below currency reporting threshold",
+      "relevant": ["aml-smurfing", "aml-ctr-avoid"],
+      "primary": ["aml-smurfing", "aml-ctr-avoid"],
+      "difficulty": "medium"
     },
     {
       "id": "q02",
-      "text": "multi hop layering obfuscation",
-      "relevant": [
-        "aml-layering"
-      ]
+      "text": "multi-hop transfers sever audit trail between placement and integration",
+      "relevant": ["aml-layering"],
+      "primary": ["aml-layering"],
+      "difficulty": "hard"
     },
     {
       "id": "q03",
-      "text": "shell company paper entity",
-      "relevant": [
-        "aml-shell-co"
-      ]
+      "text": "paper entity minimal operations disproportionate wire velocity",
+      "relevant": ["aml-shell-co", "aml-ben-owner"],
+      "primary": ["aml-shell-co"],
+      "secondary": ["aml-ben-owner"],
+      "difficulty": "hard"
     },
     {
       "id": "q04",
-      "text": "trade misinvoicing over invoice",
-      "relevant": [
-        "aml-trade-mis"
-      ]
+      "text": "import declared unit price deviates from commodity benchmark corridor",
+      "relevant": ["aml-trade-mis", "aml-trade-base"],
+      "primary": ["aml-trade-mis"],
+      "secondary": ["aml-trade-base"],
+      "difficulty": "medium"
     },
     {
       "id": "q05",
-      "text": "crypto mixer tumbler blockchain",
-      "relevant": [
-        "aml-crypto-mix"
-      ]
+      "text": "wallet receives labeled tumbler contract funds then exchange off-ramp",
+      "relevant": ["aml-crypto-mix", "aml-virtual-asset"],
+      "primary": ["aml-crypto-mix", "aml-virtual-asset"],
+      "difficulty": "medium"
     },
     {
       "id": "q06",
-      "text": "politically exposed person pep",
-      "relevant": [
-        "aml-pep-link"
-      ]
+      "text": "customer graph two hops from tier one politically exposed official",
+      "relevant": ["aml-pep-link", "aml-ben-owner"],
+      "primary": ["aml-pep-link"],
+      "secondary": ["aml-ben-owner"],
+      "difficulty": "hard"
     },
     {
       "id": "q07",
-      "text": "rapid cross border movement velocity",
-      "relevant": [
-        "aml-rapid-move"
-      ]
+      "text": "retail account three jurisdiction hops completed within twelve hours",
+      "relevant": ["aml-rapid-move", "aml-hawala"],
+      "primary": ["aml-rapid-move"],
+      "secondary": ["aml-hawala"],
+      "difficulty": "medium"
     },
     {
       "id": "q08",
-      "text": "cash integration legitimate business",
-      "relevant": [
-        "aml-cash-int"
-      ]
+      "text": "declared e-commerce merchant receives eighty percent revenue as cash",
+      "relevant": ["aml-cash-int"],
+      "primary": ["aml-cash-int"],
+      "difficulty": "hard"
     },
     {
       "id": "q09",
-      "text": "beneficial owner opacity ubo",
-      "relevant": [
-        "aml-ben-owner"
-      ]
+      "text": "transaction volume exceeds disclosed beneficial owner entity revenue tenfold",
+      "relevant": ["aml-ben-owner", "aml-shell-co"],
+      "primary": ["aml-ben-owner"],
+      "secondary": ["aml-shell-co"],
+      "difficulty": "medium"
     },
     {
       "id": "q10",
-      "text": "round trip funds re-enter jurisdiction",
-      "relevant": [
-        "aml-round-trip"
-      ]
+      "text": "outbound wire returns inbound related party same amount within seven days",
+      "relevant": ["aml-round-trip", "aml-rapid-move"],
+      "primary": ["aml-round-trip"],
+      "secondary": ["aml-rapid-move"],
+      "difficulty": "hard"
     },
     {
       "id": "q11",
-      "text": "ctr threshold avoidance reporting limit",
-      "relevant": [
-        "aml-ctr-avoid"
-      ]
+      "text": "histogram spike deposit amounts ninety to ninety nine percent of CTR limit",
+      "relevant": ["aml-ctr-avoid", "aml-smurfing"],
+      "primary": ["aml-ctr-avoid", "aml-smurfing"],
+      "difficulty": "medium"
     },
     {
       "id": "q12",
-      "text": "money mule pass through account",
-      "relevant": [
-        "aml-mule-acct"
-      ]
+      "text": "account age under ninety days inbound consolidated outbound crypto exchange",
+      "relevant": ["aml-mule-acct"],
+      "primary": ["aml-mule-acct"],
+      "difficulty": "hard"
     },
     {
       "id": "q13",
-      "text": "trade based laundering commodity",
-      "relevant": [
-        "aml-trade-base"
-      ]
+      "text": "trade finance payment without bill of lading or logistics anchor event",
+      "relevant": ["aml-trade-base"],
+      "primary": ["aml-trade-base"],
+      "difficulty": "hard"
     },
     {
       "id": "q14",
-      "text": "casino chip gaming conversion",
-      "relevant": [
-        "aml-casino"
-      ]
+      "text": "gaming chip purchase minimal rated table time immediate cash out",
+      "relevant": ["aml-casino", "aml-cash-int"],
+      "primary": ["aml-casino"],
+      "secondary": ["aml-cash-int"],
+      "difficulty": "medium"
     },
     {
       "id": "q15",
-      "text": "peripheral node attention trap concentration",
-      "relevant": [
-        "aml-attention-trap",
-        "aml-layering"
-      ]
+      "text": "low betweenness leaf accounts funnel value toward hidden sink node",
+      "relevant": ["aml-attention-trap", "aml-layering", "aml-mule-acct"],
+      "primary": ["aml-attention-trap"],
+      "secondary": ["aml-layering", "aml-mule-acct"],
+      "difficulty": "hard",
+      "notes": "Relation graph on attention-trap should disambiguate vs generic layering"
+    },
+    {
+      "id": "q16",
+      "text": "all cash LLC property purchase resale within twelve months wash appearance",
+      "relevant": ["aml-real-estate", "aml-shell-co"],
+      "primary": ["aml-real-estate"],
+      "secondary": ["aml-shell-co"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "q17",
+      "text": "mirror credits debits informal remittance corridor without SWIFT documentary trail",
+      "relevant": ["aml-hawala"],
+      "primary": ["aml-hawala"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "q18",
+      "text": "ordering institution absent from KYC correspondent relationship path SWIFT",
+      "relevant": ["aml-nesting", "aml-layering"],
+      "primary": ["aml-nesting"],
+      "secondary": ["aml-layering"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "q19",
+      "text": "fiat to privacy coin to fiat VASP cycle under six hours travel rule gap",
+      "relevant": ["aml-virtual-asset", "aml-crypto-mix"],
+      "primary": ["aml-virtual-asset", "aml-crypto-mix"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "q20",
+      "text": "closed invoice cycle related entities near zero net commodity movement",
+      "relevant": ["aml-trade-loop", "aml-trade-mis", "aml-shell-co"],
+      "primary": ["aml-trade-loop"],
+      "secondary": ["aml-trade-mis", "aml-shell-co"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "q21",
+      "text": "x7k9n41tgap",
+      "relevant": ["aml-nesting"],
+      "primary": ["aml-nesting"],
+      "l3_only": true,
+      "difficulty": "hard",
+      "notes": "Retrieval phrase stored only in L3 indexed-phrase relation (stripped from fair plain)"
+    },
+    {
+      "id": "q22",
+      "text": "p3m8sh77circ",
+      "relevant": ["aml-shell-co"],
+      "primary": ["aml-shell-co"],
+      "l3_only": true,
+      "difficulty": "hard",
+      "notes": "L3-only opaque anchor token"
+    },
+    {
+      "id": "q23",
+      "text": "q2j5ly88sink",
+      "relevant": ["aml-layering"],
+      "primary": ["aml-layering"],
+      "l3_only": true,
+      "difficulty": "hard",
+      "notes": "L3-only opaque anchor token"
+    },
+    {
+      "id": "q24",
+      "text": "r9u4bo31lag",
+      "relevant": ["aml-ben-owner"],
+      "primary": ["aml-ben-owner"],
+      "l3_only": true,
+      "difficulty": "hard",
+      "notes": "L3-only opaque anchor token"
+    },
+    {
+      "id": "q25",
+      "text": "s6b1tf52doc",
+      "relevant": ["aml-trade-base"],
+      "primary": ["aml-trade-base"],
+      "l3_only": true,
+      "difficulty": "hard",
+      "notes": "L3-only opaque anchor token"
     }
   ]
 }

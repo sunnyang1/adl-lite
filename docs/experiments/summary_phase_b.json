@@ -1,0 +1,117 @@
+{
+  "generated_at": "2026-05-23T12:18:23.378805+00:00",
+  "phase": "B",
+  "pilot": false,
+  "rq1_ambiguity": {
+    "metric": "ambiguity_rubric",
+    "adl_mean_ambiguity": 0.0,
+    "plain_mean_ambiguity": 0.0,
+    "ambiguity_reduction_pct": 0.0,
+    "n_pairs": 25,
+    "phase_b": true,
+    "adl_details": [
+      {
+        "pronoun_rate": 0.0,
+        "entity_anchor_rate": 0.0303,
+        "validator_errors": 0,
+        "ambiguity_score": 0.0,
+        "word_count": 99
+      },
+      {
+        "pronoun_rate": 0.0,
+        "entity_anchor_rate": 0.0312,
+        "validator_errors": 0,
+        "ambiguity_score": 0.0,
+        "word_count": 96
+      },
+      {
+        "pronoun_rate": 0.0,
+        "entity_anchor_rate": 0.0244,
+        "validator_errors": 0,
+        "ambiguity_score": 0.0,
+        "word_count": 205
+      },
+      {
+        "pronoun_rate": 0.0,
+        "entity_anchor_rate": 0.06,
+        "validator_errors": 0,
+        "ambiguity_score": 0.0,
+        "word_count": 50
+      },
+      {
+        "pronoun_rate": 0.0,
+        "entity_anchor_rate": 0.0316,
+        "validator_errors": 0,
+        "ambiguity_score": 0.0,
+        "word_count": 95
+      }
+    ],
+    "plain_details": [
+      {
+        "pronoun_rate": 0.0,
+        "entity_anchor_rate": 0.0303,
+        "validator_errors": 0,
+        "ambiguity_score": 0.0,
+        "word_count": 99
+      },
+      {
+        "pronoun_rate": 0.0,
+        "entity_anchor_rate": 0.0312,
+        "validator_errors": 0,
+        "ambiguity_score": 0.0,
+        "word_count": 96
+      },
+      {
+        "pronoun_rate": 0.0,
+        "entity_anchor_rate": 0.0244,
+        "validator_errors": 0,
+        "ambiguity_score": 0.0,
+        "word_count": 205
+      },
+      {
+        "pronoun_rate": 0.0,
+        "entity_anchor_rate": 0.06,
+        "validator_errors": 0,
+        "ambiguity_score": 0.0,
+        "word_count": 50
+      },
+      {
+        "pronoun_rate": 0.0,
+        "entity_anchor_rate": 0.0316,
+        "validator_errors": 0,
+        "ambiguity_score": 0.0,
+        "word_count": 95
+      }
+    ],
+    "n_docs": 25
+  },
+  "rq2_consensus": {
+    "metric": "consensus_transitions",
+    "adl_transitions": 8,
+    "adl_validated_count": 3,
+    "baseline_transitions": 0,
+    "n_docs": 5,
+    "pilot": true
+  },
+  "rq3_retrieval": {
+    "metric": "recall_at_10",
+    "scorer": "tfidf_fair_plain",
+    "adl_recall": 1.0,
+    "plain_baseline_recall": 0.8,
+    "delta": 0.2,
+    "label_recall_adl": 0.9667,
+    "label_recall_plain": 0.7267,
+    "label_recall_delta": 0.24,
+    "n_queries": 25,
+    "pilot": false,
+    "phase_b": true
+  },
+  "rq4_leakage": {
+    "metric": "scope_leak_count",
+    "adl_leaks": 0,
+    "denied_access": 60,
+    "probes": 60,
+    "baseline_leaks_uncontrolled": 0,
+    "pilot": true
+  }
+}

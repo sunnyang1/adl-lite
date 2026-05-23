@@ -2,38 +2,59 @@
 adl_type: concept
 adl_id: aml-ctr-avoid
 status: validated
-confidence: 0.75
-novelty: 0.35
+confidence: 0.83
+novelty: 0.30
 domain: financial_aml
 scope: private/ceiec-aml
 provisional_names:
+  zh: "规避大额交易报告"
   en: "CTR Threshold Avoidance"
 evidence_refs:
   - vecdb://aml/aml_ctr_avoid
+  - regulatory://bsa/ctr_guidance
 ---
 
 # CTR Threshold Avoidance
 
+> Status: 🟢 validated | Confidence: 83%
+
 ## Definition
 
-Deposits clustered just below reporting in anti-money laundering monitoring contexts.
+**CTR Threshold Avoidance** structures cash activity to remain just below Currency Transaction
+Report limits while aggregate volume exceeds reporting intent. Algorithms detect clustered
+deposits, split counter parties, and temporal bundling across branches.
+
+## Monitoring Signals
+
+- Deposit amounts in 90–99% band of CTR for ≥5 occurrences / 30 days
+- Multiple branches same depositor fingerprint same day
+- Aggregated same-beneficiary inflow >CTR within 48h rolling window
+- Withdrawal immediately after sub-threshold deposit chain
 
 ## Related Concepts
 
-- [[Capital Attention Trap]] — cross-domain structural analogy
+- [[Smurfing Pattern]] — general structuring parent pattern
 
 ```adl:relation
 source: "CTR Threshold Avoidance"
-relation: related-to
-target: "adl://private/ceiec-aml/disc-capital-trap"
-mapping_type: domain
-confidence: 0.70
+relation: specialisation-of
+target: "adl://private/ceiec-aml/aml-smurfing"
+mapping_type: ontological
+confidence: 0.91
+```
+
+```adl:evidence
+evidence_type: cross_reference
+data_ref: regulatory://bsa/ctr_guidance
+description: "BSA CTR structuring red-flag alignment"
+confidence: 0.89
+observed_at: "2025-01-01T00:00:00Z"
 ```
 
 ```adl:evidence
 evidence_type: vector_cluster
 data_ref: vecdb://aml/aml_ctr_avoid
-description: "AML feature cluster for ctr threshold avoidance"
-confidence: 0.72
-observed_at: "2026-05-01T00:00:00Z"
+description: "Histogram spike below CTR with beneficiary consolidation"
+confidence: 0.84
+observed_at: "2025-11-20T08:00:00Z"
 ```

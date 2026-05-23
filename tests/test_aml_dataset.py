@@ -28,7 +28,7 @@ class TestAMLDataset:
     def test_queries_count(self):
         ensure_dataset()
         queries = load_queries()
-        assert len(queries) == 15
+        assert len(queries) == 25
 
     def test_concept_files_validate(self):
         ensure_dataset()
@@ -58,3 +58,15 @@ class TestAMLDataset:
         for q in load_queries():
             assert "relevant" in q
             assert all(r in concept_ids for r in q["relevant"])
+            if "primary" in q:
+                assert all(r in concept_ids for r in q["primary"])
+
+    def test_l3_only_queries_present(self):
+        ensure_dataset()
+        l3 = [q for q in load_queries() if q.get("l3_only")]
+        assert len(l3) == 5
+
+    def test_queries_multi_label(self):
+        ensure_dataset()
+        multi = [q for q in load_queries() if len(q["relevant"]) > 1]
+        assert len(multi) >= 8

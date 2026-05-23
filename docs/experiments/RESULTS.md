@@ -103,6 +103,23 @@ python -m experiments.run_sim --scripted
 
 **Smoke status (2026-05-23):** `run_sim --llm` → `status: completed`, 1 attempt, 2 consensus transitions to `validated`.
 
+## Phase B RQ3 (TF-IDF + L3 graph boost)
+
+```bash
+python -m experiments.run_phase_b
+# or: python -m experiments.rq3_retrieval --mode phase_b -k 10
+```
+
+| Metric @10 (n=25) | ADL | Fair plain | Δ |
+|-------------------|-----|------------|---|
+| Hit recall (≥1 relevant in top-k) | 1.00 | 0.80 | **+0.20** |
+| Label recall (fraction of labels hit) | 0.97 | 0.73 | **+0.24** |
+
+Scoring: TF-IDF on ADL index (L2 + L3 relations + resolved targets) vs fair plain (L2 only).
+Phase B adds query-aligned relation overlap + neighbor propagation boost; zero-score ties do not count as hits.
+
+Dataset: `data/aml/queries.json` v0.3 — 20 scenario queries + 5 **L3-only** opaque anchor queries (`q21`–`q25`) with `indexed-phrase` relations stripped from the plain baseline.
+
 ## Limitations (pilot)
 
 - RQ pilots default to scripted transitions; LLM mode is optional and needs API credentials

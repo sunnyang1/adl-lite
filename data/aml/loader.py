@@ -99,7 +99,7 @@ observed_at: "2026-05-01T00:00:00Z"
 
 
 def ensure_dataset() -> Path:
-    """Generate manifest, queries, and 20 concept stubs if missing."""
+    """Generate concept stubs if missing; preserve curated manifest and queries."""
     CONCEPTS_DIR.mkdir(parents=True, exist_ok=True)
 
     concepts = []
@@ -117,11 +117,20 @@ def ensure_dataset() -> Path:
             }
         )
 
-    MANIFEST_PATH.write_text(
-        json.dumps({"version": "0.1", "count": len(concepts), "concepts": concepts}, indent=2),
-        encoding="utf-8",
-    )
-    QUERIES_PATH.write_text(json.dumps({"version": "0.1", "queries": QUERIES}, indent=2), encoding="utf-8")
+    if not MANIFEST_PATH.exists():
+        MANIFEST_PATH.write_text(
+            json.dumps(
+                {"version": "0.1", "count": len(concepts), "concepts": concepts},
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+    if not QUERIES_PATH.exists():
+        QUERIES_PATH.write_text(
+            json.dumps({"version": "0.1", "queries": QUERIES}, indent=2),
+            encoding="utf-8",
+        )
     return DATA_DIR
 
 

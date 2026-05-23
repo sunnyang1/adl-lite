@@ -63,7 +63,7 @@ confidence: 0.91
 
 ## 实施计划
 
-Phase 1 任务分解与时间表见 [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md)，勾选清单见 [`docs/PHASE1_CHECKLIST.md`](docs/PHASE1_CHECKLIST.md)。设计起源见 [`ADL_Lite_对话全记录.md`](ADL_Lite_对话全记录.md)。
+Phase 1 任务分解与时间表见 [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md)，勾选清单见 [`docs/PHASE1_CHECKLIST.md`](docs/PHASE1_CHECKLIST.md)。**论文实验升级**见 [`docs/experiments/PHASE_B_PLAN.md`](docs/experiments/PHASE_B_PLAN.md)。设计起源见 [`ADL_Lite_对话全记录.md`](ADL_Lite_对话全记录.md)。
 
 ## 快速开始
 

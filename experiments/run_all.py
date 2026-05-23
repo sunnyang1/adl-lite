@@ -25,17 +25,36 @@ def run_all() -> dict:
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Run ADL Lite evaluation pilots")
+    parser = argparse.ArgumentParser(description="Run ADL Lite evaluation")
+    parser.add_argument(
+        "--phase",
+        choices=("pilot", "b"),
+        default="pilot",
+        help="pilot=Phase 1 metrics; b=Phase B fair baselines + TF-IDF",
+    )
     parser.add_argument("--db", default=None, help="Optional AML db path (unused in pilot)")
+    parser.add_argument(
+        "--llm",
+        action="store_true",
+        help="With --phase b: run optional LLM discoverer (OPENAI_API_KEY)",
+    )
     parser.add_argument(
         "--out",
         default=None,
-        help="Write summary JSON (default: docs/experiments/summary.json)",
+        help="Write summary JSON (default: docs/experiments/summary.json or summary_phase_b.json)",
     )
     args = parser.parse_args(argv)
 
-    summary = run_all()
-    out = Path(args.out) if args.out else RESULTS_DIR / "summary.json"
+    if args.phase == "b":
+        from .run_phase_b import run_phase_b
+
+        summary = run_phase_b(llm=args.llm)
+        default_out = RESULTS_DIR / "summary_phase_b.json"
+    else:
+        summary = run_all()
+        default_out = RESULTS_DIR / "summary.json"
+
+    out = Path(args.out) if args.out else default_out
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2))
