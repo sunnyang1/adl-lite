@@ -76,15 +76,44 @@ Sample event:
 {"action": "transition", "adl_id": "disc-capital-trap", "role": "reviewer", "to": "validated"}
 ```
 
+## LLM discovery simulation (optional)
+
+End-to-end discoverer + reviewer using structured prompts, parse/validate, and auto-retry on failure.
+
+```bash
+pip install -e ".[dev,experiments]"
+cp .env.example .env   # fill MIMO_API_KEY or OPENAI_API_KEY
+
+# Xiaomi MiMo Token Plan (tp- keys, CN cluster default)
+python -m experiments.run_sim --llm --max-retries 1
+
+# Scripted baseline (no API)
+python -m experiments.run_sim --scripted
+```
+
+| Item | Location |
+|------|----------|
+| Discovery output | `experiments/outputs/llm_discovery_<timestamp>.md` |
+| Event log | `experiments/logs/llm_run.jsonl` |
+| System prompt | `prompts/write_discovery.md` |
+
+**Providers (first match):** MiMo (`MIMO_API_KEY`, `MIMO_API_BASE_URL`, `MIMO_MODEL`) then OpenAI (`OPENAI_API_KEY`).
+
+**Validator (RQ1):** Blocks demonstrative/vague referents (`This shows…`, `because it`, Chinese pronouns). Allows grammatical **relative** `that` (e.g. `nodes that feed into…`).
+
+**Smoke status (2026-05-23):** `run_sim --llm` → `status: completed`, 1 attempt, 2 consensus transitions to `validated`.
+
 ## Limitations (pilot)
 
-- No LLM agents; scripted transitions only
+- RQ pilots default to scripted transitions; LLM mode is optional and needs API credentials
 - RQ3 retrieval uses lexical overlap, not embeddings
 - Dataset concepts are generated minimal stubs
 - Statistical significance not claimed; numbers are reproducible smoke metrics
 
 ## Next steps (post Phase 1)
 
-- FAISS warm layer for semantic RQ3
-- Human rubric for ambiguity on LLM-generated discoveries
-- Larger AML corpus with expert relevance labels
+- Human rubric labels for RQ1 on LLM-generated discoveries
+- Enrich AML corpus per DATASET_GUIDE (expert relevance labels)
+- Optional sentence-transformers for RQ3 if TF-IDF delta remains 0
+- Statistical tests when n ≥ 30 queries
+

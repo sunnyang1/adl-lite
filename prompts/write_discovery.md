@@ -65,4 +65,15 @@ observed_at: "2026-05-23T00:00:00Z"
 
 ## Output
 
-Return only the Markdown file contents. No commentary.
+Return only the raw Markdown file contents. No commentary. Do not wrap output in a ` ```markdown ` code fence.
+
+## MiMo / API
+
+When using Xiaomi MiMo Token Plan (`tp-` key), set:
+
+```bash
+export MIMO_API_KEY=tp-...
+export MIMO_API_BASE_URL=https://token-plan-cn.xiaomimimo.com/v1   # or your subscription cluster
+export MIMO_MODEL=mimo-v2.5-pro
+python -m experiments.run_sim --llm
+```

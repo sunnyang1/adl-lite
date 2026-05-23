@@ -15,6 +15,10 @@ htmlcov/
 *.db-journal
 experiments/logs/*.jsonl
 !experiments/logs/.gitkeep
+experiments/outputs/*
+!experiments/outputs/.gitkeep
+.env
+.env.local
 .DS_Store
 .vscode/
 .idea/

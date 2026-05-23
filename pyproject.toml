@@ -36,6 +36,9 @@ dev = [
     "mypy>=1.0",
     "ruff>=0.1.0",
 ]
+experiments = [
+    "openai>=1.0",
+]
 
 [project.scripts]
 adl-lite = "adl_lite.cli:main"

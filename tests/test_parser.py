@@ -199,6 +199,28 @@ This is a bad concept because it uses pronouns.
         assert len(pronoun_errors) >= 1
         assert any("this" in e.lower() for e in pronoun_errors)
 
+    def test_relative_that_allowed(self):
+        """Relative 'that' clauses should not trigger pronoun errors."""
+        ok_doc = """\
+---
+adl_type: concept
+adl_id: ok-relative
+status: provisional
+confidence: 0.5
+novelty: 0.5
+domain: test
+scope: public
+provisional_names:
+  en: "Ok Relative"
+---
+
+Peripheral nodes that feed into sink accounts form a convergence pattern that delivers funds.
+"""
+        doc = parse_text(ok_doc)
+        errors = doc.validate_semantics()
+        pronoun_errors = [e for e in errors if "pronoun" in e.lower()]
+        assert pronoun_errors == []
+
     def test_scope_validation(self):
         """Invalid scope format should be rejected at parse time."""
         bad_doc = """\
