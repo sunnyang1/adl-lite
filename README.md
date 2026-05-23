@@ -144,11 +144,30 @@ engine.transition(
 assert engine.verify_all()["disc-capital-trap"]
 ```
 
+### Demo（一键端到端）
+
+从发现文档到入库与关联查询，一条命令跑通 parse → validate → store → related：
+
+```bash
+# 默认：scripted 示例（capital_reflux_trap + 关联概念）
+./scripts/demo_pipeline.sh
+
+# 显式 scripted / 完整 5-agent 模拟
+python scripts/demo_pipeline.py --scripted
+python scripts/demo_pipeline.py --scripted --sim
+
+# 可选 LLM 发现（无 API key 时优雅跳过）
+python scripts/demo_pipeline.py --llm
+```
+
+Demo 会在临时 SQLite 库（或 `--db /path/to/demo.db`）中写入示例，并对 `disc-capital-trap` 执行关联查询，最后打印可读摘要。
+
 ### 运行测试
 
 ```bash
 pytest tests/ -v
 adl-lite validate examples/*.md
+pytest tests/test_demo_pipeline.py -q
 ```
 
 ## 项目结构
