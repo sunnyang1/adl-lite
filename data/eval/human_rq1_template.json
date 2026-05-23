@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Human referent clarity ratings for RQ1 (1=ambiguous, 5=explicit entity anchors)",
+  "description": "Human referent clarity ratings for RQ1 (1=ambiguous, 5=explicit entity anchors) Wave 5a note: live proxy judge rerun blocked by missing OPENAI_API_KEY/ANTHROPIC_API_KEY; fixture plain-LLM scores retained.",
   "entries": [
     {
       "adl_id": "disc-llm-peripheral-trap",

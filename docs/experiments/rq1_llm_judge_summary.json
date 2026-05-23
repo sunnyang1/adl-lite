@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-23T17:39:17.744110+00:00",
+  "generated_at": "2026-05-23T18:13:07.050750+00:00",
   "metric": "llm_referent_clarity",
   "label": "LLM-as-judge (Cursor proxy, no user API keys)",
   "n_discoveries": 15,
@@ -737,5 +737,10 @@
   "plain_llm_fixture_merge_note": {
     "n_updated": 15,
     "note": "Fixture merge (offline demo adjudication)"
+  },
+  "wave5a_live_proxy_attempt": {
+    "status": "blocked",
+    "reason": "OPENAI_API_KEY not set; ANTHROPIC_API_KEY not set during --all --plain-llm-live rerun",
+    "attempted_at": "2026-05-23T18:12:35Z"
   }
 }

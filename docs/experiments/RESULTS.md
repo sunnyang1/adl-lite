@@ -3,7 +3,7 @@
 > **Label:** All numbers below are **pilot / synthetic** metrics from the scripted simulation and token-overlap retrieval rubric. Re-run commands locally to reproduce.
 
 > [!summary] Paper-ready summary (RQ1-RQ4)
-> - **RQ1 (ambiguity):** Phase B fair-plain rerun reports `0.0%` ambiguity reduction (`n_pairs=25`), and LLM-as-judge on **`n=15`** MiMo discoveries shows mean ADL-minus-fair-plain **`0.00`** (identical stripped L2). **Wave 4a** adds an unstructured plain-LLM baseline (**`n=3`** writings reused by slug): fixture-scored mean plain-LLM clarity **`3.00`** (both judges); mean ADL−plain **`+1.067`** (Judge A) / **`+1.600`** (Judge B) — see **`docs/experiments/rq1_llm_judge_summary.json`** → **`plain_llm`**.
+> - **RQ1 (ambiguity):** Phase B fair-plain rerun reports `0.0%` ambiguity reduction (`n_pairs=25`), and LLM-as-judge on **`n=15`** MiMo discoveries shows mean ADL-minus-fair-plain **`0.00`** (identical stripped L2). **Wave 4a** adds an unstructured plain-LLM baseline (**`n=3`** writings reused by slug): fixture-scored mean plain-LLM clarity **`3.00`** (both judges); mean ADL−plain **`+1.067`** (Judge A) / **`+1.600`** (Judge B). Wave 5a live proxy refresh attempted but blocked (`OPENAI_API_KEY` / `ANTHROPIC_API_KEY` unset), so fixture labels remain in `plain_llm`.
 > - **RQ2 (consensus):** Scripted ADL chain logs `8` transitions (`3` validated docs, `n_docs=5`) vs plain `0`; post-v0.3.0 MiMo batch (`n=10`) averages `2.0` transitions/run (std `0.0`, success `100%`, revised `70%`), `-6.0` vs scripted total.
 > - **RQ3 (retrieval):** Phase B TF-IDF and hybrid both reach full-set hit recall `1.00` vs `0.80` (`+0.20`), but Table 1 ablation shows this gap is concentrated in `q21-q25` L3-only queries (`+1.00`) while scenario-only `q01-q20` hit delta stays `+0.00`; see `docs/experiments/rq3_ablation.json`.
 > - **RQ4 (scope):** Scope ACL shows `0` leaks with `60/60` cross-scope probes denied.
@@ -15,7 +15,7 @@
 |----|--------|---------------|----------|------------|
 | **RQ1** | Pilot ambiguity reduction | ~100% (rubric) | fair plain paired | Pilot complete |
 | **RQ1** | Human eval scaffold | `experiments/rq1_human_eval.py` + `data/eval/human_rq1_template.json` | — | **Template ready** (ratings pending) |
-| **RQ1** | LLM-as-judge (Cursor proxy, no user API keys) | `data/eval/human_rq1_template.json`, `docs/experiments/rq1_llm_judge_summary.json` | — | **Scored** n=15; fair-plain Δ=0; **plain-LLM** pooled mean clarity **3.00**, mean ADL−plain Δ **+1.07/+1.60** |
+| **RQ1** | LLM-as-judge (Cursor proxy, no user API keys) | `data/eval/human_rq1_template.json`, `docs/experiments/rq1_llm_judge_summary.json` | — | **Scored** n=15; fair-plain Δ=0; **plain-LLM** pooled mean clarity **3.00**, mean ADL−plain Δ **+1.07/+1.60** (Wave 5a live proxy rerun blocked by missing judge keys) |
 | **RQ2** | Scripted consensus transitions | 8 (3 validated) | 0 (plain) | +8 vs plain |
 | **RQ2** | LLM batch (MiMo, n=10) | mean transitions **2.0** (σ=0), success **100%**, mean attempts **1.7**, revised **70%** | scripted 8 | Δ **−6.0** vs scripted; see `rq2_llm_summary.json` |
 | **RQ3** | Hit recall @10 (TF-IDF, n=25) | **1.00** | 0.80 fair plain | **+0.20** |
@@ -104,11 +104,11 @@ Structured slots + pronoun ban reduce fuzzy referents in L2 prose.
 | Claude status | Skipped (model unavailable in current region) |
 | Discoveries | **n=15** MiMo outputs (canonical + batch-expanded rows on the human template) |
 | Fair plain | Paired L2 via `adl_to_fair_plain` on the same discovery paths (identical wording to stripped L2 for these parses → Δ ≈ **0**) |
-| Plain LLM | **Baseline:** three unstructured AML notes (`prompts/write_discovery_plain.md`; generator `experiments/rq1_plain_discover.py`). Rows share the slug-matched **`plain_discovery_*.md`** file (one writing per AML topic reused across batch rows). **Fixture scores** bundle: `experiments/fixtures/plain_llm_judge_scores_demo.json`, merged via `python -m experiments.rq1_llm_judge --summarize-from-template` (replace fixture after live Cursor proxy adjudication). |
+| Plain LLM | **Baseline:** three unstructured AML notes (`prompts/write_discovery_plain.md`; generator `experiments/rq1_plain_discover.py`). Rows share the slug-matched **`plain_discovery_*.md`** file (one writing per AML topic reused across batch rows). **Fixture scores** bundle: `experiments/fixtures/plain_llm_judge_scores_demo.json`, merged via `python -m experiments.rq1_llm_judge --summarize-from-template`; Wave 5a live proxy rerun attempt failed because `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` were unset in the judge runtime. |
 | Output | `docs/experiments/rq1_llm_judge_summary.json`; scores on template in `llm_judge_*` (+ `_plain`, `*_plain_llm`) slots |
 | Disagreement | Flag when \|Judge A − Judge B\| ≥ 2 on ADL (**n=1** on pilot) |
 
-Proxy scores (**2026-05-24**, n=15): mean ADL score **4.067** (Judge A, codex-proxy), **4.600** (Judge B), mean of judge means ≈ **4.333**, ADL-vs-fair-plain mean Δ **0.00**. **Wave 4a unstructured baseline** (fixture, pronoun-heavy demo stubs vs same ADL L2 judges): pooled mean plain-LLM clarity **3.000** both judges; mean ADL − plain-LLM **+1.067** (Judge A), **+1.600** (Judge B); between-judge mean of those deltas **+1.333**; plain-LLM judge disagreement (**\|Δ\|≥2**) on **5**/15 rows (crypto-mixer fixture spread); see `rq1_llm_judge_summary.json` section `plain_llm`.
+Proxy scores (**2026-05-24**, n=15): mean ADL score **4.067** (Judge A, codex-proxy), **4.600** (Judge B), mean of judge means ≈ **4.333**, ADL-vs-fair-plain mean Δ **0.00**. **Wave 4a unstructured baseline** remains fixture-backed in Wave 5a: pooled mean plain-LLM clarity **3.000** both judges; mean ADL − plain-LLM **+1.067** (Judge A), **+1.600** (Judge B); between-judge mean of those deltas **+1.333**; plain-LLM judge disagreement (**\|Δ\|≥2**) on **5**/15 rows (crypto-mixer fixture spread). Live proxy replacement run returned `OPENAI_API_KEY not set` and `ANTHROPIC_API_KEY not set`; see `rq1_llm_judge_summary.json` metadata and rerun once proxy-backed judge credentials are wired.
 
 Retries (expand run): peripheral-trap batch rows often took **2** attempts (one revision cycle); crypto-mixer batches were mostly **1** attempt; canonical crypto-mixer (2026-05-23) needed L2 rephrase for validator pronoun heuristic.
 
