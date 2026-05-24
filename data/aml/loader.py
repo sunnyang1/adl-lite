@@ -33,6 +33,19 @@ CONCEPT_TOPICS = [
     ("aml-virtual-asset", "Virtual Asset Gateway", "Fiat on-ramp off-ramp cycling"),
     ("aml-trade-loop", "Circular Trade Loop", "Closed loop invoice cycles"),
     ("aml-attention-trap", "Peripheral Attention Trap", "Peripheral node concentration pattern"),
+    ("aml-placement", "Placement Stage", "FATF placement stage typology"),
+    ("aml-integration", "Integration Stage", "FATF integration stage typology"),
+    ("aml-structuring", "Structuring Typology", "General structuring below reporting thresholds"),
+    ("aml-cuckoo-smurf", "Cuckoo Smurfing", "Victim-account smurfing variant"),
+    ("aml-nominee-acct", "Nominee Account", "Stand-in account holder obscuring UBO"),
+    ("aml-fan-in-pattern", "Fan-In Graph Pattern", "IBM HI-Small fan-in graph motif"),
+    ("aml-fan-out-pattern", "Fan-Out Graph Pattern", "IBM HI-Small fan-out graph motif"),
+    ("aml-gather-scatter", "Gather-Scatter Pattern", "IBM gather-scatter graph motif"),
+    ("aml-scatter-gather", "Scatter-Gather Pattern", "IBM scatter-gather graph motif"),
+    ("aml-bipartite-pattern", "Bipartite Flow Pattern", "IBM bipartite graph motif"),
+    ("aml-cyclic-pattern", "Cyclic Transfer Pattern", "IBM cyclic graph motif"),
+    ("aml-stack-pattern", "Stacked Layer Pattern", "IBM stack graph motif"),
+    ("aml-random-baseline", "Random Transaction Baseline", "IBM random control motif"),
 ]
 
 QUERIES = [

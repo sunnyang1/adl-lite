@@ -19,11 +19,11 @@ DATA = Path(__file__).resolve().parent.parent / "data" / "aml"
 
 
 class TestAMLDataset:
-    def test_ensure_generates_twenty_concepts(self):
+    def test_ensure_generates_thirty_three_concepts(self):
         ensure_dataset()
         manifest = load_manifest()
-        assert manifest["count"] == 20
-        assert len(manifest["concepts"]) == 20
+        assert manifest["count"] == 33
+        assert len(manifest["concepts"]) == 33
 
     def test_queries_count(self):
         ensure_dataset()
@@ -43,7 +43,7 @@ class TestAMLDataset:
         with tempfile.TemporaryDirectory() as tmp:
             db = str(Path(tmp) / "test.db")
             mem = index_all(db)
-            assert len(mem.hot) == 20
+            assert len(mem.hot) == 33
             mem.close()
 
     def test_manifest_matches_topics(self):
