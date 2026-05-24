@@ -2,7 +2,7 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![AAMAS 2027 Target](https://img.shields.io/badge/Target-AAMAS%202027-red.svg)](https://www.aamas-conference.org/)
+[![ESWC + ISWC 2027 Target](https://img.shields.io/badge/Target-ESWC%20%2B%20ISWC%202027-blue.svg)](https://eswc-conferences.org/)
 
 > **"给 Markdown 戴上语义眼镜——人类看到的是普通 Wiki 页面，Agent 看到的是类型化的概念包、关系图和共识状态。"**
 
@@ -256,16 +256,18 @@ adl://shared/<collab>/     ← 协作组共享
 
 ## 学术路线
 
-**目标会议**: [AAMAS 2027](https://www.aamas-conference.org/) — Autonomous Agents and Multiagent Systems
+**主投会议**: [ESWC 2027](https://eswc-conferences.org/) + [ISWC 2027](https://iswc2027.semanticweb.org/) — Semantic Web、ontology learning、agentic KG（LLMs4OL / In-Use / Resource 等 track 视 fit 选择）
+
+**备选**: [AAMAS 2027](https://www.aamas-conference.org/) — 多智能体共识与协调链叙事
 
 **研究问题**:
 
-| RQ | 问题 | 假设 |
-|----|------|------|
-| RQ1 | SSA 能否降低多 Agent 协作语义歧义？ | 歧义率降低 40%+ |
-| RQ2 | SSA 能否加速概念共识达成？ | 共识轮数减少 50%+ |
-| RQ3 | 语义类型+关系图能否提升检索精度？ | Recall@10 +15% |
-| RQ4 | URI 命名空间能否零泄露隔离？ | 泄露率=0%, Recall 损失<5% |
+| RQ | 问题 | 假设（探索性） | Phase B pilot（见 [`docs/experiments/RESULTS.md`](docs/experiments/RESULTS.md)） |
+|----|------|----------------|----------------------------------|
+| RQ1 | SSA 能否降低多 Agent 协作语义歧义？ | 歧义率降低 40%+ | fair-plain LLM-judge **Δ=0**；vs unstructured plain-LLM **~+1.5**；**人工 RQ1 已取消** |
+| RQ2 | SSA 能否加速概念共识达成？ | 共识轮数减少 50%+ | 脚本化 **8** transitions vs plain **0**（MiMo 批量不可直接对比） |
+| RQ3 | 语义类型+关系图能否提升检索精度？ | Recall@10 +15% | 全量 hit **Δ +0.20**（`n=25`）；L3-only **`q21`–`q25` Δ +1.00** |
+| RQ4 | URI 命名空间能否零泄露隔离？ | 泄露率=0%, Recall 损失<5% | **0** leaks；**99/99** probes denied（33 concepts × 3 requesters） |
 
 **实施时间线**:
 
@@ -273,8 +275,9 @@ adl://shared/<collab>/     ← 协作组共享
 |------|------|------|
 | Phase 1 | 5.23 - 6.30 | Parser + Hybrid Index + 5-Agent 框架 + AML 数据集 |
 | Phase 2 | 7.1 - 8.15 | 4 组实验执行 + 统计检验；**Ontology 2a–2c**（见 PRD） |
-| Phase 3 | 8.16 - 9.30 | AAMAS 模板写作 + 内部评审；可选 **OWL/Turtle 导出** |
-| Phase 4 | 10.1 - 10.15 | 投 AAMAS + 挂 arXiv |
+| Phase 3 | 8.16 - 9.30 | ESWC/ISWC 论文写作 + 内部评审；**Turtle 导出**（Path B，Resource/In-Use 叙事） |
+| Phase 4 | 2027 投稿窗 | 主投 ESWC 2027 + ISWC 2027；挂 arXiv |
+| 可选冲刺 | 2026-05 前后 | ISWC 2026 Resource — 时间紧，可作 sprint 或顺延至 ISWC 2027 |
 
 ## 引用
 

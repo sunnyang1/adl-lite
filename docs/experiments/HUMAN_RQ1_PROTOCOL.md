@@ -1,5 +1,7 @@
 # Human RQ1 Referent Clarity Study — Protocol
 
+> **Status: CANCELLED (2026-05-24).** The paper uses **LLM-as-judge / proxy judges only** for RQ1 subjective clarity. This protocol and `human_rq1_template.json` are retained for audit and optional future work — do not report human means in the manuscript.
+
 Step-by-step instructions for running the human inter-rater study that supplements LLM-as-judge RQ1 pilots. **Do not copy LLM proxy scores into human fields.**
 
 ## Purpose

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-24T05:52:50.135868+00:00",
+  "generated_at": "2026-05-24T14:17:34.131645+00:00",
   "metric": "llm_referent_clarity",
   "label": "LLM-as-judge (Cursor proxy, no user API keys)",
   "n_discoveries": 15,

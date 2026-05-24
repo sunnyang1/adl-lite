@@ -1,7 +1,8 @@
 {
   "generated_at": "2026-05-24T05:52:50.627100+00:00",
   "metric": "human_referent_clarity",
-  "label": "Human inter-rater referent clarity (pending until raters score)",
+  "label": "Human inter-rater referent clarity (cancelled 2026-05-24; LLM-judge only)",
+  "human_rq1_status": "cancelled",
   "n_entries": 20,
   "n_active_discoveries": 15,
   "n_rated_adl": 0,

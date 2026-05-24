@@ -112,6 +112,7 @@ def test_run_with_plain_stub(tmp_path):
 def test_batch_discover_skips_without_key(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("MIMO_API_KEY", raising=False)
+    monkeypatch.delenv("ADL_BACKEND_PROXY", raising=False)
     result = run_batch()
     assert result["status"] == "skipped"
 

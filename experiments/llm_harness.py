@@ -97,7 +97,8 @@ def call_discovery_llm(system: str, user: str, model: str | None = None) -> str:
     if not api_key:
         raise RuntimeError("Set MIMO_API_KEY or OPENAI_API_KEY")
 
-    client = OpenAI(api_key=api_key)
+    base_url = os.environ.get("OPENAI_BASE_URL", "").strip() or None
+    client = OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
     use_model = model or "gpt-4o-mini"
     resp = client.chat.completions.create(
         model=use_model,

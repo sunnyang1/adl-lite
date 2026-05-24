@@ -120,7 +120,7 @@ For ADL's specific workloads, a semantic middle layer adds value *on top of* SQL
 
 SQLite stores `scope` as a column. Ontology layer encodes the **namespace grammar** (`public`, `private/<org>`, …) and **access lattice** once, shared by validator, memory prefilter, and agent tools. DB-only replication scatters regex/prefix logic across queries.
 
-**Pilot evidence:** RQ4 — 60/60 cross-scope probes denied (`ADLValidator.validate_scope_access`).
+**Pilot evidence:** RQ4 — 99/99 cross-scope probes denied (33 indexed concepts × 3 requesters; `ADLValidator.validate_scope_access`).
 
 ### 3.3 Status machine
 
@@ -210,7 +210,7 @@ Avoid overstating current or near-term capabilities:
 | Do NOT claim | Reality in v0.1 / proposal |
 |--------------|----------------------------|
 | HermiT / Pellet / OWL reasoning integrated | No reasoner; Path B is export-only |
-| Production-scale knowledge graph (millions of triples) | Pilot corpus: 20 AML concepts, 15 queries |
+| Production-scale knowledge graph (millions of triples) | Pilot corpus: 20 AML concepts, 25 retrieval queries |
 | Ontology replaces SQLite or NetworkX | Ontology sits **above** warm storage |
 | Automatic cross-domain inference | `isomorphic-to` is asserted, not inferred |
 | Cold tier operational | Spec §9 — deferred |

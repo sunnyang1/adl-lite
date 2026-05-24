@@ -3,7 +3,7 @@
 ## Highlights
 
 - **Phase B evaluation:** TF-IDF retrieval with L3 graph boost, fair plain baseline, and `run_phase_b` summary JSON.
-- **RQ3 Δ = +0.20** hit recall @10 (n=25 queries); label recall delta **+0.24** vs fair plain TF-IDF.
+- **RQ3 Δ = +0.20** hit recall @10 (n=25 queries); label recall delta **+0.22** vs fair plain TF-IDF.
 - **Hybrid embeddings (Phase B+):** optional `sentence-transformers` scorer; scenario subset **q01–q20** label Δ **+0.07** vs fair plain (hit Δ +0.00).
 - **LLM discoverer:** MiMo/OpenAI harness, batch RQ2 analysis (`rq2_llm_batch`), smoke-tested `--llm` sim path.
 - **Demo pipeline:** `./scripts/demo_pipeline.sh --scripted` — validate → store → related query in one command.

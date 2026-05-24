@@ -1,4 +1,6 @@
-# ADL Lite: Agent Discovery Language for Multi-Agent Concept Consensus
+# ADL Lite: Schema-Guided Operational Ontology Authoring in Markdown for Agentic Knowledge Graphs
+
+*Subtitle: closed predicate registry, L3 triples in prose, and pilot evidence for retrieval, scope, and lifecycle traceability*
 
 Version note: Draft pack for `v0.3.3` (Wave 6b), consolidating abstract, introduction, related work, method, evaluation, discussion, and conclusion into one manuscript artifact.
 
@@ -11,9 +13,9 @@ Supporting artifacts:
 
 ## Abstract
 
-Multi-agent discovery workflows still exchange insights as unstructured Markdown or chat logs, which obscures referents, lifecycle status, and access scope. **ADL Lite** is a Markdown-native document contract—L1 YAML metadata, L2 prose under Structured Semantic Anchoring (SSA), and L3 typed `adl:*` blocks—paired with validators, a hybrid memory index, an append-only concept consensus chain, and an **operational ontology** middle layer (closed predicate registry; opt-in strict validation). We report Phase B pilots on an AML mini-corpus (`n=20` concepts, `25` retrieval queries) using reproducible scripts and fair-plain baselines.
+Agent-authored knowledge still lands as unstructured Markdown or chat logs, leaving referents, typed relations, and lifecycle status implicit—too weak for schema-guided KG tooling, yet too heavy for many teams to adopt OWL-first pipelines. **ADL Lite** is a Markdown-native **operational ontology** contract: L1 YAML metadata, L2 prose under Structured Semantic Anchoring (SSA), L3 typed `adl:*` triple blocks, a closed YAML predicate registry (schema-guided validation, Method D), hybrid indexing, and optional strict gates—plus append-only consensus and scope ACL as coordination artifacts on the same file. We report Phase B pilots on an AML mini-corpus (`n=20` concepts, `25` retrieval queries) with fair-plain and unstructured baselines.
 
-Against **unstructured** plain-LLM notes (`n=15`, Cursor-proxy judges), ADL L2 prose scores higher on referent clarity (mean ADL−plain ≈ **+1.5** on a 1–5 rubric); against **fair-plain** pairings that preserve the same wording minus ADL structure, judge means are **identical** (Δ=0), isolating the benefit of authoring discipline rather than lexical content alone. ADL records **8** scripted consensus transitions versus **0** for plain Markdown; retrieval at `k=10` improves on the full query set (hit recall **1.00** vs **0.80**, Δ**+0.20**) with gains concentrated in five L3-only probes (Δ**+1.00**) rather than twenty scenario queries (hit Δ**0.00**); scope ACL denies **60/60** cross-scope probes. We treat these as **pilot-limited** evidence: small samples, proxy adjudication, and synthetic AML stubs—not production AML or human-grounded benchmarks.
+Against **unstructured** plain-LLM notes (`n=15`, Cursor-proxy judges), ADL L2 prose scores higher on referent clarity (mean ADL−plain ≈ **+1.5** on a 1–5 rubric); against **fair-plain** pairings that preserve the same wording minus ADL structure, judge means are **identical** (Δ=0), isolating the benefit of authoring discipline rather than lexical content alone. ADL records **8** scripted consensus transitions versus **0** for plain Markdown; retrieval at `k=10` improves on the full query set (hit recall **1.00** vs **0.80**, Δ**+0.20**) with gains concentrated in five L3-only probes (Δ**+1.00**) rather than twenty scenario queries (hit Δ**0.00**); scope ACL denies **99/99** cross-scope probes (33 indexed concepts × 3 requesters). We treat these as **pilot-limited** evidence: small samples, proxy adjudication, and synthetic AML stubs—not production AML or human-grounded benchmarks.
 
 ---
 
@@ -25,16 +27,26 @@ Existing multi-agent tooling addresses parts of execution (plans, tools, memory 
 
 **ADL Lite (Agent Discovery Language, Lite)** is a Markdown-native surface for Structured Semantic Anchoring (SSA). Documents combine three layers already specified in our system description: **L1** YAML front matter carries identifiers, lifecycle status, confidence, and coarse scope policies; **L2** Markdown body hosts human-readable argumentation with explicit linking conventions; **L3** fenced `adl:*` blocks expose typed relations, evidence, and seals suitable for deterministic parsing and tooling. Alongside syntax, ADL Lite ships reference implementations—hybrid retrieval over hot/warm tiers, SSA validation including scope-aware access checks, consensus chains with fork primitives, and agent-facing tooling aligned with reproducible scripted simulations—as laid out in our paper outline and specification.
 
-For **AAMAS** readers, the central claim is not a new orchestration runtime but a **document contract** that heterogeneous agents can parse, validate, and lifecycle-manage consistently—complementary to tool transports (e.g., MCP) and planner-centric multi-agent frameworks. A scripted five-role harness (Discoverer, Reviewer, Skeptic, Merger, Librarian) exercises the contract without mandating a particular LLM provider.
+For **ESWC / ISWC** readers, the thesis is intentionally narrow: a **Markdown-native operational ontology** between plain notes and OWL-heavy stacks—human-readable authoring (Method E) plus a closed predicate registry and schema-guided L3 validation (Method D), RDF-like triples in fenced blocks without a triple-store runtime, and an optional Turtle export path. **Consensus chains** and scope ACL show that the same artifact can support auditable multi-agent workflows; they are not a new planner or MAS runtime. A scripted five-role harness (Discoverer, Reviewer, Skeptic, Merger, Librarian) supplies reproducible lifecycle smoke tests; the contract also complements tool transports (e.g., MCP) without replacing them.
 
-**Contributions (Phase 1 pilots).** This paper contributes: (1) a normative tri-layer Markdown specification with SSA validation and scope ACL; (2) an open-source reference toolkit (`adl_lite` parser, validator, `ADLMemory`, consensus engine); (3) a reproducible evaluation harness and AML mini-corpus with fair-plain and unstructured baselines; (4) pilot evidence on four coordination properties—referent clarity, consensus traceability, relation-aware retrieval, and scope isolation—reported with explicit ablations and negative results where fair-plain controls erase apparent gains; and (5) an **operational ontology** middle layer (Phase 2a–2b) that centralizes predicate and transition registries for schema-guided authoring without OWL reasoners.
+> **What we claim / What we do NOT claim**
+>
+> | We claim | We do NOT claim |
+> |----------|-----------------|
+> | A deployable **operational ontology** layer (YAML registry, strict/opt-in validation, L3 triples in Markdown) suitable for agentic KG authoring | A new multi-agent orchestration framework or benchmark-leading discovery agent |
+> | **Mechanistic** pilot evidence: L3-indexed retrieval gains on opaque-anchor queries (RQ3 ablation), scope denials under probe (RQ4), append-only consensus logs vs plain Markdown (RQ2) | Universal RQ1 clarity lift: **fair-plain Δ=0** on paired stripped L2; scenario-only RQ3 hit **Δ=0** |
+> | Referent-clarity advantage vs **unstructured** plain-LLM notes under proxy judges (pooled ADL−plain ≈ **+1.5**, `n=15`) | Production AML performance, human inter-rater RQ1 (study **cancelled**), or OWL reasoning / automatic taxonomy induction |
+> | Honest reporting of ablations, negative controls, and pilot scale | That strict ontology mode improves headline RQ metrics (registry conformance only at `n=5` examples) |
 
-Our pilot empirical program asks whether this bundle improves properties that unstructured Markdown leaves implicit. Rather than asserting universal gains, we state four research questions and report numbers exactly as summarized in companion pilot artifacts (**`docs/experiments/summary_phase_b.json`**, **`docs/experiments/rq1_llm_judge_summary.json`**, **`docs/experiments/rq2_llm_summary.json`**, **`docs/experiments/RESULTS.md`**):
+**Contributions (Phase 1 pilots, evidence-ordered).** (1) **Operational ontology middle layer** (Phase 2a–2b): closed predicate registry, schema-guided validation (Method D), agent introspection without OWL reasoners; (2) **Tri-layer Markdown contract** with SSA validation, L3 relation/evidence blocks, and scope ACL; (3) **Open-source reference toolkit** (`adl_lite` parser, validator, `ADLMemory`, consensus engine); (4) **Reproducible evaluation harness** and AML mini-corpus with fair-plain and unstructured baselines; (5) **Pilot metrics** with explicit limits—mechanistic wins (RQ2/3 L3-only/RQ4), unstructured-vs-ADL RQ1 signal, and reported nulls (fair-plain RQ1 Δ=0; scenario RQ3 Δ=0).
 
-- **RQ1 (referential ambiguity):** When ADL-guided L2 prose is paired with fairness controls (stripped plain renderings matched to the same source) and-with an orthogonal unstructured baseline-with LLM-scored clarity, does referent tracking improve in measurable judge or rubric terms?
-- **RQ2 (consensus traceability):** Does ADL expose explicit lifecycle transitions comparable to scripted multi-document workloads, relative to Markdown that lacks a chain? We contrast scripted harness aggregates with MiMo-batch single-discovery traces and discuss comparability explicitly.
-- **RQ3 (retrieval):** Against a TF-IDF fair-plain baseline on the AML corpus, does indexing L3 relation signal improve recall @10-and how much of any gap concentrates on deliberately L3-aligned queries versus scenario-only subsets?
-- **RQ4 (scope isolation):** Do scope ACL probes deny illicit cross-scope reads in the pilot instrumentation?
+Our pilot empirical program is ordered for **Semantic Web** reviewers: **operational ontology** conformance and **L3-sensitive retrieval** lead; **scope ACL** and **lifecycle traceability** support multi-agent coordination claims; **referent clarity** (RQ1) is a secondary LLM-judge pilot with explicit fair-plain nulls. Numbers below match **`docs/experiments/RESULTS.md`** (`pilot_freeze`, 2026-05-24) and companion JSON artifacts.
+
+- **Ontology (strict validation):** Does a closed predicate registry reject unknown L3 relations under `--strict` on curated examples, without claiming RQ headline lifts?
+- **RQ3 (L3-sensitive retrieval):** Against TF-IDF fair-plain on the AML corpus (**25** queries, **`k = 10`**), does L3 indexing improve recall—and does uplift concentrate on **`q21`–`q25`** opaque-anchor probes vs **`q01`–`q20`** scenario queries?
+- **RQ4 (scope isolation):** Do scope ACL probes deny illicit cross-scope reads (**99/99** denied, **0** leaks)?
+- **RQ2 (lifecycle traceability):** Does ADL expose append-only consensus transitions on scripted multi-document workloads (**8** vs plain **0**), with MiMo single-discovery batches reported only under comparability caveats?
+- **RQ1 (referent clarity, secondary):** Under LLM-as-judge on **`n = 15`**, does ADL beat **unstructured** plain-LLM notes while **fair-plain** paired controls show **Δ = 0**? Human inter-rater study **cancelled** (proxy judges only).
 
 Readers should interpret this introduction as scaffolding for fuller related-work positioning (see **`docs/paper/RELATED_WORK.md`** and **`docs/paper/OUTLINE.md`**) and for an evaluation section that foregrounds pilots, proxies, and ablation splits rather than extrapolating to production workloads.
 
@@ -217,63 +229,69 @@ Beyond per-document SSA checks, ADL Lite adds a **Markdown-native operational on
 
 ## 4. Evaluation
 
-This section summarizes the Phase B pilot methodology and headline metrics for Research Questions **RQ1-RQ4**. All figures below appear in **`docs/experiments/summary_phase_b.json`**, **`docs/experiments/rq1_llm_judge_summary.json`**, **`docs/experiments/rq2_llm_summary.json`**, **`docs/experiments/rq3_ablation.json`**, and **`docs/paper/table2_results.md`**, alongside narrative exposition in **`docs/experiments/RESULTS.md`**.
+This section reports Phase B pilots for **ESWC / ISWC** framing: **operational ontology** evidence and **L3-sensitive retrieval** lead; **scope ACL** and **consensus traceability** support coordination claims; **RQ1** LLM-as-judge clarity is secondary with **fair-plain Δ = 0**. All figures match **`docs/experiments/RESULTS.md`** (`pilot_freeze`, 2026-05-24), **`summary_phase_b.json`**, **`rq1_llm_judge_summary.json`**, **`rq2_llm_summary.json`**, **`rq3_ablation.json`**, and **Table 2** (`docs/paper/table2_results.md`). Standalone draft: **`docs/paper/draft_evaluation.md`**.
 
-Retrieval cohorts emphasize scenario queries **`q01`-`q20`** (**`n = 20`**) versus five **`q21`-`q25`** **L3-only** opaque-anchor probes that strip relational signal from baseline indexing (**`rq3_ablation.json`** freezes the splits).
+Retrieval cohorts split scenario **`q01`–`q20`** (**`n = 20`**) from L3-only opaque-anchor **`q21`–`q25`** (**`n = 5`**; **`rq3_ablation.json`**).
 
-### 4.1 Setup and corpus
+### 4.1 Evaluation design for Semantic Web venues
 
-Indexing and retrieval pilots run over the AML mini corpus under **`data/aml/`**, comprising **twenty concepts** assembled for controlled experiments (**`queries.json` v0.3 specifies twenty scenario-aligned queries plus five L3-anchor queries, totaling *n = 25* ranked evaluations at k = 10**). Phase B rerun outputs label the aggregate JSON as **`phase: B`** (`summary_phase_b.json`, `generated_at` 2026-05-23). Retrieval scoring uses TF-IDF on an ADL index that incorporates L2 and L3 material with relation-aware boosts, versus a **fair plain** baseline retaining L2 prose only (**`rq3_retrieval.scorer`: `tfidf_fair_plain`** in the Phase B bundle).
+Semantic Web reviewers typically ask whether a representation is **machine-checkable**, **interoperable**, and **honest about ablations**. We therefore foreground: (1) **closed-registry strict validation** (Method D) on curated Markdown; (2) **retrieval gains tied to L3 relation anchors** with fair-plain and subset reporting; (3) **deterministic scope denial** under adversarial probes. Multi-agent **consensus chains** demonstrate auditable lifecycle logging but are not positioned as a new MAS runtime. **RQ1** uses proxy judges with explicit **fair-plain nulls**; human inter-rater RQ1 was **cancelled**—we do not report human means.
 
-Consensus pilots pair a scripted five-document harness (**`experiments/rq2_consensus.py`**) against an optional MiMo-driven batch summarized post hoc (**n = 10** runs recorded in **`rq2_llm_summary.json`**).
+### 4.2 Setup and corpus
 
-Ambiguity pilots combine the Phase **B** heuristic ambiguity rubric on **twenty-five paired documents** (**`rq1_ambiguity.n_pairs`: 25** in `summary_phase_b.json`) with a separate **LLM-as-judge referent clarity** pass over **n = 15** MiMo-expanded discoveries (**`rq1_llm_judge_summary.json`**, `n_discoveries: 15`), including a **fair plain** comparator (paired stripped L2) and an unstructured **plain-LLM** track summarized under **`plain_llm`**. Wave **6b** adjudication uses committed Cursor-proxy artifacts (`data/eval/rq1_plain_llm_live_proxy_wave6b.json`) so unstructured baselines reproduce without OpenAI/Anthropic API keys.
+The AML mini corpus (**`data/aml/`**, **20** concepts; **`queries.json` v0.3**: **20** scenario + **5** L3 queries → **25** evaluations at **`k = 10`**) drives retrieval; Phase B bundles label **`phase: B`** (`summary_phase_b.json`, `generated_at` 2026-05-23). TF-IDF scores an ADL index (L2 + L3 + relation boosts) vs **fair plain** (L2 only; **`tfidf_fair_plain`**). Consensus uses **`experiments/rq2_consensus.py`** (scripted) plus optional MiMo batch (**`n_runs` = 10**, **`rq2_llm_summary.json`**). RQ1 combines a **25**-pair heuristic rubric with LLM-as-judge on **`n = 15`** discoveries (fair-plain + unstructured plain-LLM; Wave **6b** proxy artifact). Scope: **60** ACL probes.
 
-Scope pilots issue **sixty validator probes**, all registering as denials (**`rq4_leakage`**: `denied_access: 60`, `probes: 60`, **`adl_leaks: 0`**).
+### 4.3 Ontology strict-validation pilot (Phase 2a–2b)
 
-### 4.2 RQ1 - Referential ambiguity
+**Primary SW-facing evidence** (independent of RQ1–RQ4 headline deltas):
 
-The Phase B ambiguity rubric reports symmetric means between ADL and fair plain (**`adl_mean_ambiguity` = 0.0**, **`plain_mean_ambiguity` = 0.0**) with **`ambiguity_reduction_pct` = 0.0**, underscoring that under these pairings neither side registers heuristic ambiguity signal.
+| Check | Result |
+|-------|--------|
+| `adl-lite validate --strict examples/*.md` | **5/5 pass** |
+| `adl-lite validate --strict tests/fixtures/invalid_predicate.md` | **FAIL** (unknown predicate `similar`; expected) |
+| `ADL_STRICT_ONTOLOGY=1` scripted harness | Logs strict mode; **0** ontology errors on repo examples |
 
-Independent LLM-as-judge scores on **`n_discoveries: 15`** yield mean ADL clarity **4.0667** (strict proxy judge) versus **fair plain mean 4.0667**, and mean ADL clarity **4.6** versus **fair plain 4.6** (alternate proxy judge), producing **mean ADL - fair plain = 0.0** for both judges (**`fair_plain_comparison.adl_vs_plain_delta_mean`**). Aggregated judge means cite **mean_across_judges_adl: 4.3333**.
+**Ontology ablation.** Strict mode is an **opt-in gate** over a **closed predicate registry**; default authoring stays permissive for LLM drafts. We do **not** claim strict validation improves RQ3 recall or RQ1 clarity—only registry conformance at pilot scale (**n = 5** curated files) plus agent introspection (`adl_ontology_query`, Milestone 2c). Invalid-L3 rejection on hallucinated predicates is qualitative via harness `ontology_errors` when strict is on.
 
-The unstructured **plain-LLM** arm—documented under **`plain_llm`**—reports slug-level unstructured writings averaging **2.667** (Judge A) / **3.000** (Judge B) pooled across **n = 15** rows, yielding mean ADL-minus-plain-LLM deltas **+1.400** and **+1.600** (~**+1.500** pooled). **`plain_llm_judge_disagreement_count`** is **0** after Wave 6b because adjudication attaches to reused slug prose bundles with small inter-judge spread. Across the fifteen ADL / fair-plain pairings adjudicators materially disagree once (`disagreement_count` **1**).
+### 4.4 RQ3 — L3-sensitive retrieval recall @10
 
-**Limitations (RQ1):** Sample size is bounded (**n = 15** judge pass; rubric **`n_pairs` = 25**). Judgments stem from Cursor-proxy LLM adjudication—not human labeling. Fair-plain Δ=0 shows that, for these MiMo outputs, SSA constraints do not add measurable clarity *beyond* the same stripped wording; gains versus unstructured plain-LLM reflect authoring discipline absent in the baseline generator.
+- **Full set** (**`n = 25`**): hit recall **1.00** vs **0.80** fair plain (**Δ = +0.20**); label recall **0.90** vs **0.68** (**Δ = +0.22**).
+- **Scenario** (**`q01`–`q20`**, **`n = 20`**): hit **Δ = +0.00**, label **Δ ≈ +0.05**.
+- **L3-only** (**`q21`–`q25`**, **`n = 5`**): hit **Δ = +1.00**, label **Δ = +1.00**.
 
-### 4.3 RQ2 - Consensus transitions
+Headline **+0.20** full-set hit recall is **not** uniform: scenario queries saturate both rankers; opaque-anchor probes drive the gap because fair-plain indexing withholds L3 relation signal.
 
-The scripted Phase B harness records **eight ADL transitions** validating **three** documents across **five** total documents, while unstructured Markdown inherits **baseline_transitions = 0** (**`rq2_consensus`** in `summary_phase_b.json`). The MiMo consolidation batch (**`rq2_llm_summary.json`**, **`n_runs` = 10**) averages **`consensus_transitions.mean` = 2.0** (standard deviation **0.0**) with **`success_rate` = 1.0**, **`mean_attempts` = 1.7**, and **`revised_rate` = 0.7**. Matching the scripted aggregate transition count (**8**) yields **`delta_llm_minus_scripted` = -6.0**, highlighting scale mismatch rather than superiority.
+**Limitations (RQ3):** Lightweight TF-IDF ranker; optional hybrid embeddings preserve the same split. Cite aggregate deltas only with ablation rows.
 
-**Limitations (RQ2):** The comparison is deliberately apples-to-oranges: scripted totals aggregate multi-document choreography, whereas MiMo batches follow single-discovery pipelines that mechanically cap near register-plus-validate flows (**two** transitions/run on average versus **eight** scripted). Efficiency claims thus require redesigned controlled workloads.
+### 4.5 RQ4 — Scope isolation
 
-### 4.4 RQ3 - Retrieval recall @10
+**`adl_leaks` = 0**; **`99/99`** cross-scope probes **denied** via **`validate_scope_access`**. **`baseline_leaks_uncontrolled` = 0** without symmetric plain-Markdown instrumentation.
 
-- Aggregate TF-IDF run (**`n_queries` = 25**): **hit recall 1.00** (ADL) versus **0.80** fair plain (**`delta` = +0.20**); label recall **0.9667** versus **0.7267** (**`label_recall_delta` ≈ +0.24**).
-- Scenario-only cohort (**q01–q20**, **`scenario_n_queries` = 20**): **`scenario_hit_delta` = +0.00**, **`scenario_label_delta` ≈ +0.05**.
-- L3-only cohort (**q21–q25**, **`n_queries` = 5**): **`delta` = +1.00**, **`label_recall_delta` = +1.00** (per **`rq3_ablation.json`**).
+**Limitations (RQ4):** Strongest claim is specification-consistent denial under probes—not a comparative leakage rate for unstructured notes.
 
-These splits demonstrate that headline recall deltas lean on **`q21`–`q25`**, the L3-only opaque-anchor bundle where relational signal is withheld from baseline indexing.
+### 4.6 RQ1 — Referent clarity (secondary; LLM-judge pilot)
 
-**Limitations (RQ3):** TF-IDF is a deliberately lightweight ranker; the dominating structural effect is relation visibility for the opaque-anchor cohort. Scenario-only hit recall shows no delta in this pilot—authors should not extrapolate full-corpus gains from aggregate metrics alone.
+**Heuristic rubric** (25 pairs): **`adl_mean_ambiguity` = 0.0**, **`plain_mean_ambiguity` = 0.0**, **`ambiguity_reduction_pct` = 0.0**.
 
-### 4.5 RQ4 - Scope leakage
+**LLM-as-judge** (**`n = 15`**): mean ADL **4.0667** / **4.6000** (Judges A/B) vs fair-plain **identical** → **Δ = 0.0** per judge; **`mean_across_judges_adl`: 4.3333**.
 
-The pilot emits **`adl_leaks` = 0** with **`60/60` probes denied** via **`validate_scope_access`**. Companion metadata flags **`baseline_leaks_uncontrolled` = 0** without comparable instrumentation parity.
+**Unstructured plain-LLM:** means **2.667** / **3.000** → ADL−plain **+1.400** / **+1.600** (~**+1.500** pooled). **`plain_llm_judge_disagreement_count` = 0**; **1** ADL/fair-plain pairing with material judge disagreement.
 
-**Limitations (RQ4):** Absence of a symmetric leakage probe on uninstrumented Markdown means the strongest headline is ADL behaving as intended under adversarial probing, not a controlled comparative leakage rate.
+**Human RQ1:** **cancelled** (2026-05-24) — no human inter-rater means; LLM-as-judge / proxy only.
 
-### 4.6 Ontology strict-validation pilot (Phase 2a–2b)
+**Limitations (RQ1):** Proxy judges only; fair-plain **Δ = 0** shows no measurable lift from structure alone on paired L2; unstructured contrast reflects baseline authoring, not universal SSA advantage.
 
-Independent of RQ1–RQ4 headline metrics, we report a **pilot conformance check** for the operational ontology layer:
+### 4.7 RQ2 — Consensus lifecycle traceability (supporting)
 
-- **`adl-lite validate --strict examples/*.md`:** **5/5 pass** on curated examples (all L3 predicates in registry).
-- **`adl-lite validate --strict tests/fixtures/invalid_predicate.md`:** fails on unknown predicate `similar` (expected golden negative).
-- **Harness flag:** `ADL_STRICT_ONTOLOGY=1 python -m experiments.run_sim --scripted` logs strict mode; invalid-L3 rejection ablation is qualitative (no RQ outcome lift claimed).
+**Scripted harness (primary):** **8** ADL transitions, **3** validated documents, **5** documents total; plain **`baseline_transitions` = 0** — append-only lifecycle evidence, not throughput optimality.
 
-This is **pilot-scale registry evidence**, not a claim that strict mode improves RQ1–RQ4 outcomes. Agent-facing `adl_ontology_query` (Milestone 2c) ships in-tree.
+**MiMo batch (caveated):** **`n_runs` = 10**, mean **2.0** transitions/run (σ **0.0**), **`success_rate` = 1.0**, **`revised_rate` = 0.7**. **`delta_llm_minus_scripted` = −6.0** vs scripted total **8**: **apples-to-oranges** (single-discovery register→validate vs multi-document choreography).
 
-In sum, Phase B aggregates show measurable retrieval uplift when L3 signal is opaque-anchor relevant, mechanically traceable consensus scaffolding, deterministic scope denial, and asymmetric referent clarity favoring ADL versus unstructured plain-LLM notes—surfaced via **Table 2** (`docs/paper/table2_results.md`)—while fair-plain controls and scenario-only retrieval splits temper universal performance claims.
+**Limitations (RQ2):** Do not interpret **2.0** vs **8** as efficiency without redesigned workloads.
+
+### 4.8 Summary
+
+Phase B supports an **operational ontology** contribution: registry conformance (**5/5** strict examples), **L3-only** retrieval uplift (**Δ +1.00** on five probes), scope denial (**99/99**), and honest nulls (fair-plain RQ1 **Δ = 0**; scenario RQ3 hit **Δ = 0**). Referent-clarity gains vs **unstructured** plain-LLM are reported with proxy limits; consensus and scope evidence are **mechanistic** coordination pilots. Full ledger: **Table 2** (`docs/paper/table2_results.md`).
 
 ## 5. Discussion
 
@@ -281,7 +299,7 @@ In sum, Phase B aggregates show measurable retrieval uplift when L3 signal is op
 
 **Negative results policy.** We report Δ=0 fair-plain judge means and scenario-only retrieval deltas explicitly. Omitting them would overstate ADL's universal advantage and mislead multi-agent practitioners evaluating adoption cost.
 
-**Threats to external validity.** (i) AML concepts are minimal stubs, not operational typologies; (ii) LLM-as-judge and MiMo generation couple evaluation to model families; (iii) RQ2 scripted versus LLM batch counts are not like-for-like workloads; (iv) five L3-only queries drive headline RQ3 deltas. Phase 2 should add human inter-rater studies (`data/eval/human_rq1_template.json` is scaffolded), larger query sets, and SAR-adjacent material under governance review.
+**Threats to external validity.** (i) AML concepts are minimal stubs, not operational typologies; (ii) LLM-as-judge and MiMo generation couple evaluation to model families; (iii) RQ2 scripted versus LLM batch counts are not like-for-like workloads; (iv) five L3-only queries drive headline RQ3 deltas. Phase 2 should expand query diversity, optional second judge providers, small human **spot-checks** (not the cancelled full inter-rater RQ1 arm), and SAR-adjacent material under governance review.
 
 **Relation to agent platforms.** ADL Lite is intentionally **orthogonal** to orchestration frameworks: teams can adopt the document contract inside existing agent stacks via parse/validate/store tools (`adl_lite/tools.py`, optional `scripts/mcp_adl.py`) without migrating planners or memory products.
 
@@ -291,6 +309,6 @@ ADL Lite investigates whether a lightweight, Markdown-native standard can make m
 
 These findings remain phase-scoped pilot evidence. Retrieval ablations depend on **`q21`-`q25`**, five relation-sensitive probes, so headline deltas should travel with subset annotations. Cursor-proxy adjudication hydrates unstructured baselines offline (Wave 6b artifact) but remains no substitute for human annotation. AML corpora and scripted harnesses privilege reproducibility over operational fidelity.
 
-**AAMAS relevance.** ADL Lite targets teams building **multi-agent knowledge workflows** who need audit trails and scope boundaries without adopting a full knowledge-graph stack. The strongest empirical signals today are **mechanistic** (consensus logs, ACL denials, L3 retrieval ablations) rather than end-to-end task success rates on open-ended discovery benchmarks—an honest scope boundary for Phase 1.
+**ESWC / ISWC relevance.** ADL Lite targets teams who need **operational ontology** discipline—schema-guided L3 authoring, YAML registry introspection, optional Turtle export—without standing up OWL reasoners or enterprise triple stores. Empirical ordering matches reviewer expectations: **strict registry conformance** and **L3-only retrieval** first; **scope ACL** and **consensus traceability** as mechanistic coordination evidence; **RQ1** LLM-judge clarity secondary with **fair-plain Δ=0** (human RQ1 **cancelled**). Honest nulls (scenario RQ3 hit Δ=0) bound Phase 1 pilot claims.
 
-Future work should prioritize three directions. First, move from synthetic or template-derived artifacts toward real suspicious activity reporting (SAR)-adjacent case material under appropriate governance constraints. Second, add human spot-check and inter-rater validation loops for referent clarity and retrieval relevance so that RQ1 and RQ3 claims are less dependent on proxy judges. Third, evaluate embedding-augmented retrieval at larger scale with stronger query diversity and statistical testing, while preserving the same fair-plain controls used in this phase. If these steps hold, ADL Lite would offer a practical middle-layer standard: more semantically reliable than plain Markdown and more deployable than heavyweight ontology pipelines for many multi-agent knowledge workflows.
+Future work should prioritize three directions. First, move from synthetic or template-derived artifacts toward real suspicious activity reporting (SAR)-adjacent case material under appropriate governance constraints. Second, strengthen subjective evaluation with additional LLM judge providers and small human spot-checks on a subset of discoveries—without reviving the cancelled full inter-rater RQ1 protocol. Third, evaluate embedding-augmented retrieval at larger scale with stronger query diversity and statistical testing, while preserving the same fair-plain controls used in this phase. If these steps hold, ADL Lite would offer a practical middle-layer standard: more semantically reliable than plain Markdown and more deployable than heavyweight ontology pipelines for many multi-agent knowledge workflows.

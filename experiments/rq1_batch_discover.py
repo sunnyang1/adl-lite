@@ -1,7 +1,11 @@
 """
 Optional batch LLM discovery runner for RQ1 human eval (AML scenarios).
 
-Requires MIMO_API_KEY or OPENAI_API_KEY. Skips gracefully when no key is set.
+Requires MIMO_API_KEY or OPENAI_API_KEY unless ``--backend-proxy`` is set:
+
+    python -m experiments.rq1_batch_discover --backend-proxy --regenerate-all
+
+See experiments/backend_proxy.py and experiments/outputs/README.md.
 """
 
 from __future__ import annotations
@@ -10,6 +14,7 @@ import json
 import re
 from pathlib import Path
 
+from .backend_proxy import run_backend_proxy_batch
 from .llm_harness import llm_available, run_llm_sim, write_llm_log
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -225,13 +230,26 @@ def run_batch(
     output_dir: Path | None = None,
     template_path: Path | None = None,
     max_retries: int = 1,
+    use_backend_proxy: bool = False,
+    sync_template: bool = False,
 ) -> dict:
     """Run LLM discovery for each scenario; update template with paths."""
+    if use_backend_proxy:
+        return run_backend_proxy_batch(
+            output_dir=output_dir,
+            template_path=template_path,
+            regenerate_all=False,
+            include_plain=False,
+            sync_template=sync_template,
+        )
     if not llm_available():
         return {
             "status": "skipped",
             "reason": "No LLM API key",
-            "hint": "export MIMO_API_KEY=tp-... or OPENAI_API_KEY=sk-...",
+            "hint": (
+                "export MIMO_API_KEY=tp-... or OPENAI_API_KEY=sk-... "
+                "or: python -m experiments.rq1_batch_discover --backend-proxy"
+            ),
         }
 
     out_dir = output_dir or OUTPUT_DIR
@@ -282,16 +300,29 @@ def run_batch_expand(
     template_path: Path | None = None,
     max_retries: int = 2,
     include_base_three: bool = False,
+    use_backend_proxy: bool = False,
+    sync_template: bool = False,
 ) -> dict:
     """
     Extend RQ1 sample: rotate AML scenarios across empty template slots until
     `target_complete` entries have validator_pass (or slots exhausted).
     """
+    if use_backend_proxy:
+        return run_backend_proxy_batch(
+            output_dir=output_dir,
+            template_path=template_path,
+            regenerate_all=True,
+            include_plain=True,
+            sync_template=sync_template,
+        )
     if not llm_available():
         return {
             "status": "skipped",
             "reason": "No LLM API key",
-            "hint": "export MIMO_API_KEY=tp-... or OPENAI_API_KEY=sk-...",
+            "hint": (
+                "export MIMO_API_KEY=tp-... or OPENAI_API_KEY=sk-... "
+                "or: python -m experiments.rq1_batch_discover --backend-proxy --regenerate-all"
+            ),
         }
 
     out_dir = output_dir or OUTPUT_DIR
@@ -419,7 +450,32 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="With --target-complete, regenerate the first three canonical scenarios before expanding.",
     )
+    parser.add_argument(
+        "--backend-proxy",
+        action="store_true",
+        help="Materialize discoveries via experiments/backend_proxy.py (no external API).",
+    )
+    parser.add_argument(
+        "--regenerate-all",
+        action="store_true",
+        help="With --backend-proxy, rewrite all 15 RQ1 LLM files and plain baselines.",
+    )
+    parser.add_argument(
+        "--sync-template",
+        action="store_true",
+        help="With --backend-proxy, update data/eval/human_rq1_template.json (default: outputs only).",
+    )
     args = parser.parse_args(argv)
+    if args.regenerate_all and args.backend_proxy:
+        summary = run_backend_proxy_batch(
+            output_dir=Path(args.output_dir),
+            template_path=Path(args.template),
+            regenerate_all=True,
+            include_plain=True,
+            sync_template=args.sync_template,
+        )
+        print(json.dumps(summary, indent=2))
+        return
     max_retries = args.max_retries
     if max_retries is None:
         max_retries = 2 if args.target_complete is not None else 1
@@ -432,6 +488,8 @@ def main(argv: list[str] | None = None) -> None:
             template_path=Path(args.template),
             max_retries=max_retries,
             include_base_three=args.redo_base_three,
+            use_backend_proxy=args.backend_proxy,
+            sync_template=args.sync_template,
         )
     else:
         summary = run_batch(
@@ -439,6 +497,8 @@ def main(argv: list[str] | None = None) -> None:
             output_dir=Path(args.output_dir),
             template_path=Path(args.template),
             max_retries=max_retries,
+            use_backend_proxy=args.backend_proxy,
+            sync_template=args.sync_template,
         )
     print(json.dumps(summary, indent=2))
 

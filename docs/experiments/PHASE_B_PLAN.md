@@ -1,7 +1,8 @@
 # Phase B — 论文级实验升级计划
 
 > **目标：** 把 Phase 1 的 pilot 指标升级为可写进论文、可复现、可辩护的实验。  
-> **原则：** scripted 数字是 smoke test；Phase B 数字才进 RESULTS 正文。
+> **原则：** scripted 数字是 smoke test；Phase B 数字才进 RESULTS 正文。  
+> **ESWC / ISWC 叙事顺序：** 本体 strict 验证 → RQ3（L3 检索消融）→ RQ4（scope）→ RQ2（生命周期可追溯）→ RQ1（LLM-judge，fair-plain Δ=0；**人工 RQ1 已取消**）。
 
 ---
 
@@ -57,7 +58,7 @@ python -m experiments.run_sim --llm
 - [x] Human eval scaffold（`rq1_human_eval.py`, `human_rq1_template.json` + `study_protocol` for inter-rater plan）
 - [ ] 把 `examples/` 和 `data/aml/concepts/` 写成**无模糊代词**、实体名显式出现
 2. 跑 Phase B，记录 `ambiguity_reduction_pct`
-3. （进阶）抽 20 条 LLM 生成发现，**人工 1–5 分** referent clarity，写入 `data/eval/human_rq1.json`
+3. ~~（进阶）人工 referent clarity~~ — **已取消**；主观维度仅用 LLM-as-judge（见 `rq1_llm_judge_summary.json`）
 
 ### RQ2 — 共识轮数
 
@@ -89,7 +90,7 @@ python -m experiments.run_sim --llm
 **现状：** ADL ACL 已可报告 leaks=0。论文中强调 baseline「无 ACL」的 `baseline_leaks_uncontrolled`。
 
 **你要做的：**
-- [x] ADL leaks=0（60 probes）
+- [x] ADL leaks=0（99 probes；33 indexed concepts × 3 requesters）
 - [ ] 保持 0；若加新 scope 规则，补 `tests/test_scope_access.py`
 
 ---

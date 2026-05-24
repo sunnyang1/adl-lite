@@ -10,7 +10,7 @@ Use this checklist before claiming Phase 1 + ontology pilots are paper-ready. La
 - [x] **Phase B reproducible** — `python -m experiments.run_phase_b` → `docs/experiments/summary_phase_b.json`
 - [x] **RQ1 LLM judge reproducible** — `python -m experiments.rq1_llm_judge --summarize-from-template --proxy-only --no-plain-fixture` → `docs/experiments/rq1_llm_judge_summary.json`
 - [x] **Ontology 2a–2c** — registry, `--strict`, `adl_ontology_query` in `tools.py` + CLI
-- [ ] **Human RQ1 executed** — protocol ready (`docs/experiments/HUMAN_RQ1_PROTOCOL.md`); ratings still pending
+- [x] **Human RQ1** — **cancelled** (2026-05-24); subjective RQ1 = LLM-as-judge / proxy only (`docs/experiments/HUMAN_RQ1_PROTOCOL.md` retained for audit)
 - [x] **Paper numbers frozen** — see `pilot_freeze` block in `docs/experiments/RESULTS.md`
 
 ## One-command reproduction bundle
@@ -29,7 +29,7 @@ adl-lite ontology validate --examples
 # Phase B + RQ pilots
 python -m experiments.run_phase_b
 python -m experiments.rq1_llm_judge --summarize-from-template --proxy-only --no-plain-fixture
-python -m experiments.rq1_human_eval   # scaffold only until human scores exist
+python -m experiments.rq1_human_eval   # scaffold only (human RQ1 cancelled)
 ./scripts/demo_pipeline.sh --scripted
 
 # Optional: RQ3 ablation refresh
@@ -44,13 +44,13 @@ python -m experiments.rq3_retrieval --mode phase_b -k 10 --scorer hybrid
 | `docs/experiments/summary_phase_b.json` | RQ1 rubric, RQ2 scripted, RQ3 TF-IDF, RQ4 |
 | `docs/experiments/rq1_llm_judge_summary.json` | RQ1 LLM-as-judge (Wave 6b proxy) |
 | `docs/experiments/rq3_ablation.json` | RQ3 scenario vs L3-only splits |
-| `docs/experiments/rq1_human_summary.json` | Human RQ1 (pending ratings) |
+| `docs/experiments/rq1_human_summary.json` | Human RQ1 scaffold (**cancelled**; LLM-judge in `rq1_llm_judge_summary.json`) |
 | `docs/paper/table2_results.md` | Paper Table 2 roll-up |
 
 ## Manual steps to fully close the loop
 
-1. **Run human RQ1 study** — follow `docs/experiments/HUMAN_RQ1_PROTOCOL.md`; score 5–10 raters; re-run `python -m experiments.rq1_human_eval`
-2. **Update RESULTS.md + DRAFT.md** — add human headline means when `n_rated_adl >= 5`
+1. **Paper submission** — follow `docs/PAPER_SUBMISSION_PLAN.md`; freeze `pilot_freeze` after any API re-runs
+2. **Sync DRAFT.md** — ensure claims match `RESULTS.md` (no human RQ1 means)
 3. **Commit frozen artifacts** — user decision; include JSON summaries and doc freeze block
 4. **Optional:** hybrid embeddings require `pip install -e ".[experiments-embeddings]"` for full RQ3 hybrid row reproduction
 

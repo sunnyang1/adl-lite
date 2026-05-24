@@ -1,6 +1,6 @@
 # ADL Lite — Agent Guide
 
-Markdown-native **Agent Discovery Language** for multi-agent concept consensus (AAMAS 2027 target).
+Markdown-native **operational ontology** for agentic KG authoring and multi-agent concept consensus (primary: ESWC + ISWC 2027; backup: AAMAS 2027).
 
 ## Architecture
 

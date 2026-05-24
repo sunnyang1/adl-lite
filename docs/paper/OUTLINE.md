@@ -1,4 +1,4 @@
-# ADL Lite — Paper Outline (AAMAS 2027 target)
+# ADL Lite — Paper Outline (ESWC / ISWC 2027 primary; AAMAS 2027 backup)
 
 ## Title (working)
 
@@ -86,7 +86,7 @@ Discoverer → Reviewer → Skeptic → Merger → Librarian (`docs/AGENT_WORKFL
 | L3-only (`q21`-`q25`, `n=5`) | Hybrid | 1.00 | 0.00 | +1.00 |
 | Full (`n=25`) | Hybrid | 1.00 | 0.80 | +0.20 |
 
-- **Key numbers:** Label recall deltas mirror the same pattern: TF-IDF scenario `+0.05`, L3-only `+1.00`, full `+0.24`; Hybrid scenario `+0.0667`, L3-only `+1.00`, full `+0.2533`.
+- **Key numbers:** Label recall deltas mirror the same pattern: TF-IDF scenario `+0.025`, L3-only `+1.00`, full `+0.22`; Hybrid scenario `+0.0667`, L3-only `+1.00`, full `+0.2533`.
 - **Limitations:** The full-set delta includes `q21`-`q25` L3-only opaque-anchor queries; scenario-only deltas are smaller, so reported overall gains should be read with that ablation split.
 - **Ablation note:** `q01`-`q20` (scenario) captures base retrieval behavior, while `q21`-`q25` isolates L3-only signal that drives most of the hit-recall gap.
 
@@ -94,7 +94,7 @@ Discoverer → Reviewer → Skeptic → Merger → Librarian (`docs/AGENT_WORKFL
 
 - **Claim:** ADL scope ACL blocked all tested cross-scope accesses in the pilot.
 - **Method:** Ran scope probes through `experiments/rq4_leakage.py` using `ADLValidator.validate_scope_access`.
-- **Key numbers:** `adl_leaks=0`, `denied_access=60`, `probes=60` (60/60 denied).
+- **Key numbers:** `adl_leaks=0`, `denied_access=99`, `probes=99` (99/99 denied; 33 concepts × 3 requesters).
 - **Limitations:** Baseline leakage control is not equivalently instrumented (`baseline_leaks_uncontrolled=0` in summary JSON), so this result is strongest as an ADL safety smoke test rather than a strict comparative benchmark.
 
 ## 6. Discussion
@@ -108,7 +108,7 @@ Draft: [`draft_conclusion.md`](draft_conclusion.md) (includes AAMAS relevance pa
 
 ## 7. Conclusion
 
-ADL Lite demonstrates that Markdown-native SSA is sufficient for Phase 1 consensus traceability and scope guarantees; retrieval gains are strongest when L3 relation signal is query-relevant, and ambiguity claims remain provisional pending larger human-rated studies.
+ADL Lite demonstrates that Markdown-native operational ontology is sufficient for strict registry conformance, L3-sensitive retrieval, and scope guarantees; consensus chains provide mechanistic lifecycle evidence. RQ1 clarity uses LLM-as-judge with fair-plain **Δ=0**; human inter-rater RQ1 was **cancelled** (proxy judges only).
 
 Draft: [`draft_conclusion.md`](draft_conclusion.md).
 

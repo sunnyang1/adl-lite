@@ -4,7 +4,7 @@ LLM-as-judge clients for RQ1 referent clarity (OpenAI + Anthropic).
 Separate from MiMo discoverer — judges must not share the discovery provider.
 
 Environment:
-  OPENAI_API_KEY, OPENAI_JUDGE_MODEL (default: gpt-4o-mini)
+  OPENAI_API_KEY, OPENAI_BASE_URL (optional, e.g. DeepSeek), OPENAI_JUDGE_MODEL
   ANTHROPIC_API_KEY, ANTHROPIC_JUDGE_MODEL (default: claude-sonnet-4-20250514)
 """
 
@@ -83,7 +83,8 @@ def chat_openai(system: str, user: str, *, model: str | None = None, temperature
     except ImportError as e:
         raise RuntimeError('Install: pip install -e ".[experiments]"') from e
 
-    client = OpenAI(api_key=_key)
+    base_url = os.environ.get("OPENAI_BASE_URL", "").strip() or None
+    client = OpenAI(api_key=_key, base_url=base_url) if base_url else OpenAI(api_key=_key)
     resp = client.chat.completions.create(
         model=use_model,
         messages=[

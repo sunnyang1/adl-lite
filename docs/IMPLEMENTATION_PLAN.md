@@ -173,7 +173,7 @@ adl-lite consensus verify ADL_ID
 | 4.1 Sim harness | `experiments/harness.py` | Runs without API key (scripted mode) | ✅ |
 | 4.2 Scripted agents (5 roles) | discoverer, reviewer, skeptic, merger, librarian | One full run logs transitions | ✅ |
 | 4.3 LLM-backed mode (stretch) | `experiments/llm_harness.py` + env keys | One discovery end-to-end | ✅ |
-| 4.4 AML mini dataset | `data/aml/` — 20 concepts, 15 queries | Loader tests | ✅ |
+| 4.4 AML mini dataset | `data/aml/` — 20 concepts, 25 queries | Loader tests | ✅ |
 | 4.5 Index all dataset docs | `ADLMemory` populated | `related` queries return expected ids | ✅ |
 
 ### Agent roles (minimum behavior)
@@ -200,7 +200,7 @@ adl-lite consensus verify ADL_ID
 | 5.2 Baseline: YAML-only wiki | `experiments/baselines/yaml_wiki.py` | — | ✅ |
 | 5.3 Metric: RQ1 ambiguity | `experiments/rq1_ambiguity.py` | One % or score in RESULTS | ✅ |
 | 5.4 Metric: RQ2 consensus rounds | `experiments/rq2_consensus.py` | Compare ADL vs baseline | ✅ |
-| 5.5 Metric: RQ3 retrieval | `experiments/rq3_retrieval.py` | Recall@10 on 15 queries | ✅ |
+| 5.5 Metric: RQ3 retrieval | `experiments/rq3_retrieval.py` | Recall@10 on 25 queries | ✅ |
 | 5.6 Metric: RQ4 leakage | `experiments/rq4_leakage.py` | Leak count = 0 for ADL | ✅ |
 | 5.7 Results doc | `docs/experiments/RESULTS.md` | Numbers + how to reproduce | ✅ |
 
@@ -380,7 +380,7 @@ python -c "from adl_lite.tools import adl_ontology_query; print(adl_ontology_que
 | 3.1 Turtle export stub | One-way export: corpus + core ontology → `.ttl` | New: `adl_lite/export/turtle.py` or `adl_lite/rdf_export.py` | Valid Turtle (manual or `rdflib` parse) |
 | 3.2 Export CLI | `adl-lite export turtle --out PATH` | `cli.py` | Exports `examples/` + ontology |
 | 3.3 README/PRD note | Export-only; no embedded reasoner | `README.md`, `PRD.md` | No HermiT claims |
-| 3.4 Paper pack freeze | Draft vs `RESULTS.md` | `docs/paper/DRAFT.md` | AAMAS template ready |
+| 3.4 Paper pack freeze | Draft vs `RESULTS.md` | `docs/paper/DRAFT.md` | ESWC/ISWC template ready (SW ontology + agentic KG lead; multi-agent consensus secondary) |
 | 3.5 SPARQL/SHACL (stretch) | Only if export proves useful | TBD | Deferred by default |
 
 ### Tests
@@ -412,6 +412,20 @@ pytest tests/test_turtle_export.py -v
 | **13–17** | 8.16 – 9.30 | Paper draft + optional 3.x Turtle | `DRAFT.md` frozen; export stub if needed |
 
 Eval detail: [`docs/experiments/PHASE_B_PLAN.md`](experiments/PHASE_B_PLAN.md).
+
+---
+
+## Venue timeline (ESWC / ISWC primary)
+
+| Window | Venue / track | Notes |
+|--------|---------------|-------|
+| **May 2026** (approx.) | ISWC 2026 **Resource** | Optional sprint — likely tight given Phase 2 ontology + Phase B eval still in flight; defer to ISWC 2027 if draft/export not ready |
+| **Q3–Q4 2026** | Internal | Freeze `DRAFT.md` vs `RESULTS.md`; lead with operational ontology, Method D registry, L3 triples; Turtle export if Resource/In-Use narrative needs interop evidence |
+| **2027** | **ESWC 2027** main / In-Use | Primary target — Markdown-native operational ontology, schema-guided agent authoring, pilot RQ3 L3 ablations |
+| **2027** | **ISWC 2027** main / LLMs4OL / Resource | Primary target — YAML registry, strict validation, optional Turtle export; consensus chain as coordination artifact |
+| **2027** (backup) | **AAMAS 2027** | Secondary — reframe emphasis on multi-agent consensus chain and scope ACL if SW fit is weaker |
+
+Do **not** invent acceptance outcomes or hard deadlines beyond published 2026–2027 conference cycles; treat dates as planning horizons only.
 
 ---
 
@@ -522,7 +536,7 @@ See [`PHASE1_CHECKLIST.md`](PHASE1_CHECKLIST.md) (all items checked).
 #### Phase 3 (stretch)
 - [ ] `adl-lite export turtle`
 - [ ] `tests/test_turtle_export.py`
-- [ ] Paper `DRAFT.md` frozen vs Phase B RESULTS (ontology §2.7/§3.9/§4.6 drafted 2026-05-24; human RQ1 ratings pending)
+- [ ] Paper `DRAFT.md` frozen vs Phase B RESULTS (ontology §2.7/§3.9/§4.6 drafted 2026-05-24; human RQ1 **cancelled** — see `docs/PAPER_SUBMISSION_PLAN.md`)
 
 ---
 

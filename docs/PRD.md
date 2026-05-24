@@ -119,21 +119,23 @@ Phase 1 exit criteria remain in [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.m
 
 ## 7. Phase 3 — paper & interop (Q3–Q4 2026)
 
-- AAMAS paper pack frozen against `RESULTS.md` and `docs/paper/DRAFT.md`
-- Path B Turtle export evaluated; SPARQL/SHACL only if export proves useful
+- ESWC / ISWC paper pack frozen against `RESULTS.md` and `docs/paper/DRAFT.md`
+- Path B Turtle export evaluated (strong fit for ISWC Resource / ESWC In-Use interop claims); SPARQL/SHACL only if export proves useful
 - MCP / round-trip authoring — stretch, not blocking ontology 2a–2c
 
 ---
 
-## 8. Research & AAMAS positioning
+## 8. Research & venue positioning
 
-**Venue target:** AAMAS 2027 (multi-agent systems).
+**Primary targets:** [ESWC 2027](https://eswc-conferences.org/) and [ISWC 2027](https://iswc2027.semanticweb.org/) — Semantic Web, ontology learning, and agentic knowledge-graph authoring tracks (e.g. LLMs4OL, In-Use, Resource).
 
-**Claim discipline:** Pilot-limited evidence on AML mini-corpus (20 concepts, 15 queries); no production AML or automated ontological inference.
+**Secondary / backup:** AAMAS 2027 — multi-agent coordination and consensus-chain angle if SW venue fit is weaker than expected.
+
+**Claim discipline:** Pilot-limited evidence on AML mini-corpus (**20** concepts, **25** retrieval queries at `k=10`); no production AML or automated ontological inference. Lead with ontology strict validation + L3-only RQ3 + RQ4; report fair-plain Δ=0 (RQ1), scenario-only retrieval Δ=0 (RQ3). **Human RQ1 cancelled** (2026-05-24) — subjective RQ1 via LLM-as-judge / proxy only.
 
 **Positioning line (paper/product):**
 
-> ADL Lite sits between unstructured Markdown and heavyweight ontology pipelines: L3 blocks give RDF-like triples editable in ordinary Markdown; SSA, scope ACL, and an append-only consensus chain supply machine-checkable coordination without a triple store or OWL reasoner. Phase 1 pilots emphasize lifecycle traceability, scope isolation, and L3-sensitive retrieval. A centralized `OntologyManager` schema (Phase 2) makes that semantic layer explicit for agents while keeping deployment cost closer to Git-backed notes than enterprise knowledge graphs.
+> ADL Lite is a **Markdown-native operational ontology** for agentic knowledge-graph authoring: L3 `adl:*` blocks expose RDF-like triples in ordinary Markdown; a YAML predicate registry and schema-guided validation (Method D) gate agent writes without an embedded OWL reasoner; optional Turtle export (Path B) supports SW interop. Multi-agent **consensus chains** and scope ACL are coordination artifacts on top of that semantic layer—not the primary research claim. Phase 1 pilots emphasize L3-sensitive retrieval, lifecycle traceability, and scope isolation at pilot scale. A centralized `OntologyManager` (Phase 2) makes the schema explicit for agents while keeping deployment cost closer to Git-backed notes than enterprise knowledge graphs.
 
 **Research questions** (unchanged): RQ1 ambiguity, RQ2 consensus cost, RQ3 retrieval, RQ4 scope leakage — see [`RESEARCH_STATEMENT.md`](RESEARCH_STATEMENT.md).
 
