@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>本体论与现象学：是否被“替代”？</title>
+  <style>
+    :root {
+      --bg: #fafaf9;
+      --surface: #ffffff;
+      --text: #1c1917;
+      --muted: #57534e;
+      --accent: #1e40af;
+      --accent-light: #dbeafe;
+      --border: #e7e5e4;
+      --quote-bg: #f5f5f4;
+      --warn-bg: #fef3c7;
+    }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: "Georgia", "Noto Serif SC", "Source Han Serif SC", serif;
+    line-height: 1.65;
+    color: var(--text);
+    background: var(--bg);
+    margin: 0;
+    padding: 2rem 1rem 4rem;
+  }
+
+  .container {
+    max-width: 780px;
+    margin: 0 auto;
+    background: var(--surface);
+    padding: 2.5rem 2.75rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+
+  h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 0 0 .35rem;
+    letter-spacing: -.02em;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: .95rem;
+    margin-bottom: 2rem;
+    font-style: italic;
+  }
+
+  h2 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 2.25rem 0 .85rem;
+    padding-bottom: .35rem;
+    border-bottom: 2px solid var(--accent);
+    color: var(--accent);
+  }
+
+  h3 {
+    font-size: 1.02rem;
+    font-weight: 700;
+    margin: 1.5rem 0 .5rem;
+  }
+
+  p { margin: .65rem 0; }
+
+  .executive {
+    background: var(--accent-light);
+    border-left: 4px solid var(--accent);
+    padding: 1.1rem 1.25rem;
+    margin: 1.5rem 0 2rem;
+    border-radius: 0 4px 4px 0;
+  }
+
+  .executive h2 {
+    border: none;
+    margin-top: 0;
+    padding: 0;
+    font-size: 1.05rem;
+    color: var(--accent);
+  }
+
+  .verdict {
+    background: var(--warn-bg);
+    border: 1px solid #fcd34d;
+    padding: 1rem 1.15rem;
+    border-radius: 4px;
+    margin: 1rem 0;
+    font-size: .98rem;
+  }
+
+  blockquote {
+    margin: 1rem 0;
+    padding: .75rem 1rem;
+    background: var(--quote-bg);
+    border-left: 3px solid var(--border);
+    color: var(--muted);
+    font-size: .93rem;
+  }
+
+  ul, ol { padding-left: 1.35rem; margin: .5rem 0; }
+  li { margin: .35rem 0; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .9rem;
+    margin: 1rem 0;
+  }
+
+  th, td {
+    border: 1px solid var(--border);
+    padding: .55rem .7rem;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th { background: var(--quote-bg); font-weight: 700; }
+
+  .timeline { list-style: none; padding: 0; margin: 1rem 0; }
+  .timeline li {
+    position: relative;
+    padding: .5rem 0 .5rem 1.5rem;
+    border-left: 2px solid var(--border);
+    margin-left: .5rem;
+  }
+  .timeline li::before {
+    content: "";
+    position: absolute;
+    left: -.42rem;
+    top: .85rem;
+    width: .55rem;
+    height: .55rem;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+  .timeline .year { font-weight: 700; color: var(--accent); }
+
+  .tag {
+    display: inline-block;
+    font-size: .75rem;
+    font-family: system-ui, sans-serif;
+    background: var(--quote-bg);
+    border: 1px solid var(--border);
+    padding: .15rem .45rem;
+    border-radius: 3px;
+    margin-right: .35rem;
+    color: var(--muted);
+  }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .refs { font-size: .88rem; }
+  .refs li { margin: .5rem 0; word-break: break-word; }
+
+  footer {
+    margin-top: 2.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    font-size: .82rem;
+    color: var(--muted);
+    font-family: system-ui, sans-serif;
+  }
+
+  @media print {
+    body { background: #fff; padding: 0; }
+    .container { box-shadow: none; border: none; padding: 0; max-width: 100%; }
+    a { color: inherit; text-decoration: none; }
+    a::after { content: " (" attr(href) ")"; font-size: .8em; color: #666; }
+    h2 { page-break-after: avoid; }
+  }
+  </style>
+</head>
+<body>
+  <article class="container">
+    <header>
+      <h1>本体论与现象学：是否被“替代”？</h1>
+      <p class="subtitle">Ontology vs. Phenomenology — A Research Report · May 2026</p>
+    </header>
+
+    <section class="executive" aria-labelledby="exec-title">
+      <h2 id="exec-title">执行摘要（中文）</h2>
+      <div class="verdict">
+        <strong>结论：</strong>说“现象学替代了本体论”<em>过于简化</em>，但在特定意义上<em>部分成立</em>。
+      </div>
+      <p>
+        20 世纪欧陆哲学中，现象学（尤其海德格尔的<strong>现象学方法</strong>）确实对<strong>传统本体论</strong>——把存在当作现成实体清单、范畴体系或“存在者之为存在者”的形而上学——发起了根本性质疑与重构。海德格尔本人并非取消本体论，而是提出<strong>基础本体论</strong>（<em>Fundamentalontologie</em>）：以现象学分析此在（Dasein）来重新奠基“存在之意义”问题。胡塞尔则将现象学定位为<strong>第一哲学</strong>，而把关于终极实在的形而上学降为<strong>第二哲学</strong>。
+      </p>
+      <p>
+        列维纳斯进一步把“伦理学作为第一哲学”，批评海德格尔式基础本体论仍属“总体性”的存有论；梅洛-庞蒂则从具身知觉出发提出“肉身”（<em>flesh</em>）本体论——现象学与本体论在此<strong>交织而非互斥</strong>。21 世纪以来，“本体论转向”（人类学、分析哲学）又使 ontology 议题显著回潮。在计算机科学中，“ontology”指<strong>知识表示 schema</strong>，与哲学本体论同名异义；具身认知对符号/本体 grounding 的批评是<strong>平行但不同的问题域</strong>。
+      </p>
+      <p>
+        因此：现象学<strong>替代</strong>的是某种<strong>传统形而上学式本体论</strong>及其方法论；它<strong>没有</strong>终结 ontology 这一哲学议题，而是将其<strong>现象学化、存在论化、伦理化或具身化</strong>。更准确的说法是<strong>“重构与位移”</strong>，而非简单“替代”。
+      </p>
+    </section>
+
+    <section aria-labelledby="intro">
+      <h2 id="intro">1. Introduction</h2>
+      <p>
+        The claim that <strong>phenomenology replaced ontology</strong> circulates in both philosophical and popular discourse. It often conflates two distinct senses of “ontology”:
+      </p>
+      <ol>
+        <li><strong>Philosophical ontology</strong> — the inquiry into being, existence, categories of what there is, and the meaning of “to be.”</li>
+        <li><strong>Computer-science ontology</strong> — a formal schema of classes, properties, and relations for knowledge representation (OWL, RDF, etc.).</li>
+      </ol>
+      <p>
+        In continental philosophy, the relevant narrative begins with Edmund Husserl’s phenomenological turn (c. 1900–1913), intensifies in Martin Heidegger’s <em>Being and Time</em> (1927), and ramifies through Merleau-Ponty, Levinas, Sartre, and later the “ontological turn” in anthropology and analytic metaphysics. The replacement thesis is <em>partly accurate</em> as a description of a <strong>methodological and foundational shift</strong>, but <em>misleading</em> if read as “ontology disappeared.”
+      </p>
+      <blockquote>
+        Note: The user’s phrase “现象论” is almost certainly a confusion with <strong>现象学</strong> (phenomenology). Phenomenalism (现象主义/现象论) is a different doctrine — reducing objects to bundles of sensations — and is explicitly contrasted with Husserlian phenomenology.
+      </blockquote>
+    </section>
+
+    <section aria-labelledby="thinkers">
+      <h2 id="thinkers">2. Key Thinkers &amp; Claims</h2>
+
+      <h3>Edmund Husserl (1859–1938)</h3>
+      <p>
+        Husserl did not abolish ontology; he <strong>reordered</strong> the philosophical hierarchy. After his transcendental turn (c. 1906–07), phenomenology as eidetic science of constituting consciousness became <strong>first philosophy</strong>; metaphysics as science of ultimate reality became <strong>second philosophy</strong>, founded upon phenomenological results (Marcos &amp; De Santis, 2023; Stanford Encyclopedia of Philosophy).
+      </p>
+      <p>
+        Early <em>Logical Investigations</em> (1900–01) emphasized metaphysical neutrality; later work (<em>Ideas I</em>, 1913; <em>Cartesian Meditations</em>) integrated metaphysics as constituted accomplishment of transcendental subjectivity. Husserl charged Heidegger with raising the ontological question but answering with “abstract anthropology” instead of genuine ontology or phenomenology (Wikipedia, citing Husserl’s critique).
+      </p>
+
+      <h3>Martin Heidegger (1889–1976)</h3>
+      <p>
+        Heidegger’s central project is explicitly ontological: the <strong>question of the meaning of Being</strong> (<em>Seinsfrage</em>). His method is phenomenological — analyzing how Dasein’s temporality structures understanding of being — but the goal is <strong>fundamental ontology</strong>, not its elimination (Stanford Encyclopedia; Carman 2003).
+      </p>
+      <p>
+        He distinguishes <em>ontic</em> inquiry (about entities) from <em>ontological</em> inquiry (about the meaning in virtue of which entities are entities). Traditional ontology, focused on cataloguing beings, is “blind” without clarifying the meaning of Being (<em>Being and Time</em> § Introduction). His <strong>Destruktion</strong> (deconstruction/destruction) of the history of ontology clears the way for this more primordial question — a <strong>reorientation</strong>, not a replacement of ontology by non-ontology.
+      </p>
+      <blockquote>
+        “Heidegger’s question is not, Why is there anything? but rather, What does it mean for something to be?” — Carman, cited in Stanford Encyclopedia of Philosophy
+      </blockquote>
+
+      <h3>Maurice Merleau-Ponty (1908–1961)</h3>
+      <p>
+        Merleau-Ponty uses phenomenology to ground ontology in <strong>embodied, pre-reflective perception</strong>. In <em>Phenomenology of Perception</em> (1945), he critiques both empiricism and intellectualism for presupposing a ready-made world. In <em>The Visible and the Invisible</em>, he develops an <strong>“ontology of flesh”</strong> (<em>chair</em>) — the reversible intertwining of perceiver and perceived — dissolving Cartesian subject–object dualism (Stanford Encyclopedia; Springer “Flesh” entry).
+      </p>
+      <p>
+        Phenomenology here <strong>leads to</strong> ontology rather than replacing it; Merleau-Ponty aims to reform phenomenology’s intellectualist tendencies while drawing out its ontological implications.
+      </p>
+
+      <h3>Emmanuel Levinas (1906–1995)</h3>
+      <p>
+        Levinas’s “<strong>ethics as first philosophy</strong>” (<em>Éthique comme philosophie première</em>, 1984) is the strongest version of a <em>priority shift</em> away from ontology. He argues that encounter with the Other’s “face” discloses normativity before any theoretical grasp of being; earlier phenomenologists (Husserl, Sartre) wrongly treated ethics as founded on a prior “ontology” of representation (Stanford Encyclopedia; Crowell 2008).
+      </p>
+      <p>
+        Levinas’s sustained target is <strong>fundamental ontology</strong> — Heidegger’s analytic of Dasein remains too formal, solipsistic, and insufficiently interpersonal. Yet even Levinas does not erase ontological questions; he <strong>subordinates</strong> them to ethics and the metaphysics of the face-to-face.
+      </p>
+
+      <h3>Post-Heidegger &amp; the “Ontological Turn”</h3>
+      <p>
+        In anthropology (Holbraad &amp; Pedersen 2017), the <strong>ontological turn</strong> treats different cultures as inhabiting genuinely different worlds — not merely different interpretations of one natural world. Jensen (2020) argues this parallels Husserl’s <strong>epoché</strong> rather than opposing phenomenology: an “ontological epoché.”
+      </p>
+      <p>
+        In analytic philosophy, a “structural turn” (2015–2025) renewed focus on fundamentality, dependence, and the architecture of reality — ontology by another name (Maguire 2026). Contemporary Chinese scholarship (e.g., 中国社会科学网 2023) discusses moving <em>beyond</em> Kantian transcendental philosophy toward robust realism — phenomenology and ontology both remain live options.
+      </p>
+    </section>
+
+    <section aria-labelledby="timeline">
+      <h2 id="timeline">3. Timeline</h2>
+      <ul class="timeline">
+        <li><span class="year">1900–01</span> Husserl, <em>Logical Investigations</em> — phenomenology as descriptive, initially metaphysically neutral.</li>
+        <li><span class="year">1906–07</span> Husserl’s transcendental turn — phenomenology becomes first philosophy.</li>
+        <li><span class="year">1913</span> Husserl, <em>Ideas I</em> — transcendental phenomenology; bracketing the natural attitude.</li>
+        <li><span class="year">1927</span> Heidegger, <em>Being and Time</em> — fundamental ontology via phenomenology of Dasein.</li>
+        <li><span class="year">1945</span> Merleau-Ponty, <em>Phenomenology of Perception</em> — embodied phenomenology.</li>
+        <li><span class="year">1961</span> Levinas, <em>Totality and Infinity</em> — ethics challenges totalizing ontology.</li>
+        <li><span class="year">1984</span> Levinas, “Ethics as First Philosophy” — explicit priority of ethics over ontology.</li>
+        <li><span class="year">1990s–2010s</span> Ontological turn in anthropology; embodied cognition in cognitive science.</li>
+        <li><span class="year">2015–2025</span> Analytic “structural turn”; phenomenology remains active across HCI, psychiatry, AI ethics.</li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="for">
+      <h2 id="for">4. Arguments for “Replacement”</h2>
+      <table>
+        <thead>
+          <tr><th>Argument</th><th>Proponent / Source</th><th>What is “replaced”</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Traditional ontology asks <em>what exists</em> (entities, categories) without asking <em>what it means to be</em> — phenomenology exposes this as derivative or “ontic.”</td>
+            <td>Heidegger</td>
+            <td>Aristotelian / scholastic / Cartesian entity-catalog ontology</td>
+          </tr>
+          <tr>
+            <td>Metaphysics must be grounded in transcendental subjectivity, not naïve realism — phenomenology is first philosophy.</td>
+            <td>Husserl (post-1907)</td>
+            <td>Metaphysics as independent first science</td>
+          </tr>
+          <tr>
+            <td>Consciousness-as-foundation (representational ontology) is peripheral; existence (Dasein-in-the-world) is primary.</td>
+            <td>Heidegger vs. Husserl</td>
+            <td>Subject-centered transcendental ontology</td>
+          </tr>
+          <tr>
+            <td>Ethics (face of the Other) precedes ontology of representation; “being” is secondary to responsibility.</td>
+            <td>Levinas</td>
+            <td>Heideggerian fundamental ontology</td>
+          </tr>
+          <tr>
+            <td>Perception is embodied and pre-reflective — ontology must start from lived body, not abstract substance.</td>
+            <td>Merleau-Ponty</td>
+            <td>Dualistic / intellectualist ontology</td>
+          </tr>
+          <tr>
+            <td>必须区分现象学真实性与本体论存在性 — 直观不能自动推出本体论结论。</td>
+            <td>当代中文哲学讨论 (PhilArchive)</td>
+            <td>从现象直接跳跃到本体论断言</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section aria-labelledby="against">
+      <h2 id="against">5. Counterarguments &amp; Nuance</h2>
+      <ul>
+        <li><strong>Heidegger never abandoned ontology.</strong> He renamed and re-founded it as <em>fundamental ontology</em> — phenomenology is the <em>method</em>, ontology remains the <em>question</em> (Stanford Encyclopedia; Wikipedia “Fundamental ontology”).</li>
+        <li><strong>Husserl’s phenomenology aims at ontology.</strong> Both Husserl and Heidegger conceived phenomenology “as a means to metaphysics and/or ontology” (BU Open Access, Heidegger-Husserl scholarship).</li>
+        <li><strong>Merleau-Ponty produces ontology from phenomenology</strong> — “flesh,” chiasm, embodied being — not phenomenology without ontology.</li>
+        <li><strong>Levinas displaces priority, not the topic.</strong> “Ethics as first philosophy” is an ordering claim; ontological language persists in his metaphysics of alterity.</li>
+        <li><strong>Ontological turn ≠ anti-phenomenology.</strong> Anthropological OT may be read as phenomenological bracketing at the cultural level (Jensen 2020).</li>
+        <li><strong>Revival in analytic and Chinese philosophy.</strong> Structural metaphysics, speculative realism, and 物自身问题 research reassert ontological questions phenomenology was thought to have dissolved.</li>
+        <li><strong>Husserl vs. Heidegger dispute.</strong> Husserl accused Heidegger of abandoning both genuine phenomenology and genuine ontology — showing that insiders rejected the “replacement” narrative.</li>
+      </ul>
+      <p>
+        <strong>Best formulation:</strong> Phenomenology <em>superseded a particular tradition of ontology</em> (substance metaphysics, naïve correspondence, entity-cataloging) and <em>transformed the practice of ontology</em> — but did not eliminate the field. Think <strong>paradigm shift</strong> (Kuhn) or <strong>destruction/reformation</strong> (Heidegger), not <strong>substitution</strong>.
+      </p>
+    </section>
+
+    <section aria-labelledby="cs">
+      <h2 id="cs">6. CS / Knowledge Representation Parallel</h2>
+      <p>
+        In computer science, <strong>ontology</strong> denotes a shared conceptual schema — classes, properties, relations — used for validation, querying, and agent interoperability (Gruber 1993; OWL). This is <strong>homonymous</strong> with philosophical ontology: both concern “what kinds of things exist and how they relate,” but CS ontology is <strong>engineered, domain-specific, and operational</strong>, not a theory of Being.
+      </p>
+      <table>
+        <thead>
+          <tr><th>Dimension</th><th>Philosophical debate</th><th>CS / AI debate</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Core question</td>
+            <td>What is being / meaning of existence?</td>
+            <td>What schema governs valid concepts &amp; relations?</td>
+          </tr>
+          <tr>
+            <td>“Phenomenological” challenge</td>
+            <td>Start from lived experience, not substance</td>
+            <td>Embodied cognition, symbol grounding — meaning needs world interaction</td>
+          </tr>
+          <tr>
+            <td>Does phenomenology “replace” ontology?</td>
+            <td>Reframes traditional ontology; ethics/embodiment may take priority</td>
+            <td><strong>No direct parallel.</strong> Ontologies remain widely used in robotics, biomedical informatics, semantic web; embodied AI critiques <em>grounding</em>, not schema layers per se</td>
+          </tr>
+          <tr>
+            <td>Recent signal</td>
+            <td>Ontological turn, structural turn</td>
+            <td>LLMs “circumvent” symbol grounding via pre-grounded text (Harnad 2024); ontology-based KR still standard in robots (MDPI survey 2021)</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        The CS analogue to “phenomenology vs. ontology” is closer to <strong>symbol grounding vs. formal ontology</strong>: Can disembodied symbol structures capture world-meaning without perceptual-motor engagement? Critics of strong embodied AI note that “constitution” claims risk circularity (Manzotti 2023); practitioners combine ontologies with sensorimotor pipelines rather than abandoning schema layers.
+      </p>
+    </section>
+
+    <section aria-labelledby="adl">
+      <h2 id="adl">7. Implications for ADL Lite</h2>
+      <p>
+        ADL Lite’s planned “ontology middle layer” (<code>docs/proposals/ONTOLOGY_MIDDLE_LAYER.md</code>) is explicitly <strong>CS ontology</strong> — a semantic schema registry for agent discovery documents, not a phenomenological program. The philosophical lesson is orthogonal but useful: just as phenomenology did not erase ontological questions but changed <em>what counts as a valid starting point</em>, ADL’s ontology layer should treat Markdown-native agent discourse (L1/L2 prose, L3 relations) as primary while supplying <strong>formal constraints</strong> that interpret and validate that discourse — phenomenology-like richness in the document body, ontological rigor in the schema contract, without conflating the two levels.
+      </p>
+    </section>
+
+    <section aria-labelledby="refs">
+      <h2 id="refs">8. References</h2>
+      <ol class="refs">
+        <li>Stanford Encyclopedia of Philosophy — <a href="https://plato.stanford.edu/entries/heidegger/">Martin Heidegger</a>. Fundamental ontology, Seinsfrage, phenomenological method.</li>
+        <li>Stanford Encyclopedia of Philosophy — <a href="https://plato.stanford.edu/entries/husserl/">Edmund Husserl</a>. Transcendental phenomenology, idealism, constitution.</li>
+        <li>Stanford Encyclopedia of Philosophy — <a href="https://plato.stanford.edu/entries/levinas/">Emmanuel Levinas</a>. Ethics as first philosophy, critique of fundamental ontology.</li>
+        <li>Stanford Encyclopedia of Philosophy — <a href="https://plato.stanford.edu/entries/merleau-ponty/">Maurice Merleau-Ponty</a>. Embodied phenomenology, flesh, ontology of perception.</li>
+        <li>Wikipedia — <a href="https://en.wikipedia.org/wiki/Phenomenology_(philosophy)">Phenomenology (philosophy)</a>. Husserl–Heidegger dispute; phenomenology vs. phenomenalism.</li>
+        <li>Jensen, C. B. (2020). <a href="https://journals.sagepub.com/doi/10.1177/0048393120917969">Anthropological Epochés: Phenomenology and the Ontological Turn</a>. <em>Philosophy of the Social Sciences</em>.</li>
+        <li>Marcos, A. &amp; De Santis, R. (2023). <a href="https://www.mdpi.com/2077-1444/16/2/195">Husserl’s Concept of Metaphysics</a>. <em>Religions</em> — first vs. second philosophy.</li>
+        <li>中国社会科学网 (2023). <a href="https://cssn.cn/dkzgxp/zgxp_zgshkx/2023nd4q/202305/t20230529_5641024.shtml">物自身问题新探</a>. 现象学系与后康德本体论讨论.</li>
+        <li>Holbraad, M. &amp; Pedersen, M. A. (2017). <em>The Ontological Turn</em>. Cambridge University Press.</li>
+        <li>Maguire, J. (2026). <a href="https://jackmaguire.org/2026/01/28/the-structural-turn-or-why-analytic-philosophy-spent-the-last-decade-staring-at-the-skeleton-of-reality-2015-2025/">The Structural Turn</a>. Analytic metaphysics revival.</li>
+        <li>Crowell, S. (2008). <a href="https://philpapers.org/rec/CROWIE-2">Why is Ethics First Philosophy?</a> Levinas in phenomenological context.</li>
+        <li>Manzotti, R. (2023). <a href="https://www.mdpi.com/2409-9287/4/3/39">Embodied AI beyond Embodied Cognition and Enactivism</a>. Critique of constitution claims.</li>
+        <li>ArXiv (2025). <a href="https://arxiv.org/html/2512.09117">LLMs and the Symbol Grounding Problem</a>. Epistemic parasitism vs. grounding.</li>
+        <li>ADL Lite — <a href="../proposals/ONTOLOGY_MIDDLE_LAYER.md">Ontology Middle Layer Proposal</a> (local).</li>
+      </ol>
+    </section>
+
+    <footer>
+      <p>Report generated for ADL Lite research · Web sources consulted May 2026 · Not a git commit.</p>
+    </footer>
+  </article>
+</body>
+</html>

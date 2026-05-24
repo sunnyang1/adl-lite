@@ -20,7 +20,7 @@ Independent LLM-as-judge scores on **`n_discoveries: 15`** yield mean ADL clarit
 
 The unstructured **plain-LLM** arm—documented under **`plain_llm`**—pools three MiMo unstructured writings (one AML slug scenario each) reused across all fifteen templated discoveries. Means on that baseline are **2.667** (Judge A) and **3.000** (Judge B) with pooled ADL − plain deltas **+1.400** and **+1.600** respectively (**≈ +1.500** averaging those judge-specific deltas); **`plain_llm_judge_disagreement_count`** falls to **0** because adjudication attaches to slug-level prose bundles where inter-judge spread stays beneath the disagreement threshold (**\|3 − 4\| < 2** after Wave 6b refresh). Across the fifteen ADL / fair-plain pairings adjudicators diverge materially on exactly **one** discovery (`disagreement_count` **1**).
 
-**Limitations (RQ1):** Sample size is bounded (**n = 15** judge pass; rubric **`n_pairs` = 25**). Plain-LLM judgments remain proxy adjudication mediated through Cursor—not human-rated gold labels—although Wave 6b removes API-key gated fixture dependence for unstructured snapshots.
+**Limitations (RQ1):** Sample size is bounded (**n = 15** judge pass; rubric **`n_pairs` = 25**). Judgments stem from Cursor-proxy LLM adjudication—not human labeling. Fair-plain Δ=0 shows that, for these MiMo outputs, SSA constraints do not add measurable clarity *beyond* the same stripped wording; gains versus unstructured plain-LLM reflect authoring discipline absent in the baseline generator.
 
 ## RQ2 — Consensus transitions
 
@@ -35,15 +35,27 @@ Splits below mirror **`docs/experiments/rq3_ablation.json`** (frozen Phase B rer
 - Aggregate TF-IDF run (**`n_queries` = 25**): **hit recall 1.00** (ADL) versus **0.80** fair plain (**`delta` = +0.20**); label recall **0.9667** versus **0.7267** (**`label_recall_delta` ≈ +0.24**, matching **RESULTS.md** rounding).
 - Scenario-only cohort (**q01–q20**, **`scenario_n_queries` = 20**): **`scenario_hit_delta` = +0.00**, **`scenario_label_delta` ≈ +0.05**.
 
+- L3-only cohort (**q21–q25**, **`n_queries` = 5**): **`delta` = +1.00**, **`label_recall_delta` = +1.00** (per **`rq3_ablation.json`**).
+
 These splits demonstrate that headline recall deltas lean on **`q21`–`q25`**, the L3-only opaque-anchor bundle where relational signal is withheld from baseline indexing.
 
-**Limitations (RQ3):** TF-IDF is a deliberately lightweight ranker with optional heavier hybrid modes noted in **`RESULTS.md`** but not summarized here beyond the caveat that embeddings change absolute gaps; regardless, the dominating structural effect is relation visibility for the opaque-anchor cohort.
+**Limitations (RQ3):** TF-IDF is a deliberately lightweight ranker; the dominating structural effect is relation visibility for the opaque-anchor cohort. Scenario-only hit recall shows no delta in this pilot—authors should not extrapolate full-corpus gains from aggregate metrics alone.
 
 ## RQ4 — Scope leakage
 
 The pilot emits **`adl_leaks` = 0** with **`60/60` probes denied** via **`validate_scope_access`**. Companion metadata flags **`baseline_leaks_uncontrolled` = 0** without comparable instrumentation parity.
 
 **Limitations (RQ4):** Absence of a symmetric leakage probe on uninstrumented Markdown means the strongest headline is ADL behaving as intended under adversarial probing, not a controlled comparative leakage rate.
+
+## Ontology strict-validation pilot (Phase 2a–2b)
+
+Independent of RQ1–RQ4 headline metrics:
+
+- **`adl-lite validate --strict examples/*.md`:** **5/5 pass** on curated examples.
+- **`adl-lite validate --strict tests/fixtures/invalid_predicate.md`:** fails on unknown predicate `similar` (expected).
+- **Harness:** `ADL_STRICT_ONTOLOGY=1 python -m experiments.run_sim --scripted` logs strict mode; invalid-L3 ablation remains qualitative until 2c eval wiring.
+
+Pilot-scale registry evidence only — not a claim that strict mode improves RQ outcomes. `adl_ontology_query` (Milestone 2c) is implemented in `tools.py` and the CLI.
 
 ---
 

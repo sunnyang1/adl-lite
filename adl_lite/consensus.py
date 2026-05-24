@@ -26,6 +26,7 @@ from datetime import datetime, timezone
 from enum import Enum
 
 from .models import ADLDocument, DiscoveryStatus
+from .ontology import OntologyManager, default_ontology
 
 # ---------------------------------------------------------------------------
 # Enums
@@ -237,9 +238,10 @@ class ConsensusEngine:
         history = engine.get_history("disc-7f3a9b")
     """
 
-    def __init__(self) -> None:
+    def __init__(self, ontology: OntologyManager | None = None) -> None:
         self.chains: dict[str, ConceptChain] = {}
         self.fork_manager = ForkManager()
+        self._ontology = ontology or default_ontology()
 
     # -- Chain lifecycle --
 
@@ -275,7 +277,7 @@ class ConsensusEngine:
         chain = self.chains[adl_id]
         current = chain.latest_status
 
-        if not self._is_valid_transition(current, to_status):
+        if not self._is_valid_transition(current, to_status, self._ontology):
             raise ValueError(
                 f"Invalid transition: {current.value} → {to_status.value}"
             )
@@ -339,27 +341,10 @@ class ConsensusEngine:
 
     @staticmethod
     def _is_valid_transition(
-        current: DiscoveryStatus, target: DiscoveryStatus
+        current: DiscoveryStatus,
+        target: DiscoveryStatus,
+        ontology: OntologyManager | None = None,
     ) -> bool:
-        """Define valid state transitions."""
-        valid = {
-            DiscoveryStatus.PROVISIONAL: {
-                DiscoveryStatus.VALIDATED,
-                DiscoveryStatus.DEPRECATED,
-                DiscoveryStatus.FORKED,
-                DiscoveryStatus.ARCHIVED,
-            },
-            DiscoveryStatus.VALIDATED: {
-                DiscoveryStatus.DEPRECATED,
-                DiscoveryStatus.FORKED,
-                DiscoveryStatus.ARCHIVED,
-            },
-            DiscoveryStatus.FORKED: {
-                DiscoveryStatus.VALIDATED,
-                DiscoveryStatus.DEPRECATED,
-                DiscoveryStatus.ARCHIVED,
-            },
-            DiscoveryStatus.DEPRECATED: {DiscoveryStatus.ARCHIVED},
-            DiscoveryStatus.ARCHIVED: set(),  # terminal
-        }
-        return target in valid.get(current, set())
+        """Valid state transitions from adl_core_ontology.yaml."""
+        mgr = ontology or default_ontology()
+        return mgr.is_valid_transition(current.value, target.value)

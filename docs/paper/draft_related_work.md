@@ -54,3 +54,17 @@ This positioning matters for deployment realism. Many teams do not have resource
 Relative to prior strands, ADL Lite combines four elements in a single, low-friction artifact contract: (1) tri-layer Markdown representation, (2) SSA-oriented validation with referent and scope constraints, (3) consensus-chain lifecycle logging with fork support, and (4) hybrid memory indexing that integrates relational signal without requiring a heavyweight ontology runtime.
 
 The resulting research proposition is intentionally bounded. ADL Lite argues that coordination benefits can emerge from disciplined document structure before full formal knowledge engineering overhead. This proposition is testable with ambiguity checks, transition traceability, retrieval ablations, and scope-leak probes.
+
+## 7. LLM ontology construction methods (2025–2026 landscape)
+
+Recent surveys of LLM-driven knowledge-graph and ontology pipelines identify five recurring strategies: **pipeline decomposition** (LLM orchestrates; RDF/OWL holds the world model), **clustering-driven** extraction, **two-phase generation** (extract then build hierarchy), **schema-guided extraction** (closed predicate/class registry in prompts), and **end-to-end prompting** (single-shot Markdown or triple drafts). A practical synthesis ([Wang, 2026 — *Building Knowledge Graphs with LLMs: Five Methods Compared*](https://zerofuturetech.substack.com/p/building-ontology-with-llms-five)) stresses that relation extraction remains the hardest step and that validation against a published schema should follow generative authoring rather than replace human-readable surfaces.
+
+ADL Lite maps to this landscape deliberately:
+
+| External method | ADL Lite mechanism |
+|-----------------|-------------------|
+| E — End-to-end prompting | `prompts/write_discovery.md`, L1/L2/L3 Markdown authoring |
+| D — Schema-guided extraction | `adl_core_ontology.yaml`, `OntologyManager`, `ADLValidator(strict=True)` |
+| Pipeline decomposition (lightweight) | Parser → ontology registry → validator → `ADLMemory` / consensus chain |
+
+We do **not** embed OWL reasoners or automatic hierarchy induction (Methods B/C at production scale). Phase 2 Milestone 2a ships the schema registry and strict predicate gate; optional Turtle export remains Phase 3. See [`docs/proposals/ONTOLOGY_MIDDLE_LAYER.md`](../proposals/ONTOLOGY_MIDDLE_LAYER.md) and [`docs/AGENT_WORKFLOW.md`](../AGENT_WORKFLOW.md) for the E→D agent loop.

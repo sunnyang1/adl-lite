@@ -167,7 +167,26 @@ The `ADLValidator` returns a list of error strings (empty ⇒ pass):
 2. **L2** — forbidden pronouns in body.
 3. **L3** — non-empty relation source/target; valid `adl://` target scheme; Pydantic blocks reject pronouns in source/target slots.
 
-`ADLValidator(strict=True)` enables extra checks (e.g. formal seal validators list).
+### 7.1 Ontology registry (normative)
+
+`adl_lite/adl_core_ontology.yaml` is the single source of truth for:
+
+- L3 relation **predicates** (closed core set)
+- **`mapping_type`** values allowed per predicate
+- **status transition** graph used by `ConsensusEngine`
+- **scope** prefix grammar (`public`, `private`, `user`, `shared`)
+
+CLI: `adl-lite ontology validate` loads the YAML and prints a schema summary; with paths or `--examples` / `--aml`, runs strict document validation against the registry.
+
+### 7.2 Strict mode (`--strict`)
+
+`ADLValidator(strict=True)` (and `adl-lite validate --strict`) additionally:
+
+- Rejects unknown L3 `relation` predicates (must appear under `predicates:` in the YAML)
+- Requires `mapping_type` on `isomorphic-to` relations; value must be listed under that predicate’s `allowed_mapping_types`
+- Requires at least one `validators` entry on `formal_seal` documents
+
+Default mode (`strict=False`) keeps Phase 1 behavior for corpora that predate the registry.
 
 Parse-time validation: invalid enum values or malformed YAML raise `ADLParseError` / Pydantic errors.
 

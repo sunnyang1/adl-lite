@@ -87,3 +87,15 @@ Reproducibility is anchored in committed scripts and artifacts:
 - End-to-end rerun checklist: `docs/experiments/REPRODUCE.md`
 
 The reproduction guide specifies command order for tests, Phase B generation, scripted pipeline run, RQ1 judge sweep, and example validation, so reported metrics can be regenerated from a clean checkout.
+
+## 8. Five-agent scripted harness (coordination smoke test)
+
+Multi-agent coordination is exercised without live LLM APIs via `experiments/harness.py` and `experiments/run_sim.py --scripted`. Five roles—**Discoverer**, **Reviewer**, **Skeptic**, **Merger**, and **Librarian**—follow `docs/AGENT_WORKFLOW.md`: register provisional discoveries, challenge mechanisms, fork on dispute, merge validated concepts into `ADLMemory`, and query related concepts under scope. This harness supplies RQ2's multi-document transition counts and end-to-end parse/validate/store demos; it is a **reproducibility anchor**, not a claim about optimal real-team workflows or LLM sample efficiency.
+
+## 9. Operational ontology middle layer (Phase 2a–2b)
+
+Beyond per-document SSA checks, ADL Lite adds a **Markdown-native operational ontology**—a project-local semantic contract above SQLite/NetworkX storage, not a triple-store runtime. The registry lives in `adl_lite/adl_core_ontology.yaml` and is loaded by `OntologyManager` (`adl_lite/ontology.py`). It centralizes predicate closure, status transition graphs shared with `ConsensusEngine`, and scope namespace grammar.
+
+We adopt Wang (2026) **Method D (schema-guided extraction)**: agents author human-readable Markdown (**Method E**) and validators reject unknown L3 predicates when `ADLValidator(strict=True)` or `adl-lite validate --strict` is set. Default mode remains permissive (`strict=False`) so LLM discoverers can iterate before predicate closure.
+
+**Pilot evidence (honest scale).** On curated `examples/` (**n = 5**), strict validation passes; `tests/fixtures/invalid_predicate.md` fails on unknown predicate `similar`. Harness logging via `ADL_STRICT_ONTOLOGY=1` supports qualitative ablation. No RQ headline numbers are claimed for strict mode until Milestone 2c eval hooks ship.

@@ -1,6 +1,40 @@
 {
   "version": 1,
   "description": "Human referent clarity ratings for RQ1 (1=ambiguous, 5=explicit entity anchors). Wave 6b: unstructured plain baseline scores hydrated from Cursor-proxy offline adjudication (data/eval/rq1_plain_llm_live_proxy_wave6b.json); ADL rows scored via prompts/judge_referent_clarity.md.",
+  "study_protocol": {
+    "purpose": "Human inter-rater referent-clarity study to supplement LLM-as-judge RQ1 pilots (AAMAS reviewer feedback)",
+    "rubric_prompt": "prompts/judge_referent_clarity.md",
+    "scale": "1-5 integers; higher = clearer entity/referent anchors in L2 prose",
+    "active_discoveries": 15,
+    "reserve_slots": 5,
+    "comparison_arms": [
+      "adl_l2",
+      "fair_plain_l2",
+      "plain_llm_unstructured"
+    ],
+    "minimum_raters": 5,
+    "recommended_raters": "5-10 independent AML or technical readers",
+    "disagreement_threshold": 2,
+    "rating_fields": {
+      "referent_clarity": "Primary human score on ADL L2 (required for inclusion in human summary)",
+      "referent_clarity_b": "Second rater score on ADL L2 (same rubric; enables ICC placeholder)",
+      "referent_clarity_fair_plain": "Paired fair-plain L2 score (same wording, structure stripped via adl_to_fair_plain)",
+      "referent_clarity_plain_llm": "Unstructured plain-LLM score (slug-matched baseline prose from plain_discovery_*.md)",
+      "rater": "Anonymous rater ID for referent_clarity",
+      "rater_b": "Anonymous rater ID for referent_clarity_b",
+      "rating_completed_at": "ISO-8601 timestamp when primary rating submitted",
+      "notes": "Free-text flags (e.g. adjudication needed when |referent_clarity - referent_clarity_b| >= 2)"
+    },
+    "instructions": [
+      "Score L2 prose only; ignore L1 YAML and L3 fenced blocks when rating the ADL arm",
+      "Use the same rubric as LLM judges but do not copy proxy scores into referent_clarity",
+      "Flag entries where |rater - rater_b| >= 2 for third-party adjudication",
+      "Fair-plain arm: rate stripped L2 from adl_to_fair_plain on the same discovery_path"
+    ],
+    "analysis_command": "python -m experiments.rq1_human_eval",
+    "output_artifact": "docs/experiments/rq1_human_summary.json",
+    "llm_proxy_reference": "docs/experiments/rq1_llm_judge_summary.json (reference only; not a substitute for human referent_clarity)"
+  },
   "entries": [
     {
       "adl_id": "disc-llm-peripheral-trap",

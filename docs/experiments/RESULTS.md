@@ -2,6 +2,53 @@
 
 > **Label:** All numbers below are **pilot / synthetic** metrics from the scripted simulation and token-overlap retrieval rubric. Re-run commands locally to reproduce.
 
+## Pilot freeze (2026-05-24)
+
+```yaml
+frozen_at: 2026-05-24
+pilot_freeze:
+  rq1_llm_judge:
+    n_discoveries: 15
+    mean_adl_judge_a: 4.0667
+    mean_adl_judge_b: 4.6000
+    mean_fair_plain_delta: 0.0          # both judges; paired stripped L2
+    mean_plain_llm_judge_a: 2.6667
+    mean_plain_llm_judge_b: 3.0000
+    mean_adl_minus_plain_llm: 1.5000   # pooled across judges
+  rq2_scripted:
+    adl_transitions: 8
+    validated_count: 3
+    plain_transitions: 0
+  rq2_llm_batch:
+    n_runs: 10
+    mean_transitions: 2.0
+    success_rate: 1.0
+  rq3_tfidf:
+    n_queries: 25
+    hit_recall_adl: 1.00
+    hit_recall_plain: 0.80
+    hit_delta: 0.20
+    label_recall_delta: 0.24
+    scenario_hit_delta: 0.00            # q01-q20
+    l3_only_hit_delta: 1.00           # q21-q25
+  rq4_scope:
+    leaks: 0
+    probes_denied: 60
+  ontology_strict:
+    examples_pass: 5
+    invalid_fixture_fails: true
+  human_rq1:
+    status: pending
+    n_rated: 0
+artifacts:
+  - docs/experiments/summary_phase_b.json
+  - docs/experiments/rq1_llm_judge_summary.json
+  - docs/experiments/rq3_ablation.json
+  - docs/experiments/rq1_human_summary.json
+  - docs/paper/table2_results.md
+reproduce: docs/experiments/RESEARCH_LOOP_CHECKLIST.md
+```
+
 > [!summary] Paper-ready summary (RQ1-RQ4)
 > - **RQ1 (referent clarity vs unstructured plain‑LLM):** LLM‑as‑judge **`n=15`** shows pooled mean unstructured plain‑LLM clarity **2.667** (Judge A) / **3.000** (Judge B), mean ADL−plain **+1.400 / +1.600**, pooled between‑judge δ **+1.500** (**Wave 6b** Cursor‑proxy adjudication artifact `data/eval/rq1_plain_llm_live_proxy_wave6b.json`; no OPENAI_API_KEY required). Pairings vs fair‑plain stripped L2 stay **Δ=0**.
 > - **RQ2 (consensus):** Scripted ADL chain logs `8` transitions (`3` validated docs, `n_docs=5`) vs plain `0`; post‑v0.3.0 MiMo batch (`n=10`) averages `2.0` transitions/run (std `0.0`, success `100%`, revised `70%`), `-6.0` vs scripted total.
@@ -14,8 +61,8 @@
 | RQ | Metric | ADL / Phase B | Baseline | Δ / status |
 |----|--------|---------------|----------|------------|
 | **RQ1** | Pilot ambiguity reduction | ~100% (rubric) | fair plain paired | Pilot complete |
-| **RQ1** | Human eval scaffold | `experiments/rq1_human_eval.py` + `data/eval/human_rq1_template.json` | — | **Template ready** (ratings pending) |
-| **RQ1** | LLM-as-judge (Cursor proxy, no user API keys) | `data/eval/human_rq1_template.json`, `docs/experiments/rq1_llm_judge_summary.json` | — | **Scored** n=15; fair-plain Δ≈0; plain‑LLM means **2.667 / 3.000**; Δ **+1.40 / +1.60** (**Wave 6b** live adjudication artifact) |
+| **RQ1** | Human eval scaffold | `experiments/rq1_human_eval.py` + `docs/experiments/HUMAN_RQ1_PROTOCOL.md` | — | **Protocol ready** (ratings pending) |
+| **RQ1** | LLM-as-judge (Cursor proxy, no user API keys) | `data/eval/human_rq1_template.json`, `docs/experiments/rq1_llm_judge_summary.json` | — | **Scored** n=15; **fair-plain Δ=0** (paired stripped L2 identical to ADL wording); plain‑LLM means **2.667 / 3.000**; ADL−plain Δ **+1.40 / +1.60** (**Wave 6b** live adjudication artifact) |
 | **RQ2** | Scripted consensus transitions | 8 (3 validated) | 0 (plain) | +8 vs plain |
 | **RQ2** | LLM batch (MiMo, n=10) | mean transitions **2.0** (σ=0), success **100%**, mean attempts **1.7**, revised **70%** | scripted 8 | Δ **−6.0** vs scripted; see `rq2_llm_summary.json` |
 | **RQ3** | Hit recall @10 (TF-IDF, n=25) | **1.00** | 0.80 fair plain | **+0.20** |
@@ -93,7 +140,7 @@ Structured slots + pronoun ban reduce fuzzy referents in L2 prose.
 | Validator pass | **15/15** (100%) on Track B pilot run (**2026-05-23** UTC) |
 | Outputs | Structured: `experiments/outputs/llm_discovery_{peripheral-trap,smurfing-pattern,crypto-mixer}.md` plus batches; Plain: **`plain_discovery_*.md`** (see Wave 4a command above) |
 | Template | `data/eval/human_rq1_template.json` includes `discovery_path`, `validator_pass`, `plain_discovery_path`, LLM-as-judge fields |
-| Human ratings | **Pending** (`referent_clarity` null; run `experiments/rq1_human_eval.py` after rating) |
+| Human ratings | **Pending** (`referent_clarity` null; see `docs/experiments/HUMAN_RQ1_PROTOCOL.md`, then `python -m experiments.rq1_human_eval`) |
 
 **LLM-as-judge referent clarity (Cursor proxy, no user API keys):** judge pass completed manually using the same rubric prompt with two independent proxy lenses.
 
@@ -216,6 +263,8 @@ TF-IDF-only baseline (no embeddings): `--scorer tfidf` (default).
 
 ## RQ3 ablation (Table 1)
 
+**Pointer:** Headline RQ3 Δ**+0.20** hit recall is **not** uniform across query types. Scenario-only **`q01`–`q20`** (`n=20`) show hit Δ**+0.00** under both TF-IDF and hybrid scorers; the full-set gap is driven by **`q21`–`q25`** L3-only opaque-anchor probes (ADL **1.00** vs plain **0.00**, Δ**+1.00**). See `docs/experiments/rq3_ablation.json` and `docs/paper/table2_results.md` before citing aggregate recall.
+
 Source artifact: `docs/experiments/rq3_ablation.json` (generated by `python -m experiments.rq3_retrieval --mode phase_b -k 10 --scorer tfidf` and `--scorer hybrid`).
 
 | Subset | Scorer | ADL recall | Plain | Delta |
@@ -226,6 +275,54 @@ Source artifact: `docs/experiments/rq3_ablation.json` (generated by `python -m e
 | Scenario (`q01`-`q20`, `n=20`) | Hybrid | 1.00 | 1.00 | +0.00 |
 | L3-only (`q21`-`q25`, `n=5`) | Hybrid | 1.00 | 0.00 | +1.00 |
 | Full (`n=25`) | Hybrid | 1.00 | 0.80 | +0.20 |
+
+## Ontology strict-mode pilot (Phase 2a–2c)
+
+> **Status:** Milestones **2a** (`adl_core_ontology.yaml` + opt-in `--strict` predicate gate), **2b** (`OntologyManager`, `adl-lite ontology validate`), and **2c** (`adl_ontology_query` in `tools.py` + CLI) are implemented in-tree. **No RQ headline numbers** are claimed for ontology — pilot evidence is registry conformance only.
+
+| Check | Result | Notes |
+|-------|--------|-------|
+| `adl-lite validate --strict examples/*.md` | **5/5 pass** | Curated corpus uses closed predicate set (10 predicates in registry) |
+| `adl-lite validate --strict tests/fixtures/invalid_predicate.md` | **FAIL (expected)** | Unknown predicate `similar` rejected |
+| Scripted sim (`ADL_STRICT_ONTOLOGY=1`) | Harness logs `strict_ontology: true` | Qualitative ablation: compare invalid-L3 rejection when strict on vs off (no aggregate stat yet) |
+
+**Paper claim (honest):** ADL Lite positions an **operational ontology** middle layer — schema-guided extraction (**Method D**, Wang 2026) over Markdown authoring (**Method E**) — without OWL reasoners or triple stores. Strict validation is **opt-in** so LLM-authored drafts stay permissive by default. Pilot evidence is registry conformance on **n=5** curated examples plus a golden invalid fixture, not corpus-wide ablation statistics.
+
+Reproduce:
+
+```bash
+adl-lite validate --strict examples/*.md
+adl-lite validate --strict tests/fixtures/invalid_predicate.md  # expect exit 1
+ADL_STRICT_ONTOLOGY=1 python -m experiments.run_sim --scripted
+```
+
+## Strict ontology ablation (Milestone 2c)
+
+Scripted 5-agent sim with ontology registry enforcement (`ADL_STRICT_ONTOLOGY=1` or `ScriptedHarness(strict_ontology=True)`).
+
+```bash
+# Default (strict off) — repo examples pass SSA + optional predicate registry
+python -m experiments.run_sim --scripted
+
+# Strict — unknown L3 predicates fail reviewer validation before consensus
+ADL_STRICT_ONTOLOGY=1 python -m experiments.run_sim --scripted
+```
+
+| Mode | Validate steps | Validation failures | Ontology errors | Notes |
+|------|----------------|---------------------|-----------------|-------|
+| Default (`strict_ontology=false`) | 3 | 0 | 0 | Repo `examples/*.md` use registered predicates |
+| Strict (`ADL_STRICT_ONTOLOGY=1`) | 3 | 0 | 0 | Same corpus; no invalid L3 in scripted path |
+| Strict + invalid fixture | 1 | 1 | 1 | `tests/fixtures/invalid_predicate.md` → `Unknown relation predicate: 'similar'` |
+
+Agents can introspect the closed predicate/transition set before authoring L3 blocks:
+
+```bash
+adl-lite ontology query --json
+adl-lite ontology query --from-status forked --to-status validated
+python -c "from adl_lite.tools import adl_ontology_query; print(adl_ontology_query(from_status='forked', to_status='validated'))"
+```
+
+**Pilot read:** Strict mode is a **gate**, not a retrieval boost — on the current scripted corpus it adds zero false rejects because examples were authored against the registry. Negative ablation (LLM hallucinated predicates) is logged via `ontology_errors` in harness events when strict is on; measure on LLM discovery runs separately.
 
 ## Limitations (pilot)
 

@@ -12,8 +12,11 @@ from pathlib import Path
 from .consensus import ConceptChain, ConsensusEngine, ConsensusEntry
 from .memory import ADLMemory
 from .models import DiscoveryStatus
+from .ontology import OntologyManager
 from .parser import ADLParseError, parse_file
 from .validator import ADLValidator
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _default_state_path(db_path: str | None) -> Path:
@@ -78,7 +81,7 @@ def _cmd_parse(args: argparse.Namespace) -> int:
 
 
 def _cmd_validate(args: argparse.Namespace) -> int:
-    validator = ADLValidator()
+    validator = ADLValidator(strict=args.strict)
     any_errors = False
 
     for path_str in args.files:
@@ -193,6 +196,102 @@ def _cmd_consensus_transition(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ontology_query(args: argparse.Namespace) -> int:
+    ontology_path = Path(args.ontology) if args.ontology else None
+    try:
+        mgr = OntologyManager(ontology_path)
+        data = mgr.query_schema(
+            predicate=args.predicate,
+            from_status=args.from_status,
+            to_status=args.to_status,
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"ontology error: {exc}", file=sys.stderr)
+        return 1
+
+    if args.json:
+        print(json.dumps(data, indent=2))
+        return 0
+
+    print(f"ontology: {data['path']}")
+    print(f"version:  {data['version'] or '?'}")
+    print(f"classes:  {len(data['classes'])}")
+    print(f"predicates ({len(data['predicates'])}): {', '.join(data['predicates']) or '(none)'}")
+    print(f"scope_prefixes: {', '.join(data['scope_prefixes'])}")
+    print(f"mapping_types: {', '.join(data['mapping_types'])}")
+
+    if args.predicate:
+        valid = data.get("predicate_valid", False)
+        print(f"predicate '{args.predicate}': {'valid' if valid else 'unknown'}")
+        if valid:
+            allowed = data.get("allowed_mapping_types", [])
+            print(f"  allowed_mapping_types: {', '.join(allowed) or '(any)'}")
+
+    if args.from_status or args.to_status:
+        if args.from_status and args.to_status:
+            ok = data.get("is_valid_transition", False)
+            print(
+                f"transition {args.from_status} -> {args.to_status}: "
+                f"{'allowed' if ok else 'denied'}"
+            )
+        elif args.from_status:
+            targets = data["allowed_transitions"].get(args.from_status, [])
+            print(f"from {args.from_status}: {', '.join(targets) or '(terminal)'}")
+
+    if not args.from_status and not args.predicate:
+        print("status_transitions:")
+        for status, targets in sorted(data["allowed_transitions"].items()):
+            label = ", ".join(targets) if targets else "(terminal)"
+            print(f"  {status}: {label}")
+
+    return 0
+
+
+def _cmd_ontology_validate(args: argparse.Namespace) -> int:
+    ontology_path = Path(args.ontology) if args.ontology else None
+    try:
+        mgr = OntologyManager(ontology_path)
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"ontology error: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"ontology: {mgr.path}")
+    print(f"version:  {mgr.version or '?'}")
+    print(f"classes:  {len(mgr.list_classes())}")
+    print(f"predicates: {len(mgr.list_predicates())}")
+    print(f"statuses: {len(mgr.status_transition_graph())}")
+
+    paths: list[Path] = [Path(p) for p in args.files]
+    if args.examples:
+        paths.extend(sorted((_REPO_ROOT / "examples").glob("*.md")))
+    if args.aml and (_REPO_ROOT / "data" / "aml" / "concepts").is_dir():
+        paths.extend(sorted((_REPO_ROOT / "data" / "aml" / "concepts").glob("*.md")))
+
+    if not paths:
+        return 0
+
+    validator = ADLValidator(strict=True, ontology=mgr)
+    any_errors = False
+    for path in paths:
+        try:
+            doc = parse_file(path)
+        except (ADLParseError, OSError, ValueError) as exc:
+            print(f"{path}: parse error: {exc}", file=sys.stderr)
+            any_errors = True
+            continue
+
+        errors = validator.validate_document(doc)
+        if errors:
+            any_errors = True
+            print(f"{path}: FAIL ({len(errors)} error(s))", file=sys.stderr)
+            for err in errors:
+                print(f"  - {err}", file=sys.stderr)
+        else:
+            print(f"{path}: OK")
+
+    return 1 if any_errors else 0
+
+
 def _cmd_consensus_verify(args: argparse.Namespace) -> int:
     state_path = Path(args.state)
     engine = _load_engine(state_path)
@@ -230,7 +329,12 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_validate = sub.add_parser("validate", help="Validate one or more ADL files")
     p_validate.add_argument("files", nargs="+", help="Paths to .md documents")
-    p_validate.set_defaults(func=_cmd_validate)
+    p_validate.add_argument(
+        "--strict",
+        action="store_true",
+        help="Reject unknown L3 relation predicates (ontology registry)",
+    )
+    p_validate.set_defaults(func=_cmd_validate, strict=False)
 
     p_store = sub.add_parser("store", help="Store document in ADLMemory database")
     p_store.add_argument("file", help="Path to .md document")
@@ -242,6 +346,68 @@ def _build_parser() -> argparse.ArgumentParser:
     p_related.add_argument("--db", required=True, help="SQLite database path")
     p_related.add_argument("--depth", type=int, default=1, help="Traversal depth")
     p_related.set_defaults(func=_cmd_related)
+
+    p_ontology = sub.add_parser("ontology", help="Core ontology registry (YAML)")
+    onto_sub = p_ontology.add_subparsers(dest="ontology_cmd", required=True)
+
+    p_onto_val = onto_sub.add_parser(
+        "validate",
+        help="Load ontology YAML; optionally strict-validate ADL files",
+    )
+    p_onto_val.add_argument(
+        "files",
+        nargs="*",
+        help="ADL .md paths (omit with no --examples/--aml for YAML-only check)",
+    )
+    p_onto_val.add_argument(
+        "--ontology",
+        default=None,
+        help="Path to adl_core_ontology.yaml (default: packaged registry)",
+    )
+    p_onto_val.add_argument(
+        "--examples",
+        action="store_true",
+        help="Also strict-validate all examples/*.md",
+    )
+    p_onto_val.add_argument(
+        "--aml",
+        action="store_true",
+        help="Also strict-validate data/aml/concepts/*.md when present",
+    )
+    p_onto_val.set_defaults(func=_cmd_ontology_validate)
+
+    p_onto_q = onto_sub.add_parser(
+        "query",
+        help="Introspect predicates, transitions, scopes (agent schema lookup)",
+    )
+    p_onto_q.add_argument(
+        "--ontology",
+        default=None,
+        help="Path to adl_core_ontology.yaml (default: packaged registry)",
+    )
+    p_onto_q.add_argument(
+        "--predicate",
+        default=None,
+        help="Filter to one L3 relation predicate",
+    )
+    p_onto_q.add_argument(
+        "--from-status",
+        default=None,
+        dest="from_status",
+        help="Filter transitions from this status",
+    )
+    p_onto_q.add_argument(
+        "--to-status",
+        default=None,
+        dest="to_status",
+        help="With --from-status, check if this target is allowed",
+    )
+    p_onto_q.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit JSON (matches adl_ontology_query tool)",
+    )
+    p_onto_q.set_defaults(func=_cmd_ontology_query)
 
     p_consensus = sub.add_parser("consensus", help="Concept consensus chain")
     cons_sub = p_consensus.add_subparsers(dest="consensus_cmd", required=True)

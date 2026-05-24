@@ -1,12 +1,15 @@
-"""
-Scripted 5-agent simulation harness (no API key required).
+"""Scripted 5-agent simulation harness (no API key required).
 
 Roles: discoverer, reviewer, skeptic, merger, librarian
+
+Set ``strict_ontology=True`` (or env ``ADL_STRICT_ONTOLOGY=1``) to reject unknown
+L3 relation predicates during reviewer validation — logs failures for ablation.
 """
 
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -45,9 +48,20 @@ class SimEvent:
 class ScriptedHarness:
     """Deterministic multi-agent workflow over example ADL documents."""
 
-    def __init__(self, db_path: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        db_path: str | Path | None = None,
+        strict_ontology: bool | None = None,
+    ) -> None:
+        if strict_ontology is None:
+            strict_ontology = os.environ.get("ADL_STRICT_ONTOLOGY", "").lower() in (
+                "1",
+                "true",
+                "yes",
+            )
+        self.strict_ontology = strict_ontology
         self.engine = ConsensusEngine()
-        self.validator = ADLValidator()
+        self.validator = ADLValidator(strict=strict_ontology)
         self.mem = ADLMemory(db_path=str(db_path or ":memory:"))
         self.events: list[SimEvent] = []
         self._step = 0
@@ -65,13 +79,17 @@ class ScriptedHarness:
         doc = parse_file(path)
         errors = self.validator.validate_document(doc)
         ok = len(errors) == 0
-        self._log(
-            "reviewer",
-            "validate",
-            doc.adl_id,
-            ok=ok,
-            error_count=len(errors),
-        )
+        ontology_errors = [e for e in errors if "Unknown relation predicate" in e]
+        detail: dict[str, object] = {
+            "ok": ok,
+            "error_count": len(errors),
+            "strict_ontology": self.strict_ontology,
+        }
+        if ontology_errors:
+            detail["ontology_errors"] = ontology_errors
+        if errors and not ok:
+            detail["errors"] = errors[:5]
+        self._log("reviewer", "validate", doc.adl_id, **detail)
         if not ok:
             return False
         self.engine.register(doc)
@@ -223,8 +241,9 @@ class ScriptedHarness:
 def run_scripted_sim(
     db_path: str | Path | None = None,
     log_path: Path | None = None,
+    strict_ontology: bool | None = None,
 ) -> Path:
-    harness = ScriptedHarness(db_path=db_path)
+    harness = ScriptedHarness(db_path=db_path, strict_ontology=strict_ontology)
     harness.run_scripted_scenario()
     log_file = harness.write_log(log_path)
     harness.close()

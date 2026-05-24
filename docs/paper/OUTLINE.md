@@ -99,9 +99,12 @@ Discoverer → Reviewer → Skeptic → Merger → Librarian (`docs/AGENT_WORKFL
 
 ## 6. Discussion
 
-- Scripted sim as reproducibility anchor
-- Negative results policy
-- Deferred: Lean4 execution, FAISS ANN
+- Scripted sim as reproducibility anchor; five-agent roles as coordination smoke test
+- Negative results policy: fair-plain Δ=0 (RQ1), scenario-only retrieval Δ=0 (RQ3)
+- Threats: synthetic AML stubs, proxy judges, RQ2 workload mismatch, L3-only ablation slice
+- Deferred: Lean4 seal execution, FAISS ANN, human inter-rater validation
+
+Draft: [`draft_conclusion.md`](draft_conclusion.md) (includes AAMAS relevance paragraph).
 
 ## 7. Conclusion
 

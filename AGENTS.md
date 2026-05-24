@@ -24,6 +24,9 @@ pytest tests/ -v
 pytest experiments/ -v
 ruff check adl_lite tests experiments
 adl-lite validate examples/*.md
+adl-lite validate --strict examples/*.md
+adl-lite ontology validate
+adl-lite ontology validate --examples
 adl-lite parse examples/capital_reflux_trap.md
 adl-lite store examples/capital_reflux_trap.md --db /tmp/adl.db
 adl-lite related concept-gradient-explosion --db /tmp/adl.db
@@ -32,7 +35,7 @@ python -m experiments.run_sim --scripted
 python -m experiments.run_all
 ```
 
-Spec: `docs/SPEC.md`. Agent workflow: `docs/AGENT_WORKFLOW.md`. CLI entry: `adl_lite/cli.py`.
+Spec: `docs/SPEC.md`. PRD: `docs/PRD.md`. Implementation plan: `docs/IMPLEMENTATION_PLAN.md` (Phase 2+ ontology 2a–2c). Ontology proposal: `docs/proposals/ONTOLOGY_MIDDLE_LAYER.md`. Agent workflow: `docs/AGENT_WORKFLOW.md`. CLI entry: `adl_lite/cli.py`.
 
 ## Agent tools (Python)
 
@@ -74,6 +77,8 @@ Prompt template: `prompts/write_discovery.md`
 - Pilot results: `docs/experiments/RESULTS.md`
 - Paper pack: `docs/paper/OUTLINE.md`, `docs/RESEARCH_STATEMENT.md`
 
-## Roadmap status (Phase 1)
+## Roadmap status
 
 Phase 1 (May–Jun 2026): parser + hybrid index + 5-agent scripted sim + AML dataset + pilot RQ1–RQ4.
+
+Phase 2+ (ontology track): `adl_core_ontology.yaml` (2a) → `OntologyManager` + validator integration (2b) → `adl_ontology_query` (2c) → optional Turtle export (Phase 3). See `docs/PRD.md` §3.

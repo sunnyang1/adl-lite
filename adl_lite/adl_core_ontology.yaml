@@ -1,0 +1,73 @@
+# ADL Core Ontology — schema registry for L3 predicates, status graph, scopes.
+# Single source of truth for Milestone 2a (Path A: OntologyManager, no OWL runtime).
+# Inventory: examples/*.md, data/aml/concepts/, adl_lite/models.py, consensus.py
+#
+# Open questions (see docs/proposals/ONTOLOGY_MIDDLE_LAYER.md §8):
+#   - Predicate closure: core set below; domain-specific extensions via future prefixes
+#   - mapping_type: required on isomorphic-to when ADLValidator(strict=True)
+
+version: "0.1"
+ontology_id: adl-core
+
+classes:
+  discovery:
+  concept:
+  relation:
+  evidence:
+  formal_seal:
+
+# L3 relation predicates (closed core set from corpus)
+predicates:
+  isomorphic-to:
+    description: Cross-domain structural alignment
+    allowed_mapping_types: [topological, ontological, structural]
+  specialisation-of:
+    description: Narrower instance or subtype of target concept
+    transitive: true
+    allowed_mapping_types: [ontological]
+  co-occurs-with:
+    description: Statistical or operational co-occurrence
+    symmetric: true
+    allowed_mapping_types: [statistical]
+  related-to:
+    description: Generic domain association (weaker than isomorphic-to)
+    allowed_mapping_types: [domain, ontological]
+  analogical-to:
+    description: Analogical mapping between domains
+    allowed_mapping_types: [structural, ontological]
+  analogical-transfer:
+    description: Mechanism-level analogical transfer (AML corpus)
+    allowed_mapping_types: [ontological]
+  dual-of:
+    description: Dual or complementary concept pair
+    allowed_mapping_types: [ontological]
+  fork-of:
+    description: Lineage link from fork to original concept
+    allowed_mapping_types: [ontological]
+  mitigated-by:
+    description: Mitigation or remediation relationship
+    allowed_mapping_types: [engineering]
+  indexed-phrase:
+    description: Lexical anchor to warm-index phrase id
+    allowed_mapping_types: [lexical]
+
+# mapping_type values observed in corpus (informational; not strict-validated in 2a)
+mapping_types:
+  - topological
+  - ontological
+  - structural
+  - engineering
+  - statistical
+  - domain
+  - lexical
+
+# Mirrors ConsensusEngine._is_valid_transition (consensus.py)
+status_transitions:
+  provisional: [validated, deprecated, forked, archived]
+  validated: [deprecated, forked, archived]
+  forked: [validated, deprecated, archived]
+  deprecated: [archived]
+  archived: []
+
+scopes:
+  prefixes: [public, private, user, shared]

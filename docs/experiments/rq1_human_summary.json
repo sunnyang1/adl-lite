@@ -1,19 +1,55 @@
 {
-  "generated_at": "2026-05-23T14:14:01.743266+00:00",
+  "generated_at": "2026-05-24T05:52:50.627100+00:00",
   "metric": "human_referent_clarity",
+  "label": "Human inter-rater referent clarity (pending until raters score)",
   "n_entries": 20,
-  "n_rated": 0,
-  "mean_referent_clarity": null,
-  "validator_pass_count": 3,
-  "n_with_discovery": 3,
-  "adl_mean_ambiguity": 0.0555,
-  "plain_mean_ambiguity": 0.0555,
+  "n_active_discoveries": 15,
+  "n_rated_adl": 0,
+  "comparison_arms": {
+    "adl_l2": {
+      "field": "referent_clarity",
+      "n_active": 15,
+      "n_rated": 0,
+      "mean": null
+    },
+    "fair_plain_l2": {
+      "field": "referent_clarity_fair_plain",
+      "n_active": 15,
+      "n_rated": 0,
+      "mean": null
+    },
+    "plain_llm_unstructured": {
+      "field": "referent_clarity_plain_llm",
+      "n_active": 15,
+      "n_rated": 0,
+      "mean": null
+    }
+  },
+  "mean_deltas": {
+    "adl_minus_fair_plain": null,
+    "adl_minus_plain_llm": null
+  },
+  "inter_rater": {
+    "status": "insufficient_data",
+    "icc_type": "ICC(2,k)",
+    "icc": null,
+    "n_pairs": 0,
+    "disagreement_threshold": 2,
+    "disagreement_count": 0,
+    "mean_absolute_difference": null
+  },
+  "validator_pass_count": 15,
+  "n_with_discovery_files": 15,
+  "adl_mean_ambiguity_rubric": 0.0553,
+  "fair_plain_mean_ambiguity_rubric": 0.0553,
   "ambiguity_reduction_pct": 0.0,
   "paired_details": [
     {
       "adl_id": "disc-llm-peripheral-trap",
       "discovery_path": "experiments/outputs/llm_discovery_peripheral-trap.md",
       "referent_clarity": null,
+      "referent_clarity_fair_plain": null,
+      "referent_clarity_plain_llm": null,
       "validator_pass": true,
       "adl_ambiguity": 0.08620689655172414,
       "plain_ambiguity": 0.08620689655172414
@@ -22,6 +58,8 @@
       "adl_id": "disc-llm-smurfing-pattern",
       "discovery_path": "experiments/outputs/llm_discovery_smurfing-pattern.md",
       "referent_clarity": null,
+      "referent_clarity_fair_plain": null,
+      "referent_clarity_plain_llm": null,
       "validator_pass": true,
       "adl_ambiguity": 0.08032128514056225,
       "plain_ambiguity": 0.08032128514056225
@@ -30,9 +68,87 @@
       "adl_id": "disc-llm-crypto-mixer",
       "discovery_path": "experiments/outputs/llm_discovery_crypto-mixer.md",
       "referent_clarity": null,
+      "referent_clarity_fair_plain": null,
+      "referent_clarity_plain_llm": null,
       "validator_pass": true,
       "adl_ambiguity": 0.0,
       "plain_ambiguity": 0.0
+    },
+    {
+      "adl_id": "disc-llm-peripheral-trap-batch001",
+      "discovery_path": "experiments/outputs/llm_discovery_peripheral-trap_batch001.md",
+      "referent_clarity": null,
+      "referent_clarity_fair_plain": null,
+      "referent_clarity_plain_llm": null,
+      "validator_pass": true,
+      "adl_ambiguity": 0.13427561837455831,
+      "plain_ambiguity": 0.13427561837455831
+    },
+    {
+      "adl_id": "disc-llm-smurfing-pattern-batch002",
+      "discovery_path": "experiments/outputs/llm_discovery_smurfing-pattern_batch002.md",
+      "referent_clarity": null,
+      "referent_clarity_fair_plain": null,
+      "referent_clarity_plain_llm": null,
+      "validator_pass": true,
+      "adl_ambiguity": 0.008583690987124463,
+      "plain_ambiguity": 0.008583690987124463
+    },
+    {
+      "adl_id": "disc-llm-crypto-mixer-batch003",
+      "discovery_path": "experiments/outputs/llm_discovery_crypto-mixer_batch003.md",
+      "referent_clarity": null,
+      "referent_clarity_fair_plain": null,
+      "referent_clarity_plain_llm": null,
+      "validator_pass": true,
+      "adl_ambiguity": 0.008620689655172417,
+      "plain_ambiguity": 0.008620689655172417
+    },
+    {
+      "adl_id": "disc-llm-peripheral-trap-batch004",
+      "discovery_path": "experiments/outputs/llm_discovery_peripheral-trap_batch004.md",
+      "referent_clarity": null,
+      "referent_clarity_fair_plain": null,
+      "referent_clarity_plain_llm": null,
+      "validator_pass": true,
+      "adl_ambiguity": 0.15151515151515152,
+      "plain_ambiguity": 0.15151515151515152
+    },
+    {
+      "adl_id": "disc-llm-smurfing-pattern-batch005",
+      "discovery_path": "experiments/outputs/llm_discovery_smurfing-pattern_batch005.md",
+      "referent_clarity": null,
+      "referent_clarity_fair_plain": null,
+      "referent_clarity_plain_llm": null,
+      "validator_pass": true,
+      "adl_ambiguity": 0.058823529411764705,
+      "plain_ambiguity": 0.058823529411764705
+    },
+    {
+      "adl_id": "disc-llm-crypto-mixer-batch006",
+      "discovery_path": "experiments/outputs/llm_discovery_crypto-mixer_batch006.md",
+      "referent_clarity": null,
+      "referent_clarity_fair_plain": null,
+      "referent_clarity_plain_llm": null,
+      "validator_pass": true,
+      "adl_ambiguity": 0.045871559633027525,
+      "plain_ambiguity": 0.045871559633027525
+    },
+    {
+      "adl_id": "disc-llm-peripheral-trap-batch007",
+      "discovery_path": "experiments/outputs/llm_discovery_peripheral-trap_batch007.md",
+      "referent_clarity": null,
+      "referent_clarity_fair_plain": null,
+      "referent_clarity_plain_llm": null,
+      "validator_pass": true,
+      "adl_ambiguity": 0.04048582995951417,
+      "plain_ambiguity": 0.04048582995951417
     }
-  ]
+  ],
+  "llm_proxy_reference": "docs/experiments/rq1_llm_judge_summary.json",
+  "n_rated": 0,
+  "mean_referent_clarity": null,
+  "n_with_discovery": 15,
+  "adl_mean_ambiguity": 0.0553,
+  "plain_mean_ambiguity": 0.0553
 }

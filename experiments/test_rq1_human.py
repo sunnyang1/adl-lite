@@ -56,6 +56,34 @@ def test_summarize_with_discovery_paths(tmp_path):
     assert summary["paired_details"][0]["referent_clarity"] == 5
 
 
+def test_summarize_multi_arm_deltas():
+    template = load_eval_template(TEMPLATE)
+    template["entries"][0]["referent_clarity"] = 4
+    template["entries"][0]["referent_clarity_fair_plain"] = 4
+    template["entries"][0]["referent_clarity_plain_llm"] = 2
+    template["entries"][1]["referent_clarity"] = 5
+    template["entries"][1]["referent_clarity_plain_llm"] = 3
+    summary = summarize(template)
+    assert summary["comparison_arms"]["adl_l2"]["n_rated"] == 2
+    assert summary["comparison_arms"]["plain_llm_unstructured"]["n_rated"] == 2
+    assert summary["mean_deltas"]["adl_minus_fair_plain"] == 0.5
+    assert summary["mean_deltas"]["adl_minus_plain_llm"] == 2.0
+
+
+def test_summarize_inter_rater_placeholder():
+    template = load_eval_template(TEMPLATE)
+    template["entries"][0]["referent_clarity"] = 4
+    template["entries"][0]["referent_clarity_b"] = 5
+    template["entries"][1]["referent_clarity"] = 2
+    template["entries"][1]["referent_clarity_b"] = 5
+    summary = summarize(template)
+    ir = summary["inter_rater"]
+    assert ir["n_pairs"] == 2
+    assert ir["disagreement_count"] == 1
+    assert ir["icc"] is None
+    assert ir["status"] in {"placeholder", "insufficient_data"}
+
+
 def test_run_writes_summary(tmp_path):
     out = tmp_path / "rq1_human_summary.json"
     summary = run(template_path=TEMPLATE, output_path=out)

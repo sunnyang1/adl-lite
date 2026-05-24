@@ -11,6 +11,7 @@ from typing import Any
 from .cli import _default_state_path, _load_engine, _save_engine
 from .memory import ADLMemory
 from .models import DiscoveryStatus
+from .ontology import OntologyManager, default_ontology
 from .parser import ADLParseError, parse_file
 from .validator import ADLValidator
 
@@ -119,6 +120,30 @@ def adl_consensus_transition(
         "to_status": entry.to_status.value,
         "hash": entry.hash,
     }
+
+
+def adl_ontology_query(
+    ontology_path: str | Path | None = None,
+    predicate: str | None = None,
+    from_status: str | None = None,
+    to_status: str | None = None,
+) -> dict[str, Any]:
+    """
+    Introspect the core ontology registry (Milestone 2c).
+
+    Returns predicates, status transitions, scope prefixes, mapping types,
+    and registry version/path. Optional filters narrow the response:
+
+        predicate     — include only that predicate (with allowed_mapping_types)
+        from_status   — restrict allowed_transitions to one source status
+        to_status     — with from_status, adds is_valid_transition bool
+    """
+    mgr = OntologyManager(ontology_path) if ontology_path else default_ontology()
+    return mgr.query_schema(
+        predicate=predicate,
+        from_status=from_status,
+        to_status=to_status,
+    )
 
 
 def adl_consensus_verify(

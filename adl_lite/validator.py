@@ -22,6 +22,7 @@ from .models import (
     ADLRelationBlock,
     ADLType,
 )
+from .ontology import OntologyManager, default_ontology
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -82,7 +83,7 @@ def find_pronoun_violations(body: str) -> list[str]:
             "Use explicit concept names or URIs instead."
         )
 
-    for pat, label in (
+    for pat, _label in (
         (_DEMONSTRATIVE_START, "sentence-initial demonstrative"),
         (_DEMONSTRATIVE_PREDICATE, "demonstrative predicate"),
         (_IT_AFTER_CONJ, "vague 'it' after conjunction"),
@@ -151,8 +152,21 @@ class ADLValidator:
                 print(f"  [VALIDATION] {e}")
     """
 
-    def __init__(self, strict: bool = False) -> None:
+    def __init__(
+        self,
+        strict: bool = False,
+        ontology: OntologyManager | None = None,
+    ) -> None:
         self.strict = strict
+        self._ontology = ontology
+
+    @property
+    def ontology(self) -> OntologyManager | None:
+        if self._ontology is not None:
+            return self._ontology
+        if self.strict:
+            return default_ontology()
+        return None
 
     # ------------------------------------------------------------------
     # Public API
@@ -238,5 +252,25 @@ class ADLValidator:
             # Validate ADL URI format
             if not re.match(r"^adl://(public|private|user|shared)/", target):
                 errors.append(f"Invalid ADL URI scheme in target: '{target}'")
+
+        if self.strict:
+            mgr = self.ontology
+            if mgr is not None and not mgr.validate_predicate(block.relation):
+                allowed = ", ".join(mgr.list_predicates())
+                errors.append(
+                    f"Unknown relation predicate: '{block.relation}'. "
+                    f"Allowed predicates: {allowed}"
+                )
+            if mgr is not None and block.relation == "isomorphic-to":
+                if not block.mapping_type:
+                    errors.append(
+                        "Relation 'isomorphic-to' requires 'mapping_type' in strict mode"
+                    )
+                elif not mgr.validate_mapping_type(block.relation, block.mapping_type):
+                    allowed = ", ".join(mgr.allowed_mapping_types(block.relation))
+                    errors.append(
+                        f"Invalid mapping_type '{block.mapping_type}' for "
+                        f"'isomorphic-to'. Allowed: {allowed}"
+                    )
 
         return errors

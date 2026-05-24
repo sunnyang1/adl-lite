@@ -35,6 +35,7 @@ from .models import (
     EvidenceType,
     MechanismType,
 )
+from .ontology import OntologyManager
 from .parser import ADLParseError, ADLParser, extract_wiki_links, parse_file, parse_text
 from .validator import ADLValidator
 
@@ -60,6 +61,8 @@ __all__ = [
     "MechanismType",
     # Validator
     "ADLValidator",
+    # Ontology
+    "OntologyManager",
     # Consensus
     "ConsensusEngine",
     "ConceptChain",

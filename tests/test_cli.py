@@ -31,6 +31,7 @@ def test_help():
     assert "parse" in proc.stdout
     assert "validate" in proc.stdout
     assert "consensus" in proc.stdout
+    assert "ontology" in proc.stdout
 
 
 def test_parse_text_output():
@@ -57,6 +58,19 @@ def test_validate_fails_on_invalid_pronoun():
     proc = _run("validate", str(INVALID))
     assert proc.returncode == 1
     assert "FAIL" in proc.stderr or "pronoun" in proc.stderr.lower()
+
+
+def test_validate_strict_fails_on_invalid_predicate():
+    invalid_pred = FIXTURES / "invalid_predicate.md"
+    proc = _run("validate", "--strict", str(invalid_pred))
+    assert proc.returncode == 1
+    assert "Unknown relation predicate" in proc.stderr or "similar" in proc.stderr
+
+
+def test_validate_strict_passes_examples():
+    paths = sorted(EXAMPLES.glob("*.md"))
+    proc = _run("validate", "--strict", *[str(p) for p in paths])
+    assert proc.returncode == 0, proc.stderr
 
 
 def test_store_and_related(tmp_path: Path):
@@ -104,6 +118,24 @@ def test_consensus_register_transition_verify(tmp_path: Path):
     )
     assert proc.returncode == 0
     assert "chain OK" in proc.stdout
+
+
+def test_ontology_validate_yaml_only():
+    proc = _run("ontology", "validate")
+    assert proc.returncode == 0, proc.stderr
+    assert "predicates:" in proc.stdout
+
+
+def test_ontology_validate_examples():
+    proc = _run("ontology", "validate", "--examples")
+    assert proc.returncode == 0, proc.stderr
+
+
+def test_ontology_validate_strict_fixture():
+    invalid = FIXTURES / "invalid_isomorphic_no_mapping.md"
+    proc = _run("ontology", "validate", str(invalid))
+    assert proc.returncode == 1
+    assert "mapping_type" in proc.stderr
 
 
 def test_validate_all_examples():

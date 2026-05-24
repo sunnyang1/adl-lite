@@ -54,7 +54,7 @@ python -m experiments.run_sim --llm
 
 **你要做的：**
 - [x] Phase B rubric 路径与 `run_phase_b` 已跑通
-- [x] Human eval scaffold（`rq1_human_eval.py`, `human_rq1_template.json`）
+- [x] Human eval scaffold（`rq1_human_eval.py`, `human_rq1_template.json` + `study_protocol` for inter-rater plan）
 - [ ] 把 `examples/` 和 `data/aml/concepts/` 写成**无模糊代词**、实体名显式出现
 2. 跑 Phase B，记录 `ambiguity_reduction_pct`
 3. （进阶）抽 20 条 LLM 生成发现，**人工 1–5 分** referent clarity，写入 `data/eval/human_rq1.json`
