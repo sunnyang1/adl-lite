@@ -13,6 +13,7 @@ htmlcov/
 .ruff_cache/
 *.db
 *.db-journal
+.adl_lark_registry.json
 experiments/logs/*.jsonl
 !experiments/logs/.gitkeep
 experiments/outputs/*

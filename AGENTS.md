@@ -31,6 +31,15 @@ adl-lite parse examples/capital_reflux_trap.md
 adl-lite store examples/capital_reflux_trap.md --db /tmp/adl.db
 adl-lite related concept-gradient-explosion --db /tmp/adl.db
 adl-lite consensus register examples/capital_reflux_trap.md
+adl-lite lark doctor
+adl-lite lark publish examples/capital_reflux_trap.md --registry .adl_lark_registry.json
+adl-lite lark sync-memory --db /tmp/adl.db --base "AML概念知识库" --mode warm [--table concepts] [--dry-run]
+adl-lite lark announce disc-capital-trap --chat-id oc_xxx [--template discovery_broadcast]
+adl-lite lark listen --feedback-file feedback.txt --auto-transition --threshold 2 --state adl_consensus.json
+adl-lite lark init-dashboard --sheet "AML概念共识看板" --db /tmp/adl.db --columns "concept_id,status_badge,confidence,discoverer,validators,last_update,doc_link"
+adl-lite lark map-namespace --scope private/ceiec-aml --wiki-space <id>
+adl-lite lark namespace list|set adl://private/ceiec-aml/ <wiki_space>
+adl-lite consensus transition disc-capital-trap --to validated --actor agent_1 --lark-sync --sheet "AML概念共识看板" --db /tmp/adl.db
 python -m experiments.run_sim --scripted
 python -m experiments.run_all
 ```
@@ -45,6 +54,8 @@ from adl_lite.tools import adl_consensus_register, adl_consensus_transition
 ```
 
 Optional MCP-style script: `scripts/mcp_adl.py` (stdio JSON: `adl_parse`, `adl_validate`, `adl_query_related`).
+
+**Lark bridge** (requires [lark-cli](https://github.com/larksuite/cli)): `adl_lite/lark/` wraps lark-cli for publish (docs), sync-memory (base), announce/listen (im), init-dashboard (sheets), and namespace mapping. Run `lark-cli config init` and `lark-cli auth login --recommend` once per machine. Registry: `.adl_lark_registry.json` (doc links, bases, dashboards); namespaces: `.adl_lark_namespaces.json` or registry `namespaces` section.
 
 ## ADL document shape
 
