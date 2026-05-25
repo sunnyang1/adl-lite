@@ -10,6 +10,14 @@ import sys
 from pathlib import Path
 
 from .consensus import ConceptChain, ConsensusEngine, ConsensusEntry
+from .lark.announce import announce
+from .lark.client import LarkCliError, LarkCliNotFoundError, auth_status, find_lark_cli
+from .lark.dashboard import init_dashboard, sync_dashboard_row
+from .lark.listen import listen, save_listen_state
+from .lark.namespace import LarkNamespaceRegistry, resolve_wiki_space_for_scope, scope_to_adl_uri
+from .lark.publish import publish_file
+from .lark.registry import LarkRegistry
+from .lark.sync_memory import sync_memory
 from .memory import ADLMemory
 from .models import DiscoveryStatus
 from .ontology import OntologyManager
@@ -193,6 +201,22 @@ def _cmd_consensus_transition(args: argparse.Namespace) -> int:
 
     _save_engine(engine, state_path)
     print(f"transition {args.adl_id}: {entry.from_status.value} -> {entry.to_status.value}")
+
+    if getattr(args, "lark_sync", False) and args.sheet:
+        reg_path = Path(args.registry) if getattr(args, "registry", None) else Path(".adl_lark_registry.json")
+        try:
+            sync_dashboard_row(
+                args.adl_id,
+                sheet_title=args.sheet,
+                registry_path=reg_path,
+                db_path=getattr(args, "db", None),
+                state_path=state_path,
+                dry_run=getattr(args, "dry_run", False),
+                lark_cli=getattr(args, "lark_cli", None),
+            )
+            print(f"  lark dashboard row synced -> {args.sheet}")
+        except (KeyError, ValueError, LarkCliError) as exc:
+            print(f"  lark-sync warning: {exc}", file=sys.stderr)
     return 0
 
 
@@ -290,6 +314,260 @@ def _cmd_ontology_validate(args: argparse.Namespace) -> int:
             print(f"{path}: OK")
 
     return 1 if any_errors else 0
+
+
+def _cmd_lark_doctor(args: argparse.Namespace) -> int:
+    try:
+        binary = find_lark_cli(args.lark_cli)
+    except LarkCliNotFoundError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    print(f"lark-cli: {binary}")
+    try:
+        status = auth_status(lark_cli=args.lark_cli)
+    except LarkCliError as exc:
+        print(f"auth: not ready ({exc})", file=sys.stderr)
+        print(
+            "  run: lark-cli config init --new && lark-cli auth login --recommend",
+            file=sys.stderr,
+        )
+        return 1
+
+    print("auth: ok")
+    if args.json:
+        print(json.dumps(status, indent=2))
+    else:
+        user = status.get("user") or status.get("data") or status
+        if isinstance(user, dict):
+            name = user.get("name") or user.get("user_id") or "?"
+            print(f"  identity: {name}")
+    return 0
+
+
+def _cmd_lark_publish(args: argparse.Namespace) -> int:
+    registry = None
+    if args.registry:
+        registry = LarkRegistry(Path(args.registry))
+
+    try:
+        namespaces_path = Path(args.namespaces) if getattr(args, "namespaces", None) else None
+        result = publish_file(
+            args.file,
+            title=args.title,
+            folder_token=args.folder_token,
+            wiki_node=args.wiki_node,
+            wiki_space=args.wiki_space,
+            namespaces_path=namespaces_path,
+            api_version=args.api_version,
+            strict_validate=args.strict,
+            dry_run=args.dry_run,
+            lark_cli=args.lark_cli,
+            registry=registry,
+        )
+    except (LarkCliNotFoundError, LarkCliError, ValueError, FileNotFoundError) as exc:
+        print(f"publish error: {exc}", file=sys.stderr)
+        return 1
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "adl_id": result.adl_id,
+                    "title": result.title,
+                    "doc_id": result.doc_id,
+                    "doc_url": result.doc_url,
+                    "dry_run": result.dry_run,
+                    "source_path": result.source_path,
+                },
+                indent=2,
+            )
+        )
+    else:
+        label = "dry-run" if result.dry_run else "published"
+        print(f"{label} {result.adl_id}")
+        print(f"  title:   {result.title}")
+        print(f"  doc_id:  {result.doc_id}")
+        print(f"  doc_url: {result.doc_url}")
+        if registry and not result.dry_run:
+            print(f"  registry: {args.registry}")
+    return 0
+
+
+def _cmd_lark_sync_memory(args: argparse.Namespace) -> int:
+    registry_path = Path(args.registry) if args.registry else None
+    try:
+        result = sync_memory(
+            args.db,
+            base=args.base,
+            mode=args.mode,
+            table=args.table,
+            dry_run=args.dry_run,
+            lark_cli=args.lark_cli,
+            registry_path=registry_path,
+        )
+    except (LarkCliNotFoundError, LarkCliError, ValueError) as exc:
+        print(f"sync-memory error: {exc}", file=sys.stderr)
+        return 1
+
+    if args.json:
+        print(json.dumps(result.__dict__, indent=2))
+    else:
+        label = "dry-run" if result.dry_run else "synced"
+        print(
+            f"{label} {result.synced} record(s) -> base {result.base_token} "
+            f"table {result.table_id} (+{result.created} / ~{result.updated})"
+        )
+    return 0
+
+
+def _cmd_lark_announce(args: argparse.Namespace) -> int:
+    registry = LarkRegistry(Path(args.registry)) if args.registry else None
+    try:
+        result = announce(
+            args.target,
+            chat_id=args.chat_id,
+            template=args.template,
+            dry_run=args.dry_run,
+            lark_cli=args.lark_cli,
+            registry=registry,
+        )
+    except (LarkCliNotFoundError, LarkCliError, ValueError, FileNotFoundError) as exc:
+        print(f"announce error: {exc}", file=sys.stderr)
+        return 1
+
+    if args.json:
+        print(json.dumps(result.__dict__, indent=2))
+    else:
+        print(f"announced {result.adl_id} -> chat {result.chat_id} ({result.template})")
+        if result.message_id:
+            print(f"  message_id: {result.message_id}")
+    return 0
+
+
+def _cmd_lark_listen(args: argparse.Namespace) -> int:
+    state_path = Path(args.state)
+    engine = _load_engine(state_path)
+    feedback_file = Path(args.feedback_file) if args.feedback_file else None
+
+    try:
+        result = listen(
+            chat_id=args.chat_id,
+            stdin=args.stdin,
+            feedback_file=feedback_file,
+            poll_messages=args.poll,
+            engine=engine,
+            threshold=args.threshold,
+            auto_transition=args.auto_transition,
+            lark_cli=args.lark_cli,
+        )
+    except (LarkCliNotFoundError, LarkCliError, ValueError) as exc:
+        print(f"listen error: {exc}", file=sys.stderr)
+        return 1
+
+    if args.auto_transition and result.transitions:
+        _save_engine(engine, state_path)
+
+    listen_state = Path(args.listen_state) if args.listen_state else state_path.with_suffix(".listen.json")
+    save_listen_state(result, listen_state)
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "endorsements": result.endorsements,
+                    "transitions": result.transitions,
+                    "events": len(result.events),
+                },
+                indent=2,
+            )
+        )
+    else:
+        print(f"listen: {len(result.events)} event(s), endorsements={result.endorsements}")
+        if result.transitions:
+            print(f"  auto-transitioned: {', '.join(result.transitions)}")
+    return 0
+
+
+def _cmd_lark_init_dashboard(args: argparse.Namespace) -> int:
+    columns = [c.strip() for c in args.columns.split(",") if c.strip()]
+    state_path = Path(args.state) if args.state else None
+    registry_path = Path(args.registry) if args.registry else Path(".adl_lark_registry.json")
+    try:
+        result = init_dashboard(
+            args.sheet,
+            db_path=args.db,
+            columns=columns,
+            state_path=state_path,
+            registry_path=registry_path,
+            dry_run=args.dry_run,
+            lark_cli=args.lark_cli,
+        )
+    except (LarkCliNotFoundError, LarkCliError, ValueError) as exc:
+        print(f"init-dashboard error: {exc}", file=sys.stderr)
+        return 1
+
+    if args.json:
+        print(json.dumps(result.__dict__, indent=2))
+    else:
+        print(f"dashboard {result.title}: token={result.spreadsheet_token} rows={result.rows_written}")
+    return 0
+
+
+def _cmd_lark_map_namespace(args: argparse.Namespace) -> int:
+    ns_path = Path(args.namespaces) if args.namespaces else Path(".adl_lark_namespaces.json")
+    reg_path = Path(args.registry) if args.registry else None
+
+    if args.wiki_space:
+        uri = args.scope if args.scope.startswith("adl://") else scope_to_adl_uri(args.scope)
+        if reg_path:
+            LarkRegistry(reg_path).set_namespace(uri, args.wiki_space)
+        LarkNamespaceRegistry(ns_path).set_mapping(uri, args.wiki_space)
+        print(f"mapped {uri} -> {args.wiki_space}")
+        return 0
+
+    resolved = resolve_wiki_space_for_scope(
+        args.scope,
+        namespaces_path=ns_path,
+        registry_data=LarkRegistry(reg_path).load() if reg_path and reg_path.exists() else None,
+    )
+    if resolved:
+        print(f"{args.scope} -> {resolved}")
+    else:
+        print(f"no mapping for scope {args.scope}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def _cmd_lark_namespace(args: argparse.Namespace) -> int:
+    ns_path = Path(args.namespaces) if args.namespaces else Path(".adl_lark_namespaces.json")
+    reg_path = Path(args.registry) if args.registry else None
+
+    if args.namespace_cmd == "list":
+        mappings: dict[str, str] = {}
+        if ns_path.exists():
+            mappings.update(LarkNamespaceRegistry(ns_path).list_mappings())
+        if reg_path and reg_path.exists():
+            mappings.update(LarkRegistry(reg_path).list_namespaces())
+        if args.json:
+            print(json.dumps(mappings, indent=2, ensure_ascii=False))
+        elif mappings:
+            for uri, space in sorted(mappings.items()):
+                print(f"{uri}\t{space}")
+        else:
+            print("(no namespace mappings)")
+        return 0
+
+    if args.namespace_cmd == "set":
+        uri = args.adl_uri if args.adl_uri.endswith("/") else f"{args.adl_uri}/"
+        LarkNamespaceRegistry(ns_path).set_mapping(uri, args.wiki_space)
+        if reg_path:
+            LarkRegistry(reg_path).set_namespace(uri, args.wiki_space)
+        print(f"set {uri} -> {args.wiki_space}")
+        return 0
+
+    print(f"unknown namespace command: {args.namespace_cmd}", file=sys.stderr)
+    return 1
 
 
 def _cmd_consensus_verify(args: argparse.Namespace) -> int:
@@ -428,12 +706,192 @@ def _build_parser() -> argparse.ArgumentParser:
     p_trans.add_argument("--actor", required=True, help="Actor id")
     p_trans.add_argument("--reason", default="", help="Reason text")
     p_trans.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_trans.add_argument(
+        "--lark-sync",
+        action="store_true",
+        help="Append/update Feishu sheet row after transition (--sheet required)",
+    )
+    p_trans.add_argument(
+        "--sheet",
+        default=None,
+        help="Dashboard sheet title (registry dashboards.*)",
+    )
+    p_trans.add_argument("--registry", default=None, help="Lark registry JSON for dashboard sync")
+    p_trans.add_argument("--db", default=None, help="ADLMemory SQLite db for dashboard row fields")
+    p_trans.add_argument("--lark-cli", default=None, help="Path to lark-cli binary")
+    p_trans.add_argument("--dry-run", action="store_true", help="Dry-run lark-cli dashboard append")
     p_trans.set_defaults(func=_cmd_consensus_transition)
 
     p_verify = cons_sub.add_parser("verify", help="Verify consensus chain integrity")
     p_verify.add_argument("adl_id", help="Concept adl_id")
     p_verify.add_argument("--state", default=None, help="Consensus state JSON path")
     p_verify.set_defaults(func=_cmd_consensus_verify)
+
+    p_lark = sub.add_parser(
+        "lark",
+        help="Feishu/Lark bridge via lark-cli (https://github.com/larksuite/cli)",
+    )
+    lark_sub = p_lark.add_subparsers(dest="lark_cmd", required=True)
+
+    p_lark_doc = lark_sub.add_parser(
+        "doctor",
+        help="Check lark-cli install and authentication",
+    )
+    p_lark_doc.add_argument(
+        "--lark-cli",
+        default=None,
+        help="Path to lark-cli binary (default: search PATH)",
+    )
+    p_lark_doc.add_argument("--json", action="store_true", help="Emit auth status JSON")
+    p_lark_doc.set_defaults(func=_cmd_lark_doctor)
+
+    p_lark_pub = lark_sub.add_parser(
+        "publish",
+        help="Create Feishu doc from ADL Markdown (full L1/L2/L3 file)",
+    )
+    p_lark_pub.add_argument("file", help="Path to ADL .md document")
+    p_lark_pub.add_argument("--title", default=None, help="Feishu doc title (default: concept name)")
+    p_lark_pub.add_argument("--folder-token", default=None, help="Parent folder token")
+    p_lark_pub.add_argument("--wiki-node", default=None, help="Wiki node token or URL")
+    p_lark_pub.add_argument("--wiki-space", default=None, help="Wiki space id (e.g. my_library)")
+    p_lark_pub.add_argument(
+        "--api-version",
+        default="v2",
+        choices=("v1", "v2"),
+        help="lark-cli docs API version (default: v2)",
+    )
+    p_lark_pub.add_argument(
+        "--registry",
+        default=None,
+        help="JSON registry path to record adl_id -> doc_id mapping",
+    )
+    p_lark_pub.add_argument(
+        "--namespaces",
+        default=None,
+        help="Namespace map JSON (default: .adl_lark_namespaces.json)",
+    )
+    p_lark_pub.add_argument(
+        "--strict",
+        action="store_true",
+        help="Reject invalid ADL before publish (ontology-aware validator)",
+    )
+    p_lark_pub.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Pass --dry-run to lark-cli (preview request only)",
+    )
+    p_lark_pub.add_argument("--lark-cli", default=None, help="Path to lark-cli binary")
+    p_lark_pub.add_argument("--json", action="store_true", help="Emit JSON result")
+    p_lark_pub.set_defaults(func=_cmd_lark_publish)
+
+    p_lark_sync = lark_sub.add_parser(
+        "sync-memory",
+        help="Sync ADLMemory warm layer to Feishu Base",
+    )
+    p_lark_sync.add_argument("--db", required=True, help="SQLite ADLMemory database path")
+    p_lark_sync.add_argument("--base", required=True, help="Base name or bas* token")
+    p_lark_sync.add_argument("--mode", default="warm", choices=("warm",), help="Sync mode")
+    p_lark_sync.add_argument("--table", default="concepts", help="Base table name or id")
+    p_lark_sync.add_argument("--registry", default=None, help="Registry for doc links / base name map")
+    p_lark_sync.add_argument("--dry-run", action="store_true")
+    p_lark_sync.add_argument("--lark-cli", default=None)
+    p_lark_sync.add_argument("--json", action="store_true")
+    p_lark_sync.set_defaults(func=_cmd_lark_sync_memory)
+
+    p_lark_ann = lark_sub.add_parser("announce", help="Broadcast discovery to IM chat")
+    p_lark_ann.add_argument("target", help="adl_id or path to .md file")
+    p_lark_ann.add_argument("--chat-id", required=True, help="Feishu chat id (oc_xxx)")
+    p_lark_ann.add_argument(
+        "--template",
+        default="discovery_broadcast",
+        help="Message template name",
+    )
+    p_lark_ann.add_argument("--registry", default=None)
+    p_lark_ann.add_argument("--dry-run", action="store_true")
+    p_lark_ann.add_argument("--lark-cli", default=None)
+    p_lark_ann.add_argument("--json", action="store_true")
+    p_lark_ann.set_defaults(func=_cmd_lark_announce)
+
+    p_lark_listen = lark_sub.add_parser(
+        "listen",
+        help="Ingest consensus feedback (stdin/file/poll); optional auto-transition",
+    )
+    p_lark_listen.add_argument("--chat-id", default=None, help="Chat id for --poll")
+    p_lark_listen.add_argument(
+        "--mode",
+        default="consensus_feedback",
+        choices=("consensus_feedback",),
+    )
+    p_lark_listen.add_argument(
+        "--stdin",
+        action="store_true",
+        help="Read feedback lines from stdin",
+    )
+    p_lark_listen.add_argument(
+        "--feedback-file",
+        default=None,
+        help="File with feedback lines (adl_id|actor|text)",
+    )
+    p_lark_listen.add_argument(
+        "--poll",
+        action="store_true",
+        help="Fetch recent chat messages via lark-cli (MVP)",
+    )
+    p_lark_listen.add_argument("--auto-transition", action="store_true")
+    p_lark_listen.add_argument("--threshold", type=int, default=2)
+    p_lark_listen.add_argument("--state", default=None, help="Consensus state JSON")
+    p_lark_listen.add_argument(
+        "--listen-state",
+        default=None,
+        help="Write listen summary JSON (default: <state>.listen.json)",
+    )
+    p_lark_listen.add_argument("--lark-cli", default=None)
+    p_lark_listen.add_argument("--json", action="store_true")
+    p_lark_listen.set_defaults(func=_cmd_lark_listen)
+
+    p_lark_dash = lark_sub.add_parser(
+        "init-dashboard",
+        help="Create Feishu sheet consensus board from memory + state",
+    )
+    p_lark_dash.add_argument("--sheet", required=True, help="Spreadsheet title")
+    p_lark_dash.add_argument(
+        "--columns",
+        default="concept_id,status_badge,confidence,discoverer,validators,last_update,doc_link",
+        help="Comma-separated column headers",
+    )
+    p_lark_dash.add_argument("--db", required=True, help="SQLite ADLMemory database")
+    p_lark_dash.add_argument("--state", default=None, help="Consensus state JSON")
+    p_lark_dash.add_argument("--registry", default=None, help="Lark registry JSON")
+    p_lark_dash.add_argument("--dry-run", action="store_true")
+    p_lark_dash.add_argument("--lark-cli", default=None)
+    p_lark_dash.add_argument("--json", action="store_true")
+    p_lark_dash.set_defaults(func=_cmd_lark_init_dashboard)
+
+    p_lark_map = lark_sub.add_parser(
+        "map-namespace",
+        help="Show or set wiki space for an ADL scope prefix",
+    )
+    p_lark_map.add_argument("--scope", required=True, help="ADL scope or adl:// URI")
+    p_lark_map.add_argument("--wiki-space", default=None, help="Wiki space id to set")
+    p_lark_map.add_argument("--namespaces", default=None)
+    p_lark_map.add_argument("--registry", default=None)
+    p_lark_map.set_defaults(func=_cmd_lark_map_namespace)
+
+    p_lark_ns = lark_sub.add_parser("namespace", help="List or set namespace mappings")
+    ns_sub = p_lark_ns.add_subparsers(dest="namespace_cmd", required=True)
+
+    p_ns_list = ns_sub.add_parser("list", help="List scope -> wiki_space mappings")
+    p_ns_list.add_argument("--namespaces", default=None)
+    p_ns_list.add_argument("--registry", default=None)
+    p_ns_list.add_argument("--json", action="store_true")
+    p_ns_list.set_defaults(func=_cmd_lark_namespace)
+
+    p_ns_set = ns_sub.add_parser("set", help="Set adl:// URI -> wiki_space")
+    p_ns_set.add_argument("adl_uri", help="e.g. adl://private/ceiec-aml/")
+    p_ns_set.add_argument("wiki_space", help="Feishu wiki space id")
+    p_ns_set.add_argument("--namespaces", default=None)
+    p_ns_set.add_argument("--registry", default=None)
+    p_ns_set.set_defaults(func=_cmd_lark_namespace)
 
     return parser
 
