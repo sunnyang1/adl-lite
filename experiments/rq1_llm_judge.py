@@ -615,6 +615,12 @@ def run(
             raise ValueError("specify discovery path or --all or --summarize-from-template")
 
         for entry in targets:
+            dp = entry.get("discovery_path")
+            if not dp:
+                continue
+            if not _resolve_path(cast(str, dp)).exists():
+                # LLM discovery artifacts under experiments/outputs/ are often gitignored
+                continue
             run_rows.append(
                 run_judges_for_entry(
                     entry,

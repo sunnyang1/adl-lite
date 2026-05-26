@@ -161,7 +161,7 @@ def test_run_skips_missing_keys(monkeypatch, tmp_path):
     summary = run(
         template_path=tpl_copy,
         summary_path=out,
-        all_discoveries=True,
+        discovery=ROOT / "examples" / "capital_reflux_trap.md",
         write_template=False,
         chat_fn=None,
     )

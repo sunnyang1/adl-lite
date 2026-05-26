@@ -55,7 +55,28 @@ from adl_lite.tools import adl_consensus_register, adl_consensus_transition
 
 Optional MCP-style script: `scripts/mcp_adl.py` (stdio JSON: `adl_parse`, `adl_validate`, `adl_query_related`).
 
-**Lark bridge** (requires [lark-cli](https://github.com/larksuite/cli)): `adl_lite/lark/` wraps lark-cli for publish (docs), sync-memory (base), announce/listen (im), init-dashboard (sheets), and namespace mapping. Run `lark-cli config init` and `lark-cli auth login --recommend` once per machine. Registry: `.adl_lark_registry.json` (doc links, bases, dashboards); namespaces: `.adl_lark_namespaces.json` or registry `namespaces` section.
+**Lark bridge** (requires [lark-cli](https://github.com/larksuite/cli)): `adl_lite/lark/` wraps lark-cli for publish (docs v2), sync-memory (base), announce/listen (im), init-dashboard (sheets), and namespace mapping.
+
+Setup (once per machine):
+
+```bash
+lark-cli config init --app-id <id> --app-secret-stdin --brand feishu
+lark-cli auth login --recommend
+# IM announce also needs:
+lark-cli auth login --scope "im:message.send_as_user"
+adl-lite lark doctor
+```
+
+Local state (gitignored): `.adl_lark_registry.json` (doc_id, base tokens, dashboard `sheet_id`); `.adl_lark_namespaces.json` (scope → wiki space).
+
+Operational notes:
+
+| Topic | Guidance |
+|-------|----------|
+| Batch publish | Sleep **≥4s** between `adl-lite lark publish` calls to avoid Feishu rate limit `99991400` |
+| `--lark-sync` | Requires dashboard entry in registry with resolved `sheet_id` (auto-fetched via `sheets +info` on first sync) |
+| Base sync | Register base name → token in registry `bases` after `lark-cli base +base-create` |
+| Bot vs user | `announce` uses user identity; bot must be in chat if using `--as bot` |
 
 ## ADL document shape
 

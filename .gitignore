@@ -14,6 +14,7 @@ htmlcov/
 *.db
 *.db-journal
 .adl_lark_registry.json
+.adl_lark_namespaces.json
 experiments/logs/*.jsonl
 !experiments/logs/.gitkeep
 experiments/outputs/*
