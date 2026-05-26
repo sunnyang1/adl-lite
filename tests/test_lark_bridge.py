@@ -32,13 +32,22 @@ ROOT = Path(__file__).resolve().parents[1]
 CAPITAL = ROOT / "examples" / "capital_reflux_trap.md"
 
 
+@pytest.fixture
+def fake_lark_cli(tmp_path: Path) -> str:
+    """Stub binary path that exists on CI runners (no real lark-cli install)."""
+    cli = tmp_path / "lark-cli"
+    cli.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    cli.chmod(0o755)
+    return str(cli)
+
+
 def test_find_lark_cli_missing(monkeypatch):
     monkeypatch.setattr("shutil.which", lambda _: None)
     with pytest.raises(LarkCliNotFoundError):
         find_lark_cli()
 
 
-def test_publish_builds_create_argv(tmp_path: Path):
+def test_publish_builds_create_argv(tmp_path: Path, fake_lark_cli: str):
     registry_path = tmp_path / "lark_registry.json"
     payload = {
         "ok": True,
@@ -55,7 +64,7 @@ def test_publish_builds_create_argv(tmp_path: Path):
 
         result = publish_file(
             CAPITAL,
-            lark_cli="/usr/local/bin/lark-cli",
+            lark_cli=fake_lark_cli,
             registry=LarkRegistry(registry_path),
         )
 
@@ -64,7 +73,7 @@ def test_publish_builds_create_argv(tmp_path: Path):
     assert "doxcnTEST123" in result.doc_url
 
     argv = mock_run.call_args[0][0]
-    assert argv[0] == "/usr/local/bin/lark-cli"
+    assert argv[0] == fake_lark_cli
     assert argv[1:4] == ["docs", "+create", "--api-version"]
     assert argv[4] == "v2"
     assert "--doc-format" in argv
@@ -80,7 +89,7 @@ def test_publish_builds_create_argv(tmp_path: Path):
     assert reg["doc_id"] == "doxcnTEST123"
 
 
-def test_publish_v1_uses_markdown_and_title(tmp_path: Path):
+def test_publish_v1_uses_markdown_and_title(tmp_path: Path, fake_lark_cli: str):
     payload = {
         "ok": True,
         "data": {"doc_id": "dox1", "doc_url": "https://example/docx/dox1"},
@@ -94,7 +103,7 @@ def test_publish_v1_uses_markdown_and_title(tmp_path: Path):
         publish_file(
             CAPITAL,
             api_version="v1",
-            lark_cli="/usr/local/bin/lark-cli",
+            lark_cli=fake_lark_cli,
         )
 
     argv = mock_run.call_args[0][0]
@@ -106,7 +115,7 @@ def test_publish_v1_uses_markdown_and_title(tmp_path: Path):
     assert "examples/capital_reflux_trap.md" in argv[md_idx + 1]
 
 
-def test_publish_v2_maps_wiki_space_to_parent_token(tmp_path: Path):
+def test_publish_v2_maps_wiki_space_to_parent_token(tmp_path: Path, fake_lark_cli: str):
     payload = {
         "ok": True,
         "data": {"doc_id": "dox1", "doc_url": "https://example/docx/dox1"},
@@ -120,7 +129,7 @@ def test_publish_v2_maps_wiki_space_to_parent_token(tmp_path: Path):
         publish_file(
             CAPITAL,
             wiki_space="aml_wiki_space",
-            lark_cli="/usr/local/bin/lark-cli",
+            lark_cli=fake_lark_cli,
         )
 
     argv = mock_run.call_args[0][0]
@@ -129,7 +138,7 @@ def test_publish_v2_maps_wiki_space_to_parent_token(tmp_path: Path):
     assert "--wiki-space" not in argv
 
 
-def test_publish_resolves_wiki_space_from_namespace(tmp_path: Path):
+def test_publish_resolves_wiki_space_from_namespace(tmp_path: Path, fake_lark_cli: str):
     ns_path = tmp_path / "namespaces.json"
     LarkNamespaceRegistry(ns_path).set_mapping(
         "adl://private/ceiec-aml/",
@@ -147,7 +156,7 @@ def test_publish_resolves_wiki_space_from_namespace(tmp_path: Path):
 
         publish_file(
             CAPITAL,
-            lark_cli="/usr/local/bin/lark-cli",
+            lark_cli=fake_lark_cli,
             namespaces_path=ns_path,
         )
 
@@ -188,7 +197,7 @@ def test_content_file_ref_explicit_title_v2(tmp_path: Path, monkeypatch):
             tmp.cleanup()
 
 
-def test_publish_dry_run_skips_registry(tmp_path: Path):
+def test_publish_dry_run_skips_registry(tmp_path: Path, fake_lark_cli: str):
     registry_path = tmp_path / "lark_registry.json"
     payload = {"ok": True, "dry_run": True}
 
@@ -200,7 +209,7 @@ def test_publish_dry_run_skips_registry(tmp_path: Path):
         result = publish_file(
             CAPITAL,
             dry_run=True,
-            lark_cli="/usr/local/bin/lark-cli",
+            lark_cli=fake_lark_cli,
             registry=LarkRegistry(registry_path),
         )
 
@@ -210,7 +219,7 @@ def test_publish_dry_run_skips_registry(tmp_path: Path):
     assert "--dry-run" in argv
 
 
-def test_publish_raises_on_lark_error():
+def test_publish_raises_on_lark_error(fake_lark_cli: str):
     payload = {
         "ok": False,
         "error": {"type": "config", "message": "not configured"},
@@ -222,7 +231,7 @@ def test_publish_raises_on_lark_error():
         mock_run.return_value.stderr = ""
 
         with pytest.raises(LarkCliError, match="not configured"):
-            publish_file(CAPITAL, lark_cli="/usr/local/bin/lark-cli")
+            publish_file(CAPITAL, lark_cli=fake_lark_cli)
 
 
 def test_namespace_resolve_longest_prefix():
@@ -238,7 +247,7 @@ def test_namespace_resolve_longest_prefix():
     assert hit == "aml_space"
 
 
-def test_sync_memory_upsert_argv(tmp_path: Path):
+def test_sync_memory_upsert_argv(tmp_path: Path, fake_lark_cli: str):
     db = tmp_path / "mem.db"
     reg_path = tmp_path / "registry.json"
     reg = LarkRegistry(reg_path)
@@ -272,7 +281,7 @@ def test_sync_memory_upsert_argv(tmp_path: Path):
             mode="warm",
             table="concepts",
             registry_path=reg_path,
-            lark_cli="/usr/local/bin/lark-cli",
+            lark_cli=fake_lark_cli,
         )
 
     assert result.synced == 1
@@ -297,7 +306,7 @@ def test_iter_warm_records_no_raw_json(tmp_path: Path):
     assert rows[0].scope == "private/ceiec-aml"
 
 
-def test_announce_sends_markdown(tmp_path: Path):
+def test_announce_sends_markdown(tmp_path: Path, fake_lark_cli: str):
     payload = {"ok": True, "data": {"message_id": "om_test"}}
     with patch("adl_lite.lark.client.subprocess.run") as mock_run:
         mock_run.return_value.returncode = 0
@@ -307,7 +316,7 @@ def test_announce_sends_markdown(tmp_path: Path):
         result = announce(
             str(CAPITAL),
             chat_id="oc_test_chat",
-            lark_cli="/usr/local/bin/lark-cli",
+            lark_cli=fake_lark_cli,
         )
 
     assert result.adl_id == "disc-capital-trap"
@@ -352,7 +361,7 @@ def test_listen_from_stdin_mock(tmp_path: Path):
     assert result.endorsements.get("disc-capital-trap") == 1
 
 
-def test_init_dashboard_create(tmp_path: Path):
+def test_init_dashboard_create(tmp_path: Path, fake_lark_cli: str):
     db = tmp_path / "mem.db"
     mem = ADLMemory(db_path=str(db))
     mem.store(parse_file(CAPITAL))
@@ -370,7 +379,7 @@ def test_init_dashboard_create(tmp_path: Path):
         result = init_dashboard(
             "AML概念共识看板",
             db_path=str(db),
-            lark_cli="/usr/local/bin/lark-cli",
+            lark_cli=fake_lark_cli,
             registry_path=tmp_path / "reg.json",
         )
 
@@ -382,7 +391,7 @@ def test_init_dashboard_create(tmp_path: Path):
     assert reg["dashboards"]["AML概念共识看板"]["sheet_id"] == "sheet1"
 
 
-def test_init_dashboard_fetches_sheet_id_when_create_omits(tmp_path: Path):
+def test_init_dashboard_fetches_sheet_id_when_create_omits(tmp_path: Path, fake_lark_cli: str):
     db = tmp_path / "mem.db"
     mem = ADLMemory(db_path=str(db))
     mem.store(parse_file(CAPITAL))
@@ -411,7 +420,7 @@ def test_init_dashboard_fetches_sheet_id_when_create_omits(tmp_path: Path):
         result = init_dashboard(
             "AML概念共识看板",
             db_path=str(db),
-            lark_cli="/usr/local/bin/lark-cli",
+            lark_cli=fake_lark_cli,
             registry_path=tmp_path / "reg.json",
         )
 
@@ -422,7 +431,7 @@ def test_init_dashboard_fetches_sheet_id_when_create_omits(tmp_path: Path):
     assert reg["dashboards"]["AML概念共识看板"]["sheet_id"] == "sheetFromInfo"
 
 
-def test_sync_dashboard_row_uses_registry_sheet_id(tmp_path: Path):
+def test_sync_dashboard_row_uses_registry_sheet_id(tmp_path: Path, fake_lark_cli: str):
     db = tmp_path / "mem.db"
     mem = ADLMemory(db_path=str(db))
     mem.store(parse_file(CAPITAL))
@@ -463,7 +472,7 @@ def test_sync_dashboard_row_uses_registry_sheet_id(tmp_path: Path):
             sheet_title="AML概念共识看板",
             registry_path=reg_path,
             db_path=str(db),
-            lark_cli="/usr/local/bin/lark-cli",
+            lark_cli=fake_lark_cli,
         )
 
     calls = [c[0][0] for c in mock_run.call_args_list]
@@ -475,7 +484,7 @@ def test_sync_dashboard_row_uses_registry_sheet_id(tmp_path: Path):
     assert "+info" not in " ".join(argv)
 
 
-def test_sync_dashboard_row_resolves_sheet_id_via_info(tmp_path: Path):
+def test_sync_dashboard_row_resolves_sheet_id_via_info(tmp_path: Path, fake_lark_cli: str):
     db = tmp_path / "mem.db"
     mem = ADLMemory(db_path=str(db))
     mem.store(parse_file(CAPITAL))
@@ -530,7 +539,7 @@ def test_sync_dashboard_row_resolves_sheet_id_via_info(tmp_path: Path):
             sheet_title="AML概念共识看板",
             registry_path=reg_path,
             db_path=str(db),
-            lark_cli="/usr/local/bin/lark-cli",
+            lark_cli=fake_lark_cli,
         )
 
     calls = [c[0][0] for c in mock_run.call_args_list]
