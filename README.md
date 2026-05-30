@@ -160,11 +160,15 @@ adl-lite/
 │   ├── e5_agent_audit.py        # 5-agent 审计
 │   └── e6_aml_pipeline.py       # IBM AML 全管道
 ├── docs/
-│   ├── paper/EVENT_FIRST_DRAFT.md  # 新论文
-│   └── experiments/
-├── examples/                # 概念文件示例
-├── tests/                   # pytest (111 tests)
-└── data/aml/                # AML 概念 + 查询
+│   ├── paper/EVENT_FIRST_DRAFT.md  # 论文
+│   ├── experiments/                # 实验结果
+│   ├── SPEC.md                     # 规范
+│   ├── PRD.md                      # 产品需求
+│   └── proposals/                  # 设计提案
+├── archive/                    # 过期文件归档
+├── examples/                   # 概念文件示例
+├── tests/                      # pytest (111 tests)
+└── data/aml/                   # AML 概念 + 查询
 ```
 
 ## 核心概念

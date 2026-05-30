@@ -1,0 +1,16 @@
+{
+  "chains": {
+    "disc-capital-trap": [
+      {
+        "adl_id": "disc-capital-trap",
+        "from_status": "provisional",
+        "to_status": "provisional",
+        "actor": "system",
+        "reason": "Document registered",
+        "parent_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "hash": "1dbffc6534d489f4956ac3f12f542fd2d3f2a515c12ada7606f0e8af9ee79443",
+        "timestamp": "2026-05-25T01:59:04.367020+00:00"
+      }
+    ]
+  }
+}

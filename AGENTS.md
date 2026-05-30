@@ -70,7 +70,6 @@ adl-lite lark publish examples/capital_reflux_trap.md --registry .adl_lark_regis
 python -m experiments.runner list
 python -m experiments.runner all
 python -m experiments.runner E6 --verbose
-python -m experiments.run_sim --scripted
 ```
 
 ## Agent tools (Python)

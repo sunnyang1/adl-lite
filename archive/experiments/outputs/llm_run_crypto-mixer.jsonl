@@ -1,0 +1,5 @@
+{"result": {"attempts": 1, "consensus_transitions": 2, "discovery_path": "/Users/michelleye/Documents/Allen's files/adl-lite/experiments/outputs/llm_discovery_crypto-mixer.md", "errors": [], "event_count": 4, "model": "mimo-v2.5-pro", "provider": "mimo:mimo-v2.5-pro@https://token-plan-cn.xiaomimimo.com/v1", "revised": false, "status": "completed"}}
+{"action": "emit_llm", "adl_id": "pending", "attempt": 1, "path": "/Users/michelleye/Documents/Allen's files/adl-lite/experiments/outputs/llm_discovery_crypto-mixer.md", "role": "discoverer", "step": 1, "ts": "2026-05-24T12:53:43.194507+00:00"}
+{"action": "parsed", "adl_id": "disc-llm-crypto-mixer", "adl_type": "discovery", "attempt": 1, "role": "discoverer", "step": 2, "ts": "2026-05-24T12:53:43.194537+00:00"}
+{"action": "validate", "adl_id": "disc-llm-crypto-mixer", "attempt": 1, "error_count": 0, "ok": true, "role": "reviewer", "step": 3, "ts": "2026-05-24T12:53:43.194559+00:00"}
+{"action": "transition", "adl_id": "disc-llm-crypto-mixer", "role": "reviewer", "step": 4, "to": "validated", "ts": "2026-05-24T12:53:43.194581+00:00"}

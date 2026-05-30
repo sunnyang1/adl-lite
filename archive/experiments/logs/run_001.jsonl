@@ -1,0 +1,15 @@
+{"action": "emit", "adl_id": "disc-capital-trap", "path": "/Users/michelleye/Documents/Allen's files/adl-lite/examples/capital_reflux_trap.md", "role": "discoverer", "status": "provisional", "step": 1, "ts": "2026-05-30T08:06:38.989986+00:00"}
+{"action": "validate", "adl_id": "disc-capital-trap", "error_count": 0, "ok": true, "role": "reviewer", "step": 2, "strict_ontology": false, "ts": "2026-05-30T08:06:38.989994+00:00"}
+{"action": "transition", "adl_id": "disc-capital-trap", "role": "reviewer", "step": 3, "to": "validated", "ts": "2026-05-30T08:06:38.989999+00:00"}
+{"action": "store", "adl_id": "disc-capital-trap", "role": "librarian", "scope": "private/ceiec-aml", "step": 4, "ts": "2026-05-30T08:06:38.990003+00:00"}
+{"action": "emit", "adl_id": "concept-gradient-explosion", "path": "/Users/michelleye/Documents/Allen's files/adl-lite/examples/gradient_explosion.md", "role": "discoverer", "status": "validated", "step": 5, "ts": "2026-05-30T08:06:38.990006+00:00"}
+{"action": "validate", "adl_id": "concept-gradient-explosion", "error_count": 0, "ok": true, "role": "reviewer", "step": 6, "strict_ontology": false, "ts": "2026-05-30T08:06:38.990009+00:00"}
+{"action": "store", "adl_id": "concept-gradient-explosion", "role": "librarian", "scope": "public", "step": 7, "ts": "2026-05-30T08:06:38.990012+00:00"}
+{"action": "emit", "adl_id": "disc-attention-residual", "path": "/Users/michelleye/Documents/Allen's files/adl-lite/examples/attention_residual_discovery.md", "role": "discoverer", "status": "provisional", "step": 8, "ts": "2026-05-30T08:06:38.990015+00:00"}
+{"action": "validate", "adl_id": "disc-attention-residual", "error_count": 0, "ok": true, "role": "reviewer", "step": 9, "strict_ontology": false, "ts": "2026-05-30T08:06:38.990018+00:00"}
+{"action": "transition", "adl_id": "disc-attention-residual", "role": "reviewer", "step": 10, "to": "validated", "ts": "2026-05-30T08:06:38.990021+00:00"}
+{"action": "deny_store", "adl_id": "disc-attention-residual", "doc_scope": "private/research-lab", "requester": "private/ceiec-aml", "role": "librarian", "step": 11, "ts": "2026-05-30T08:06:38.990024+00:00"}
+{"action": "fork", "adl_id": "disc-matdo-kinetic", "fork_status": "provisional", "original": "disc-matdo-original", "role": "skeptic", "step": 12, "ts": "2026-05-30T08:06:38.990027+00:00"}
+{"action": "resolve", "adl_id": "disc-matdo-kinetic", "original": "disc-matdo-original", "resolution": "parallel", "role": "merger", "similarity": 0.62, "step": 13, "ts": "2026-05-30T08:06:38.990030+00:00"}
+{"action": "store", "adl_id": "disc-matdo-kinetic", "role": "librarian", "scope": "private/materials-lab", "step": 14, "ts": "2026-05-30T08:06:38.990034+00:00"}
+{"action": "query_related", "adl_id": "Gradient Explosion", "count": 1, "requester": "public", "role": "librarian", "step": 15, "ts": "2026-05-30T08:06:38.990037+00:00"}
