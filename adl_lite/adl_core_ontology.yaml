@@ -1,12 +1,14 @@
-# ADL Core Ontology — schema registry for L3 predicates, status graph, scopes.
+# ADL Core Ontology — schema registry for L3 predicates, L4 actions, status graph, scopes.
 # Single source of truth for Milestone 2a (Path A: OntologyManager, no OWL runtime).
 # Inventory: examples/*.md, data/aml/concepts/, adl_lite/models.py, consensus.py
 #
 # Open questions (see docs/proposals/ONTOLOGY_MIDDLE_LAYER.md §8):
 #   - Predicate closure: core set below; domain-specific extensions via future prefixes
 #   - mapping_type: required on isomorphic-to when ADLValidator(strict=True)
+#   - Action registry: closed core set (cf. predicates); each action declares
+#     allowed_on types, required_params, preconditions, and side_effects
 
-version: "0.1"
+version: "0.2"
 ontology_id: adl-core
 
 classes:
@@ -71,3 +73,95 @@ status_transitions:
 
 scopes:
   prefixes: [public, private, user, shared]
+
+# L4 action registry (closed core set, Milestone 2d)
+# Each action is a declared operation on ADL concepts with optional
+# preconditions (validated at parse time) and side effects (dispatched
+# by ActionExecutor at runtime).
+actions:
+  register:
+    description: Register a new concept into the ontology
+    allowed_on: [discovery, concept]
+    triggers_transition: null → provisional
+    required_params: []
+    preconditions: []
+    side_effects: []
+
+  validate:
+    description: Validator agent approves a concept
+    allowed_on: [discovery, concept]
+    triggers_transition: provisional → validated
+    required_params: []
+    preconditions:
+      - field: confidence
+        comparator: gte
+        value: 0.5
+      - field: status
+        comparator: eq
+        value: provisional
+    side_effects: [lark_dashboard]
+
+  fork:
+    description: Fork a concept as competing interpretation
+    allowed_on: [discovery, concept]
+    triggers_transition: provisional → forked
+    required_params: [fork_id, rationale]
+    preconditions:
+      - field: status
+        comparator: eq
+        value: provisional
+    side_effects: [lark_announce]
+
+  deprecate:
+    description: Mark concept as deprecated
+    allowed_on: [discovery, concept]
+    triggers_transition: validated → deprecated
+    required_params: [reason]
+    preconditions:
+      - field: status
+        comparator: eq
+        value: validated
+    side_effects: [lark_announce, lark_dashboard]
+
+  archive:
+    description: Archive a deprecated or obsolete concept
+    allowed_on: [discovery, concept]
+    triggers_transition: deprecated → archived
+    required_params: []
+    preconditions:
+      - field: status
+        comparator: eq
+        value: deprecated
+    side_effects: [lark_dashboard]
+
+  announce:
+    description: Broadcast concept to a chat room
+    allowed_on: [discovery, concept, relation, evidence, formal_seal]
+    triggers_transition: null
+    required_params: [chat_id]
+    preconditions: []
+    side_effects: [lark_announce]
+
+  publish:
+    description: Publish concept to Feishu knowledge base
+    allowed_on: [discovery, concept]
+    triggers_transition: null
+    required_params: [wiki_space]
+    preconditions: []
+    side_effects: [lark_publish]
+
+  sync_dashboard:
+    description: Sync concept status to dashboard
+    allowed_on: [discovery, concept]
+    triggers_transition: null
+    required_params: [sheet_id]
+    preconditions: []
+    side_effects: [lark_dashboard]
+
+  listen:
+    description: Ingest external feedback as a concept action
+    allowed_on: [discovery, concept]
+    triggers_transition: null
+    required_params: [feedback_file]
+    preconditions: []
+    side_effects: [consensus_update]

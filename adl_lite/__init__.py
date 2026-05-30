@@ -8,6 +8,7 @@ Layers:
     L1  YAML Front Matter    — identity, type, status, evidence refs, scope
     L2  Markdown Body        — natural language, [[Wiki Links]], lists
     L3  ```adl:* blocks      — relation graphs, evidence chains, formal seals
+    L4  ```adl:action blocks — typed actions with preconditions and side effects
 
 Quick Start:
     from adl_lite import parse_file, ADLDocument, ADLMemory
@@ -21,9 +22,14 @@ Quick Start:
 
 __version__ = "0.2.0"
 
+from .action_executor import ActionExecutor
 from .consensus import ConceptChain, ConsensusEngine, ForkManager, ForkResolution
 from .memory import ADLMemory, HotIndex, WarmIndex
 from .models import (
+    ADLActionBlock,
+    ActionDef,
+    ActionExecStatus,
+    Comparator,
     ADLDocument,
     ADLEvidenceBlock,
     ADLFormalSealBlock,
@@ -32,8 +38,13 @@ from .models import (
     ADLType,
     ConceptSkeleton,
     DiscoveryStatus,
+    Event,
+    EventChain,
+    EventType,
     EvidenceType,
+    ExecutionEntry,
     MechanismType,
+    PreconditionRule,
 )
 from .ontology import OntologyManager
 from .parser import ADLParseError, ADLParser, extract_wiki_links, parse_file, parse_text
@@ -49,6 +60,10 @@ __all__ = [
     "parse_text",
     "extract_wiki_links",
     # Models
+    "ADLActionBlock",
+    "ActionDef",
+    "ActionExecStatus",
+    "Comparator",
     "ADLDocument",
     "ADLFrontMatter",
     "ADLRelationBlock",
@@ -58,11 +73,15 @@ __all__ = [
     "DiscoveryStatus",
     "ADLType",
     "EvidenceType",
+    "ExecutionEntry",
     "MechanismType",
+    "PreconditionRule",
     # Validator
     "ADLValidator",
     # Ontology
     "OntologyManager",
+    # Action Executor
+    "ActionExecutor",
     # Consensus
     "ConsensusEngine",
     "ConceptChain",

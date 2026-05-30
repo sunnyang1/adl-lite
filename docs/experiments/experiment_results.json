@@ -1,0 +1,862 @@
+{
+  "E1": {
+    "experiment_id": "E1",
+    "status": "passed",
+    "metrics": {
+      "valid_chain_pass_rate": 1.0,
+      "corrupt_chain_detection_rate": 1.0,
+      "valid_total": 50,
+      "corrupt_total": 10
+    },
+    "raw_data": [
+      {
+        "type": "corrupt_chain_should_fail",
+        "concept_id": "e1-corrupt-0",
+        "corruption_method": 0,
+        "detected": true
+      },
+      {
+        "type": "corrupt_chain_should_fail",
+        "concept_id": "e1-corrupt-1",
+        "corruption_method": 1,
+        "detected": true
+      },
+      {
+        "type": "corrupt_chain_should_fail",
+        "concept_id": "e1-corrupt-2",
+        "corruption_method": 2,
+        "detected": true
+      },
+      {
+        "type": "corrupt_chain_should_fail",
+        "concept_id": "e1-corrupt-3",
+        "corruption_method": 0,
+        "detected": true
+      },
+      {
+        "type": "corrupt_chain_should_fail",
+        "concept_id": "e1-corrupt-4",
+        "corruption_method": 1,
+        "detected": true
+      },
+      {
+        "type": "corrupt_chain_should_fail",
+        "concept_id": "e1-corrupt-5",
+        "corruption_method": 2,
+        "detected": true
+      },
+      {
+        "type": "corrupt_chain_should_fail",
+        "concept_id": "e1-corrupt-6",
+        "corruption_method": 0,
+        "detected": true
+      },
+      {
+        "type": "corrupt_chain_should_fail",
+        "concept_id": "e1-corrupt-7",
+        "corruption_method": 1,
+        "detected": true
+      },
+      {
+        "type": "corrupt_chain_should_fail",
+        "concept_id": "e1-corrupt-8",
+        "corruption_method": 2,
+        "detected": true
+      },
+      {
+        "type": "corrupt_chain_should_fail",
+        "concept_id": "e1-corrupt-9",
+        "corruption_method": 0,
+        "detected": true
+      }
+    ],
+    "errors": [],
+    "duration_ms": 5
+  },
+  "E2": {
+    "experiment_id": "E2",
+    "status": "passed",
+    "metrics": {
+      "total_cases": 2204,
+      "correct": 2204,
+      "accuracy": 1.0,
+      "error_count": 0
+    },
+    "raw_data": [],
+    "errors": [],
+    "duration_ms": 79
+  },
+  "E3": {
+    "experiment_id": "E3",
+    "status": "passed",
+    "metrics": {
+      "total_files": 38,
+      "status_match": 38,
+      "status_accuracy": 1.0
+    },
+    "raw_data": [
+      {
+        "file": "attention_residual_discovery.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": true,
+        "original_status": "provisional",
+        "roundtrip_status": "provisional"
+      },
+      {
+        "file": "capital_reflux_trap.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": true,
+        "original_status": "provisional",
+        "roundtrip_status": "provisional"
+      },
+      {
+        "file": "gradient_explosion.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "matdo_fork_kinetic.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": true,
+        "original_status": "provisional",
+        "roundtrip_status": "provisional"
+      },
+      {
+        "file": "matdo_original.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": true,
+        "original_status": "forked",
+        "roundtrip_status": "forked"
+      },
+      {
+        "file": "aml-attention-trap.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-ben-owner.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-bipartite-pattern.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-cash-int.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-casino.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-crypto-mix.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-ctr-avoid.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-cuckoo-smurf.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": true,
+        "original_status": "provisional",
+        "roundtrip_status": "provisional"
+      },
+      {
+        "file": "aml-cyclic-pattern.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-fan-in-pattern.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-fan-out-pattern.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-gather-scatter.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-hawala.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-integration.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-layering.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-mule-acct.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-nesting.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-nominee-acct.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-pep-link.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-placement.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-random-baseline.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-rapid-move.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-real-estate.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-round-trip.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-scatter-gather.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-shell-co.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-smurfing.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-stack-pattern.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-structuring.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-trade-base.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-trade-loop.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-trade-mis.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      },
+      {
+        "file": "aml-virtual-asset.md",
+        "status_ok": true,
+        "confidence_ok": true,
+        "validators_ok": false,
+        "original_status": "validated",
+        "roundtrip_status": "validated"
+      }
+    ],
+    "errors": [],
+    "duration_ms": 25
+  },
+  "E4": {
+    "experiment_id": "E4",
+    "status": "passed",
+    "metrics": {
+      "true_positive": 5,
+      "false_positive": 0,
+      "true_negative": 8,
+      "false_negative": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "raw_data": [
+      {
+        "label": "validate_pass",
+        "should_pass": true,
+        "actually_passed": true,
+        "errors": []
+      },
+      {
+        "label": "validate_low_confidence",
+        "should_pass": false,
+        "actually_passed": false,
+        "errors": [
+          "Precondition failed: confidence gte 0.5"
+        ]
+      },
+      {
+        "label": "validate_wrong_status",
+        "should_pass": false,
+        "actually_passed": false,
+        "errors": [
+          "Precondition failed: status eq provisional"
+        ]
+      },
+      {
+        "label": "deprecate_pass",
+        "should_pass": true,
+        "actually_passed": true,
+        "errors": []
+      },
+      {
+        "label": "deprecate_wrong_status",
+        "should_pass": false,
+        "actually_passed": false,
+        "errors": [
+          "Precondition failed: status eq validated"
+        ]
+      },
+      {
+        "label": "deprecate_missing_reason",
+        "should_pass": false,
+        "actually_passed": false,
+        "errors": [
+          "Missing required params: ['reason']"
+        ]
+      },
+      {
+        "label": "fork_pass",
+        "should_pass": true,
+        "actually_passed": true,
+        "errors": []
+      },
+      {
+        "label": "fork_wrong_status",
+        "should_pass": false,
+        "actually_passed": false,
+        "errors": [
+          "Precondition failed: status eq provisional"
+        ]
+      },
+      {
+        "label": "announce_pass",
+        "should_pass": true,
+        "actually_passed": true,
+        "errors": []
+      },
+      {
+        "label": "announce_missing_chat_id",
+        "should_pass": false,
+        "actually_passed": false,
+        "errors": [
+          "Missing required params: ['chat_id']"
+        ]
+      },
+      {
+        "label": "archive_pass",
+        "should_pass": true,
+        "actually_passed": true,
+        "errors": []
+      },
+      {
+        "label": "archive_wrong_status",
+        "should_pass": false,
+        "actually_passed": false,
+        "errors": [
+          "Precondition failed: status eq deprecated"
+        ]
+      },
+      {
+        "label": "unknown_action",
+        "should_pass": false,
+        "actually_passed": false,
+        "errors": [
+          "Unknown action: nonexistent_action"
+        ]
+      }
+    ],
+    "errors": [],
+    "duration_ms": 4
+  },
+  "E5": {
+    "experiment_id": "E5",
+    "status": "passed",
+    "metrics": {
+      "chains_total": 5,
+      "chains_integrity_ok": 5,
+      "chains_covered": 4,
+      "chains_uncovered": 1,
+      "sim_events_total": 15,
+      "lifecycle_sim_events": 9,
+      "lifecycle_chain_events": 2,
+      "chain_avg_length": 5.4
+    },
+    "raw_data": [
+      {
+        "adl_id": "disc-capital-trap",
+        "chain_length": 7,
+        "chain_integrity": true,
+        "status": "provisional",
+        "history_events": 7
+      },
+      {
+        "adl_id": "concept-gradient-explosion",
+        "chain_length": 4,
+        "chain_integrity": true,
+        "status": "validated",
+        "history_events": 4
+      },
+      {
+        "adl_id": "disc-attention-residual",
+        "chain_length": 5,
+        "chain_integrity": true,
+        "status": "provisional",
+        "history_events": 5
+      },
+      {
+        "adl_id": "disc-matdo-original",
+        "chain_length": 6,
+        "chain_integrity": true,
+        "status": "forked",
+        "history_events": 6
+      },
+      {
+        "adl_id": "disc-matdo-kinetic",
+        "chain_length": 5,
+        "chain_integrity": true,
+        "status": "provisional",
+        "history_events": 5
+      }
+    ],
+    "errors": [],
+    "duration_ms": 13
+  },
+  "E6": {
+    "experiment_id": "E6",
+    "status": "passed",
+    "metrics": {
+      "total_accounts": 495671,
+      "total_transactions": 5080714,
+      "avg_txns_per_account": 10.3,
+      "chains_integrity_all": "495671/495671",
+      "suspicious_accounts": 3386,
+      "suspicious_chains_integrity": "3386/3386",
+      "laundering_events_total": 8376,
+      "laundering_pct": 0.16,
+      "discovered_classes": "",
+      "discovered_links": "",
+      "detected_pattern_count": 3040,
+      "concepts_matched": "aml-cyclic-pattern, aml-fan-out-pattern, aml-rapid-move, aml-smurfing"
+    },
+    "raw_data": [
+      {
+        "account": "acct-A1001",
+        "chain_length": 200,
+        "integrity_ok": true,
+        "laundering_events": 200,
+        "laundering_pct": 1.0,
+        "detected_patterns": [
+          "high_frequency"
+        ],
+        "matched_concepts": [
+          "aml-rapid-move"
+        ]
+      },
+      {
+        "account": "acct-A0990",
+        "chain_length": 300,
+        "integrity_ok": true,
+        "laundering_events": 300,
+        "laundering_pct": 1.0,
+        "detected_patterns": [
+          "smurfing_threshold",
+          "high_frequency",
+          "fan_out"
+        ],
+        "matched_concepts": [
+          "aml-smurfing",
+          "aml-rapid-move",
+          "aml-fan-out-pattern"
+        ]
+      },
+      {
+        "account": "acct-A1100",
+        "chain_length": 1500,
+        "integrity_ok": true,
+        "laundering_events": 1500,
+        "laundering_pct": 1.0,
+        "detected_patterns": [
+          "high_frequency",
+          "fan_out"
+        ],
+        "matched_concepts": [
+          "aml-rapid-move",
+          "aml-fan-out-pattern"
+        ]
+      },
+      {
+        "account": "acct-A1203",
+        "chain_length": 100,
+        "integrity_ok": true,
+        "laundering_events": 100,
+        "laundering_pct": 1.0,
+        "detected_patterns": [
+          "high_frequency",
+          "cyclic"
+        ],
+        "matched_concepts": [
+          "aml-rapid-move",
+          "aml-cyclic-pattern"
+        ]
+      },
+      {
+        "account": "acct-A1002",
+        "chain_length": 200,
+        "integrity_ok": true,
+        "laundering_events": 200,
+        "laundering_pct": 1.0,
+        "detected_patterns": [
+          "high_frequency"
+        ],
+        "matched_concepts": [
+          "aml-rapid-move"
+        ]
+      },
+      {
+        "account": "acct-A1005",
+        "chain_length": 200,
+        "integrity_ok": true,
+        "laundering_events": 200,
+        "laundering_pct": 1.0,
+        "detected_patterns": [
+          "high_frequency"
+        ],
+        "matched_concepts": [
+          "aml-rapid-move"
+        ]
+      },
+      {
+        "account": "acct-A1004",
+        "chain_length": 200,
+        "integrity_ok": true,
+        "laundering_events": 200,
+        "laundering_pct": 1.0,
+        "detected_patterns": [
+          "high_frequency"
+        ],
+        "matched_concepts": [
+          "aml-rapid-move"
+        ]
+      },
+      {
+        "account": "acct-A1201",
+        "chain_length": 200,
+        "integrity_ok": true,
+        "laundering_events": 200,
+        "laundering_pct": 1.0,
+        "detected_patterns": [
+          "high_frequency",
+          "cyclic"
+        ],
+        "matched_concepts": [
+          "aml-rapid-move",
+          "aml-cyclic-pattern"
+        ]
+      },
+      {
+        "account": "acct-A1202",
+        "chain_length": 100,
+        "integrity_ok": true,
+        "laundering_events": 100,
+        "laundering_pct": 1.0,
+        "detected_patterns": [
+          "high_frequency",
+          "cyclic"
+        ],
+        "matched_concepts": [
+          "aml-rapid-move",
+          "aml-cyclic-pattern"
+        ]
+      },
+      {
+        "account": "acct-A1003",
+        "chain_length": 200,
+        "integrity_ok": true,
+        "laundering_events": 200,
+        "laundering_pct": 1.0,
+        "detected_patterns": [
+          "high_frequency"
+        ],
+        "matched_concepts": [
+          "aml-rapid-move"
+        ]
+      },
+      {
+        "account": "acct-8005CC8D0",
+        "chain_length": 88,
+        "integrity_ok": true,
+        "laundering_events": 1,
+        "laundering_pct": 0.011,
+        "detected_patterns": [],
+        "matched_concepts": []
+      },
+      {
+        "account": "acct-8011150C0",
+        "chain_length": 20,
+        "integrity_ok": true,
+        "laundering_events": 1,
+        "laundering_pct": 0.05,
+        "detected_patterns": [
+          "cyclic"
+        ],
+        "matched_concepts": [
+          "aml-cyclic-pattern"
+        ]
+      },
+      {
+        "account": "acct-80114EBB0",
+        "chain_length": 2,
+        "integrity_ok": true,
+        "laundering_events": 1,
+        "laundering_pct": 0.5,
+        "detected_patterns": [
+          "cyclic"
+        ],
+        "matched_concepts": [
+          "aml-cyclic-pattern"
+        ]
+      },
+      {
+        "account": "acct-100428660",
+        "chain_length": 168508,
+        "integrity_ok": true,
+        "laundering_events": 242,
+        "laundering_pct": 0.001,
+        "detected_patterns": [
+          "high_frequency",
+          "fan_out"
+        ],
+        "matched_concepts": [
+          "aml-rapid-move",
+          "aml-fan-out-pattern"
+        ]
+      },
+      {
+        "account": "acct-800FB5AB0",
+        "chain_length": 37,
+        "integrity_ok": true,
+        "laundering_events": 1,
+        "laundering_pct": 0.027,
+        "detected_patterns": [
+          "cyclic"
+        ],
+        "matched_concepts": [
+          "aml-cyclic-pattern"
+        ]
+      },
+      {
+        "account": "acct-8011A5230",
+        "chain_length": 20,
+        "integrity_ok": true,
+        "laundering_events": 1,
+        "laundering_pct": 0.05,
+        "detected_patterns": [
+          "cyclic"
+        ],
+        "matched_concepts": [
+          "aml-cyclic-pattern"
+        ]
+      },
+      {
+        "account": "acct-800D201E0",
+        "chain_length": 45,
+        "integrity_ok": true,
+        "laundering_events": 1,
+        "laundering_pct": 0.022,
+        "detected_patterns": [
+          "cyclic"
+        ],
+        "matched_concepts": [
+          "aml-cyclic-pattern"
+        ]
+      },
+      {
+        "account": "acct-8011D5060",
+        "chain_length": 7,
+        "integrity_ok": true,
+        "laundering_events": 1,
+        "laundering_pct": 0.143,
+        "detected_patterns": [
+          "cyclic"
+        ],
+        "matched_concepts": [
+          "aml-cyclic-pattern"
+        ]
+      },
+      {
+        "account": "acct-8011EF080",
+        "chain_length": 17,
+        "integrity_ok": true,
+        "laundering_events": 1,
+        "laundering_pct": 0.059,
+        "detected_patterns": [
+          "cyclic"
+        ],
+        "matched_concepts": [
+          "aml-cyclic-pattern"
+        ]
+      },
+      {
+        "account": "acct-8011F0870",
+        "chain_length": 69,
+        "integrity_ok": true,
+        "laundering_events": 1,
+        "laundering_pct": 0.014,
+        "detected_patterns": [
+          "cyclic"
+        ],
+        "matched_concepts": [
+          "aml-cyclic-pattern"
+        ]
+      }
+    ],
+    "errors": [],
+    "duration_ms": 238490
+  }
+}

@@ -3,17 +3,19 @@ ADL Lite — Parser
 
 Three standard tools:
     - PyYAML  → Front Matter (L1)
-    - regex   → ADL code blocks (L3)
+    - regex   → ADL code blocks (L3 & L4)
     - str.split → Markdown body (L2)
 
-Implements the three-layer syntax:
-    L1: YAML Front Matter  — identity, type, status, evidence refs, scope
-    L2: Markdown Body      — natural language, [[Wiki Links]], lists
-    L3: ```adl:* blocks    — relation graphs, evidence chains, formal seals
+Implements the four-layer syntax:
+    L1: YAML Front Matter   — identity, type, status, evidence refs, scope
+    L2: Markdown Body       — natural language, [[Wiki Links]], lists
+    L3: ```adl:* blocks     — relation graphs, evidence chains, formal seals
+    L4: ```adl:action       — typed actions with preconditions and side effects
 
 References:
     - ADL Lite Spec §7.2: Three-layer syntax
     - ADL Lite Spec §7.3: Full example
+    - ADL Lite Milestone 2d: L4 action blocks
 """
 
 from __future__ import annotations
@@ -28,12 +30,14 @@ except ImportError:  # pragma: no cover
 
 from .models import (
     ADLBlock,
+    ADLActionBlock,
     ADLDocument,
     ADLEvidenceBlock,
     ADLFormalSealBlock,
     ADLFrontMatter,
     ADLRelationBlock,
     ADLType,
+    ActionExecStatus,
     DiscoveryStatus,
     EvidenceType,
     MechanismType,
@@ -97,11 +101,12 @@ class ADLParser:
         """
         front_matter_raw, body = self._split_front_matter(text)
         fm = self._parse_front_matter(front_matter_raw)
-        blocks, clean_body = self._extract_adl_blocks(body)
+        l3_blocks, action_blocks, clean_body = self._extract_adl_blocks(body)
         return ADLDocument(
             front_matter=fm,
             markdown_body=clean_body.strip(),
-            adl_blocks=blocks,
+            adl_blocks=l3_blocks,
+            action_blocks=action_blocks,
         )
 
     # ------------------------------------------------------------------
@@ -156,29 +161,53 @@ class ADLParser:
         return ADLFrontMatter(**data)
 
     @classmethod
-    def _extract_adl_blocks(cls, body: str) -> tuple[list[ADLBlock], str]:
+    def _extract_adl_blocks(cls, body: str) -> tuple[list[ADLBlock], list[ADLActionBlock], str]:
         """
         Extract all ```adl:* blocks from the Markdown body.
-        Returns (list_of_blocks, body_with_blocks_removed).
+        Returns (l3_blocks, action_blocks, body_with_blocks_removed).
+        Action blocks (block_type="action") are routed to the L4 list.
         """
-        blocks: list[ADLBlock] = []
+        l3_blocks: list[ADLBlock] = []
+        action_blocks: list[ADLActionBlock] = []
         clean_body = body
 
         for match in _RE_ADL_BLOCK.finditer(body):
             block_type = match.group("block_type")
             block_body = match.group("body")
 
-            # Parse key-value pairs inside the block
-            kv = dict(_RE_KV_LINE.findall(block_body))
+            if block_type == "action":
+                kv = dict(_RE_KV_LINE.findall(block_body))
+                try:
+                    action_block = cls._parse_action_block(kv)
+                    action_blocks.append(action_block)
+                except (ValueError, KeyError) as exc:
+                    raise ADLParseError(f"Invalid action block: {exc}") from exc
+            else:
+                kv = dict(_RE_KV_LINE.findall(block_body))
+                block = cls._dispatch_block(block_type, kv)
+                if block:
+                    l3_blocks.append(block)
 
-            block = cls._dispatch_block(block_type, kv)
-            if block:
-                blocks.append(block)
-
-            # Remove this block from clean body
             clean_body = clean_body.replace(match.group(0), "")
 
-        return blocks, clean_body
+        return l3_blocks, action_blocks, clean_body
+
+    @classmethod
+    def _parse_action_block(cls, kv: dict) -> ADLActionBlock:
+        """Parse inline KV dict into an ADLActionBlock."""
+        params = {}
+        for k, v in kv.items():
+            if k.startswith("param_"):
+                params[k[len("param_"):]] = v.strip('"')
+
+        return ADLActionBlock(
+            action=kv.get("action", "").strip('"'),
+            actor=kv.get("actor", "").strip('"'),
+            reasoning=kv.get("reasoning", "").strip('"'),
+            timestamp=kv.get("timestamp"),
+            params=params,
+            exec_status=ActionExecStatus.PENDING,
+        )
 
     @classmethod
     def _dispatch_block(cls, block_type: str, kv: dict) -> ADLBlock | None:

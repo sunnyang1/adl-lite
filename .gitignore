@@ -24,3 +24,4 @@ experiments/outputs/*
 .DS_Store
 .vscode/
 .idea/
+data/aml/ibm_data/

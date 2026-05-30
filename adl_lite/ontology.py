@@ -83,6 +83,38 @@ class OntologyManager:
         classes = self._data.get("classes", {})
         return sorted(classes.keys())
 
+    def list_actions(self) -> list[str]:
+        """All action names registered in the ontology."""
+        actions = self._data.get("actions", {})
+        return sorted(actions.keys())
+
+    def get_action_def(self, name: str) -> dict[str, Any] | None:
+        """Raw action definition dict from the ontology."""
+        actions = self._data.get("actions", {})
+        return actions.get(name)
+
+    def allowed_actions_for_class(self, adl_class: str) -> list[str]:
+        """Which actions are allowed on a given ADL class."""
+        actions = self._data.get("actions", {})
+        result = []
+        for name, raw in actions.items():
+            allowed = raw.get("allowed_on", [])
+            if adl_class in allowed:
+                result.append(name)
+        return sorted(result)
+
+    def action_preconditions(self, name: str) -> list[dict[str, Any]]:
+        """Precondition rules for a given action."""
+        actions = self._data.get("actions", {})
+        entry = actions.get(name, {})
+        return list(entry.get("preconditions", []))
+
+    def action_side_effects(self, name: str) -> list[str]:
+        """Side-effect names for a given action."""
+        actions = self._data.get("actions", {})
+        entry = actions.get(name, {})
+        return list(entry.get("side_effects", []))
+
     def list_mapping_types(self) -> list[str]:
         return list(self._data.get("mapping_types", []))
 

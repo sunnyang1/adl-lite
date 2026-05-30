@@ -5,15 +5,25 @@ Structured Semantic Anchoring (SSA) core data models.
 Every ADL document decomposes into typed slots that constrain
 the interpretive space of natural language.
 
+Philosophy (Wittgenstein, Tractatus §1.1):
+    "The world is the totality of facts, not of things."
+    → Action is primary. Objects exist only as participants in events.
+    → EventChain IS the concept. FrontMatter is a derived snapshot.
+
 References:
     - ADL Lite Spec §7.2: Three-layer syntax (L1/L2/L3)
     - ADL Lite Spec §7.4: Consensus status badges
+    - ADL Lite Milestone 2d: L4 action blocks
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
+from datetime import datetime, timezone
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal
+from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -57,6 +67,338 @@ class EvidenceType(str, Enum):
     EMPIRICAL_OBSERVATION = "empirical_observation"
 
 
+class EventType(str, Enum):
+    """Every event type in ADL Lite. Events ARE the ontology."""
+    # Lifecycle events
+    REGISTER = "register"
+    VALIDATE = "validate"
+    DEPRECATE = "deprecate"
+    FORK = "fork"
+    ARCHIVE = "archive"
+    # Assertion events (L3 blocks)
+    RELATE = "relate"
+    EVIDENCE = "evidence"
+    SEAL = "seal"
+    # Communication events (L4 actions)
+    ANNOUNCE = "announce"
+    PUBLISH = "publish"
+    SYNC_DASHBOARD = "sync_dashboard"
+    LISTEN = "listen"
+    # Internal
+    SNAPSHOT = "snapshot"  # L1 front matter as a recorded state
+
+
+# ---------------------------------------------------------------------------
+# Event — the fundamental unit (event-first ontology)
+# ---------------------------------------------------------------------------
+
+class Event(BaseModel):
+    """
+    An Event is an atomic occurrence in a concept's life.
+
+    Every event:
+    - belongs to exactly one concept (concept_id)
+    - links to the previous event (previous_event_id → forms the chain)
+    - carries a typed payload (L3 block, L4 action params, etc.)
+    - is cryptographically hashed (chain integrity)
+
+    This IS the ontology. Objects don't have events — events ARE the world.
+    """
+    event_id: str = Field(
+        default_factory=lambda: uuid4().hex[:12],
+        description="Unique event identifier"
+    )
+    concept_id: str = Field(..., description="adl_id of the concept this event belongs to")
+    event_type: EventType = Field(..., description="What happened")
+    actor: str = Field(default="system", description="Who caused this event")
+    reasoning: str = Field(default="", description="Why this event happened")
+    timestamp: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat(),
+        description="When this event occurred"
+    )
+    payload: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Event-specific data (block fields, action params, etc.)"
+    )
+    previous_event_id: str | None = Field(
+        default=None,
+        description="Previous event in the chain (None for genesis event)"
+    )
+    hash: str = Field(default="", description="SHA-256 hash of this event's content")
+
+    def model_post_init(self, __context) -> None:
+        if not self.hash:
+            self.hash = self._compute_hash()
+
+    def _compute_hash(self) -> str:
+        content = {
+            "event_id": self.event_id,
+            "concept_id": self.concept_id,
+            "event_type": self.event_type.value,
+            "actor": self.actor,
+            "timestamp": self.timestamp,
+            "payload": self.payload,
+            "previous_event_id": self.previous_event_id,
+        }
+        return hashlib.sha256(
+            json.dumps(content, sort_keys=True, default=str).encode()
+        ).hexdigest()
+
+
+class EventChain:
+    """
+    An append-only, cryptographically linked chain of events.
+
+    THIS IS THE CONCEPT. The concept does not "have" status or confidence.
+    Status and confidence are computed from the chain.
+
+    The chain is the digital twin — not a static model, but the live
+    accumulation of all facts about a concept.
+    """
+
+    def __init__(
+        self,
+        concept_id: str,
+        events: list[Event] | None = None,
+        markdown_body: str = "",
+        source_path: str | None = None,
+    ) -> None:
+        self.concept_id = concept_id
+        self._events: list[Event] = []
+        self.markdown_body = markdown_body
+        self.source_path = source_path
+
+        if events:
+            for e in events:
+                self.append(e)
+
+    # ------------------------------------------------------------------
+    # Core operations
+    # ------------------------------------------------------------------
+
+    def append(self, event: Event) -> None:
+        """Append an event, linking to the previous tail."""
+        if event.concept_id != self.concept_id:
+            raise ValueError(
+                f"Event concept_id {event.concept_id} != chain concept_id {self.concept_id}"
+            )
+        if self._events:
+            event.previous_event_id = self._events[-1].event_id
+            event.hash = ""  # Force re-computation with new previous_event_id
+            event.model_post_init(None)
+        self._events.append(event)
+
+    @property
+    def events(self) -> list[Event]:
+        return list(self._events)
+
+    @property
+    def length(self) -> int:
+        return len(self._events)
+
+    def __len__(self) -> int:
+        return len(self._events)
+
+    def __iter__(self):
+        return iter(self._events)
+
+    def __getitem__(self, index: int) -> Event:
+        return self._events[index]
+
+    # ------------------------------------------------------------------
+    # Computed properties (derived from events, NOT stored)
+    # ------------------------------------------------------------------
+
+    @property
+    def status(self) -> DiscoveryStatus:
+        """Status computed from the chain — the latest lifecycle event."""
+        for event in reversed(self._events):
+            if event.event_type in (
+                EventType.REGISTER, EventType.VALIDATE,
+                EventType.DEPRECATE, EventType.FORK, EventType.ARCHIVE,
+            ):
+                type_to_status = {
+                    EventType.REGISTER: DiscoveryStatus.PROVISIONAL,
+                    EventType.VALIDATE: DiscoveryStatus.VALIDATED,
+                    EventType.DEPRECATE: DiscoveryStatus.DEPRECATED,
+                    EventType.FORK: DiscoveryStatus.FORKED,
+                    EventType.ARCHIVE: DiscoveryStatus.ARCHIVED,
+                }
+                return type_to_status[event.event_type]
+        return DiscoveryStatus.PROVISIONAL
+
+    @property
+    def confidence(self) -> float:
+        """Confidence derived from validate events or last snapshot."""
+        for event in reversed(self._events):
+            if event.event_type == EventType.VALIDATE:
+                return float(event.payload.get("confidence", 0.0))
+            if event.event_type == EventType.SNAPSHOT:
+                return float(event.payload.get("confidence", 0.0))
+        return 0.0
+
+    @property
+    def validators(self) -> list[str]:
+        actors = []
+        for event in self._events:
+            if event.event_type == EventType.VALIDATE:
+                actors.append(event.actor)
+        return actors
+
+    @property
+    def created_at(self) -> str:
+        """Concept creation time = first event timestamp."""
+        if self._events:
+            return self._events[0].timestamp
+        return datetime.now(timezone.utc).isoformat()
+
+    @property
+    def updated_at(self) -> str:
+        """Last modification = last event timestamp."""
+        if self._events:
+            return self._events[-1].timestamp
+        return self.created_at
+
+    # ------------------------------------------------------------------
+    # Derived snapshot
+    # ------------------------------------------------------------------
+
+    def snapshot(self, adl_type: ADLType, identity_fields: dict) -> ADLFrontMatter:
+        """
+        Derive current front matter from the event chain.
+
+        identity_fields must provide: adl_id, scope, domain, mechanism,
+        provisional_names, novelty, evidence_refs — fields that are identity
+        constants or set at registration, not mutated by events.
+        """
+        return ADLFrontMatter(
+            adl_type=adl_type,
+            adl_id=self.concept_id,
+            status=self.status,
+            confidence=self.confidence,
+            validators=self.validators,
+            created_at=self.created_at,
+            updated_at=self.updated_at,
+            **identity_fields,
+        )
+
+    def verify_integrity(self) -> bool:
+        """Verify chain integrity (hashes link correctly)."""
+        for i in range(1, len(self._events)):
+            if self._events[i].previous_event_id != self._events[i - 1].event_id:
+                return False
+        # Verify each event's hash
+        for event in self._events:
+            if event.hash != event._compute_hash():
+                return False
+        return True
+
+    def history(self) -> list[dict[str, Any]]:
+        """Full chain history as a list of dicts."""
+        return [
+            {
+                "event_id": e.event_id,
+                "event_type": e.event_type.value,
+                "actor": e.actor,
+                "reasoning": e.reasoning,
+                "timestamp": e.timestamp,
+                "hash": e.hash,
+            }
+            for e in self._events
+        ]
+
+    # ------------------------------------------------------------------
+    # Factory: build chain from parsed blocks + front matter
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def from_parsed(
+        cls,
+        concept_id: str,
+        front_matter: ADLFrontMatter,
+        l3_blocks: list[ADLBlock],
+        action_blocks: list[ADLActionBlock],
+        markdown_body: str = "",
+        source_path: str | None = None,
+    ) -> EventChain:
+        """Build an EventChain from parsed document components."""
+        chain = cls(concept_id=concept_id, markdown_body=markdown_body, source_path=source_path)
+
+        # Genesis event: snapshot captures L1 identity
+        chain.append(Event(
+            concept_id=concept_id,
+            event_type=EventType.SNAPSHOT,
+            actor="parser",
+            reasoning="Document parsed — initial L1 snapshot",
+            payload={
+                "adl_type": front_matter.adl_type.value,
+                "confidence": front_matter.confidence,
+                "novelty": front_matter.novelty,
+                "domain": front_matter.domain,
+                "scope": front_matter.scope,
+                "provisional_names": {
+                    "zh": front_matter.provisional_names.zh,
+                    "en": front_matter.provisional_names.en,
+                },
+            },
+        ))
+
+        # If status != provisional, add the appropriate lifecycle event
+        if front_matter.status != DiscoveryStatus.PROVISIONAL:
+            status_to_type = {
+                DiscoveryStatus.VALIDATED: EventType.VALIDATE,
+                DiscoveryStatus.DEPRECATED: EventType.DEPRECATE,
+                DiscoveryStatus.FORKED: EventType.FORK,
+                DiscoveryStatus.ARCHIVED: EventType.ARCHIVE,
+            }
+            evt = status_to_type.get(front_matter.status)
+            if evt:
+                chain.append(Event(
+                    concept_id=concept_id,
+                    event_type=evt,
+                    actor=front_matter.validators[-1] if front_matter.validators else "unknown",
+                    reasoning="Status restored from parsed document",
+                    payload={"confidence": front_matter.confidence},
+                ))
+
+        # L3 blocks → assertion events
+        for block in l3_blocks:
+            if isinstance(block, ADLRelationBlock):
+                chain.append(Event(
+                    concept_id=concept_id,
+                    event_type=EventType.RELATE,
+                    actor="author",
+                    reasoning=f"Relation asserted: {block.relation}",
+                    payload=block.model_dump(),
+                ))
+            elif isinstance(block, ADLEvidenceBlock):
+                chain.append(Event(
+                    concept_id=concept_id,
+                    event_type=EventType.EVIDENCE,
+                    actor="author",
+                    payload=block.model_dump(),
+                ))
+            elif isinstance(block, ADLFormalSealBlock):
+                chain.append(Event(
+                    concept_id=concept_id,
+                    event_type=EventType.SEAL,
+                    actor="author",
+                    payload=block.model_dump(),
+                ))
+
+        # L4 action blocks → action events
+        for ab in action_blocks:
+            chain.append(Event(
+                concept_id=concept_id,
+                event_type=EventType(ab.action) if ab.action in EventType._value2member_map_ else EventType.ANNOUNCE,
+                actor=ab.actor,
+                reasoning=ab.reasoning,
+                payload={"action": ab.action, "params": ab.params, "exec_status": ab.exec_status.value},
+            ))
+
+        return chain
+
+
 # ---------------------------------------------------------------------------
 # L1: YAML Front Matter Model
 # ---------------------------------------------------------------------------
@@ -69,8 +411,12 @@ class ProvisionalNames(BaseModel):
 
 class ADLFrontMatter(BaseModel):
     """
-    L1 Header — machine-parseable identity & metadata.
-    Consumed by: YAML Parser (PyYAML)
+    L1 Header — derived snapshot of a concept's current state.
+
+    IMPORTANT (event-first ontology): FrontMatter is a SNAPSHOT derived from
+    the EventChain, NOT the source of truth. Status, confidence, and validators
+    are computed from the chain. Mutating front_matter.status directly is
+    discouraged; use EventChain.append(Event(...)) and then re-snapshot.
     """
     adl_type: ADLType = Field(..., description="Semantic type of the document")
     adl_id: str = Field(..., pattern=r"^[a-zA-Z0-9_-]+$", description="Unique identifier")
@@ -85,6 +431,36 @@ class ADLFrontMatter(BaseModel):
     evidence_refs: list[str] = Field(default_factory=list)
     created_at: str | None = None
     updated_at: str | None = None
+
+    @classmethod
+    def from_chain(cls, chain: EventChain, adl_type: ADLType, identity: dict) -> ADLFrontMatter:
+        """Derive front matter from an EventChain (the source of truth)."""
+        return ADLFrontMatter(
+            adl_type=adl_type,
+            adl_id=chain.concept_id,
+            status=chain.status,
+            confidence=chain.confidence,
+            validators=chain.validators,
+            created_at=chain.created_at,
+            updated_at=chain.updated_at,
+            domain=identity.get("domain", ""),
+            mechanism=identity.get("mechanism"),
+            scope=identity.get("scope", "public"),
+            novelty=identity.get("novelty", 0.0),
+            provisional_names=identity.get("provisional_names", ProvisionalNames()),
+            evidence_refs=identity.get("evidence_refs", []),
+        )
+
+    def identity_dict(self) -> dict:
+        """Return the identity fields (not computed from chain)."""
+        return {
+            "domain": self.domain,
+            "mechanism": self.mechanism,
+            "scope": self.scope,
+            "novelty": self.novelty,
+            "provisional_names": self.provisional_names,
+            "evidence_refs": self.evidence_refs,
+        }
 
     @field_validator("scope")
     @classmethod
@@ -167,8 +543,116 @@ class ADLFormalSealBlock(BaseModel):
     verified_by: str | None = None
 
 
-# Union type for all ADL blocks
+# Union type for all L3 blocks
 ADLBlock = ADLRelationBlock | ADLEvidenceBlock | ADLFormalSealBlock
+
+
+# ---------------------------------------------------------------------------
+# L4: Action Blocks (embedded ```adl:action blocks, Milestone 2d)
+# ---------------------------------------------------------------------------
+
+class ActionExecStatus(str, Enum):
+    """Execution status for L4 action blocks."""
+    PENDING = "pending"
+    EXECUTED = "executed"
+    FAILED = "failed"
+    REVERTED = "reverted"
+
+
+class Comparator(str, Enum):
+    """Comparison operators for precondition rules."""
+    EQ = "eq"
+    NEQ = "neq"
+    GT = "gt"
+    GTE = "gte"
+    LT = "lt"
+    LTE = "lte"
+    IN = "in"
+    EXISTS = "exists"
+
+
+class PreconditionRule(BaseModel):
+    """
+    A single precondition rule in the action ontology registry.
+    Checked against ADLFrontMatter fields at execution time.
+    """
+    field: str = Field(..., description="ADLFrontMatter field name, e.g. 'confidence'")
+    comparator: Comparator = Field(..., description="Comparison operator")
+    value: Any = Field(default=None, description="Expected value (ignored for EXISTS)")
+
+    def check(self, fm: ADLFrontMatter) -> bool:
+        """Evaluate this rule against a front-matter instance."""
+        actual = getattr(fm, self.field, None)
+
+        if self.comparator == Comparator.EXISTS:
+            return actual is not None
+
+        if self.comparator == Comparator.IN:
+            target_list = self.value if isinstance(self.value, list) else [self.value]
+            return actual in target_list
+
+        if actual is None:
+            return False
+
+        _ops = {
+            Comparator.EQ: lambda a, v: a == v,
+            Comparator.NEQ: lambda a, v: a != v,
+            Comparator.GT: lambda a, v: a > v,
+            Comparator.GTE: lambda a, v: a >= v,
+            Comparator.LT: lambda a, v: a < v,
+            Comparator.LTE: lambda a, v: a <= v,
+        }
+        return _ops[self.comparator](actual, self.value)
+
+
+class ActionDef(BaseModel):
+    """Canonical action definition loaded from adl_core_ontology.yaml."""
+    name: str
+    description: str = ""
+    allowed_on: list[str] = Field(default_factory=list)
+    triggers_transition: str | None = None
+    required_params: list[str] = Field(default_factory=list)
+    preconditions: list[PreconditionRule] = Field(default_factory=list)
+    side_effects: list[str] = Field(default_factory=list)
+
+
+class ExecutionEntry(BaseModel):
+    """A single execution log entry for an action block."""
+    timestamp: datetime = Field(default_factory=lambda: datetime.utcnow())
+    executor: str = "system"
+    side_effect: str
+    result: str = "success"  # success | failure
+    detail: str | None = None
+
+
+class ADLActionBlock(BaseModel):
+    """
+    L4 Action Block — typed action with side effects.
+
+    Syntax: ```adl:action
+    id: validate
+    actor: agent_3
+    reasoning: "..."
+    params:
+      ...
+    ```
+    """
+    block_type: Literal["action"] = "action"
+    action_block_id: str = Field(
+        default="",
+        description="Unique idempotency key (auto-generated or explicit)"
+    )
+    action: str = Field(..., description="Action name, must be in ontology registry")
+    actor: str = Field(..., description="Agent or human identifier")
+    reasoning: str = ""
+    timestamp: str | None = None
+    params: dict[str, Any] = Field(default_factory=dict)
+    exec_status: ActionExecStatus = Field(default=ActionExecStatus.PENDING)
+    execution_log: list[ExecutionEntry] = Field(default_factory=list)
+
+
+# Union type for all blocks (L3 + L4)
+AllBlocks = ADLRelationBlock | ADLEvidenceBlock | ADLFormalSealBlock | ADLActionBlock
 
 
 # ---------------------------------------------------------------------------
@@ -210,11 +694,16 @@ class ConceptSkeleton(BaseModel):
 class ADLDocument(BaseModel):
     """
     Complete in-memory representation of an ADL Lite document.
-    Decomposes into L1 (front_matter) + L2 (markdown_body) + L3 (adl_blocks).
+
+    L1 (front_matter) + L2 (markdown_body) + L3 (adl_blocks) + L4 (action_blocks).
+
+    Philosophy: The EventChain IS the concept. FrontMatter is a derived snapshot.
+    Status/confidence are computed from the chain, not stored as mutable fields.
     """
     front_matter: ADLFrontMatter
     markdown_body: str = ""
     adl_blocks: list[ADLBlock] = Field(default_factory=list)
+    action_blocks: list[ADLActionBlock] = Field(default_factory=list)
     source_path: str | None = None
 
     # --- Computed properties ---
@@ -222,6 +711,17 @@ class ADLDocument(BaseModel):
     @property
     def adl_id(self) -> str:
         return self.front_matter.adl_id
+
+    @property
+    def event_chain(self) -> EventChain:
+        return EventChain.from_parsed(
+            concept_id=self.adl_id,
+            front_matter=self.front_matter,
+            l3_blocks=self.adl_blocks,
+            action_blocks=self.action_blocks,
+            markdown_body=self.markdown_body,
+            source_path=self.source_path,
+        )
 
     @property
     def status(self) -> DiscoveryStatus:
@@ -250,11 +750,26 @@ class ADLDocument(BaseModel):
         return [b for b in self.adl_blocks if isinstance(b, ADLFormalSealBlock)]
 
     @property
+    def actions(self) -> list[ADLActionBlock]:
+        return self.action_blocks
+
+    @property
+    def pending_actions(self) -> list[ADLActionBlock]:
+        return [a for a in self.action_blocks if a.exec_status == ActionExecStatus.PENDING]
+
+    @property
     def wiki_links(self) -> list[str]:
         """L2 wiki-link slugs extracted from markdown body."""
         from .parser import extract_wiki_links
 
         return extract_wiki_links(self.markdown_body)
+
+    def refresh_snapshot(self, chain: EventChain | None = None) -> None:
+        c = chain or self.event_chain
+        self.front_matter = ADLFrontMatter.from_chain(
+            c, adl_type=self.front_matter.adl_type,
+            identity=self.front_matter.identity_dict(),
+        )
 
     def to_skeleton(self) -> ConceptSkeleton:
         """Derive the Hot-storage skeleton from this document."""

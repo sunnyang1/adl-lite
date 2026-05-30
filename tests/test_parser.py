@@ -116,12 +116,13 @@ class TestParser:
     def test_extract_adl_blocks(self):
         parser = ADLParser()
         _, body = parser._split_front_matter(SAMPLE_DOC)
-        blocks, clean_body = parser._extract_adl_blocks(body)
+        l3_blocks, action_blocks, clean_body = parser._extract_adl_blocks(body)
 
-        assert len(blocks) == 3
-        assert isinstance(blocks[0], ADLRelationBlock)
-        assert isinstance(blocks[1], ADLEvidenceBlock)
-        assert isinstance(blocks[2], ADLFormalSealBlock)
+        assert len(l3_blocks) == 3
+        assert len(action_blocks) == 0  # SAMPLE_DOC has no action blocks
+        assert isinstance(l3_blocks[0], ADLRelationBlock)
+        assert isinstance(l3_blocks[1], ADLEvidenceBlock)
+        assert isinstance(l3_blocks[2], ADLFormalSealBlock)
 
         # Clean body should not contain adl blocks
         assert "```adl:" not in clean_body
