@@ -151,65 +151,16 @@ def run_llm_pipeline(
     max_retries: int = 1,
     depth: int = 2,
 ) -> PipelineSummary:
-    """Optional LLM discovery; skips gracefully when no API key is set."""
-    from experiments.llm_harness import llm_available, run_llm_sim
-
-    if not llm_available():
-        return PipelineSummary(
-            mode="llm",
-            db_path=db_path,
-            documents=[],
-            query_id="",
-            related=[],
-            llm_status="skipped",
-            skipped=True,
-            skip_reason="No LLM API key (set MIMO_API_KEY or OPENAI_API_KEY)",
-        )
-
-    result = run_llm_sim(model=model, max_retries=max_retries)
-    if result.status == "skipped":
-        return PipelineSummary(
-            mode="llm",
-            db_path=db_path,
-            documents=[],
-            query_id="",
-            related=[],
-            llm_status="skipped",
-            skipped=True,
-            skip_reason=result.detail.get("reason", "LLM unavailable"),
-        )
-
-    if result.status != "completed" or not result.discovery_path:
-        reason = "; ".join(result.errors) or result.status
-        return PipelineSummary(
-            mode="llm",
-            db_path=db_path,
-            documents=[],
-            query_id="",
-            related=[],
-            llm_status=result.status,
-            skipped=True,
-            skip_reason=reason,
-        )
-
-    validator = ADLValidator()
-    mem = ADLMemory(db_path=str(db_path))
-    doc_results = [_parse_validate_store(result.discovery_path, validator, mem)]
-    for path in SUPPORTING_DOCS:
-        doc_results.append(_parse_validate_store(path, validator, mem))
-
-    query_id = doc_results[0].adl_id
-    query_key = _resolve_query_key(mem, query_id) if query_id else ""
-    related = mem.find_related(query_key, depth=depth) if query_key else []
-    mem.close()
-
+    """Optional LLM discovery; archived to archive/experiments/llm_harness.py (Phase 3)."""
     return PipelineSummary(
         mode="llm",
         db_path=db_path,
-        documents=doc_results,
-        query_id=query_id,
-        related=related,
-        llm_status=result.status,
+        documents=[],
+        query_id="",
+        related=[],
+        llm_status="deferred",
+        skipped=True,
+        skip_reason="LLM harness archived (see archive/experiments/llm_harness.py)",
     )
 
 

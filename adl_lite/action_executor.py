@@ -57,43 +57,71 @@ class SideEffect(Protocol):
 
 
 # ---------------------------------------------------------------------------
-# Built-in side effects (no-op stubs — replace with real backends)
+# Built-in side effects — dispatched to Lark bridge
 # ---------------------------------------------------------------------------
 
 class LarkAnnounceEffect(SideEffect):
-    """Broadcast concept to an IM chat room."""
+    """Broadcast concept to an IM chat room via lark-cli."""
     name = "lark_announce"
 
     def execute(self, doc, action, params):
         chat_id = params.get("chat_id", "")
         if not chat_id:
             return SideEffectResult(False, "Missing chat_id for lark_announce")
-        # TODO: dispatch to adl_lite.lark.announce via subprocess or import
-        return SideEffectResult(True, f"Announced {doc.adl_id} to {chat_id}")
+        try:
+            from .lark.announce import announce
+            announce(
+                concept_id=doc.adl_id,
+                chat_id=chat_id,
+                template=params.get("template", "discovery_broadcast"),
+                title=doc.concept_name,
+            )
+            return SideEffectResult(True, f"Announced {doc.adl_id} to {chat_id}")
+        except Exception as exc:
+            return SideEffectResult(False, f"lark_announce failed: {exc}")
 
 
 class LarkPublishEffect(SideEffect):
-    """Publish concept document to Feishu knowledge base."""
+    """Publish concept document to Feishu knowledge base via lark-cli."""
     name = "lark_publish"
 
     def execute(self, doc, action, params):
         wiki_space = params.get("wiki_space", "")
         if not wiki_space:
             return SideEffectResult(False, "Missing wiki_space for lark_publish")
-        # TODO: dispatch to adl_lite.lark.publish
-        return SideEffectResult(True, f"Published {doc.adl_id} to {wiki_space}")
+        source_path = doc.source_path
+        if not source_path:
+            return SideEffectResult(False, "No source_path on document, cannot publish")
+        try:
+            from .lark.publish import publish_file
+            publish_file(
+                source_path,
+                wiki_space=wiki_space,
+            )
+            return SideEffectResult(True, f"Published {doc.adl_id} to {wiki_space}")
+        except Exception as exc:
+            return SideEffectResult(False, f"lark_publish failed: {exc}")
 
 
 class LarkDashboardEffect(SideEffect):
-    """Sync concept status to a Feishu dashboard sheet."""
+    """Sync concept status to a Feishu dashboard sheet via lark-cli."""
     name = "lark_dashboard"
 
     def execute(self, doc, action, params):
         sheet_id = params.get("sheet_id", "")
         if not sheet_id:
             return SideEffectResult(False, "Missing sheet_id for lark_dashboard")
-        # TODO: dispatch to adl_lite.lark.dashboard
-        return SideEffectResult(True, f"Synced {doc.adl_id} to {sheet_id}")
+        try:
+            from .lark.dashboard import sync_dashboard_row
+            sync_dashboard_row(
+                adl_id=doc.adl_id,
+                status=doc.front_matter.status.value,
+                confidence=doc.front_matter.confidence,
+                sheet_id=sheet_id,
+            )
+            return SideEffectResult(True, f"Synced {doc.adl_id} to dashboard {sheet_id}")
+        except Exception as exc:
+            return SideEffectResult(False, f"lark_dashboard failed: {exc}")
 
 
 class ConsensusUpdateEffect(SideEffect):
@@ -104,8 +132,15 @@ class ConsensusUpdateEffect(SideEffect):
         feedback_file = params.get("feedback_file", "")
         if not feedback_file:
             return SideEffectResult(False, "Missing feedback_file for consensus_update")
-        # TODO: dispatch to adl_lite.lark.listen pipeline
-        return SideEffectResult(True, f"Processed feedback from {feedback_file}")
+        try:
+            from .lark.listen import listen
+            listen(
+                feedback_file=feedback_file,
+                adl_id=doc.adl_id,
+            )
+            return SideEffectResult(True, f"Processed feedback from {feedback_file}")
+        except Exception as exc:
+            return SideEffectResult(False, f"consensus_update failed: {exc}")
 
 
 # ---------------------------------------------------------------------------

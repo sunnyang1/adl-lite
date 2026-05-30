@@ -7,7 +7,12 @@ import tempfile
 from pathlib import Path
 
 from experiments.harness import ScriptedHarness, run_scripted_sim
-from experiments.run_all import run_all
+from experiments.registry import get, list_all, instantiate
+
+# Import experiment modules to trigger @register decorators
+import experiments.e1_chain_integrity   # noqa: F401
+import experiments.e2_status_derivation  # noqa: F401
+import experiments.e4_precondition       # noqa: F401
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
@@ -47,11 +52,18 @@ class TestScriptedHarness:
         harness.close()
 
 
-class TestRunAll:
-    def test_run_all_returns_all_rqs(self):
-        summary = run_all()
-        assert "rq1_ambiguity" in summary
-        assert "rq2_consensus" in summary
-        assert "rq3_retrieval" in summary
-        assert "rq4_leakage" in summary
-        assert summary["rq4_leakage"]["adl_leaks"] == 0
+class TestExperimentRegistry:
+    def test_all_experiments_registered(self):
+        items = list_all()
+        ids = {item["id"] for item in items}
+        # At minimum E1, E2, E4 are always imported
+        assert ids >= {"E1", "E2", "E4"}
+        assert all(item["name"] for item in items)
+
+    def test_instantiate_runs(self):
+        # E1, E2, E4 are self-contained (no data files needed)
+        for eid in ["E1", "E2", "E4"]:
+            exp = instantiate(eid)
+            assert exp is not None, f"Could not instantiate {eid}"
+            result = exp._run_wrapper()
+            assert result.status in ("passed", "partial"), f"{eid} failed: {result.errors}"
