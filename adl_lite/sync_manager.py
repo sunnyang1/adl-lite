@@ -17,16 +17,16 @@ Design principle (event-first):
 
 from __future__ import annotations
 
-import heapq
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Any, Callable
+from typing import Any
 
 from .models import Event, EventChain, EventType
-
 
 # ---------------------------------------------------------------------------
 # Side Effect Queue (buffers network-dependent effects)
 # ---------------------------------------------------------------------------
+
 
 class QueuedEffect:
     """A side effect that could not execute (e.g., offline)."""
@@ -116,6 +116,7 @@ class SideEffectQueue:
 # Sync Manager (edge ↔ center merge)
 # ---------------------------------------------------------------------------
 
+
 class SyncManager:
     """
     Merges EventChains from multiple edge nodes.
@@ -167,8 +168,9 @@ class SyncManager:
                     seen.add(event.event_id)
                     all_events.append(event)
 
-        # Sort by timestamp then event_id (deterministic tie-break)
-        all_events.sort(key=lambda e: (e.timestamp, e.event_id))
+        # Sort by timestamp, then by SHA-256 hash for deterministic ordering
+        # across machines (event_id is uuid4, non-deterministic)
+        all_events.sort(key=lambda e: (e.timestamp, e.hash))
 
         # Rebuild unified chain
         unified = EventChain(concept_id=self.concept_id)
@@ -202,7 +204,7 @@ class SyncManager:
         updated = EventChain(concept_id=center_chain.concept_id)
         for e in center_chain.events:
             updated.append(e)
-        for e in sorted(new_events, key=lambda e: (e.timestamp, e.event_id)):
+        for e in sorted(new_events, key=lambda e: (e.timestamp, e.hash)):
             updated.append(e)
         return updated
 
@@ -219,7 +221,7 @@ class SyncManager:
         updated = EventChain(concept_id=edge_chain.concept_id)
         for e in edge_chain.events:
             updated.append(e)
-        for e in sorted(new_events, key=lambda e: (e.timestamp, e.event_id)):
+        for e in sorted(new_events, key=lambda e: (e.timestamp, e.hash)):
             updated.append(e)
         return updated
 
@@ -235,6 +237,7 @@ class SyncManager:
 # ---------------------------------------------------------------------------
 # Offline-first Edge Node (composes chain + queue + watcher)
 # ---------------------------------------------------------------------------
+
 
 class EdgeNode:
     """
@@ -307,18 +310,21 @@ class EdgeNode:
         try:
             if effect_name == "lark_announce":
                 from .lark.announce import announce
+
                 chat_id = params.get("chat_id", "")
                 if chat_id:
                     announce(concept_id=concept_id, chat_id=chat_id)
                     return True
             elif effect_name == "lark_dashboard":
                 from .lark.dashboard import sync_dashboard_row
+
                 sheet_id = params.get("sheet_id", "")
                 if sheet_id:
                     sync_dashboard_row(adl_id=concept_id, sheet_id=sheet_id)
                     return True
             elif effect_name == "lark_publish":
                 from .lark.publish import publish_file
+
                 wiki_space = params.get("wiki_space", "")
                 if wiki_space:
                     publish_file(params.get("source_path", ""), wiki_space=wiki_space)

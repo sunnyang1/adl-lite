@@ -26,6 +26,7 @@ from .models import ADLDocument, ADLRelationBlock, ConceptSkeleton, DiscoverySta
 # Optional NetworkX — gracefully degrade if absent
 try:
     import networkx as nx
+
     HAS_NETWORKX = True
 except ImportError:  # pragma: no cover
     HAS_NETWORKX = False
@@ -34,6 +35,7 @@ except ImportError:  # pragma: no cover
 # ---------------------------------------------------------------------------
 # Hot Layer — In-Memory Skeleton Index
 # ---------------------------------------------------------------------------
+
 
 class HotIndex:
     """
@@ -95,6 +97,7 @@ class HotIndex:
 # Warm Layer — SQLite + Relation Graph
 # ---------------------------------------------------------------------------
 
+
 class WarmIndex:
     """
     Persistent storage for full ADL documents and their relation graph.
@@ -133,6 +136,7 @@ class WarmIndex:
 
     def __init__(self, db_path: str = ":memory:") -> None:
         self.db_path = db_path
+        self._lock = threading.RLock()
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(self.SCHEMA)
@@ -144,49 +148,54 @@ class WarmIndex:
     # Document storage
 
     def insert_document(self, doc: ADLDocument) -> None:
-        fm = doc.front_matter
-        self.conn.execute(
-            """
-            INSERT OR REPLACE INTO documents
-            (adl_id, adl_type, status, scope, domain, confidence, novelty, created_at, updated_at, raw_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                fm.adl_id,
-                fm.adl_type.value,
-                fm.status.value,
-                fm.scope,
-                fm.domain,
-                fm.confidence,
-                fm.novelty,
-                fm.created_at,
-                fm.updated_at,
-                doc.model_dump_json(),
-            ),
-        )
-        self.conn.commit()
+        with self._lock:
+            fm = doc.front_matter
+            self.conn.execute(
+                """
+                INSERT OR REPLACE INTO documents
+                (adl_id, adl_type, status, scope, domain, confidence, novelty, created_at, updated_at, raw_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    fm.adl_id,
+                    fm.adl_type.value,
+                    fm.status.value,
+                    fm.scope,
+                    fm.domain,
+                    fm.confidence,
+                    fm.novelty,
+                    fm.created_at,
+                    fm.updated_at,
+                    doc.model_dump_json(),
+                ),
+            )
+            self.conn.commit()
 
-        # Index relations into graph
-        for rel in doc.relations:
-            self._add_relation(rel)
+            # Index relations into graph
+            for rel in doc.relations:
+                self._add_relation(rel)
 
     def get_document(self, adl_id: str) -> ADLDocument | None:
-        row = self.conn.execute(
-            "SELECT raw_json FROM documents WHERE adl_id = ?", (adl_id,)
-        ).fetchone()
-        if row is None:
-            return None
-        data = json.loads(row["raw_json"])
-        return ADLDocument(**data)
+        with self._lock:
+            row = self.conn.execute(
+                "SELECT raw_json FROM documents WHERE adl_id = ?", (adl_id,)
+            ).fetchone()
+            if row is None:
+                return None
+            data = json.loads(row["raw_json"])
+            return ADLDocument(**data)
 
     def delete_document(self, adl_id: str) -> None:
-        self.conn.execute("DELETE FROM documents WHERE adl_id = ?", (adl_id,))
-        self.conn.execute("DELETE FROM relations WHERE source = ? OR target = ?", (adl_id, adl_id))
-        self.conn.commit()
+        with self._lock:
+            self.conn.execute("DELETE FROM documents WHERE adl_id = ?", (adl_id,))
+            self.conn.execute(
+                "DELETE FROM relations WHERE source = ? OR target = ?", (adl_id, adl_id)
+            )
+            self.conn.commit()
 
-        if self.graph and HAS_NETWORKX:
-            if adl_id in self.graph:
-                self.graph.remove_node(adl_id)
+            if self.graph and HAS_NETWORKX:
+                if adl_id in self.graph:
+                    self.graph.remove_node(adl_id)
 
     # Relation graph
 
@@ -201,18 +210,19 @@ class WarmIndex:
         self.conn.commit()
 
         if self.graph and HAS_NETWORKX:
-            self.graph.add_edge(rel.source, rel.target, relation=rel.relation, confidence=rel.confidence)
+            self.graph.add_edge(
+                rel.source, rel.target, relation=rel.relation, confidence=rel.confidence
+            )
 
     def get_related(self, concept_id: str, depth: int = 1) -> list[tuple[str, str, float]]:
         """
-        BFS traversal of the relation graph.
+        BFS traversal of the relation graph. Thread-safe.
         Returns list of (related_concept, relation, confidence).
         """
-        if self.graph and HAS_NETWORKX:
-            return self._graph_bfs(concept_id, depth)
-
-        # Fallback: SQL traversal
-        return self._sql_bfs(concept_id, depth)
+        with self._lock:
+            if self.graph and HAS_NETWORKX:
+                return self._graph_bfs(concept_id, depth)
+            return self._sql_bfs(concept_id, depth)
 
     def _graph_bfs(self, concept_id: str, depth: int) -> list[tuple[str, str, float]]:
         if not HAS_NETWORKX or self.graph is None:
@@ -231,11 +241,13 @@ class WarmIndex:
                 if neighbor not in visited:
                     visited.add(neighbor)
                     edge_data = self.graph.edges[current, neighbor]
-                    results.append((
-                        neighbor,
-                        edge_data.get("relation", "related-to"),
-                        edge_data.get("confidence", 1.0),
-                    ))
+                    results.append(
+                        (
+                            neighbor,
+                            edge_data.get("relation", "related-to"),
+                            edge_data.get("confidence", 1.0),
+                        )
+                    )
                     queue.append((neighbor, d + 1))
 
         return results
@@ -280,7 +292,8 @@ class WarmIndex:
         scope_prefix: str | None = None,
     ) -> list[str]:
         """
-        Multi-stage pre-filtering returning candidate adl_ids.
+        Multi-stage pre-filtering returning candidate adl_ids. Thread-safe.
+        Scope prefix is escaped to prevent LIKE wildcard injection.
         """
         conditions = []
         params: list = []
@@ -292,15 +305,18 @@ class WarmIndex:
             conditions.append("domain = ?")
             params.append(domain)
         if scope_prefix:
-            conditions.append("scope LIKE ?")
-            params.append(f"{scope_prefix}%")
+            conditions.append("scope LIKE ? ESCAPE '\\'")
+            # Escape LIKE wildcards: % → \%, _ → \_
+            escaped = scope_prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            params.append(f"{escaped}%")
 
         where_clause = " AND ".join(conditions) if conditions else "1=1"
 
-        rows = self.conn.execute(
-            f"SELECT adl_id FROM documents WHERE {where_clause}",
-            params,
-        ).fetchall()
+        with self._lock:
+            rows = self.conn.execute(
+                f"SELECT adl_id FROM documents WHERE {where_clause}",
+                params,
+            ).fetchall()
 
         return [row["adl_id"] for row in rows]
 
@@ -311,6 +327,7 @@ class WarmIndex:
 # ---------------------------------------------------------------------------
 # Unified Memory Interface
 # ---------------------------------------------------------------------------
+
 
 class ADLMemory:
     """
@@ -344,9 +361,7 @@ class ADLMemory:
         self.hot.remove(adl_id)
         self.warm.delete_document(adl_id)
 
-    def find_related(
-        self, adl_id: str, depth: int = 1
-    ) -> list[tuple[str, str, float]]:
+    def find_related(self, adl_id: str, depth: int = 1) -> list[tuple[str, str, float]]:
         """Graph traversal for related concepts."""
         return self.warm.get_related(adl_id, depth)
 
@@ -366,7 +381,12 @@ class ADLMemory:
 
         # Fallback: warm cascade
         ids = self.warm.cascade_filter(status, domain, scope_prefix)
-        return [self.hot.get(i) for i in ids if self.hot.get(i)]
+        results: list[ConceptSkeleton] = []
+        for i in ids:
+            sk = self.hot.get(i)
+            if sk is not None:
+                results.append(sk)
+        return results
 
     def close(self) -> None:
         self.hot.clear()

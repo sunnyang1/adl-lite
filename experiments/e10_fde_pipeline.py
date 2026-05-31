@@ -12,20 +12,24 @@ Tests the complete Palantir FDE-equivalent pipeline end-to-end:
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
+
+from adl_lite.action_executor import ActionExecutor
+from adl_lite.consensus import ConsensusEngine
+from adl_lite.data_importer import DataImporter
+from adl_lite.models import (
+    ADLActionBlock,
+    ADLDocument,
+    ADLFrontMatter,
+    ADLType,
+    Event,
+    EventType,
+    ProvisionalNames,
+)
+from adl_lite.ontology import OntologyManager
 
 from .base import BaseExperiment, ExperimentResult
 from .registry import register
-
-from adl_lite.data_importer import DataImporter
-from adl_lite.models import (
-    ADLDocument, ADLFrontMatter, ADLType, ADLActionBlock,
-    Event, EventChain, EventType, DiscoveryStatus, ProvisionalNames,
-)
-from adl_lite.action_executor import ActionExecutor
-from adl_lite.ontology import OntologyManager
-from adl_lite.consensus import ConsensusEngine
 
 IBM_DATA = Path(__file__).resolve().parent.parent / "data" / "aml" / "ibm_data"
 
@@ -39,7 +43,8 @@ class E10FullFDEPipeline(BaseExperiment):
     def run(self) -> ExperimentResult:
         if not (IBM_DATA / "HI-Small_Trans.csv").is_file():
             return ExperimentResult(
-                experiment_id="E10", status="failed",
+                experiment_id="E10",
+                status="failed",
                 errors=["IBM AML data not found. Run kaggle download first."],
             )
 
@@ -60,32 +65,56 @@ class E10FullFDEPipeline(BaseExperiment):
         )
         total_accounts = len(chains)
         if total_accounts < 10:
-            return ExperimentResult(experiment_id="E10", status="failed",
-                                    errors=[f"Only {total_accounts} accounts imported"])
+            return ExperimentResult(
+                experiment_id="E10",
+                status="failed",
+                errors=[f"Only {total_accounts} accounts imported"],
+            )
 
         # Phase 2: Discover ontology
         classes = DataImporter.discover_classes(chains)
         links = DataImporter.discover_links(chains)
 
-        # Phase 3: Generate concept documents (top 5 accounts by event count)
+        # Phase 3: Generate concept documents (top 5000 accounts by event count, ~1% of total)
         sorted_chains = sorted(chains.items(), key=lambda x: x[1].length, reverse=True)
+        sample_size = min(5000, len(sorted_chains))
         concepts: list[ADLDocument] = []
-        for concept_id, chain in sorted_chains[:5]:
+        for concept_id, chain in sorted_chains[:sample_size]:
+            # Compute data-driven confidence from actual patterns in the chain
+            laundering_count = sum(
+                1 for e in chain.events if str(e.payload.get("Is Laundering", "0")).strip() == "1"
+            )
+            # Confidence from laundering density (min 0.5 for accounts with ≥5 laundering events)
+            derived_confidence = min(1.0, max(0.0, laundering_count / max(chain.length, 1)))
+            if laundering_count >= 5:
+                derived_confidence = max(derived_confidence, 0.5)
+
+            # Append a SNAPSHOT event carrying the derived confidence —
+            # chain is source of truth, not front_matter override.
+            if derived_confidence >= 0.5:
+                chain.append(
+                    Event(
+                        concept_id=concept_id,
+                        event_type=EventType.SNAPSHOT,
+                        actor="fde-pipeline",
+                        reasoning="Confidence derived from laundering pattern density",
+                        payload={"confidence": derived_confidence, "synthetic": True},
+                    )
+                )
+
             doc = ADLDocument(
                 front_matter=ADLFrontMatter(
                     adl_type=ADLType.CONCEPT,
                     adl_id=concept_id,
                     scope="private/fde-test",
-                    confidence=0.7,  # Explicit: ensure validate preconditions pass
                     provisional_names=ProvisionalNames(en=f"Account {concept_id}"),
                     domain="financial_aml",
                 ),
                 markdown_body=f"# Account {concept_id}\n\nAuto-generated from IBM AML data.\n",
                 action_blocks=[],
             )
-            # Derive front matter from chain but preserve explicit confidence
+            # Derive ALL front matter from the chain
             doc.refresh_snapshot(chain)
-            doc.front_matter.confidence = 0.7  # Override chain-derived confidence
             concepts.append(doc)
 
         # Phase 4: Register concepts in consensus engine
@@ -111,13 +140,15 @@ class E10FullFDEPipeline(BaseExperiment):
                 # Append validate event to chain
                 chain = chains.get(doc.adl_id)
                 if chain:
-                    chain.append(Event(
-                        concept_id=doc.adl_id,
-                        event_type=EventType.VALIDATE,
-                        actor="fde-pipeline",
-                        reasoning="FDE pipeline validation",
-                        payload={"confidence": 0.8},
-                    ))
+                    chain.append(
+                        Event(
+                            concept_id=doc.adl_id,
+                            event_type=EventType.VALIDATE,
+                            actor="fde-pipeline",
+                            reasoning="FDE pipeline validation",
+                            payload={"confidence": 0.8},
+                        )
+                    )
                     doc.refresh_snapshot(chain)
 
         # Phase 6: Verify integrity
@@ -127,41 +158,59 @@ class E10FullFDEPipeline(BaseExperiment):
             if chain and chain.verify_integrity():
                 integrity_ok += 1
 
-        results.append({
-            "phase": "import",
-            "accounts": total_accounts,
-            "events": sum(c.length for c in chains.values()),
-        })
-        results.append({
-            "phase": "ontology",
-            "classes_discovered": len(classes),
-            "links_discovered": len(links),
-        })
-        results.append({
-            "phase": "concepts_generated",
-            "count": len(concepts),
-        })
-        results.append({
-            "phase": "consensus",
-            "registered": registered,
-        })
-        results.append({
-            "phase": "actions",
-            "validated": validated,
-        })
-        results.append({
-            "phase": "integrity",
-            "chains_ok": integrity_ok,
-            "total": len(concepts),
-        })
+        results.append(
+            {
+                "phase": "import",
+                "accounts": total_accounts,
+                "events": sum(c.length for c in chains.values()),
+            }
+        )
+        results.append(
+            {
+                "phase": "ontology",
+                "classes_discovered": len(classes),
+                "links_discovered": len(links),
+            }
+        )
+        results.append(
+            {
+                "phase": "concepts_generated",
+                "count": len(concepts),
+            }
+        )
+        results.append(
+            {
+                "phase": "consensus",
+                "registered": registered,
+            }
+        )
+        results.append(
+            {
+                "phase": "actions",
+                "validated": validated,
+            }
+        )
+        results.append(
+            {
+                "phase": "integrity",
+                "chains_ok": integrity_ok,
+                "total": len(concepts),
+            }
+        )
 
-        all_ok = integrity_ok == len(concepts) and validated >= 3 and registered >= 4
+        all_ok = (
+            integrity_ok == len(concepts)
+            and validated >= sample_size * 0.6
+            and registered >= sample_size * 0.8
+        )
 
         return ExperimentResult(
             experiment_id="E10",
             status="passed" if all_ok else "partial",
             metrics={
                 "accounts_imported": total_accounts,
+                "pipeline_sample_size": sample_size,
+                "pipeline_pct": round(sample_size / total_accounts * 100, 2),
                 "classes_discovered": len(classes),
                 "links_discovered": len(links),
                 "concepts_generated": len(concepts),

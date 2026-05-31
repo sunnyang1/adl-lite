@@ -10,10 +10,10 @@ Tests SideEffectQueue under load:
 
 from __future__ import annotations
 
+from adl_lite.sync_manager import QueuedEffect, SideEffectQueue
+
 from .base import BaseExperiment, ExperimentResult
 from .registry import register
-
-from adl_lite.sync_manager import SideEffectQueue, QueuedEffect
 
 
 @register("E11")

@@ -12,14 +12,18 @@ then measure validate_action() results.
 
 from __future__ import annotations
 
-from .base import BaseExperiment, ExperimentResult
-from .registry import register
-
 from adl_lite.action_executor import ActionExecutor
 from adl_lite.models import (
-    ADLActionBlock, ADLDocument, ADLFrontMatter, ADLType, DiscoveryStatus,
+    ADLActionBlock,
+    ADLDocument,
+    ADLFrontMatter,
+    ADLType,
+    DiscoveryStatus,
 )
 from adl_lite.ontology import OntologyManager
+
+from .base import BaseExperiment, ExperimentResult
+from .registry import register
 
 
 def _make_doc(confidence: float, status: DiscoveryStatus) -> ADLDocument:
@@ -62,24 +66,147 @@ class E4PreconditionEnforcement(BaseExperiment):
         test_cases = [
             # (action_name, doc_factory, params, should_pass, label)
             # --- validate (requires confidence>=0.5, status=provisional) ---
-            ("validate", lambda: _make_doc(0.8, DiscoveryStatus.PROVISIONAL), {}, True, "validate_pass"),
-            ("validate", lambda: _make_doc(0.3, DiscoveryStatus.PROVISIONAL), {}, False, "validate_low_confidence"),
-            ("validate", lambda: _make_doc(0.8, DiscoveryStatus.VALIDATED), {}, False, "validate_wrong_status"),
+            (
+                "validate",
+                lambda: _make_doc(0.8, DiscoveryStatus.PROVISIONAL),
+                {},
+                True,
+                "validate_pass",
+            ),
+            (
+                "validate",
+                lambda: _make_doc(0.3, DiscoveryStatus.PROVISIONAL),
+                {},
+                False,
+                "validate_low_confidence",
+            ),
+            (
+                "validate",
+                lambda: _make_doc(0.8, DiscoveryStatus.VALIDATED),
+                {},
+                False,
+                "validate_wrong_status",
+            ),
             # --- deprecate (requires status=validated) ---
-            ("deprecate", lambda: _make_doc(0.8, DiscoveryStatus.VALIDATED), {"reason": "obsolete"}, True, "deprecate_pass"),
-            ("deprecate", lambda: _make_doc(0.8, DiscoveryStatus.PROVISIONAL), {"reason": "obsolete"}, False, "deprecate_wrong_status"),
-            ("deprecate", lambda: _make_doc(0.8, DiscoveryStatus.VALIDATED), {}, False, "deprecate_missing_reason"),
+            (
+                "deprecate",
+                lambda: _make_doc(0.8, DiscoveryStatus.VALIDATED),
+                {"reason": "obsolete"},
+                True,
+                "deprecate_pass",
+            ),
+            (
+                "deprecate",
+                lambda: _make_doc(0.8, DiscoveryStatus.PROVISIONAL),
+                {"reason": "obsolete"},
+                False,
+                "deprecate_wrong_status",
+            ),
+            (
+                "deprecate",
+                lambda: _make_doc(0.8, DiscoveryStatus.VALIDATED),
+                {},
+                False,
+                "deprecate_missing_reason",
+            ),
             # --- fork (requires status=provisional, requires fork_id + rationale) ---
-            ("fork", lambda: _make_doc(0.5, DiscoveryStatus.PROVISIONAL), {"fork_id": "f1", "rationale": "alt"}, True, "fork_pass"),
-            ("fork", lambda: _make_doc(0.5, DiscoveryStatus.VALIDATED), {"fork_id": "f1", "rationale": "alt"}, False, "fork_wrong_status"),
+            (
+                "fork",
+                lambda: _make_doc(0.5, DiscoveryStatus.PROVISIONAL),
+                {"fork_id": "f1", "rationale": "alt"},
+                True,
+                "fork_pass",
+            ),
+            (
+                "fork",
+                lambda: _make_doc(0.5, DiscoveryStatus.VALIDATED),
+                {"fork_id": "f1", "rationale": "alt"},
+                False,
+                "fork_wrong_status",
+            ),
             # --- announce (no preconditions, requires chat_id) ---
-            ("announce", lambda: _make_doc(0.0, DiscoveryStatus.PROVISIONAL), {"chat_id": "oc_test"}, True, "announce_pass"),
-            ("announce", lambda: _make_doc(0.0, DiscoveryStatus.PROVISIONAL), {}, False, "announce_missing_chat_id"),
+            (
+                "announce",
+                lambda: _make_doc(0.0, DiscoveryStatus.PROVISIONAL),
+                {"chat_id": "oc_test"},
+                True,
+                "announce_pass",
+            ),
+            (
+                "announce",
+                lambda: _make_doc(0.0, DiscoveryStatus.PROVISIONAL),
+                {},
+                False,
+                "announce_missing_chat_id",
+            ),
             # --- archive (requires status=deprecated) ---
-            ("archive", lambda: _make_doc(0.0, DiscoveryStatus.DEPRECATED), {}, True, "archive_pass"),
-            ("archive", lambda: _make_doc(0.0, DiscoveryStatus.PROVISIONAL), {}, False, "archive_wrong_status"),
+            (
+                "archive",
+                lambda: _make_doc(0.0, DiscoveryStatus.DEPRECATED),
+                {},
+                True,
+                "archive_pass",
+            ),
+            (
+                "archive",
+                lambda: _make_doc(0.0, DiscoveryStatus.PROVISIONAL),
+                {},
+                False,
+                "archive_wrong_status",
+            ),
+            # --- publish (no preconditions, requires wiki_space) ---
+            (
+                "publish",
+                lambda: _make_doc(0.0, DiscoveryStatus.PROVISIONAL),
+                {"wiki_space": "ws_test"},
+                True,
+                "publish_pass",
+            ),
+            (
+                "publish",
+                lambda: _make_doc(0.0, DiscoveryStatus.PROVISIONAL),
+                {},
+                False,
+                "publish_missing_wiki_space",
+            ),
+            # --- sync_dashboard (no preconditions, requires sheet_id) ---
+            (
+                "sync_dashboard",
+                lambda: _make_doc(0.0, DiscoveryStatus.PROVISIONAL),
+                {"sheet_id": "sh_test"},
+                True,
+                "sync_dashboard_pass",
+            ),
+            (
+                "sync_dashboard",
+                lambda: _make_doc(0.0, DiscoveryStatus.PROVISIONAL),
+                {},
+                False,
+                "sync_dashboard_missing_sheet_id",
+            ),
+            # --- listen (no preconditions, requires feedback_file) ---
+            (
+                "listen",
+                lambda: _make_doc(0.0, DiscoveryStatus.PROVISIONAL),
+                {"feedback_file": "fb.json"},
+                True,
+                "listen_pass",
+            ),
+            (
+                "listen",
+                lambda: _make_doc(0.0, DiscoveryStatus.PROVISIONAL),
+                {},
+                False,
+                "listen_missing_feedback_file",
+            ),
             # --- unknown action ---
-            ("nonexistent_action", lambda: _make_doc(0.0, DiscoveryStatus.PROVISIONAL), {}, False, "unknown_action"),
+            (
+                "nonexistent_action",
+                lambda: _make_doc(0.0, DiscoveryStatus.PROVISIONAL),
+                {},
+                False,
+                "unknown_action",
+            ),
         ]
 
         for action_name, doc_factory, params, should_pass, label in test_cases:
@@ -98,15 +225,25 @@ class E4PreconditionEnforcement(BaseExperiment):
             else:
                 true_negative += 1
 
-            results.append({
-                "label": label,
-                "should_pass": should_pass,
-                "actually_passed": actually_passed,
-                "errors": errors,
-            })
+            results.append(
+                {
+                    "label": label,
+                    "should_pass": should_pass,
+                    "actually_passed": actually_passed,
+                    "errors": errors,
+                }
+            )
 
-        precision = true_positive / (true_positive + false_positive) if (true_positive + false_positive) else 0.0
-        recall = true_positive / (true_positive + false_negative) if (true_positive + false_negative) else 0.0
+        precision = (
+            true_positive / (true_positive + false_positive)
+            if (true_positive + false_positive)
+            else 0.0
+        )
+        recall = (
+            true_positive / (true_positive + false_negative)
+            if (true_positive + false_negative)
+            else 0.0
+        )
         f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
         all_ok = precision == 1.0 and recall == 1.0
 

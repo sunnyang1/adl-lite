@@ -15,7 +15,7 @@ import json
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 from .models import Event, EventChain, EventType
 
@@ -58,8 +58,8 @@ class DataImporter:
                 if concept_id not in chains:
                     chains[concept_id] = EventChain(concept_id=concept_id)
 
-                actor = row.get(actor_field.strip('"'), "system") if actor_field else "system"
-                ts = row.get(timestamp_field.strip('"'), "") if timestamp_field else ""
+                actor = row.get(actor_field, "system") if actor_field else "system"
+                ts = row.get(timestamp_field, "") if timestamp_field else ""
                 if not ts:
                     ts = datetime.now(timezone.utc).isoformat()
 
@@ -68,16 +68,13 @@ class DataImporter:
                     event_type=event_type,
                     actor=actor,
                     timestamp=ts,
-                    payload={k.strip('"'): v.strip('"') if isinstance(v, str) else v
-                             for k, v in row.items()},
+                    payload=dict(row),
                 )
                 chains[concept_id].append(event)
 
         return chains
 
-    def import_json_events(
-        self, path: str | Path
-    ) -> list[Event]:
+    def import_json_events(self, path: str | Path) -> list[Event]:
         """Import a JSON Lines file where each line is an Event dict."""
         events: list[Event] = []
         with open(path, encoding="utf-8") as f:
@@ -93,27 +90,108 @@ class DataImporter:
 
     @staticmethod
     def discover_classes(
-        chains: dict[str, EventChain], id_field_pattern: str = "_id"
+        chains: dict[str, EventChain],
+        id_field_pattern: str = "_id",
+        *,
+        smart: bool = False,
     ) -> list[str]:
         """
-        Discover object types from event payload fields.
+        Discover entity classes from event payload fields.
 
-        Any field ending with '_id' (claim_id, account_id, ...) suggests
-        an entity class.
+        Two modes:
+          - Default (_id suffix): Any field ending with `id_field_pattern`.
+            Fast, precise on clean schemas, fails on dot-notation (e.g., "Account.1").
+          - Smart mode (smart=True): Multi-strategy heuristic combining:
+            (a) _id suffix fields (existing)
+            (b) Cardinality filtering: fields with 15-500 unique values,
+                representing 2-50% of total rows → entity-like
+            (c) Paired columns: "X" and "X.1" → entity "X" (sender/receiver)
+            (d) Common entity-indicator column names
         """
         classes: set[str] = set()
+
+        # Strategy (a): _id suffix fields
         for chain in chains.values():
             for event in chain.events:
                 for field in event.payload:
                     if field.lower().endswith(id_field_pattern):
                         class_name = field.replace("_id", "").replace(".", "_").title()
                         classes.add(class_name)
+
+        if smart:
+            from collections import Counter
+
+            total_events = sum(c.length for c in chains.values())
+
+            # Strategy (b): cardinality-based detection
+            field_cardinality: dict[str, Counter] = {}
+            for chain in chains.values():
+                for event in chain.events:
+                    for field, value in event.payload.items():
+                        if field not in field_cardinality:
+                            field_cardinality[field] = Counter()
+                        field_cardinality[field][value] += 1
+
+            for field, counter in field_cardinality.items():
+                n_unique = len(counter)
+                uniqueness_ratio = n_unique / total_events
+                # Entity columns: moderate cardinality (not too few, not too many)
+                if 15 <= n_unique <= 500 and 0.02 <= uniqueness_ratio <= 0.50:
+                    # Exclude obvious non-entity columns
+                    lower = field.lower()
+                    if not any(
+                        keyword in lower
+                        for keyword in ("amount", "currency", "timestamp", "date", "time")
+                    ):
+                        # Normalize dot-notation: "Account.1" → "Account"
+                        base = field.split(".")[0] if "." in field else field
+                        class_name = base.replace(".", "_").title()
+                        classes.add(class_name)
+
+            # Strategy (c): paired columns pattern (e.g., Account / Account.1)
+            paired_bases: set[str] = set()
+            all_fields = set(field_cardinality.keys())
+            for field in all_fields:
+                if "." in field:
+                    base = field.split(".")[0]
+                    if base in all_fields:
+                        paired_bases.add(base)
+            for base in paired_bases:
+                class_name = base.replace(".", "_").title()
+                classes.add(class_name)
+
+            # Strategy (d): common entity indicator names (whole-word match only)
+            entity_indicators = {
+                "account",
+                "bank",
+                "customer",
+                "merchant",
+                "branch",
+                "user",
+                "agent",
+                "counterparty",
+                "beneficiary",
+            }
+            # Directional prefixes to strip for normalization
+            _directional_prefixes = {"from ", "to ", "sending ", "receiving ", "source ", "target "}
+            for field in field_cardinality:
+                lower = field.lower().strip()
+                # Strip directional prefixes: "From Bank" → "Bank"
+                normalized = lower
+                for prefix in _directional_prefixes:
+                    if lower.startswith(prefix):
+                        normalized = lower[len(prefix) :]
+                        break
+                for indicator in entity_indicators:
+                    if normalized == indicator:
+                        class_name = indicator.title()
+                        classes.add(class_name)
+                        break
+
         return sorted(classes)
 
     @staticmethod
-    def discover_links(
-        chains: dict[str, EventChain]
-    ) -> list[tuple[str, str, str]]:
+    def discover_links(chains: dict[str, EventChain]) -> list[tuple[str, str, str]]:
         """
         Discover relationships from co-occurring fields in event payloads.
 

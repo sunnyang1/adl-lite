@@ -1,0 +1,53 @@
+{
+  "current_phase": 7,
+  "topic": "ADL Lite: An Event-First Operational Ontology for Multi-Agent Concept Consensus and Knowledge Graph Authoring",
+  "target_venue": "Semantic Web Journal (IOS Press, SCI Q1)",
+  "venue_requirements": {
+    "template": "IOS Press LaTeX",
+    "page_limit": 25,
+    "structure": ["Abstract", "Introduction", "Related Work", "ADL Lite Framework", "Implementation", "Experimental Evaluation", "Discussion", "Conclusion", "References"],
+    "keywords_required": true,
+    "double_blind": false,
+    "data_availability": "required"
+  },
+  "research_questions": [
+    "How can event-first ontology design (Wittgenstein Tractatus §1.1) replace object-first approaches in multi-agent knowledge graph authoring?",
+    "What syntax and semantics enable LLM agents to co-author structured knowledge graphs without requiring formal ontology training?",
+    "How can consensus emerge from append-only event chains rather than mutable shared state?",
+    "Can cryptographic chain integrity replace centralized trust in multi-agent concept validation?"
+  ],
+  "core_contributions": [
+    "ADL Lite: a Markdown-native, four-layer language (L1 YAML Front Matter, L2 Markdown Body, L3 adl:* blocks, L4 adl:action blocks) for agentic KG authoring",
+    "Event-first operational ontology: status, confidence, and validators are computed from an append-only EventChain rather than stored as mutable fields",
+    "SSA (Structured Semantic Anchoring): typed slots that constrain the interpretive space of natural language in multi-agent settings",
+    "Multi-agent consensus protocol: provisional → validated → deprecated/forked/archived lifecycle with cryptographic chain integrity",
+    "ForkManager: divergence resolution with merge/parallel/prune strategies and isomorphism thresholding",
+    "Core ontology registry (adl_core_ontology.yaml): closed-set predicates, actions, status transitions with precondition enforcement",
+    "ActionExecutor: L4 action blocks with side-effect dispatch to external systems (Feishu/Lark bridge)",
+    "RealtimeWatcher: event-triggered pattern detection (AML laundering patterns, status transitions, frequency thresholds)",
+    "EdgeNode + SyncManager: offline-first operation with eventual consistency via timestamp-ordered merge (CRDT-like)",
+    "ADLMemory: three-tier hybrid index (Hot/Warm/Cold) with cascade filtering"
+  ],
+  "experiment_results": {
+    "total_experiments": 6,
+    "passing": 6,
+    "tests_passing": 298,
+    "code_coverage": "81%",
+    "key_findings": [
+      "E1: Chain integrity verified — cryptographic hashes link events correctly across chains",
+      "E2: Status derivation correct — DiscoveryStatus computed from chain, not stored",
+      "E3: Snapshot roundtrip — FrontMatter ↔ EventChain consistency maintained",
+      "E4: Precondition enforcement — all Comparator types (EQ/NEQ/GT/GTE/LT/LTE/IN/EXISTS) validated",
+      "E5: 5-agent audit consensus — multi-agent validation with confidence aggregation",
+      "E6: IBM AML pipeline — 72-line CSV → event import → pattern discovery → ontology emergence"
+    ]
+  },
+  "existing_artifacts": {
+    "codebase": "adl_lite/ (23 source files, Python 3.10+, Pydantic v2, NetworkX)",
+    "ontology": "adl_lite/adl_core_ontology.yaml (v0.2)",
+    "examples": "examples/ (5 ADL .md documents)",
+    "data": "data/ (AML concepts, CSV imports)",
+    "experiments": "experiments/ (6 harness experiments, 238s total)",
+    "tests": "tests/ (298 tests, 81% coverage)"
+  }
+}

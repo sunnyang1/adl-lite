@@ -6,12 +6,10 @@ Manages the lifecycle of concepts:
                     ↓
                   forked ──→ merged / parallel / pruned
 
-Deeply isomorphic to blockchain:
-    Transaction  → Discovery
-    Block        → Concept Bundle
-    PoW/PoS      → Structural Arbitration
-    Prev Hash    → Concept Lineage
-    Fork         → Concept Fork
+Philosophy (event-first):
+    ConsensusEngine is a thin wrapper over EventChain.
+    All lifecycle state is derived from the chain — not stored.
+    ConceptChain and ConsensusEntry are removed in v0.3.
 
 References:
     - ADL Lite Spec §6.3: Concept Consensus Chain
@@ -20,128 +18,47 @@ References:
 
 from __future__ import annotations
 
-import hashlib
-import json
+import threading
 from datetime import datetime, timezone
 from enum import Enum
 
-from .models import ADLDocument, DiscoveryStatus
+from .models import ADLDocument, DiscoveryStatus, Event, EventChain, EventType
 from .ontology import OntologyManager, default_ontology
 
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
 
+
 class ForkResolution(str, Enum):
     """Outcome of a fork convergence attempt."""
-    MERGED = "merged"       # Relation graphs >90% isomorphic
-    PARALLEL = "parallel"   # Different domains need different metaphors
-    PRUNED = "pruned"       # Long-term unreferenced → archived
+
+    MERGED = "merged"  # Relation graphs >90% isomorphic
+    PARALLEL = "parallel"  # Different domains need different metaphors
+    PRUNED = "pruned"  # Long-term unreferenced → archived
 
 
 # ---------------------------------------------------------------------------
-# Consensus Entry (a single "block" in the chain)
+# Backward-compat: ConsensusEntry as a dict factory (no longer a class)
 # ---------------------------------------------------------------------------
 
-class ConsensusEntry:
-    """
-    One entry in the Concept Consensus Chain.
-    Analogous to a blockchain transaction.
-    """
 
-    def __init__(
-        self,
-        adl_id: str,
-        from_status: DiscoveryStatus,
-        to_status: DiscoveryStatus,
-        actor: str,           # who triggered the transition
-        reason: str = "",
-        parent_hash: str = "0" * 64,
-    ) -> None:
-        self.adl_id = adl_id
-        self.from_status = from_status
-        self.to_status = to_status
-        self.actor = actor
-        self.reason = reason
-        self.parent_hash = parent_hash
-        self.timestamp = datetime.now(timezone.utc).isoformat()
-        self._hash = self._compute_hash()
-
-    def _compute_hash(self) -> str:
-        payload = {
-            "adl_id": self.adl_id,
-            "from": self.from_status.value,
-            "to": self.to_status.value,
-            "actor": self.actor,
-            "reason": self.reason,
-            "parent": self.parent_hash,
-            "time": self.timestamp,
-        }
-        return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
-
-    @property
-    def hash(self) -> str:
-        return self._hash
-
-    def to_dict(self) -> dict:
-        return {
-            "adl_id": self.adl_id,
-            "from_status": self.from_status.value,
-            "to_status": self.to_status.value,
-            "actor": self.actor,
-            "reason": self.reason,
-            "parent_hash": self.parent_hash,
-            "hash": self.hash,
-            "timestamp": self.timestamp,
-        }
-
-
-# ---------------------------------------------------------------------------
-# Concept Chain (per-concept blockchain)
-# ---------------------------------------------------------------------------
-
-class ConceptChain:
-    """
-    A linked chain of consensus entries for a single concept.
-    Immutable append-only log.
-    """
-
-    def __init__(self, adl_id: str) -> None:
-        self.adl_id = adl_id
-        self.entries: list[ConsensusEntry] = []
-
-    def append(self, entry: ConsensusEntry) -> None:
-        """Append a new entry, linking its parent hash to the previous tail."""
-        if self.entries:
-            entry.parent_hash = self.entries[-1].hash
-        self.entries.append(entry)
-
-    @property
-    def latest_status(self) -> DiscoveryStatus:
-        if not self.entries:
-            return DiscoveryStatus.PROVISIONAL
-        return self.entries[-1].to_status
-
-    @property
-    def latest_hash(self) -> str:
-        if not self.entries:
-            return "0" * 64
-        return self.entries[-1].hash
-
-    def history(self) -> list[dict]:
-        return [e.to_dict() for e in self.entries]
-
-    def verify_integrity(self) -> bool:
-        """Verify chain integrity (parent hashes link correctly)."""
-        for i in range(1, len(self.entries)):
-            if self.entries[i].parent_hash != self.entries[i - 1].hash:
-                return False
-        return True
+def _status_to_event_type(status: DiscoveryStatus) -> EventType:
+    """Map DiscoveryStatus to the corresponding lifecycle EventType."""
+    _map = {
+        DiscoveryStatus.PROVISIONAL: EventType.REGISTER,
+        DiscoveryStatus.VALIDATED: EventType.VALIDATE,
+        DiscoveryStatus.DEPRECATED: EventType.DEPRECATE,
+        DiscoveryStatus.FORKED: EventType.FORK,
+        DiscoveryStatus.ARCHIVED: EventType.ARCHIVE,
+    }
+    return _map[status]
 
 
 # ---------------------------------------------------------------------------
 # Fork Manager
 # ---------------------------------------------------------------------------
+
 
 class ForkManager:
     """
@@ -228,37 +145,47 @@ class ForkManager:
 # Global Consensus Engine
 # ---------------------------------------------------------------------------
 
+
 class ConsensusEngine:
     """
     Central engine managing consensus chains for all concepts.
 
+    v0.3: Now uses EventChain as the sole chain representation.
+    Status is computed from the chain, not stored.
+
     Usage:
         engine = ConsensusEngine()
+        engine.register(doc)  # uses doc.event_chain
         engine.transition("disc-7f3a9b", DiscoveryStatus.VALIDATED, actor="agent_1")
         history = engine.get_history("disc-7f3a9b")
     """
 
     def __init__(self, ontology: OntologyManager | None = None) -> None:
-        self.chains: dict[str, ConceptChain] = {}
+        self.chains: dict[str, EventChain] = {}
+        self._lock = threading.RLock()
         self.fork_manager = ForkManager()
         self._ontology = ontology or default_ontology()
 
     # -- Chain lifecycle --
 
-    def register(self, doc: ADLDocument) -> ConceptChain:
-        """Register a new concept document, starting its chain."""
+    def register(self, doc: ADLDocument) -> EventChain:
+        """Register a new concept document, starting its EventChain. Thread-safe."""
         cid = doc.adl_id
-        if cid not in self.chains:
-            self.chains[cid] = ConceptChain(cid)
-            entry = ConsensusEntry(
-                adl_id=cid,
-                from_status=DiscoveryStatus.PROVISIONAL,
-                to_status=DiscoveryStatus.PROVISIONAL,
-                actor="system",
-                reason="Document registered",
-            )
-            self.chains[cid].append(entry)
-        return self.chains[cid]
+        with self._lock:
+            if cid not in self.chains:
+                chain = doc.event_chain
+                # Ensure at least a genesis REGISTER event
+                if chain.length == 0:
+                    chain.append(
+                        Event(
+                            concept_id=cid,
+                            event_type=EventType.REGISTER,
+                            actor="system",
+                            reasoning="Document registered",
+                        )
+                    )
+                self.chains[cid] = chain
+            return self.chains[cid]
 
     def transition(
         self,
@@ -266,32 +193,32 @@ class ConsensusEngine:
         to_status: DiscoveryStatus,
         actor: str,
         reason: str = "",
-    ) -> ConsensusEntry | None:
+        payload: dict | None = None,
+    ) -> Event | None:
         """
-        Transition a concept to a new status.
-        Validates the transition is legal.
+        Transition a concept to a new status by appending a lifecycle Event.
+        Thread-safe.
         """
-        if adl_id not in self.chains:
-            raise KeyError(f"Concept '{adl_id}' not registered")
+        with self._lock:
+            if adl_id not in self.chains:
+                raise KeyError(f"Concept '{adl_id}' not registered")
 
-        chain = self.chains[adl_id]
-        current = chain.latest_status
+            chain = self.chains[adl_id]
+            current = chain.status  # computed from chain
 
-        if not self._is_valid_transition(current, to_status, self._ontology):
-            raise ValueError(
-                f"Invalid transition: {current.value} → {to_status.value}"
+            if not self._is_valid_transition(current, to_status, self._ontology):
+                raise ValueError(f"Invalid transition: {current.value} → {to_status.value}")
+
+            event_type = _status_to_event_type(to_status)
+            event = Event(
+                concept_id=adl_id,
+                event_type=event_type,
+                actor=actor,
+                reasoning=reason,
+                payload=payload or {},
             )
-
-        entry = ConsensusEntry(
-            adl_id=adl_id,
-            from_status=current,
-            to_status=to_status,
-            actor=actor,
-            reason=reason,
-            parent_hash=chain.latest_hash,
-        )
-        chain.append(entry)
-        return entry
+            chain.append(event)
+            return event
 
     def fork(
         self,
@@ -299,43 +226,51 @@ class ConsensusEngine:
         fork_id: str,
         actor: str,
         reason: str = "",
-    ) -> ConceptChain:
-        """Create a fork of an existing concept."""
+    ) -> EventChain:
+        """Create a fork of an existing concept. Idempotent: skips transition if already forked."""
         if original_id not in self.chains:
             raise KeyError(f"Original concept '{original_id}' not found")
 
-        # Mark original as forked
-        self.transition(original_id, DiscoveryStatus.FORKED, actor, reason)
+        with self._lock:
+            # Only transition if not already forked
+            current_status = self.chains[original_id].status
+            if current_status != DiscoveryStatus.FORKED:
+                self.transition(original_id, DiscoveryStatus.FORKED, actor, reason)
 
-        # Create new chain for fork
-        self.chains[fork_id] = ConceptChain(fork_id)
-        entry = ConsensusEntry(
-            adl_id=fork_id,
-            from_status=DiscoveryStatus.PROVISIONAL,
-            to_status=DiscoveryStatus.PROVISIONAL,
-            actor=actor,
-            reason=f"Forked from {original_id}: {reason}",
-        )
-        self.chains[fork_id].append(entry)
-
-        self.fork_manager.register_fork(original_id, fork_id, reason)
-        return self.chains[fork_id]
+            # Create new chain for fork
+            new_chain = EventChain(concept_id=fork_id)
+            new_chain.append(
+                Event(
+                    concept_id=fork_id,
+                    event_type=EventType.REGISTER,
+                    actor=actor,
+                    reasoning=f"Forked from {original_id}: {reason}",
+                )
+            )
+            self.chains[fork_id] = new_chain
+            self.fork_manager.register_fork(original_id, fork_id, reason)
+            return new_chain
 
     # -- Queries --
 
     def get_history(self, adl_id: str) -> list[dict]:
-        if adl_id not in self.chains:
-            return []
-        return self.chains[adl_id].history()
+        """Get full chain history. Thread-safe."""
+        with self._lock:
+            if adl_id not in self.chains:
+                return []
+            return self.chains[adl_id].history()
 
     def get_status(self, adl_id: str) -> DiscoveryStatus:
-        if adl_id not in self.chains:
-            return DiscoveryStatus.PROVISIONAL
-        return self.chains[adl_id].latest_status
+        """Get current concept status. Thread-safe."""
+        with self._lock:
+            if adl_id not in self.chains:
+                return DiscoveryStatus.PROVISIONAL
+            return self.chains[adl_id].status  # computed from chain
 
     def verify_all(self) -> dict[str, bool]:
-        """Verify integrity of all chains."""
-        return {cid: chain.verify_integrity() for cid, chain in self.chains.items()}
+        """Verify integrity of all chains. Thread-safe."""
+        with self._lock:
+            return {cid: chain.verify_integrity() for cid, chain in self.chains.items()}
 
     # -- Internal --
 

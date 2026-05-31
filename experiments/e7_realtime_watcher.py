@@ -11,11 +11,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from adl_lite.models import Event, EventChain, EventType
+from adl_lite.realtime import AlertHandler, RealtimeWatcher
+
 from .base import BaseExperiment, ExperimentResult
 from .registry import register
-
-from adl_lite.realtime import RealtimeWatcher, AlertHandler
-from adl_lite.models import Event, EventChain, EventType
 
 IBM_DATA = Path(__file__).resolve().parent.parent / "data" / "aml" / "ibm_data"
 
@@ -31,9 +31,7 @@ class E7RealtimeWatcher(BaseExperiment):
         handler_log: list[str] = []
 
         def _log_handler(alert: AlertHandler) -> None:
-            handler_log.append(
-                f"[{alert.alert_type}] {alert.concept_id}: {alert.detail}"
-            )
+            handler_log.append(f"[{alert.alert_type}] {alert.concept_id}: {alert.detail}")
 
         watcher.on_any(_log_handler)
 
@@ -57,12 +55,14 @@ class E7RealtimeWatcher(BaseExperiment):
 
         # Smurfing fires on 5th laundering event (threshold=5, all <$1000)
         smurf_ok = smurf_alerts == 1
-        results.append({
-            "test": "smurfing_threshold",
-            "alerts_fired": smurf_alerts,
-            "expected": 1,
-            "ok": smurf_ok,
-        })
+        results.append(
+            {
+                "test": "smurfing_threshold",
+                "alerts_fired": smurf_alerts,
+                "expected": 1,
+                "ok": smurf_ok,
+            }
+        )
         if not smurf_ok:
             errors.append(f"Smurfing: expected 1 alert, got {smurf_alerts}")
 
@@ -81,12 +81,14 @@ class E7RealtimeWatcher(BaseExperiment):
             rapid_alerts += sum(1 for a in alerts if a.alert_type == "rapid_movement")
 
         rapid_ok = rapid_alerts == 1  # fires exactly on 10th
-        results.append({
-            "test": "rapid_movement_threshold",
-            "alerts_fired": rapid_alerts,
-            "expected": 1,
-            "ok": rapid_ok,
-        })
+        results.append(
+            {
+                "test": "rapid_movement_threshold",
+                "alerts_fired": rapid_alerts,
+                "expected": 1,
+                "ok": rapid_ok,
+            }
+        )
         if not rapid_ok:
             errors.append(f"Rapid movement: expected 1 alert, got {rapid_alerts}")
 
@@ -109,12 +111,14 @@ class E7RealtimeWatcher(BaseExperiment):
             fanout_alerts += sum(1 for a in alerts if a.alert_type == "fan_out")
 
         fanout_ok = fanout_alerts == 1  # fires on 5th unique target
-        results.append({
-            "test": "fan_out_threshold",
-            "alerts_fired": fanout_alerts,
-            "expected": 1,
-            "ok": fanout_ok,
-        })
+        results.append(
+            {
+                "test": "fan_out_threshold",
+                "alerts_fired": fanout_alerts,
+                "expected": 1,
+                "ok": fanout_ok,
+            }
+        )
         if not fanout_ok:
             errors.append(f"Fan-out: expected 1 alert, got {fanout_alerts}")
 
@@ -126,12 +130,14 @@ class E7RealtimeWatcher(BaseExperiment):
             Event(concept_id="status-test", event_type=EventType.VALIDATE, actor="v"),
         )
         val_ok = any(a.alert_type == "concept_validated" for a in val_alerts)
-        results.append({
-            "test": "status_transition",
-            "alerts_fired": len(val_alerts),
-            "validated_detected": val_ok,
-            "ok": val_ok,
-        })
+        results.append(
+            {
+                "test": "status_transition",
+                "alerts_fired": len(val_alerts),
+                "validated_detected": val_ok,
+                "ok": val_ok,
+            }
+        )
         if not val_ok:
             errors.append("Status transition: validated not detected")
 
@@ -150,28 +156,31 @@ class E7RealtimeWatcher(BaseExperiment):
             chain5.append(event)
             # No laundering alerts should fire on legitimate events
             laundering_alerts = [
-                a for a in alerts
-                if a.alert_type in ("smurfing", "rapid_movement", "fan_out")
+                a for a in alerts if a.alert_type in ("smurfing", "rapid_movement", "fan_out")
             ]
             fp_count += len(laundering_alerts)
 
         fp_ok = fp_count == 0
-        results.append({
-            "test": "false_positive_check",
-            "events_checked": 100,
-            "false_positives": fp_count,
-            "ok": fp_ok,
-        })
+        results.append(
+            {
+                "test": "false_positive_check",
+                "events_checked": 100,
+                "false_positives": fp_count,
+                "ok": fp_ok,
+            }
+        )
         if not fp_ok:
             errors.append(f"False positives: {fp_count} on 100 legitimate events")
 
         # ===== TEST 6: Handler dispatch =====
         dispatched = len(handler_log) > 0
-        results.append({
-            "test": "handler_dispatch",
-            "handlers_called": len(handler_log),
-            "ok": dispatched,
-        })
+        results.append(
+            {
+                "test": "handler_dispatch",
+                "handlers_called": len(handler_log),
+                "ok": dispatched,
+            }
+        )
 
         all_ok = smurf_ok and rapid_ok and fanout_ok and val_ok and fp_ok and dispatched
 

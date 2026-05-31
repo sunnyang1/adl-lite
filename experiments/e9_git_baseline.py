@@ -9,44 +9,60 @@ on the same set of 10 corrupted chains. Measures:
 
 from __future__ import annotations
 
-import os
+import random
 import subprocess
 import tempfile
 from pathlib import Path
 
+from adl_lite.models import Event, EventChain, EventType
+
 from .base import BaseExperiment, ExperimentResult
 from .registry import register
 
-from adl_lite.models import Event, EventChain, EventType
-
-import random
 random.seed(42)
 
 EVENT_TYPES = [
-    EventType.REGISTER, EventType.VALIDATE, EventType.RELATE,
-    EventType.EVIDENCE, EventType.ANNOUNCE,
+    EventType.REGISTER,
+    EventType.VALIDATE,
+    EventType.RELATE,
+    EventType.EVIDENCE,
+    EventType.ANNOUNCE,
 ]
 
 
 def _build_chain(concept_id: str, n: int = 5) -> EventChain:
     chain = EventChain(concept_id=concept_id)
     for _ in range(n):
-        chain.append(Event(
-            concept_id=concept_id,
-            event_type=random.choice(EVENT_TYPES),
-            actor=f"agent_{random.randint(1, 5)}",
-            payload={"val": random.random()},
-        ))
+        chain.append(
+            Event(
+                concept_id=concept_id,
+                event_type=random.choice(EVENT_TYPES),
+                actor=f"agent_{random.randint(1, 5)}",
+                payload={"val": random.random()},
+            )
+        )
     return chain
 
 
 def _chain_to_md(chain: EventChain) -> str:
     """Serialize a chain to ADL Markdown for git tracking."""
-    lines = ["---", f"adl_type: discovery", f"adl_id: {chain.concept_id}",
-             "status: provisional", "confidence: 0.5", "domain: test", "scope: public",
-             "provisional_names:", "  en: Test", "---", "", "# Test", ""]
+    lines = [
+        "---",
+        "adl_type: discovery",
+        f"adl_id: {chain.concept_id}",
+        "status: provisional",
+        "confidence: 0.5",
+        "domain: test",
+        "scope: public",
+        "provisional_names:",
+        "  en: Test",
+        "---",
+        "",
+        "# Test",
+        "",
+    ]
     for e in chain.events:
-        lines.append(f"```adl:action")
+        lines.append("```adl:action")
         lines.append(f"action: {e.event_type.value}")
         lines.append(f"actor: {e.actor}")
         lines.append(f"event_id: {e.event_id}")
@@ -85,18 +101,22 @@ class E9GitBaseline(BaseExperiment):
 
             # EventChain detection
             eventchain_ok = not chain.verify_integrity()
-            results.append({
-                "chain_id": i,
-                "corruption_type": corruptions[-1][0],
-                "corrupted_event_idx": corruptions[-1][2],
-                "eventchain_detected": eventchain_ok,
-            })
+            results.append(
+                {
+                    "chain_id": i,
+                    "corruption_type": corruptions[-1][0],
+                    "corrupted_event_idx": corruptions[-1][2],
+                    "eventchain_detected": eventchain_ok,
+                }
+            )
 
         # Git baseline: write chains to temp dir, commit, corrupt, diff
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             subprocess.run(["git", "init"], cwd=repo, capture_output=True)
-            subprocess.run(["git", "config", "user.email", "test@test"], cwd=repo, capture_output=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@test"], cwd=repo, capture_output=True
+            )
             subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True)
 
             # Write and commit valid chains
@@ -112,14 +132,12 @@ class E9GitBaseline(BaseExperiment):
             # Corrupt chains 0-9 in file (same patterns)
             git_detected = 0
             git_precise = 0
-            for ctype, idx, evt_idx in corruptions:
+            for ctype, idx, _evt_idx in corruptions:
                 fpath = md_dir / f"chain_{idx}.md"
                 content = fpath.read_text()
                 if ctype == "broken_link":
                     content = content.replace(
-                        'previous_event_id: none',
-                        'previous_event_id: deadbeef0000',
-                        1
+                        "previous_event_id: none", "previous_event_id: deadbeef0000", 1
                     )
                     content += "\n# tampered\n"
                 elif ctype == "payload_tamper":
@@ -130,15 +148,19 @@ class E9GitBaseline(BaseExperiment):
                 fpath.write_text(content)
 
             # Git status check
-            r = subprocess.run(["git", "status", "--short"], cwd=repo, capture_output=True, text=True)
-            modified = [l for l in r.stdout.split("\n") if l.strip()]
+            r = subprocess.run(
+                ["git", "status", "--short"], cwd=repo, capture_output=True, text=True
+            )
+            modified = [line for line in r.stdout.split("\n") if line.strip()]
             git_detected = len(modified)
 
             # Git diff check — can it pinpoint the changed line?
-            for ctype, idx, _ in corruptions:
+            for _ctype, idx, _ in corruptions:
                 r = subprocess.run(
                     ["git", "diff", f"concepts/chain_{idx}.md"],
-                    cwd=repo, capture_output=True, text=True,
+                    cwd=repo,
+                    capture_output=True,
+                    text=True,
                 )
                 # If diff output contains our tamper marker, git found the right file
                 if f"chain_{idx}" in str(modified) or "# tampered" in r.stdout:

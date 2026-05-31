@@ -23,19 +23,19 @@ Quick Start:
 __version__ = "0.2.0"
 
 from .action_executor import ActionExecutor
-from .consensus import ConceptChain, ConsensusEngine, ForkManager, ForkResolution
+from .consensus import ConsensusEngine, ForkManager, ForkResolution
 from .memory import ADLMemory, HotIndex, WarmIndex
 from .models import (
-    ADLActionBlock,
     ActionDef,
     ActionExecStatus,
-    Comparator,
+    ADLActionBlock,
     ADLDocument,
     ADLEvidenceBlock,
     ADLFormalSealBlock,
     ADLFrontMatter,
     ADLRelationBlock,
     ADLType,
+    Comparator,
     ConceptSkeleton,
     DiscoveryStatus,
     Event,
@@ -72,6 +72,9 @@ __all__ = [
     "ConceptSkeleton",
     "DiscoveryStatus",
     "ADLType",
+    "Event",
+    "EventChain",
+    "EventType",
     "EvidenceType",
     "ExecutionEntry",
     "MechanismType",
@@ -84,7 +87,6 @@ __all__ = [
     "ActionExecutor",
     # Consensus
     "ConsensusEngine",
-    "ConceptChain",
     "ForkManager",
     "ForkResolution",
     # Memory

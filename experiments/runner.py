@@ -1,9 +1,9 @@
 """Unified experiment runner + CLI entry point.
 
-    python -m experiments.runner E2            # runs E2
-    python -m experiments.runner all           # runs all registered
-    python -m experiments.runner list          # list all
-    python -m experiments.runner E2 --verbose  # verbose output
+python -m experiments.runner E2            # runs E2
+python -m experiments.runner all           # runs all registered
+python -m experiments.runner list          # list all
+python -m experiments.runner E2 --verbose  # verbose output
 """
 
 from __future__ import annotations
@@ -13,21 +13,22 @@ import json
 import sys
 from pathlib import Path
 
-from .base import ExperimentResult
-from .registry import get, instantiate, list_all
-
 # Import experiment modules so @register decorators fire
-from . import e1_chain_integrity       # noqa: F401
-from . import e2_status_derivation     # noqa: F401
-from . import e3_snapshot_roundtrip    # noqa: F401
-from . import e4_precondition          # noqa: F401
-from . import e5_agent_audit           # noqa: F401
-from . import e6_aml_pipeline         # noqa: F401
-from . import e7_realtime_watcher     # noqa: F401
-from . import e8_edge_sync            # noqa: F401
-from . import e9_git_baseline         # noqa: F401
-from . import e10_fde_pipeline        # noqa: F401
-from . import e11_sideeffect_stress   # noqa: F401
+from . import (
+    e1_chain_integrity,  # noqa: F401
+    e2_status_derivation,  # noqa: F401
+    e3_snapshot_roundtrip,  # noqa: F401
+    e4_precondition,  # noqa: F401
+    e5_agent_audit,  # noqa: F401
+    e6_aml_pipeline,  # noqa: F401
+    e7_realtime_watcher,  # noqa: F401
+    e8_edge_sync,  # noqa: F401
+    e9_git_baseline,  # noqa: F401
+    e10_fde_pipeline,  # noqa: F401
+    e11_sideeffect_stress,  # noqa: F401
+)
+from .base import ExperimentResult
+from .registry import instantiate, list_all
 
 OUTPUT_DIR = Path(__file__).resolve().parent.parent / "docs" / "experiments"
 
@@ -54,9 +55,7 @@ def run_all() -> dict[str, ExperimentResult]:
 def write_summary(results: dict[str, ExperimentResult], path: Path | None = None) -> Path:
     out = path or OUTPUT_DIR / "experiment_results.json"
     out.parent.mkdir(parents=True, exist_ok=True)
-    data = {
-        experiment_id: r.to_dict() for experiment_id, r in results.items()
-    }
+    data = {experiment_id: r.to_dict() for experiment_id, r in results.items()}
     out.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     return out
 

@@ -6,13 +6,12 @@ import json
 import tempfile
 from pathlib import Path
 
-from experiments.harness import ScriptedHarness, run_scripted_sim
-from experiments.registry import get, list_all, instantiate
-
 # Import experiment modules to trigger @register decorators
-import experiments.e1_chain_integrity   # noqa: F401
+import experiments.e1_chain_integrity  # noqa: F401
 import experiments.e2_status_derivation  # noqa: F401
-import experiments.e4_precondition       # noqa: F401
+import experiments.e4_precondition  # noqa: F401
+from experiments.harness import ScriptedHarness, run_scripted_sim
+from experiments.registry import instantiate, list_all
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 

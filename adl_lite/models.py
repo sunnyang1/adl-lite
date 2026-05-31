@@ -20,28 +20,32 @@ from __future__ import annotations
 
 import hashlib
 import json
+import threading
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, PrivateAttr, field_validator
 
 # ---------------------------------------------------------------------------
 # Enumerations — Consensus & Semantic Types
 # ---------------------------------------------------------------------------
 
+
 class DiscoveryStatus(str, Enum):
     """Concept lifecycle status (emoji badges)."""
-    PROVISIONAL = "provisional"   # 🟡
-    VALIDATED = "validated"       # 🟢
-    DEPRECATED = "deprecated"     # 🔴
-    FORKED = "forked"             # 🔵
-    ARCHIVED = "archived"         # ⚪
+
+    PROVISIONAL = "provisional"  # 🟡
+    VALIDATED = "validated"  # 🟢
+    DEPRECATED = "deprecated"  # 🔴
+    FORKED = "forked"  # 🔵
+    ARCHIVED = "archived"  # ⚪
 
 
 class ADLType(str, Enum):
     """Top-level semantic types for ADL documents."""
+
     DISCOVERY = "discovery"
     CONCEPT = "concept"
     RELATION = "relation"
@@ -51,6 +55,7 @@ class ADLType(str, Enum):
 
 class MechanismType(str, Enum):
     """Valid isomorphic / analogical mechanism tags."""
+
     ISOMORPHIC_MAPPING = "isomorphic_mapping"
     ANALOGICAL_TRANSFER = "analogical_transfer"
     COMPOSITIONAL_BLEND = "compositional_blend"
@@ -60,6 +65,7 @@ class MechanismType(str, Enum):
 
 class EvidenceType(str, Enum):
     """Evidence taxonomy for the evidence chain."""
+
     VECTOR_CLUSTER = "vector_cluster"
     SIMULATOR_RUN = "simulator_run"
     HUMAN_EXPERT = "human_expert"
@@ -69,6 +75,7 @@ class EvidenceType(str, Enum):
 
 class EventType(str, Enum):
     """Every event type in ADL Lite. Events ARE the ontology."""
+
     # Lifecycle events
     REGISTER = "register"
     VALIDATE = "validate"
@@ -92,6 +99,7 @@ class EventType(str, Enum):
 # Event — the fundamental unit (event-first ontology)
 # ---------------------------------------------------------------------------
 
+
 class Event(BaseModel):
     """
     An Event is an atomic occurrence in a concept's life.
@@ -104,9 +112,10 @@ class Event(BaseModel):
 
     This IS the ontology. Objects don't have events — events ARE the world.
     """
+
     event_id: str = Field(
-        default_factory=lambda: uuid4().hex[:12],
-        description="Unique event identifier"
+        default_factory=lambda: uuid4().hex,
+        description="Unique event identifier (full 128-bit UUID)",
     )
     concept_id: str = Field(..., description="adl_id of the concept this event belongs to")
     event_type: EventType = Field(..., description="What happened")
@@ -114,17 +123,18 @@ class Event(BaseModel):
     reasoning: str = Field(default="", description="Why this event happened")
     timestamp: str = Field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat(),
-        description="When this event occurred"
+        description="When this event occurred",
     )
     payload: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Event-specific data (block fields, action params, etc.)"
+        default_factory=dict, description="Event-specific data (block fields, action params, etc.)"
     )
     previous_event_id: str | None = Field(
-        default=None,
-        description="Previous event in the chain (None for genesis event)"
+        default=None, description="Previous event in the chain (None for genesis event)"
     )
-    hash: str = Field(default="", description="SHA-256 hash of this event's content")
+    hash: str = Field(
+        default="", description="SHA-256 hash chaining event content with predecessor"
+    )
+    _prev_hash: str = PrivateAttr(default="")
 
     def model_post_init(self, __context) -> None:
         if not self.hash:
@@ -139,10 +149,9 @@ class Event(BaseModel):
             "timestamp": self.timestamp,
             "payload": self.payload,
             "previous_event_id": self.previous_event_id,
+            "prev_hash": self._prev_hash,
         }
-        return hashlib.sha256(
-            json.dumps(content, sort_keys=True, default=str).encode()
-        ).hexdigest()
+        return hashlib.sha256(json.dumps(content, sort_keys=True, default=str).encode()).hexdigest()
 
 
 class EventChain:
@@ -165,6 +174,7 @@ class EventChain:
     ) -> None:
         self.concept_id = concept_id
         self._events: list[Event] = []
+        self._lock = threading.Lock()
         self.markdown_body = markdown_body
         self.source_path = source_path
 
@@ -177,33 +187,46 @@ class EventChain:
     # ------------------------------------------------------------------
 
     def append(self, event: Event) -> None:
-        """Append an event, linking to the previous tail."""
-        if event.concept_id != self.concept_id:
-            raise ValueError(
-                f"Event concept_id {event.concept_id} != chain concept_id {self.concept_id}"
-            )
-        if self._events:
-            event.previous_event_id = self._events[-1].event_id
-            event.hash = ""  # Force re-computation with new previous_event_id
-            event.model_post_init(None)
-        self._events.append(event)
+        """Append an event, linking to the previous tail. Thread-safe."""
+        with self._lock:
+            if event.concept_id != self.concept_id:
+                raise ValueError(
+                    f"Event concept_id {event.concept_id} != chain concept_id {self.concept_id}"
+                )
+            if self._events:
+                event.previous_event_id = self._events[-1].event_id
+                event._prev_hash = self._events[-1].hash
+                event.hash = ""  # Force re-computation with new chaining
+                event.model_post_init(None)
+            else:
+                # First event in chain: reset to genesis state
+                event.previous_event_id = None
+                event._prev_hash = ""
+                event.hash = ""
+                event.model_post_init(None)
+            self._events.append(event)
 
     @property
     def events(self) -> list[Event]:
-        return list(self._events)
+        with self._lock:
+            return list(self._events)
 
     @property
     def length(self) -> int:
-        return len(self._events)
+        with self._lock:
+            return len(self._events)
 
     def __len__(self) -> int:
-        return len(self._events)
+        with self._lock:
+            return len(self._events)
 
     def __iter__(self):
-        return iter(self._events)
+        with self._lock:
+            return iter(list(self._events))
 
     def __getitem__(self, index: int) -> Event:
-        return self._events[index]
+        with self._lock:
+            return self._events[index]
 
     # ------------------------------------------------------------------
     # Computed properties (derived from events, NOT stored)
@@ -212,52 +235,60 @@ class EventChain:
     @property
     def status(self) -> DiscoveryStatus:
         """Status computed from the chain — the latest lifecycle event."""
-        for event in reversed(self._events):
-            if event.event_type in (
-                EventType.REGISTER, EventType.VALIDATE,
-                EventType.DEPRECATE, EventType.FORK, EventType.ARCHIVE,
-            ):
-                type_to_status = {
-                    EventType.REGISTER: DiscoveryStatus.PROVISIONAL,
-                    EventType.VALIDATE: DiscoveryStatus.VALIDATED,
-                    EventType.DEPRECATE: DiscoveryStatus.DEPRECATED,
-                    EventType.FORK: DiscoveryStatus.FORKED,
-                    EventType.ARCHIVE: DiscoveryStatus.ARCHIVED,
-                }
-                return type_to_status[event.event_type]
-        return DiscoveryStatus.PROVISIONAL
+        with self._lock:
+            for event in reversed(self._events):
+                if event.event_type in (
+                    EventType.REGISTER,
+                    EventType.VALIDATE,
+                    EventType.DEPRECATE,
+                    EventType.FORK,
+                    EventType.ARCHIVE,
+                ):
+                    type_to_status = {
+                        EventType.REGISTER: DiscoveryStatus.PROVISIONAL,
+                        EventType.VALIDATE: DiscoveryStatus.VALIDATED,
+                        EventType.DEPRECATE: DiscoveryStatus.DEPRECATED,
+                        EventType.FORK: DiscoveryStatus.FORKED,
+                        EventType.ARCHIVE: DiscoveryStatus.ARCHIVED,
+                    }
+                    return type_to_status[event.event_type]
+            return DiscoveryStatus.PROVISIONAL
 
     @property
     def confidence(self) -> float:
         """Confidence derived from validate events or last snapshot."""
-        for event in reversed(self._events):
-            if event.event_type == EventType.VALIDATE:
-                return float(event.payload.get("confidence", 0.0))
-            if event.event_type == EventType.SNAPSHOT:
-                return float(event.payload.get("confidence", 0.0))
-        return 0.0
+        with self._lock:
+            for event in reversed(self._events):
+                if event.event_type == EventType.VALIDATE:
+                    return float(event.payload.get("confidence", 0.0))
+                if event.event_type == EventType.SNAPSHOT:
+                    return float(event.payload.get("confidence", 0.0))
+            return 0.0
 
     @property
     def validators(self) -> list[str]:
-        actors = []
-        for event in self._events:
-            if event.event_type == EventType.VALIDATE:
-                actors.append(event.actor)
-        return actors
+        with self._lock:
+            actors = []
+            for event in self._events:
+                if event.event_type == EventType.VALIDATE:
+                    actors.append(event.actor)
+            return actors
 
     @property
     def created_at(self) -> str:
         """Concept creation time = first event timestamp."""
-        if self._events:
-            return self._events[0].timestamp
-        return datetime.now(timezone.utc).isoformat()
+        with self._lock:
+            if self._events:
+                return self._events[0].timestamp
+            return datetime.now(timezone.utc).isoformat()
 
     @property
     def updated_at(self) -> str:
         """Last modification = last event timestamp."""
-        if self._events:
-            return self._events[-1].timestamp
-        return self.created_at
+        with self._lock:
+            if self._events:
+                return self._events[-1].timestamp
+            return self.created_at
 
     # ------------------------------------------------------------------
     # Derived snapshot
@@ -283,29 +314,38 @@ class EventChain:
         )
 
     def verify_integrity(self) -> bool:
-        """Verify chain integrity (hashes link correctly)."""
-        for i in range(1, len(self._events)):
-            if self._events[i].previous_event_id != self._events[i - 1].event_id:
-                return False
-        # Verify each event's hash
-        for event in self._events:
-            if event.hash != event._compute_hash():
-                return False
-        return True
+        """Verify chain integrity: prev-id linking + cryptographic hash chaining. Thread-safe."""
+        with self._lock:
+            # Verify id linking
+            for i in range(1, len(self._events)):
+                if self._events[i].previous_event_id != self._events[i - 1].event_id:
+                    return False
+            # Verify each event's hash (includes its own content + predecessor's hash)
+            for i, event in enumerate(self._events):
+                expected_prev = self._events[i - 1].hash if i > 0 else ""
+                if event._prev_hash != expected_prev:
+                    return False
+                if event.hash != event._compute_hash():
+                    return False
+            return True
 
     def history(self) -> list[dict[str, Any]]:
-        """Full chain history as a list of dicts."""
-        return [
-            {
-                "event_id": e.event_id,
-                "event_type": e.event_type.value,
-                "actor": e.actor,
-                "reasoning": e.reasoning,
-                "timestamp": e.timestamp,
-                "hash": e.hash,
-            }
-            for e in self._events
-        ]
+        """Full chain history as a list of dicts. Synthetic events flagged. Thread-safe."""
+        with self._lock:
+            return [
+                {
+                    "event_id": e.event_id,
+                    "event_type": e.event_type.value,
+                    "actor": e.actor,
+                    "reasoning": e.reasoning,
+                    "timestamp": e.timestamp,
+                    "hash": e.hash,
+                    "_prev_hash": e._prev_hash,
+                    "synthetic": e.payload.get("synthetic", False),
+                    "payload": e.payload,
+                }
+                for e in self._events
+            ]
 
     # ------------------------------------------------------------------
     # Factory: build chain from parsed blocks + front matter
@@ -324,26 +364,33 @@ class EventChain:
         """Build an EventChain from parsed document components."""
         chain = cls(concept_id=concept_id, markdown_body=markdown_body, source_path=source_path)
 
-        # Genesis event: snapshot captures L1 identity
-        chain.append(Event(
-            concept_id=concept_id,
-            event_type=EventType.SNAPSHOT,
-            actor="parser",
-            reasoning="Document parsed — initial L1 snapshot",
-            payload={
-                "adl_type": front_matter.adl_type.value,
-                "confidence": front_matter.confidence,
-                "novelty": front_matter.novelty,
-                "domain": front_matter.domain,
-                "scope": front_matter.scope,
-                "provisional_names": {
-                    "zh": front_matter.provisional_names.zh,
-                    "en": front_matter.provisional_names.en,
+        # Genesis event: snapshot captures L1 identity.
+        # Tagged synthetic=True — this event was not authored by an agent,
+        # it was synthesized from the YAML front matter during parsing.
+        chain.append(
+            Event(
+                concept_id=concept_id,
+                event_type=EventType.SNAPSHOT,
+                actor="parser",
+                reasoning="Document parsed — initial L1 snapshot (synthetic)",
+                payload={
+                    "adl_type": front_matter.adl_type.value,
+                    "confidence": front_matter.confidence,
+                    "novelty": front_matter.novelty,
+                    "domain": front_matter.domain,
+                    "scope": front_matter.scope,
+                    "synthetic": True,
+                    "provisional_names": {
+                        "zh": front_matter.provisional_names.zh,
+                        "en": front_matter.provisional_names.en,
+                    },
                 },
-            },
-        ))
+            )
+        )
 
-        # If status != provisional, add the appropriate lifecycle event
+        # If status != provisional, add the appropriate lifecycle event.
+        # Tagged synthetic=True — this event was not authored by an agent
+        # action; it is a reconstruction from the YAML front matter status field.
         if front_matter.status != DiscoveryStatus.PROVISIONAL:
             status_to_type = {
                 DiscoveryStatus.VALIDATED: EventType.VALIDATE,
@@ -353,48 +400,64 @@ class EventChain:
             }
             evt = status_to_type.get(front_matter.status)
             if evt:
-                chain.append(Event(
-                    concept_id=concept_id,
-                    event_type=evt,
-                    actor=front_matter.validators[-1] if front_matter.validators else "unknown",
-                    reasoning="Status restored from parsed document",
-                    payload={"confidence": front_matter.confidence},
-                ))
+                chain.append(
+                    Event(
+                        concept_id=concept_id,
+                        event_type=evt,
+                        actor=front_matter.validators[-1] if front_matter.validators else "unknown",
+                        reasoning="Status restored from parsed document (synthetic)",
+                        payload={"confidence": front_matter.confidence, "synthetic": True},
+                    )
+                )
 
         # L3 blocks → assertion events
         for block in l3_blocks:
             if isinstance(block, ADLRelationBlock):
-                chain.append(Event(
-                    concept_id=concept_id,
-                    event_type=EventType.RELATE,
-                    actor="author",
-                    reasoning=f"Relation asserted: {block.relation}",
-                    payload=block.model_dump(),
-                ))
+                chain.append(
+                    Event(
+                        concept_id=concept_id,
+                        event_type=EventType.RELATE,
+                        actor="author",
+                        reasoning=f"Relation asserted: {block.relation}",
+                        payload=block.model_dump(),
+                    )
+                )
             elif isinstance(block, ADLEvidenceBlock):
-                chain.append(Event(
-                    concept_id=concept_id,
-                    event_type=EventType.EVIDENCE,
-                    actor="author",
-                    payload=block.model_dump(),
-                ))
+                chain.append(
+                    Event(
+                        concept_id=concept_id,
+                        event_type=EventType.EVIDENCE,
+                        actor="author",
+                        payload=block.model_dump(),
+                    )
+                )
             elif isinstance(block, ADLFormalSealBlock):
-                chain.append(Event(
-                    concept_id=concept_id,
-                    event_type=EventType.SEAL,
-                    actor="author",
-                    payload=block.model_dump(),
-                ))
+                chain.append(
+                    Event(
+                        concept_id=concept_id,
+                        event_type=EventType.SEAL,
+                        actor="author",
+                        payload=block.model_dump(),
+                    )
+                )
 
         # L4 action blocks → action events
         for ab in action_blocks:
-            chain.append(Event(
-                concept_id=concept_id,
-                event_type=EventType(ab.action) if ab.action in EventType._value2member_map_ else EventType.ANNOUNCE,
-                actor=ab.actor,
-                reasoning=ab.reasoning,
-                payload={"action": ab.action, "params": ab.params, "exec_status": ab.exec_status.value},
-            ))
+            chain.append(
+                Event(
+                    concept_id=concept_id,
+                    event_type=EventType(ab.action)
+                    if ab.action in EventType._value2member_map_
+                    else EventType.ANNOUNCE,
+                    actor=ab.actor,
+                    reasoning=ab.reasoning,
+                    payload={
+                        "action": ab.action,
+                        "params": ab.params,
+                        "exec_status": ab.exec_status.value,
+                    },
+                )
+            )
 
         return chain
 
@@ -403,8 +466,10 @@ class EventChain:
 # L1: YAML Front Matter Model
 # ---------------------------------------------------------------------------
 
+
 class ProvisionalNames(BaseModel):
     """Multilingual provisional naming."""
+
     zh: str | None = None
     en: str | None = None
 
@@ -418,6 +483,7 @@ class ADLFrontMatter(BaseModel):
     are computed from the chain. Mutating front_matter.status directly is
     discouraged; use EventChain.append(Event(...)) and then re-snapshot.
     """
+
     adl_type: ADLType = Field(..., description="Semantic type of the document")
     adl_id: str = Field(..., pattern=r"^[a-zA-Z0-9_-]+$", description="Unique identifier")
     status: DiscoveryStatus = Field(default=DiscoveryStatus.PROVISIONAL)
@@ -494,11 +560,13 @@ class ADLFrontMatter(BaseModel):
 # L3: ADL Block Models (embedded ```adl:* code blocks)
 # ---------------------------------------------------------------------------
 
+
 class ADLRelationBlock(BaseModel):
     """
     L3 Relation Block — typed edge between concepts.
     Syntax: ```adl:relation ... ```
     """
+
     block_type: Literal["relation"] = "relation"
     source: str = Field(..., description="Source concept name or URI")
     relation: str = Field(..., description="Relation predicate, e.g. 'isomorphic-to'")
@@ -509,8 +577,7 @@ class ADLRelationBlock(BaseModel):
     @field_validator("source", "target")
     @classmethod
     def validate_no_pronouns(cls, v: str) -> str:
-        forbidden = {"this", "that", "it", "these", "those",
-                     "这个", "那个", "它", "它们"}
+        forbidden = {"this", "that", "it", "these", "those", "这个", "那个", "它", "它们"}
         lowered = v.lower().strip()
         if lowered in forbidden:
             raise ValueError(f"Pronouns are forbidden in ADL slots: '{v}'")
@@ -522,6 +589,7 @@ class ADLEvidenceBlock(BaseModel):
     L3 Evidence Block — structured evidence entry.
     Syntax: ```adl:evidence ... ```
     """
+
     block_type: Literal["evidence"] = "evidence"
     evidence_type: EvidenceType
     data_ref: str = Field(..., description="Pointer to data (vecdb://, file://, etc.)")
@@ -535,6 +603,7 @@ class ADLFormalSealBlock(BaseModel):
     L3 Formal Seal — formal verification reference.
     Syntax: ```adl:seal ... ```
     """
+
     block_type: Literal["seal"] = "seal"
     assertion: str = Field(..., description="Formal assertion statement")
     language: Literal["lean4", "coq", "z3", "fol"] = "lean4"
@@ -551,8 +620,10 @@ ADLBlock = ADLRelationBlock | ADLEvidenceBlock | ADLFormalSealBlock
 # L4: Action Blocks (embedded ```adl:action blocks, Milestone 2d)
 # ---------------------------------------------------------------------------
 
+
 class ActionExecStatus(str, Enum):
     """Execution status for L4 action blocks."""
+
     PENDING = "pending"
     EXECUTED = "executed"
     FAILED = "failed"
@@ -561,6 +632,7 @@ class ActionExecStatus(str, Enum):
 
 class Comparator(str, Enum):
     """Comparison operators for precondition rules."""
+
     EQ = "eq"
     NEQ = "neq"
     GT = "gt"
@@ -576,6 +648,7 @@ class PreconditionRule(BaseModel):
     A single precondition rule in the action ontology registry.
     Checked against ADLFrontMatter fields at execution time.
     """
+
     field: str = Field(..., description="ADLFrontMatter field name, e.g. 'confidence'")
     comparator: Comparator = Field(..., description="Comparison operator")
     value: Any = Field(default=None, description="Expected value (ignored for EXISTS)")
@@ -607,6 +680,7 @@ class PreconditionRule(BaseModel):
 
 class ActionDef(BaseModel):
     """Canonical action definition loaded from adl_core_ontology.yaml."""
+
     name: str
     description: str = ""
     allowed_on: list[str] = Field(default_factory=list)
@@ -618,6 +692,7 @@ class ActionDef(BaseModel):
 
 class ExecutionEntry(BaseModel):
     """A single execution log entry for an action block."""
+
     timestamp: datetime = Field(default_factory=lambda: datetime.utcnow())
     executor: str = "system"
     side_effect: str
@@ -637,10 +712,10 @@ class ADLActionBlock(BaseModel):
       ...
     ```
     """
+
     block_type: Literal["action"] = "action"
     action_block_id: str = Field(
-        default="",
-        description="Unique idempotency key (auto-generated or explicit)"
+        default="", description="Unique idempotency key (auto-generated or explicit)"
     )
     action: str = Field(..., description="Action name, must be in ontology registry")
     actor: str = Field(..., description="Agent or human identifier")
@@ -659,11 +734,13 @@ AllBlocks = ADLRelationBlock | ADLEvidenceBlock | ADLFormalSealBlock | ADLAction
 # Concept Skeleton (Hot Storage)
 # ---------------------------------------------------------------------------
 
+
 class ConceptSkeleton(BaseModel):
     """
     Lightweight summary for fast retrieval (< 500 bytes).
     Stored in Hot layer (in-memory HashMap).
     """
+
     adl_id: str
     semantic_type: ADLType
     domain_tag: str
@@ -691,6 +768,7 @@ class ConceptSkeleton(BaseModel):
 # Full Parsed ADL Document
 # ---------------------------------------------------------------------------
 
+
 class ADLDocument(BaseModel):
     """
     Complete in-memory representation of an ADL Lite document.
@@ -700,6 +778,7 @@ class ADLDocument(BaseModel):
     Philosophy: The EventChain IS the concept. FrontMatter is a derived snapshot.
     Status/confidence are computed from the chain, not stored as mutable fields.
     """
+
     front_matter: ADLFrontMatter
     markdown_body: str = ""
     adl_blocks: list[ADLBlock] = Field(default_factory=list)
@@ -767,21 +846,21 @@ class ADLDocument(BaseModel):
     def refresh_snapshot(self, chain: EventChain | None = None) -> None:
         c = chain or self.event_chain
         self.front_matter = ADLFrontMatter.from_chain(
-            c, adl_type=self.front_matter.adl_type,
+            c,
+            adl_type=self.front_matter.adl_type,
             identity=self.front_matter.identity_dict(),
         )
 
     def to_skeleton(self) -> ConceptSkeleton:
         """Derive the Hot-storage skeleton from this document."""
         sk = ConceptSkeleton.from_front_matter(self.front_matter)
-        sk.relation_summary = [
-            f"{r.source}--{r.relation}-->{r.target}" for r in self.relations
-        ]
+        sk.relation_summary = [f"{r.source}--{r.relation}-->{r.target}" for r in self.relations]
         sk.evidence_count = len(self.evidence)
         return sk
 
     def validate_semantics(self) -> list[str]:
         """Run semantic validation and return list of errors."""
         from .validator import ADLValidator
+
         validator = ADLValidator()
         return validator.validate_document(self)

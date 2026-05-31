@@ -29,15 +29,15 @@ except ImportError:  # pragma: no cover
     yaml = None  # type: ignore[assignment]
 
 from .models import (
-    ADLBlock,
+    ActionExecStatus,
     ADLActionBlock,
+    ADLBlock,
     ADLDocument,
     ADLEvidenceBlock,
     ADLFormalSealBlock,
     ADLFrontMatter,
     ADLRelationBlock,
     ADLType,
-    ActionExecStatus,
     DiscoveryStatus,
     EvidenceType,
     MechanismType,
@@ -50,14 +50,12 @@ from .models import (
 
 # Matches ```adl:<subtype> ... ``` blocks (non-greedy)
 _RE_ADL_BLOCK = re.compile(
-    r'^```adl:(?P<block_type>\w+)\s*\n'
-    r'(?P<body>.*?)'
-    r'^```',
+    r"^```adl:(?P<block_type>\w+)\s*\n" r"(?P<body>.*?)" r"^```",
     re.MULTILINE | re.DOTALL,
 )
 
 # Inline YAML inside ADL blocks — key: value pairs
-_RE_KV_LINE = re.compile(r'^(\w+):\s*(.+)$', re.MULTILINE)
+_RE_KV_LINE = re.compile(r"^(\w+):\s*(.+)$", re.MULTILINE)
 
 # Obsidian-style wiki links in L2 body
 _RE_WIKI_LINK = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]")
@@ -72,6 +70,21 @@ class ADLParser:
         doc = parser.parse_file("examples/capital_reflux_trap.md")
         doc = parser.parse_text(raw_markdown_string)
     """
+
+    # ------------------------------------------------------------------
+    # Helper: unquote a string that is wrapped in matching double-quotes
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _unquote(s: str) -> str:
+        """Remove ONE pair of matching outer double-quotes, preserving embedded quotes.
+        Unlike strip('"'), this does NOT destroy quotes inside the value.
+        'He said "hello"' → 'He said "hello"' (no change)
+        '"He said "hello""' → 'He said "hello"' (removes outer pair only)
+        """
+        if s.startswith('"') and s.endswith('"') and len(s) >= 2:
+            return s[1:-1]
+        return s
 
     def __init__(self) -> None:
         if yaml is None:
@@ -156,6 +169,7 @@ class ADLParser:
         # Add timestamps if missing
         if not data.get("created_at"):
             from datetime import datetime, timezone
+
             data["created_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
         return ADLFrontMatter(**data)
@@ -198,12 +212,12 @@ class ADLParser:
         params = {}
         for k, v in kv.items():
             if k.startswith("param_"):
-                params[k[len("param_"):]] = v.strip('"')
+                params[k[len("param_") :]] = cls._unquote(v)
 
         return ADLActionBlock(
-            action=kv.get("action", "").strip('"'),
-            actor=kv.get("actor", "").strip('"'),
-            reasoning=kv.get("reasoning", "").strip('"'),
+            action=cls._unquote(kv.get("action", "")),
+            actor=cls._unquote(kv.get("actor", "")),
+            reasoning=cls._unquote(kv.get("reasoning", "")),
             timestamp=kv.get("timestamp"),
             params=params,
             exec_status=ActionExecStatus.PENDING,
@@ -215,26 +229,28 @@ class ADLParser:
         try:
             if block_type == "relation":
                 return ADLRelationBlock(
-                    source=kv.get("source", "").strip('"'),
-                    relation=kv.get("relation", "").strip('"'),
-                    target=kv.get("target", "").strip('"'),
+                    source=cls._unquote(kv.get("source", "")),
+                    relation=cls._unquote(kv.get("relation", "")),
+                    target=cls._unquote(kv.get("target", "")),
                     mapping_type=kv.get("mapping_type"),
                     confidence=float(kv.get("confidence", "1.0")),
                 )
             elif block_type == "evidence":
                 return ADLEvidenceBlock(
-                    evidence_type=EvidenceType(kv.get("evidence_type", "empirical_observation").strip('"')),
-                    data_ref=kv.get("data_ref", "").strip('"'),
-                    description=kv.get("description", "").strip('"') or None,
+                    evidence_type=EvidenceType(
+                        cls._unquote(kv.get("evidence_type", "empirical_observation"))
+                    ),
+                    data_ref=cls._unquote(kv.get("data_ref", "")),
+                    description=cls._unquote(kv.get("description", "")) or None,
                     confidence=float(kv.get("confidence", "1.0")),
-                    observed_at=kv.get("observed_at", "").strip('"') or None,
+                    observed_at=cls._unquote(kv.get("observed_at", "")) or None,
                 )
             elif block_type == "seal":
                 return ADLFormalSealBlock(
-                    assertion=kv.get("assertion", "").strip('"'),
-                    language=kv.get("language", "lean4").strip('"'),  # type: ignore[arg-type]
+                    assertion=cls._unquote(kv.get("assertion", "")),
+                    language=cls._unquote(kv.get("language", "lean4")),  # type: ignore[arg-type]
                     proof_ref=kv.get("proof_ref"),
-                    status=kv.get("status", "pending").strip('"'),  # type: ignore[arg-type]
+                    status=cls._unquote(kv.get("status", "pending")),  # type: ignore[arg-type]
                     verified_by=kv.get("verified_by"),
                 )
             else:
@@ -248,6 +264,7 @@ class ADLParser:
 # Exceptions
 # ---------------------------------------------------------------------------
 
+
 class ADLParseError(Exception):
     """Raised when an ADL Lite document cannot be parsed."""
 
@@ -255,6 +272,7 @@ class ADLParseError(Exception):
 # ---------------------------------------------------------------------------
 # Convenience
 # ---------------------------------------------------------------------------
+
 
 def parse_file(path: str | Path) -> ADLDocument:
     """One-shot parse a file."""

@@ -73,6 +73,70 @@
     "errors": [],
     "duration_ms": 5
   },
+  "E10": {
+    "experiment_id": "E10",
+    "status": "partial",
+    "metrics": {
+      "accounts_imported": 201,
+      "pipeline_sample_size": 201,
+      "pipeline_pct": 100.0,
+      "classes_discovered": 0,
+      "links_discovered": 0,
+      "concepts_generated": 201,
+      "concepts_registered": 201,
+      "concepts_validated_via_executor": 1,
+      "chains_integrity_after_pipeline": "201/201",
+      "pipeline_complete": false
+    },
+    "raw_data": [
+      {
+        "phase": "import",
+        "accounts": 201,
+        "events": 9302
+      },
+      {
+        "phase": "ontology",
+        "classes_discovered": 0,
+        "links_discovered": 0
+      },
+      {
+        "phase": "concepts_generated",
+        "count": 201
+      },
+      {
+        "phase": "consensus",
+        "registered": 201
+      },
+      {
+        "phase": "actions",
+        "validated": 1
+      },
+      {
+        "phase": "integrity",
+        "chains_ok": 201,
+        "total": 201
+      }
+    ],
+    "errors": [],
+    "duration_ms": 264
+  },
+  "E11": {
+    "experiment_id": "E11",
+    "status": "passed",
+    "metrics": {
+      "effects_enqueued": 1000,
+      "effects_drained_total": 1000,
+      "effects_remaining": 0,
+      "drain_rounds": 11,
+      "all_succeeded": true,
+      "success_calls": 1000,
+      "failure_calls": 1000,
+      "total_calls": 2000
+    },
+    "raw_data": [],
+    "errors": [],
+    "duration_ms": 1
+  },
   "E2": {
     "experiment_id": "E2",
     "status": "passed",
@@ -84,7 +148,7 @@
     },
     "raw_data": [],
     "errors": [],
-    "duration_ms": 79
+    "duration_ms": 83
   },
   "E3": {
     "experiment_id": "E3",
@@ -401,15 +465,15 @@
       }
     ],
     "errors": [],
-    "duration_ms": 25
+    "duration_ms": 18
   },
   "E4": {
     "experiment_id": "E4",
     "status": "passed",
     "metrics": {
-      "true_positive": 5,
+      "true_positive": 8,
       "false_positive": 0,
-      "true_negative": 8,
+      "true_negative": 11,
       "false_negative": 0,
       "precision": 1.0,
       "recall": 1.0,
@@ -503,6 +567,48 @@
         ]
       },
       {
+        "label": "publish_pass",
+        "should_pass": true,
+        "actually_passed": true,
+        "errors": []
+      },
+      {
+        "label": "publish_missing_wiki_space",
+        "should_pass": false,
+        "actually_passed": false,
+        "errors": [
+          "Missing required params: ['wiki_space']"
+        ]
+      },
+      {
+        "label": "sync_dashboard_pass",
+        "should_pass": true,
+        "actually_passed": true,
+        "errors": []
+      },
+      {
+        "label": "sync_dashboard_missing_sheet_id",
+        "should_pass": false,
+        "actually_passed": false,
+        "errors": [
+          "Missing required params: ['sheet_id']"
+        ]
+      },
+      {
+        "label": "listen_pass",
+        "should_pass": true,
+        "actually_passed": true,
+        "errors": []
+      },
+      {
+        "label": "listen_missing_feedback_file",
+        "should_pass": false,
+        "actually_passed": false,
+        "errors": [
+          "Missing required params: ['feedback_file']"
+        ]
+      },
+      {
         "label": "unknown_action",
         "should_pass": false,
         "actually_passed": false,
@@ -565,39 +671,26 @@
       }
     ],
     "errors": [],
-    "duration_ms": 13
+    "duration_ms": 8
   },
   "E6": {
     "experiment_id": "E6",
     "status": "passed",
     "metrics": {
-      "total_accounts": 495671,
-      "total_transactions": 5080714,
-      "avg_txns_per_account": 10.3,
-      "chains_integrity_all": "495671/495671",
-      "suspicious_accounts": 3386,
-      "suspicious_chains_integrity": "3386/3386",
-      "laundering_events_total": 8376,
-      "laundering_pct": 0.16,
+      "total_accounts": 201,
+      "total_transactions": 9300,
+      "avg_txns_per_account": 46.3,
+      "chains_import_integrity": "201/201",
+      "suspicious_accounts": 1,
+      "suspicious_chains_import_integrity": "1/1",
+      "laundering_events_total": 300,
+      "laundering_pct": 3.23,
       "discovered_classes": "",
       "discovered_links": "",
-      "detected_pattern_count": 3040,
-      "concepts_matched": "aml-cyclic-pattern, aml-fan-out-pattern, aml-rapid-move, aml-smurfing"
+      "detected_pattern_count": 1,
+      "concepts_matched": "aml-fan-out-pattern, aml-rapid-move, aml-smurfing"
     },
     "raw_data": [
-      {
-        "account": "acct-A1001",
-        "chain_length": 200,
-        "integrity_ok": true,
-        "laundering_events": 200,
-        "laundering_pct": 1.0,
-        "detected_patterns": [
-          "high_frequency"
-        ],
-        "matched_concepts": [
-          "aml-rapid-move"
-        ]
-      },
       {
         "account": "acct-A0990",
         "chain_length": 300,
@@ -614,249 +707,214 @@
           "aml-rapid-move",
           "aml-fan-out-pattern"
         ]
-      },
-      {
-        "account": "acct-A1100",
-        "chain_length": 1500,
-        "integrity_ok": true,
-        "laundering_events": 1500,
-        "laundering_pct": 1.0,
-        "detected_patterns": [
-          "high_frequency",
-          "fan_out"
-        ],
-        "matched_concepts": [
-          "aml-rapid-move",
-          "aml-fan-out-pattern"
-        ]
-      },
-      {
-        "account": "acct-A1203",
-        "chain_length": 100,
-        "integrity_ok": true,
-        "laundering_events": 100,
-        "laundering_pct": 1.0,
-        "detected_patterns": [
-          "high_frequency",
-          "cyclic"
-        ],
-        "matched_concepts": [
-          "aml-rapid-move",
-          "aml-cyclic-pattern"
-        ]
-      },
-      {
-        "account": "acct-A1002",
-        "chain_length": 200,
-        "integrity_ok": true,
-        "laundering_events": 200,
-        "laundering_pct": 1.0,
-        "detected_patterns": [
-          "high_frequency"
-        ],
-        "matched_concepts": [
-          "aml-rapid-move"
-        ]
-      },
-      {
-        "account": "acct-A1005",
-        "chain_length": 200,
-        "integrity_ok": true,
-        "laundering_events": 200,
-        "laundering_pct": 1.0,
-        "detected_patterns": [
-          "high_frequency"
-        ],
-        "matched_concepts": [
-          "aml-rapid-move"
-        ]
-      },
-      {
-        "account": "acct-A1004",
-        "chain_length": 200,
-        "integrity_ok": true,
-        "laundering_events": 200,
-        "laundering_pct": 1.0,
-        "detected_patterns": [
-          "high_frequency"
-        ],
-        "matched_concepts": [
-          "aml-rapid-move"
-        ]
-      },
-      {
-        "account": "acct-A1201",
-        "chain_length": 200,
-        "integrity_ok": true,
-        "laundering_events": 200,
-        "laundering_pct": 1.0,
-        "detected_patterns": [
-          "high_frequency",
-          "cyclic"
-        ],
-        "matched_concepts": [
-          "aml-rapid-move",
-          "aml-cyclic-pattern"
-        ]
-      },
-      {
-        "account": "acct-A1202",
-        "chain_length": 100,
-        "integrity_ok": true,
-        "laundering_events": 100,
-        "laundering_pct": 1.0,
-        "detected_patterns": [
-          "high_frequency",
-          "cyclic"
-        ],
-        "matched_concepts": [
-          "aml-rapid-move",
-          "aml-cyclic-pattern"
-        ]
-      },
-      {
-        "account": "acct-A1003",
-        "chain_length": 200,
-        "integrity_ok": true,
-        "laundering_events": 200,
-        "laundering_pct": 1.0,
-        "detected_patterns": [
-          "high_frequency"
-        ],
-        "matched_concepts": [
-          "aml-rapid-move"
-        ]
-      },
-      {
-        "account": "acct-8005CC8D0",
-        "chain_length": 88,
-        "integrity_ok": true,
-        "laundering_events": 1,
-        "laundering_pct": 0.011,
-        "detected_patterns": [],
-        "matched_concepts": []
-      },
-      {
-        "account": "acct-8011150C0",
-        "chain_length": 20,
-        "integrity_ok": true,
-        "laundering_events": 1,
-        "laundering_pct": 0.05,
-        "detected_patterns": [
-          "cyclic"
-        ],
-        "matched_concepts": [
-          "aml-cyclic-pattern"
-        ]
-      },
-      {
-        "account": "acct-80114EBB0",
-        "chain_length": 2,
-        "integrity_ok": true,
-        "laundering_events": 1,
-        "laundering_pct": 0.5,
-        "detected_patterns": [
-          "cyclic"
-        ],
-        "matched_concepts": [
-          "aml-cyclic-pattern"
-        ]
-      },
-      {
-        "account": "acct-100428660",
-        "chain_length": 168508,
-        "integrity_ok": true,
-        "laundering_events": 242,
-        "laundering_pct": 0.001,
-        "detected_patterns": [
-          "high_frequency",
-          "fan_out"
-        ],
-        "matched_concepts": [
-          "aml-rapid-move",
-          "aml-fan-out-pattern"
-        ]
-      },
-      {
-        "account": "acct-800FB5AB0",
-        "chain_length": 37,
-        "integrity_ok": true,
-        "laundering_events": 1,
-        "laundering_pct": 0.027,
-        "detected_patterns": [
-          "cyclic"
-        ],
-        "matched_concepts": [
-          "aml-cyclic-pattern"
-        ]
-      },
-      {
-        "account": "acct-8011A5230",
-        "chain_length": 20,
-        "integrity_ok": true,
-        "laundering_events": 1,
-        "laundering_pct": 0.05,
-        "detected_patterns": [
-          "cyclic"
-        ],
-        "matched_concepts": [
-          "aml-cyclic-pattern"
-        ]
-      },
-      {
-        "account": "acct-800D201E0",
-        "chain_length": 45,
-        "integrity_ok": true,
-        "laundering_events": 1,
-        "laundering_pct": 0.022,
-        "detected_patterns": [
-          "cyclic"
-        ],
-        "matched_concepts": [
-          "aml-cyclic-pattern"
-        ]
-      },
-      {
-        "account": "acct-8011D5060",
-        "chain_length": 7,
-        "integrity_ok": true,
-        "laundering_events": 1,
-        "laundering_pct": 0.143,
-        "detected_patterns": [
-          "cyclic"
-        ],
-        "matched_concepts": [
-          "aml-cyclic-pattern"
-        ]
-      },
-      {
-        "account": "acct-8011EF080",
-        "chain_length": 17,
-        "integrity_ok": true,
-        "laundering_events": 1,
-        "laundering_pct": 0.059,
-        "detected_patterns": [
-          "cyclic"
-        ],
-        "matched_concepts": [
-          "aml-cyclic-pattern"
-        ]
-      },
-      {
-        "account": "acct-8011F0870",
-        "chain_length": 69,
-        "integrity_ok": true,
-        "laundering_events": 1,
-        "laundering_pct": 0.014,
-        "detected_patterns": [
-          "cyclic"
-        ],
-        "matched_concepts": [
-          "aml-cyclic-pattern"
-        ]
       }
     ],
     "errors": [],
-    "duration_ms": 238490
+    "duration_ms": 245
+  },
+  "E7": {
+    "experiment_id": "E7",
+    "status": "passed",
+    "metrics": {
+      "smurfing_threshold_ok": true,
+      "rapid_movement_threshold_ok": true,
+      "fan_out_threshold_ok": true,
+      "status_transition_ok": true,
+      "false_positives_on_100_legit": 0,
+      "handler_callbacks_fired": 4,
+      "test_count": 6
+    },
+    "raw_data": [
+      {
+        "test": "smurfing_threshold",
+        "alerts_fired": 1,
+        "expected": 1,
+        "ok": true
+      },
+      {
+        "test": "rapid_movement_threshold",
+        "alerts_fired": 1,
+        "expected": 1,
+        "ok": true
+      },
+      {
+        "test": "fan_out_threshold",
+        "alerts_fired": 1,
+        "expected": 1,
+        "ok": true
+      },
+      {
+        "test": "status_transition",
+        "alerts_fired": 1,
+        "validated_detected": true,
+        "ok": true
+      },
+      {
+        "test": "false_positive_check",
+        "events_checked": 100,
+        "false_positives": 0,
+        "ok": true
+      },
+      {
+        "test": "handler_dispatch",
+        "handlers_called": 4,
+        "ok": true
+      }
+    ],
+    "errors": [],
+    "duration_ms": 2
+  },
+  "E8": {
+    "experiment_id": "E8",
+    "status": "passed",
+    "metrics": {
+      "offline_operation_ok": true,
+      "events_recorded_offline": 3,
+      "effects_queued_offline": 1,
+      "merge_no_conflict_ok": true,
+      "merge_semantic_conflict_ok": true,
+      "merge_contradictory_lifecycle_ok": true,
+      "merge_divergent_terminal_ok": true,
+      "push_pull_ok": true,
+      "reconnect_drain_ok": true
+    },
+    "raw_data": [
+      {
+        "test": "offline_operation",
+        "chain_integrity": true,
+        "events_recorded": 3,
+        "effects_queued": 1,
+        "ok": true
+      },
+      {
+        "test": "side_effect_queue",
+        "queued": 2,
+        "ok": true
+      },
+      {
+        "test": "queue_drain_no_executor",
+        "success": 0,
+        "failed": 2,
+        "ok": true
+      },
+      {
+        "test": "merge_diverged_chains",
+        "events_merged": 6,
+        "integrity_ok": true,
+        "ok": true
+      },
+      {
+        "test": "merge_semantic_conflict",
+        "events_merged": 5,
+        "validate_events": 2,
+        "integrity_ok": true,
+        "ok": true
+      },
+      {
+        "test": "merge_contradictory_lifecycle",
+        "events_merged": 5,
+        "chain_status": "deprecated",
+        "integrity_ok": true,
+        "ok": true
+      },
+      {
+        "test": "merge_divergent_terminal",
+        "events_merged": 6,
+        "integrity_ok": true,
+        "ok": true
+      },
+      {
+        "test": "push_pull",
+        "push_length": 3,
+        "pull_length": 4,
+        "pull_status": "validated",
+        "ok": true
+      },
+      {
+        "test": "reconnect_drain",
+        "online": true,
+        "effects_queued_before": 1,
+        "ok": true
+      }
+    ],
+    "errors": [],
+    "duration_ms": 0
+  },
+  "E9": {
+    "experiment_id": "E9",
+    "status": "passed",
+    "metrics": {
+      "eventchain_detection_rate": 1.0,
+      "git_detection_rate": 1.0,
+      "eventchain_diagnostic_precision": 1.0,
+      "git_diagnostic_precision": 1.0,
+      "eventchain_classifies_violation_type": 10,
+      "git_classifies_violation_type": 0,
+      "corruptions_total": 10
+    },
+    "raw_data": [
+      {
+        "chain_id": 0,
+        "corruption_type": "broken_link",
+        "corrupted_event_idx": 2,
+        "eventchain_detected": true
+      },
+      {
+        "chain_id": 1,
+        "corruption_type": "payload_tamper",
+        "corrupted_event_idx": 3,
+        "eventchain_detected": true
+      },
+      {
+        "chain_id": 2,
+        "corruption_type": "hash_mismatch",
+        "corrupted_event_idx": 4,
+        "eventchain_detected": true
+      },
+      {
+        "chain_id": 3,
+        "corruption_type": "broken_link",
+        "corrupted_event_idx": 2,
+        "eventchain_detected": true
+      },
+      {
+        "chain_id": 4,
+        "corruption_type": "payload_tamper",
+        "corrupted_event_idx": 3,
+        "eventchain_detected": true
+      },
+      {
+        "chain_id": 5,
+        "corruption_type": "hash_mismatch",
+        "corrupted_event_idx": 4,
+        "eventchain_detected": true
+      },
+      {
+        "chain_id": 6,
+        "corruption_type": "broken_link",
+        "corrupted_event_idx": 2,
+        "eventchain_detected": true
+      },
+      {
+        "chain_id": 7,
+        "corruption_type": "payload_tamper",
+        "corrupted_event_idx": 3,
+        "eventchain_detected": true
+      },
+      {
+        "chain_id": 8,
+        "corruption_type": "hash_mismatch",
+        "corrupted_event_idx": 4,
+        "eventchain_detected": true
+      },
+      {
+        "chain_id": 9,
+        "corruption_type": "broken_link",
+        "corrupted_event_idx": 2,
+        "eventchain_detected": true
+      }
+    ],
+    "errors": [],
+    "duration_ms": 126
   }
 }

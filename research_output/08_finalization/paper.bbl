@@ -1,0 +1,136 @@
+\begin{thebibliography}{10}
+
+\bibitem{pan2024unifying}
+Shirui Pan, Linhao Luo, Yufei Wang, Chen Chen, Jiapu Wang, and Xindong Wu.
+\newblock Unifying large language models and knowledge graphs: A roadmap.
+\newblock {\em IEEE Transactions on Knowledge and Data Engineering}, 2024.
+
+\bibitem{chen2024agentpoison}
+B.~Chen, Z.~Zhang, N.~Beauchamp, J.~Truong, Y.~Wang, H.~Yang, and L.~Liu.
+\newblock Agentpoison: Red-teaming llm agents via memory poisoning.
+\newblock {\em arXiv preprint arXiv:2407.12784}, 2024.
+
+\bibitem{mcguinness2004owl}
+Deborah~L McGuinness and Frank Van~Harmelen.
+\newblock Owl web ontology language overview.
+\newblock Recommendation, W3C, 2004.
+
+\bibitem{angles2008survey}
+Renzo Angles and Claudio Gutierrez.
+\newblock Survey of graph database models.
+\newblock {\em ACM Computing Surveys}, 40(1):1--39, 2008.
+
+\bibitem{colvin2021pydantic}
+Samuel Colvin et~al.
+\newblock Pydantic: Data validation using python type hints.
+\newblock \url{https://github.com/pydantic/pydantic}, 2021.
+
+\bibitem{wittgenstein1922tractatus}
+Ludwig Wittgenstein.
+\newblock {\em Tractatus Logico-Philosophicus}.
+\newblock Routledge \& Kegan Paul, 1922.
+
+\bibitem{whitehead1929process}
+Alfred~North Whitehead.
+\newblock {\em Process and Reality}.
+\newblock Free Press, 1929.
+
+\bibitem{fowler2005event}
+Martin Fowler.
+\newblock Event sourcing.
+\newblock \url{https://martinfowler.com/eaaDev/EventSourcing.html}, 2005.
+
+\bibitem{lebo2013prov}
+Timothy Lebo, Satya Sahoo, and Deborah McGuinness.
+\newblock Prov-o: The prov ontology.
+\newblock Recommendation, W3C, 2013.
+
+\bibitem{raimond2007event}
+Yves Raimond and Samer Abdallah.
+\newblock The event ontology.
+\newblock Technical report, Technical Report, 2007.
+
+\bibitem{vanhage2011sem}
+Willem~Robert Van~Hage, V{\'e}ronique Malais{\'e}, Roxane Segers, Laura
+  Hollink, and Guus Schreiber.
+\newblock Design and use of the simple event model (sem).
+\newblock {\em Journal of Web Semantics}, 9(2):128--136, 2011.
+
+\bibitem{trajanoska2023enhancing}
+Milena Trajanoska, Riste Stojanov, and Dimitar Trajanov.
+\newblock Enhancing knowledge graph construction using large language models.
+\newblock {\em arXiv preprint arXiv:2305.04692}, 2023.
+
+\bibitem{chen2024exploring}
+Z.~Chen, H.~Mao, H.~Li, W.~Jin, H.~Wen, X.~Wei, S.~Wang, D.~Yin, W.~Fan,
+  H.~Liu, and J.~Tang.
+\newblock Exploring the potential of large language models (llms) in learning
+  on graphs.
+\newblock {\em ACM SIGKDD Explorations}, 2024.
+
+\bibitem{lamport1982byzantine}
+Leslie Lamport, Robert Shostak, and Marshall Pease.
+\newblock The byzantine generals problem.
+\newblock {\em ACM Transactions on Programming Languages and Systems},
+  4(3):382--401, 1982.
+
+\bibitem{ongaro2014raft}
+Diego Ongaro and John Ousterhout.
+\newblock In search of an understandable consensus algorithm.
+\newblock In {\em USENIX Annual Technical Conference}, 2014.
+
+\bibitem{wooldridge2009multiagent}
+Michael Wooldridge.
+\newblock {\em An Introduction to MultiAgent Systems}.
+\newblock Wiley, 2nd edition, 2009.
+
+\bibitem{jurca2003reputation}
+Radu Jurca and Boi Faltings.
+\newblock An incentive compatible reputation mechanism.
+\newblock In {\em IEEE Conference on E-Commerce}, 2003.
+
+\bibitem{brandt2016handbook}
+Felix Brandt, Vincent Conitzer, Ulle Endriss, J{\'e}r{\^o}me Lang, and Ariel~D
+  Procaccia.
+\newblock {\em Handbook of Computational Social Choice}.
+\newblock Cambridge University Press, 2016.
+
+\bibitem{shapiro2011crdt}
+Marc Shapiro, Nuno Pregui{\c{c}}a, Carlos Baquero, and Marek Zawirski.
+\newblock Conflict-free replicated data types.
+\newblock In {\em Symposium on Self-Stabilizing Systems (SSS)}, volume 6976 of
+  {\em LNCS}, pages 386--400, 2011.
+
+\bibitem{third2017linkchains}
+Allan Third and John Domingue.
+\newblock Linkchains: Exploring the space of decentralised trustworthy linked
+  data.
+\newblock In {\em DeSemWeb@ISWC}, 2017.
+
+\bibitem{benet2014ipfs}
+Juan Benet.
+\newblock Ipfs - content addressed, versioned, p2p file system.
+\newblock {\em arXiv preprint arXiv:1407.3561}, 2014.
+
+\bibitem{groth2010nanopub}
+Paul Groth, Andrew Gibson, and Jan Velterop.
+\newblock The anatomy of a nanopublication.
+\newblock {\em Information Services \& Use}, 30(1-2):51--56, 2010.
+
+\bibitem{hartig2024rdfstar}
+Olaf Hartig and Pierre-Antoine Champin.
+\newblock Rdf-star and sparql-star.
+\newblock Community group report, W3C, 2024.
+
+\bibitem{vrandecic2014wikidata}
+Denny Vrande{\v{c}}i{\'c} and Markus Kr{\"o}tzsch.
+\newblock Wikidata: A free collaborative knowledgebase.
+\newblock {\em Communications of the ACM}, 57(10):78--85, 2014.
+
+\bibitem{bernerslee2004delta}
+Tim Berners-Lee and Dan Connolly.
+\newblock Delta: An ontology for the distribution of differences between rdf
+  graphs.
+\newblock Note, W3C, 2004.
+
+\end{thebibliography}

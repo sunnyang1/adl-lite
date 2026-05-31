@@ -11,17 +11,20 @@ measuring precision and recall of the integrity check.
 
 from __future__ import annotations
 
-import hashlib
 import random
+
+from adl_lite.models import Event, EventChain, EventType
 
 from .base import BaseExperiment, ExperimentResult
 from .registry import register
 
-from adl_lite.models import Event, EventChain, EventType
-
 EVENT_TYPES = [
-    EventType.REGISTER, EventType.VALIDATE, EventType.RELATE,
-    EventType.EVIDENCE, EventType.ANNOUNCE, EventType.DEPRECATE,
+    EventType.REGISTER,
+    EventType.VALIDATE,
+    EventType.RELATE,
+    EventType.EVIDENCE,
+    EventType.ANNOUNCE,
+    EventType.DEPRECATE,
 ]
 
 random.seed(42)
@@ -31,12 +34,14 @@ def _build_random_chain(concept_id: str, length: int) -> EventChain:
     chain = EventChain(concept_id=concept_id)
     for _ in range(length):
         et = random.choice(EVENT_TYPES)
-        chain.append(Event(
-            concept_id=concept_id,
-            event_type=et,
-            actor=f"agent_{random.randint(1, 5)}",
-            payload={"val": random.random()},
-        ))
+        chain.append(
+            Event(
+                concept_id=concept_id,
+                event_type=et,
+                actor=f"agent_{random.randint(1, 5)}",
+                payload={"val": random.random()},
+            )
+        )
     return chain
 
 
@@ -61,11 +66,13 @@ class E1ChainIntegrity(BaseExperiment):
             if ok:
                 valid_ok += 1
             else:
-                results.append({
-                    "type": "valid_chain_should_pass",
-                    "concept_id": f"e1-test-{i}",
-                    "ok": False,
-                })
+                results.append(
+                    {
+                        "type": "valid_chain_should_pass",
+                        "concept_id": f"e1-test-{i}",
+                        "ok": False,
+                    }
+                )
 
         # Phase 2: Generate 10 corrupt chains, verify all are detected
         corruption_methods = [
@@ -75,7 +82,8 @@ class E1ChainIntegrity(BaseExperiment):
             lambda chain: chain._events[3].payload.update({"tampered": True}),
             # Method c: inject event with wrong concept_id (should be caught by append)
             lambda chain: chain._events.insert(
-                1, Event(concept_id="wrong-concept", event_type=EventType.REGISTER, actor="attacker")
+                1,
+                Event(concept_id="wrong-concept", event_type=EventType.REGISTER, actor="attacker"),
             ),
         ]
 
@@ -92,12 +100,14 @@ class E1ChainIntegrity(BaseExperiment):
             corrupt_total += 1
             if not ok:
                 corrupt_ok += 1
-            results.append({
-                "type": "corrupt_chain_should_fail",
-                "concept_id": f"e1-corrupt-{i}",
-                "corruption_method": i % len(corruption_methods),
-                "detected": not ok,
-            })
+            results.append(
+                {
+                    "type": "corrupt_chain_should_fail",
+                    "concept_id": f"e1-corrupt-{i}",
+                    "corruption_method": i % len(corruption_methods),
+                    "detected": not ok,
+                }
+            )
 
         # Metrics
         precision_valid = valid_ok / valid_total if valid_total else 0.0

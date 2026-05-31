@@ -73,9 +73,7 @@ def iter_warm_records(
             "SELECT source, predicate, target FROM relations WHERE source = ? OR target = ?",
             (adl_id, adl_id),
         ).fetchall()
-        rel_parts = [
-            f"{r['source']}--{r['predicate']}-->{r['target']}" for r in rel_rows
-        ]
+        rel_parts = [f"{r['source']}--{r['predicate']}-->{r['target']}" for r in rel_rows]
         sk = mem.hot.get(adl_id)
         title = adl_id
         if sk and sk.domain_tag:
@@ -172,11 +170,15 @@ def upsert_warm_record(
 ) -> str:
     """Idempotent upsert by adl_id. Returns action: created|updated|dry-run."""
     fields = warm_record_to_fields(rec)
-    record_id = None if dry_run else _search_existing_record_id(
-        base_token=base_token,
-        table_id=table_id,
-        adl_id=rec.adl_id,
-        lark_cli=lark_cli,
+    record_id = (
+        None
+        if dry_run
+        else _search_existing_record_id(
+            base_token=base_token,
+            table_id=table_id,
+            adl_id=rec.adl_id,
+            lark_cli=lark_cli,
+        )
     )
 
     cmd = [

@@ -88,6 +88,7 @@ status: pending
 # Parser Tests
 # ---------------------------------------------------------------------------
 
+
 class TestParser:
     def test_split_front_matter(self):
         parser = ADLParser()
@@ -175,6 +176,7 @@ class TestParser:
 # Semantic Validation Tests
 # ---------------------------------------------------------------------------
 
+
 class TestValidation:
     def test_pronoun_detection(self):
         """Pronouns should trigger validation errors."""
@@ -249,13 +251,14 @@ Test document.
 # Consensus Engine Tests
 # ---------------------------------------------------------------------------
 
+
 class TestConsensus:
     def test_register_and_transition(self):
         engine = ConsensusEngine()
         doc = parse_text(SAMPLE_DOC)
 
         chain = engine.register(doc)
-        assert chain.latest_status == DiscoveryStatus.PROVISIONAL
+        assert chain.status == DiscoveryStatus.PROVISIONAL
 
         entry = engine.transition(
             doc.adl_id,
@@ -264,7 +267,7 @@ class TestConsensus:
             reason="Cross-agent agreement reached",
         )
         assert entry is not None
-        assert entry.to_status == DiscoveryStatus.VALIDATED
+        assert entry.event_type.value == "validate"
         assert engine.get_status(doc.adl_id) == DiscoveryStatus.VALIDATED
 
     def test_invalid_transition(self):
@@ -272,18 +275,12 @@ class TestConsensus:
         doc = parse_text(SAMPLE_DOC)
         engine.register(doc)
 
+        # provisional → validated is OK
+        engine.transition(doc.adl_id, DiscoveryStatus.VALIDATED, actor="test")
+
+        # validated → provisional is INVALID
         with pytest.raises(ValueError):
-            engine.transition(
-                doc.adl_id,
-                DiscoveryStatus.VALIDATED,  # provisional → validated is OK
-                actor="test",
-            )
-            # Now try validated → provisional (invalid)
-            engine.transition(
-                doc.adl_id,
-                DiscoveryStatus.PROVISIONAL,
-                actor="test",
-            )
+            engine.transition(doc.adl_id, DiscoveryStatus.PROVISIONAL, actor="test")
 
     def test_chain_integrity(self):
         engine = ConsensusEngine()
@@ -306,13 +303,14 @@ class TestConsensus:
             actor="agent_forker",
             reason="Alternative mechanism hypothesis",
         )
-        assert fork_chain.latest_status == DiscoveryStatus.PROVISIONAL
+        assert fork_chain.status == DiscoveryStatus.PROVISIONAL
         assert engine.get_status(doc.adl_id) == DiscoveryStatus.FORKED
 
 
 # ---------------------------------------------------------------------------
 # Integration Tests
 # ---------------------------------------------------------------------------
+
 
 class TestIntegration:
     def test_end_to_end(self):
@@ -332,7 +330,8 @@ class TestIntegration:
         engine.register(doc)
         engine.transition(doc.adl_id, DiscoveryStatus.VALIDATED, "integration_test")
         history = engine.get_history(doc.adl_id)
-        assert len(history) == 2  # register + transition
+        # history includes: SNAPSHOT + relate + evidence + seal + validate events
+        assert len(history) >= 2  # at least register + transition
 
     def test_scope_access_control(self):
         """Private scope documents should not be accessible from other scopes."""

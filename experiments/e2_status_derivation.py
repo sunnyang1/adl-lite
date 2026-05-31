@@ -12,10 +12,10 @@ from __future__ import annotations
 
 import itertools
 
+from adl_lite.models import DiscoveryStatus, Event, EventChain, EventType
+
 from .base import BaseExperiment, ExperimentResult
 from .registry import register
-
-from adl_lite.models import Event, EventChain, EventType, DiscoveryStatus
 
 # Ground truth: given a sequence of event types, what status should the chain have?
 # Rule: the LAST lifecycle event in the sequence determines status.
@@ -71,22 +71,40 @@ class E2StatusDerivation(BaseExperiment):
                     f"expected={expected.value} derived={derived.value}"
                 )
                 errors.append(err)
-                results.append({
-                    "events": [e.value for e in combo],
-                    "expected": expected.value,
-                    "derived": derived.value,
-                    "ok": False,
-                })
+                results.append(
+                    {
+                        "events": [e.value for e in combo],
+                        "expected": expected.value,
+                        "derived": derived.value,
+                        "ok": False,
+                    }
+                )
 
         # Also test edge cases
         edge_cases = [
             ([], DiscoveryStatus.PROVISIONAL, "empty chain → provisional"),
             ([EventType.REGISTER], DiscoveryStatus.PROVISIONAL, "register only"),
-            ([EventType.REGISTER, EventType.VALIDATE], DiscoveryStatus.VALIDATED, "register→validate"),
+            (
+                [EventType.REGISTER, EventType.VALIDATE],
+                DiscoveryStatus.VALIDATED,
+                "register→validate",
+            ),
             ([EventType.REGISTER, EventType.FORK], DiscoveryStatus.FORKED, "register→fork"),
-            ([EventType.REGISTER, EventType.VALIDATE, EventType.DEPRECATE], DiscoveryStatus.DEPRECATED, "full lifecycle"),
-            ([EventType.REGISTER, EventType.ANNOUNCE, EventType.PUBLISH], DiscoveryStatus.PROVISIONAL, "comms dont change status"),
-            ([EventType.REGISTER, EventType.VALIDATE, EventType.RELATE], DiscoveryStatus.VALIDATED, "validate+relate → validated"),
+            (
+                [EventType.REGISTER, EventType.VALIDATE, EventType.DEPRECATE],
+                DiscoveryStatus.DEPRECATED,
+                "full lifecycle",
+            ),
+            (
+                [EventType.REGISTER, EventType.ANNOUNCE, EventType.PUBLISH],
+                DiscoveryStatus.PROVISIONAL,
+                "comms dont change status",
+            ),
+            (
+                [EventType.REGISTER, EventType.VALIDATE, EventType.RELATE],
+                DiscoveryStatus.VALIDATED,
+                "validate+relate → validated",
+            ),
         ]
 
         for events, expected, label in edge_cases:
@@ -99,7 +117,9 @@ class E2StatusDerivation(BaseExperiment):
             if ok:
                 correct += 1
             else:
-                errors.append(f"Edge case [{label}]: expected={expected.value} derived={derived.value}")
+                errors.append(
+                    f"Edge case [{label}]: expected={expected.value} derived={derived.value}"
+                )
 
         accuracy = correct / total if total else 0.0
 

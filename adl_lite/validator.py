@@ -28,10 +28,21 @@ from .ontology import OntologyManager, default_ontology
 # Constants
 # ---------------------------------------------------------------------------
 
-_FORBIDDEN_PRONOUNS = frozenset({
-    "this", "that", "it", "these", "those",
-    "这个", "那个", "它", "它们", "这里", "那里",
-})
+_FORBIDDEN_PRONOUNS = frozenset(
+    {
+        "this",
+        "that",
+        "it",
+        "these",
+        "those",
+        "这个",
+        "那个",
+        "它",
+        "它们",
+        "这里",
+        "那里",
+    }
+)
 
 # Demonstrative / vague referent patterns (English L2)
 _DEMONSTRATIVE_START = re.compile(
@@ -54,9 +65,24 @@ _CJK_PRONOUN = re.compile(
 )
 
 _COMPLEMENTIZER_VERBS = (
-    "understand", "believe", "know", "show", "indicate", "mean", "suggest",
-    "require", "demonstrate", "ensure", "note", "see", "prove", "confirm",
-    "assert", "observe", "recognize", "acknowledge",
+    "understand",
+    "believe",
+    "know",
+    "show",
+    "indicate",
+    "mean",
+    "suggest",
+    "require",
+    "demonstrate",
+    "ensure",
+    "note",
+    "see",
+    "prove",
+    "confirm",
+    "assert",
+    "observe",
+    "recognize",
+    "acknowledge",
 )
 
 
@@ -98,8 +124,7 @@ def find_pronoun_violations(body: str) -> list[str]:
     for m in re.finditer(r"\bthat\b", body, re.IGNORECASE):
         if not _is_allowed_that(body, m):
             errors.append(
-                "Forbidden pronoun detected: 'that'. "
-                "Use explicit concept names or URIs instead."
+                "Forbidden pronoun detected: 'that'. " "Use explicit concept names or URIs instead."
             )
 
     for pronoun in ("this", "these", "those"):
@@ -114,8 +139,7 @@ def find_pronoun_violations(body: str) -> list[str]:
         prefix = body[max(0, start - 30) : start]
         if re.search(r"\b(because|when|where|if|while|although|since)\s+$", prefix, re.IGNORECASE):
             errors.append(
-                "Forbidden pronoun detected: 'it'. "
-                "Use explicit concept names or URIs instead."
+                "Forbidden pronoun detected: 'it'. " "Use explicit concept names or URIs instead."
             )
             continue
         if re.search(r"(?:^|[\n.!?]\s+)It\b", body[: start + 2]):
@@ -123,8 +147,7 @@ def find_pronoun_violations(body: str) -> list[str]:
         # other standalone 'it' — flag
         if not re.search(r"[\w-]+\s+$", prefix.rstrip()):  # skip "word it" object?
             errors.append(
-                "Forbidden pronoun detected: 'it'. "
-                "Use explicit concept names or URIs instead."
+                "Forbidden pronoun detected: 'it'. " "Use explicit concept names or URIs instead."
             )
 
     seen: set[str] = set()
@@ -134,6 +157,7 @@ def find_pronoun_violations(body: str) -> list[str]:
             seen.add(e)
             unique.append(e)
     return unique
+
 
 _SCOPE_PATTERN = re.compile(
     r"^(public|public/.*|private/[a-zA-Z0-9_-]+|user/[a-zA-Z0-9_-]+|shared/[a-zA-Z0-9_-]+)$"
@@ -263,9 +287,7 @@ class ADLValidator:
                 )
             if mgr is not None and block.relation == "isomorphic-to":
                 if not block.mapping_type:
-                    errors.append(
-                        "Relation 'isomorphic-to' requires 'mapping_type' in strict mode"
-                    )
+                    errors.append("Relation 'isomorphic-to' requires 'mapping_type' in strict mode")
                 elif not mgr.validate_mapping_type(block.relation, block.mapping_type):
                     allowed = ", ".join(mgr.allowed_mapping_types(block.relation))
                     errors.append(

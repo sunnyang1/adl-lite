@@ -1,0 +1,48 @@
+{
+  "round": 4,
+  "reviewer": "auto-research self-review (post-R3 revisions)",
+  "date": "2026-05-31",
+  "overall_assessment": "All high and medium severity issues from Round 3 resolved. The paper now achieves strong technical precision with honest claims. The isomorphism metric is now formally defined, hash definition is consistent, overclaims are qualified, and the comparison table accurately portrays the relationship between ADL Lite and existing approaches.",
+  "revisions_applied": [
+    "✅ Fixed duplicate ```yaml tag (L101-102)",
+    "✅ Hash definition made consistent: h_i = SHA-256(σ(e_i)) with canonical JSON serialization",
+    "✅ Isomorphism metric formally defined as Jaccard similarity on (source, predicate, target) triples",
+    "✅ Intro overclaim qualified: 'eliminates write-time race conditions...reduces merge-time non-determinism'",
+    "✅ Comparison table updated: column headers, Trust Model row, concurrency row",
+    "✅ E4 claim clarified: experiment validates integration pipeline; unit tests cover Comparator exhaustively",
+    "✅ SSA pronoun prohibition acknowledged as heuristic-based with limitations",
+    "✅ KG benchmarks (FB15k, WN18RR, WD50K, OAEI) mentioned to position ADL in broader landscape",
+    "✅ §6.4 condensed from module-level breakdown table to 2-sentence reproducibility statement",
+    "✅ Bridging sentence added between §2.1 (philosophy) and §2.2 (LLM agents)"
+  ],
+  "scores": {
+    "novelty": "8/10",
+    "technical_depth": "9/10 (+1 from R3: isomorphism metric definition + hash precision)",
+    "evaluation": "7/10 (+1 from R3: E4 claim corrected, code section reduced)",
+    "clarity": "9/10 (+2 from R3: bug fix + bridging sentence + precision improvements)",
+    "relevance_to_SWJ": "9/10",
+    "references": "8/10",
+    "overall": "8.3/10"
+  },
+  "remaining_issues": [
+    {
+      "severity": "low",
+      "section": "6.2",
+      "issue": "Python code still uses `...` in EdgeNode and SyncManager examples. Minor but a reviewer could note that a 'reference implementation' paper shouldn't use pseudocode.",
+      "fix": "Replace `...` with `reasoning=\"\"` or `# remaining fields omitted for brevity`."
+    },
+    {
+      "severity": "low",
+      "section": "References",
+      "issue": "Reference [5] Pydantic cites 'GitHub Repository' as journal — should be `@misc` type or `Zenodo DOI` if available.",
+      "fix": "Update to Zenodo DOI: 10.5281/zenodo.1234 (placeholder, actual DOI needed)."
+    },
+    {
+      "severity": "low",
+      "section": "All",
+      "issue": "No LaTeX export yet — paper is still in Markdown. SWJ requires IOS Press LaTeX template.",
+      "fix": "Export to LaTeX via Phase 8 of auto-research pipeline."
+    }
+  ],
+  "final_verdict": "ACCEPT — paper is at journal submission quality. All substantive issues resolved. Remaining items are formatting/cosmetic."
+}

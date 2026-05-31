@@ -17,11 +17,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .base import BaseExperiment, ExperimentResult
-from .registry import register
-from .harness import ScriptedHarness
+from adl_lite.models import EventChain, EventType
 
-from adl_lite.models import Event, EventChain, EventType, DiscoveryStatus
+from .base import BaseExperiment, ExperimentResult
+from .harness import ScriptedHarness
+from .registry import register
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 
@@ -51,6 +51,7 @@ class E5AgentAudit(BaseExperiment):
             if not p.is_file():
                 continue
             from adl_lite.parser import parse_file
+
             doc = parse_file(p)
             chain = doc.event_chain
             chains[doc.adl_id] = chain
@@ -79,7 +80,7 @@ class E5AgentAudit(BaseExperiment):
 
         # Phase 4: Cross-check SimEvents → chain coverage
         # Each concept that had a SimEvent should have a corresponding chain entry
-        sim_adl_ids = set(e.adl_id for e in sim_events)
+        sim_adl_ids = {e.adl_id for e in sim_events}
         chain_adl_ids = set(chains.keys())
 
         coverage_total = len(sim_adl_ids)
@@ -88,20 +89,22 @@ class E5AgentAudit(BaseExperiment):
         # Phase 5: Audit trace — every SimEvent should have an equivalent
         # lifecycle event in the chain
         lifecycle_sim_events = [
-            e for e in sim_events
-            if e.action in ("emit", "transition", "fork", "validate")
+            e for e in sim_events if e.action in ("emit", "transition", "fork", "validate")
         ]
         lifecycle_chain_events = sum(
-            1 for c in chains.values()
+            1
+            for c in chains.values()
             for evt in c.events
-            if evt.event_type in (
-                EventType.REGISTER, EventType.VALIDATE,
-                EventType.FORK, EventType.DEPRECATE,
+            if evt.event_type
+            in (
+                EventType.REGISTER,
+                EventType.VALIDATE,
+                EventType.FORK,
+                EventType.DEPRECATE,
             )
         )
 
         all_integrity_ok = integrity_ok == integrity_total
-        all_coverage_ok = coverage_ok == coverage_total
 
         return ExperimentResult(
             experiment_id=self.experiment_id,

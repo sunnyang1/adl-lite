@@ -63,7 +63,11 @@ QUERIES = [
     {"id": "q12", "text": "money mule pass through account", "relevant": ["aml-mule-acct"]},
     {"id": "q13", "text": "trade based laundering commodity", "relevant": ["aml-trade-base"]},
     {"id": "q14", "text": "casino chip gaming conversion", "relevant": ["aml-casino"]},
-    {"id": "q15", "text": "peripheral node attention trap concentration", "relevant": ["aml-attention-trap", "aml-layering"]},
+    {
+        "id": "q15",
+        "text": "peripheral node attention trap concentration",
+        "relevant": ["aml-attention-trap", "aml-layering"],
+    },
 ]
 
 

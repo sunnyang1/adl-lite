@@ -9,7 +9,7 @@ import json
 import sys
 from pathlib import Path
 
-from .consensus import ConceptChain, ConsensusEngine, ConsensusEntry
+from .consensus import ConsensusEngine
 from .lark.announce import announce
 from .lark.client import LarkCliError, LarkCliNotFoundError, auth_status, find_lark_cli
 from .lark.dashboard import init_dashboard, sync_dashboard_row
@@ -19,7 +19,7 @@ from .lark.publish import publish_file
 from .lark.registry import LarkRegistry
 from .lark.sync_memory import sync_memory
 from .memory import ADLMemory
-from .models import DiscoveryStatus
+from .models import DiscoveryStatus, Event, EventChain
 from .ontology import OntologyManager
 from .parser import ADLParseError, parse_file
 from .validator import ADLValidator
@@ -40,18 +40,25 @@ def _load_engine(state_path: Path) -> ConsensusEngine:
         return engine
 
     data = json.loads(state_path.read_text(encoding="utf-8"))
-    for cid, entries in data.get("chains", {}).items():
-        chain = ConceptChain(cid)
-        for raw in entries:
-            entry = ConsensusEntry(
-                adl_id=raw["adl_id"],
-                from_status=DiscoveryStatus(raw["from_status"]),
-                to_status=DiscoveryStatus(raw["to_status"]),
-                actor=raw["actor"],
-                reason=raw.get("reason", ""),
-                parent_hash=raw.get("parent_hash", "0" * 64),
+    for cid, events_data in data.get("chains", {}).items():
+        chain = EventChain(concept_id=cid)
+        for raw in events_data:
+            event = Event(
+                concept_id=cid,
+                event_type=raw.get("event_type", "register"),
+                actor=raw.get("actor", "system"),
+                reasoning=raw.get("reasoning", raw.get("reason", "")),
+                timestamp=raw.get("timestamp", ""),
+                payload=raw.get("payload", {}),
             )
-            chain.append(entry)
+            # Preserve original event_id, hash, and prev_hash for round-trip fidelity
+            if "event_id" in raw:
+                event.event_id = raw["event_id"]
+            if "hash" in raw:
+                event.hash = raw["hash"]
+            if "_prev_hash" in raw:
+                event._prev_hash = raw["_prev_hash"]
+            chain.append(event)
         engine.chains[cid] = chain
     return engine
 
@@ -59,7 +66,19 @@ def _load_engine(state_path: Path) -> ConsensusEngine:
 def _save_engine(engine: ConsensusEngine, state_path: Path) -> None:
     payload = {
         "chains": {
-            cid: chain.history() for cid, chain in engine.chains.items()
+            cid: [
+                {
+                    "event_id": e["event_id"],
+                    "event_type": e["event_type"],
+                    "actor": e["actor"],
+                    "reasoning": e["reasoning"],
+                    "timestamp": e["timestamp"],
+                    "hash": e["hash"],
+                    "payload": e.get("payload", {}),
+                }
+                for e in chain.history()
+            ]
+            for cid, chain in engine.chains.items()
         }
     }
     state_path.parent.mkdir(parents=True, exist_ok=True)
@@ -200,10 +219,14 @@ def _cmd_consensus_transition(args: argparse.Namespace) -> int:
         return 1
 
     _save_engine(engine, state_path)
-    print(f"transition {args.adl_id}: {entry.from_status.value} -> {entry.to_status.value}")
+    print(f"transition {args.adl_id} -> {entry.event_type.value} (actor={entry.actor})")
 
     if getattr(args, "lark_sync", False) and args.sheet:
-        reg_path = Path(args.registry) if getattr(args, "registry", None) else Path(".adl_lark_registry.json")
+        reg_path = (
+            Path(args.registry)
+            if getattr(args, "registry", None)
+            else Path(".adl_lark_registry.json")
+        )
         try:
             sync_dashboard_row(
                 args.adl_id,
@@ -468,7 +491,9 @@ def _cmd_lark_listen(args: argparse.Namespace) -> int:
     if args.auto_transition and result.transitions:
         _save_engine(engine, state_path)
 
-    listen_state = Path(args.listen_state) if args.listen_state else state_path.with_suffix(".listen.json")
+    listen_state = (
+        Path(args.listen_state) if args.listen_state else state_path.with_suffix(".listen.json")
+    )
     save_listen_state(result, listen_state)
 
     if args.json:
@@ -510,7 +535,9 @@ def _cmd_lark_init_dashboard(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(result.__dict__, indent=2))
     else:
-        print(f"dashboard {result.title}: token={result.spreadsheet_token} rows={result.rows_written}")
+        print(
+            f"dashboard {result.title}: token={result.spreadsheet_token} rows={result.rows_written}"
+        )
     return 0
 
 
@@ -750,7 +777,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Create Feishu doc from ADL Markdown (full L1/L2/L3 file)",
     )
     p_lark_pub.add_argument("file", help="Path to ADL .md document")
-    p_lark_pub.add_argument("--title", default=None, help="Feishu doc title (default: concept name)")
+    p_lark_pub.add_argument(
+        "--title", default=None, help="Feishu doc title (default: concept name)"
+    )
     p_lark_pub.add_argument("--folder-token", default=None, help="Parent folder token")
     p_lark_pub.add_argument("--wiki-node", default=None, help="Wiki node token or URL")
     p_lark_pub.add_argument("--wiki-space", default=None, help="Wiki space id (e.g. my_library)")
@@ -792,7 +821,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p_lark_sync.add_argument("--base", required=True, help="Base name or bas* token")
     p_lark_sync.add_argument("--mode", default="warm", choices=("warm",), help="Sync mode")
     p_lark_sync.add_argument("--table", default="concepts", help="Base table name or id")
-    p_lark_sync.add_argument("--registry", default=None, help="Registry for doc links / base name map")
+    p_lark_sync.add_argument(
+        "--registry", default=None, help="Registry for doc links / base name map"
+    )
     p_lark_sync.add_argument("--dry-run", action="store_true")
     p_lark_sync.add_argument("--lark-cli", default=None)
     p_lark_sync.add_argument("--json", action="store_true")

@@ -9,9 +9,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ..consensus import ConceptChain, ConsensusEngine, ConsensusEntry
+from ..consensus import ConsensusEngine
 from ..memory import ADLMemory
-from ..models import DiscoveryStatus
+from ..models import DiscoveryStatus, Event, EventChain
 from .client import run_lark_cli
 from .registry import LarkRegistry
 
@@ -21,18 +21,18 @@ def _load_engine_from_state(state_path: Path | None) -> ConsensusEngine | None:
         return None
     data = json.loads(state_path.read_text(encoding="utf-8"))
     engine = ConsensusEngine()
-    for cid, entries in data.get("chains", {}).items():
-        chain = ConceptChain(cid)
-        for raw in entries:
-            entry = ConsensusEntry(
-                adl_id=raw["adl_id"],
-                from_status=DiscoveryStatus(raw["from_status"]),
-                to_status=DiscoveryStatus(raw["to_status"]),
-                actor=raw["actor"],
-                reason=raw.get("reason", ""),
-                parent_hash=raw.get("parent_hash", "0" * 64),
+    for cid, events_data in data.get("chains", {}).items():
+        chain = EventChain(concept_id=cid)
+        for raw in events_data:
+            event = Event(
+                concept_id=cid,
+                event_type=raw.get("event_type", "register"),
+                actor=raw.get("actor", "system"),
+                reasoning=raw.get("reasoning", raw.get("reason", "")),
+                timestamp=raw.get("timestamp", ""),
+                payload=raw.get("payload", {}),
             )
-            chain.append(entry)
+            chain.append(event)
         engine.chains[cid] = chain
     return engine
 
@@ -139,11 +139,7 @@ def build_dashboard_rows(
 def _extract_spreadsheet(payload: dict[str, Any]) -> tuple[str, str]:
     data = payload.get("data") or payload
     if isinstance(data, dict):
-        token = (
-            data.get("spreadsheet_token")
-            or data.get("token")
-            or data.get("spreadsheetToken")
-        )
+        token = data.get("spreadsheet_token") or data.get("token") or data.get("spreadsheetToken")
         if not token and isinstance(data.get("spreadsheet"), dict):
             inner = data["spreadsheet"].get("spreadsheet") or data["spreadsheet"]
             if isinstance(inner, dict):
@@ -196,9 +192,7 @@ def _fetch_sheet_id(
     )
     sheet_id = _extract_first_sheet_id(payload)
     if not sheet_id:
-        raise ValueError(
-            f"no sheet_id in spreadsheet metadata for token {spreadsheet_token}"
-        )
+        raise ValueError(f"no sheet_id in spreadsheet metadata for token {spreadsheet_token}")
     return sheet_id
 
 

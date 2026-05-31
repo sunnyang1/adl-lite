@@ -107,18 +107,21 @@ def adl_consensus_transition(
     reason: str = "",
     state: str | Path | None = None,
 ) -> dict[str, Any]:
-    """Transition concept status."""
+    """Transition concept status via consensus engine."""
     state_path = Path(state) if state else _default_state_path(None)
     engine = _load_engine(state_path)
     target = DiscoveryStatus(to_status) if isinstance(to_status, str) else to_status
-    entry = engine.transition(adl_id, target, actor=actor, reason=reason)
+    event = engine.transition(adl_id, target, actor=actor, reason=reason)
     _save_engine(engine, state_path)
-    assert entry is not None
+    if event is None:
+        return {"adl_id": adl_id, "error": "transition returned None"}
+    # engine.transition() returns an Event — use event_type for the target status
     return {
         "adl_id": adl_id,
-        "from_status": entry.from_status.value,
-        "to_status": entry.to_status.value,
-        "hash": entry.hash,
+        "event_type": event.event_type.value,
+        "actor": event.actor,
+        "hash": event.hash,
+        "timestamp": event.timestamp,
     }
 
 

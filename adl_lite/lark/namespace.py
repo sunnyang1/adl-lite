@@ -43,7 +43,9 @@ class LarkNamespaceRegistry:
 
     def save(self, data: dict[str, Any]) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        self.path.write_text(
+            json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
 
     def list_mappings(self) -> dict[str, str]:
         return dict(self.load().get("namespaces", {}))
