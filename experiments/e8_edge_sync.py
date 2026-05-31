@@ -70,15 +70,15 @@ class E8EdgeSync(BaseExperiment):
             "ok": q.pending == 2,
         })
 
-        # Drain with no executor → fails on first, re-queues
+        # Drain with no executor → all fail, re-queued
         success, failed = q.drain()
-        assert success == 0 and failed == 1  # stops on first failure, re-queues both
-        assert q.pending == 2  # Both remain queued
+        assert success == 0 and failed == 2  # both fail without executor
+        assert q.pending == 2  # Both re-queued at end
         results.append({
             "test": "queue_drain_no_executor",
             "success": success,
             "failed": failed,
-            "ok": success == 0 and failed == 1,
+            "ok": success == 0 and failed == 2,
         })
 
         # ===== TEST 3: Merge diverged chains (no conflict) =====

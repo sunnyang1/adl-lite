@@ -84,9 +84,13 @@ class SideEffectQueue:
         """
         Execute all queued effects. Returns (success_count, failure_count).
         Uses the registered executor if available; otherwise all fail.
+        Failed effects are re-queued at the end; processing continues
+        through the entire queue rather than stopping on first failure.
         """
         success = 0
         failed = 0
+        retry_queue: list[QueuedEffect] = []
+
         while self._queue:
             effect = self._queue.pop(0)
             if self._executor:
@@ -95,12 +99,13 @@ class SideEffectQueue:
                     success += 1
                 else:
                     failed += 1
-                    self._queue.append(effect)  # Re-queue on failure
-                    break
+                    retry_queue.append(effect)
             else:
                 failed += 1
-                self._queue.insert(0, effect)
-                break
+                retry_queue.append(effect)
+
+        # Re-queue failed effects for next drain attempt
+        self._queue = retry_queue + self._queue
         return success, failed
 
     def clear(self) -> None:

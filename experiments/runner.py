@@ -25,6 +25,9 @@ from . import e5_agent_audit           # noqa: F401
 from . import e6_aml_pipeline         # noqa: F401
 from . import e7_realtime_watcher     # noqa: F401
 from . import e8_edge_sync            # noqa: F401
+from . import e9_git_baseline         # noqa: F401
+from . import e10_fde_pipeline        # noqa: F401
+from . import e11_sideeffect_stress   # noqa: F401
 
 OUTPUT_DIR = Path(__file__).resolve().parent.parent / "docs" / "experiments"
 
