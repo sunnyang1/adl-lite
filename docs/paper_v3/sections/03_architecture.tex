@@ -1,0 +1,505 @@
+\section{Architecture}\label{architecture}
+
+\subsection{Philosophical Foundation: Event-First Ontology}\label{philosophical-foundation-event-first-ontology}
+
+The architectural design of ADL Lite is grounded in an inversion of conventional ontology engineering. Traditional operational ontologies, including Palantir FDE and OWL-based knowledge graphs, adopt an \emph{object-first} stance: Object Type defines what entities exist, Property Type describes their attributes, Link Type connects them, and Action Type is appended as an operational afterthought \cite{ref6}\cite{ref14}. This ordering reflects a metaphysical commitment to the primacy of objects---entities are conceived as self-subsistent bearers of properties that persist through changes in their attributes. The engineering consequence is that every concept carries mutable state fields subject to race conditions, inconsistent updates, and silent divergence between stored values and their logical histories.
+
+ADL Lite inverts this hierarchy. Drawing on Wittgenstein's \emph{Tractatus} §1.1---\emph{``Die Welt ist die Gesamtheit der Tatsachen, nicht der Dinge''}---the system treats Action Type as the fundamental ontological primitive \cite{ref9}\cite{ref10}. On this view, an object exists only in virtue of the events in which it participates. A ``validated concept'' is not a concept whose \texttt{status} field contains the string \texttt{validated}; it is a concept whose EventChain contains a \texttt{VALIDATE} event authored by an agent satisfying the required confidence threshold. Status is \emph{never stored}; it is \emph{always computed} from the chain. Confidence is not a mutable scalar subject to direct assignment; it is derived from the sequence of \texttt{VALIDATE} events and their associated confidence payloads. Validators are not maintained as a list field vulnerable to stale entries; they are accumulated from the \texttt{actor} fields of lifecycle events. The concept does not \emph{have} a history---it \emph{is} its history \cite{ref11}\cite{ref15}.
+
+This philosophical commitment translates into a concrete engineering discipline with three governing principles. First, every mutation of ontological state is captured as an explicit event; there are no implicit state changes. Second, events are append-only and cryptographically linked, forming an auditable chain that reconstructs the full provenance of any concept from its genesis to its current state. Third, all derived properties---status, confidence, validators---are computed on demand through deterministic functions over the event sequence. This design eliminates an entire class of consistency bugs: a front matter field cannot diverge from the event chain because there is no independent storage of mutable state. The chain constitutes the sole source of truth, and any snapshot derived from it is recomputed on every access. The event-first approach bears a structural resemblance to command-query responsibility segregation (CQRS) and event sourcing patterns from systems architecture, in which system state is reconstructed by replaying an immutable event log rather than querying mutable records \cite{ref19}\cite{ref20}. However, ADL Lite applies this pattern at the level of ontological concepts rather than application state, using cryptographic hashing to provide integrity guarantees that general-purpose event stores typically delegate to database access controls.
+
+\subsection{Document Model: L1/L2/L3/L4}\label{document-model-l1l2l3l4}
+
+ADL Lite organizes concept documents into four semantic layers, each with distinct syntax, role, and corresponding event types. The layering separates identity metadata (L1), narrative content (L2), typed assertions (L3), and executable actions (L4), enabling both human readability and machine processing within a single Markdown file. Table 2 summarizes the document model.
+
+As shown in Table 2, the L1 layer comprises YAML front matter containing identity metadata: \texttt{adl\_type}, \texttt{adl\_id}, \texttt{status}, \texttt{confidence}, \texttt{novelty}, \texttt{scope}, and \texttt{provisional\_names}. Critically, the L1 fields are \emph{derived snapshots} recomputed from the EventChain, not sources of truth. A discrepancy between L1 \texttt{status} and the chain-derived status indicates an incomplete event history in the source document---a diagnostic signal that the document predates the action-block semantics, rather than a data inconsistency in the derived model. The L2 layer consists of the Markdown body: human- and LLM-readable prose subject to the Singular Subjectivity Assertion (SSA), which prohibits fuzzy referents---including pronouns such as ``this,'' ``that,'' ``it,'' and their equivalents---that would compromise cross-agent alignment \cite{ref16}. The L3 layer introduces typed semantic assertions through fenced code blocks: \texttt{adl:relation} for typed edges between concepts (supporting predicates such as \texttt{isomorphic-to} and \texttt{specialisation-of}), \texttt{adl:evidence} for evidentiary support with typed data references, and \texttt{adl:seal} for formal assertions with proof references. The L4 layer introduces \texttt{adl:action} blocks: typed actions with structured precondition rules that govern lifecycle transitions and trigger side effects.
+
+\textbf{Table 2: The L1--L4 Document Model. Each layer contributes distinct semantics to the concept document, with event types mapping L3 and L4 content to EventChain entries.}
+
+\begin{longtable}[]{@{}>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2121}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2424}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1818}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3636}}@{}}
+\toprule
+Layer
+& Syntax
+& Role
+& Event Type
+\\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+L1 & YAML front matter & Identity metadata (derived snapshot, not source of truth) & SNAPSHOT \\
+L2 & Markdown body & Human/LLM narrative & --- \\
+L3 & \texttt{adl:relation}, \texttt{adl:evidence}, \texttt{adl:seal} & Typed semantic assertions & RELATE, EVIDENCE, SEAL \\
+L4 & \texttt{adl:action} & Typed actions with structured preconditions & REGISTER, VALIDATE, DEPRECATE, \ldots{} \\
+\end{longtable}
+
+\textbf{L1 caching and recomputation semantics.} The description of L1 as a \emph{derived snapshot} requires clarification regarding caching policy. L1 front matter is derived \textbf{once} when the document is loaded: the Markdown file is parsed, and the YAML front matter is read to initialize an \texttt{ADLDocument} instance. The EventChain is constructed from L4 action blocks at load time, not on every access. Status and confidence are computed from the chain on first access and then \textbf{cached} within the \texttt{ADLDocument} instance; subsequent reads return the cached values without recomputation. The \texttt{snapshot()} method serializes the cached state back to L1 YAML for persistence (e.g., when writing the document to disk). This means that, in practice, L1 front matter is not recomputed on every read; rather, it is a write-time serialization of the cached derived state. The term ``derived snapshot'' therefore signifies that L1 is \textbf{not} the source of truth---the chain is---but it does not imply eager recomputation on every access. SHA-256 hashes within the EventChain are computed over \textbf{canonical JSON serialization} (sorted keys, no whitespace) ensuring platform- and locale-independent hash values regardless of the host Python environment.
+
+The four-layer design enables a single Markdown file to serve simultaneously as human-readable documentation, LLM authoring surface, machine-parseable semantic assertion container, and auditable action log. L3 relation blocks provide RDF-like triples that remain editable in ordinary text editors, while L4 action blocks supply machine-checkable coordination primitives without requiring a triple store or OWL reasoner \cite{ref17}. This multi-modal document model is central to ADL Lite's deployment philosophy: because concepts are stored as ordinary Markdown files in Git repositories, they inherit version control, diff-based review, and branch-based experimentation without additional infrastructure.
+
+\textbf{SSA limitations and relaxation modes.} The Singular Subjectivity Assertion is a Phase 1 strictness measure designed to ensure that L2 narrative content is interpretable across agents without disambiguation of pronouns or deictic references. It is intentionally strict: every noun must be explicit, every reference unambiguous. While this discipline supports cross-agent alignment experiments---where multiple LLM agents must parse and reason over the same narrative without grounding errors---it is not intended as a universal constraint on all document authoring. Human-authored narrative frequently employs pronouns appropriately, and requiring full nominalization can produce stilted prose that impedes rather than aids comprehension. We therefore acknowledge SSA as a configurable strictness level rather than an invariant property of the ADL Lite document model. Two relaxation modes are anticipated for future work: \emph{SSA-strict} (the current behavior, enforcing explicit reference for all agent-authored content in multi-agent settings) and \emph{SSA-lax} (permitting natural pronoun use for human-authored narrative, with optional pronoun resolution via an LLM-based disambiguation pass when cross-agent alignment is required). The SSA validator currently operates as a static text-analysis rule; transitioning to a configurable severity level with automated pronoun-coreference resolution would broaden applicability without weakening the cross-agent alignment guarantee in contexts where it is needed.
+
+\subsection{EventChain: Core Data Structure}\label{eventchain-core-data-structure}
+
+The EventChain is the fundamental data structure of ADL Lite. Each ontological concept is represented by exactly one EventChain: an append-only sequence of cryptographically linked events. The event model is defined as follows.
+
+An \emph{event} \(e\) is a structured record comprising nine fields: \texttt{event\_id} (a UUID-derived unique identifier), \texttt{concept\_id} (the concept to which the event belongs), \texttt{event\_type} (the action that occurred, drawn from a closed set of lifecycle, assertion, and communication types), \texttt{actor} (the entity causing the event), \texttt{reasoning} (justification for the event), \texttt{timestamp} (ISO-8601 occurrence time), \texttt{payload} (event-specific key-value data), \texttt{previous\_event\_id} (cryptographic link to the preceding event), and \texttt{hash} (SHA-256 digest of the event's serialized content). Formally:
+
+\[
+e = (\text{event\_id}, \text{concept\_id}, \tau, \text{actor}, \text{reasoning}, t, \text{payload}, \text{prev\_id}, H)\nonumber
+\]
+
+where \(\tau \in \{\text{REGISTER}, \text{VALIDATE}, \text{DEPRECATE}, \text{FORK}, \text{ARCHIVE}, \text{RELATE}, \text{EVIDENCE}, \text{SEAL}, \text{ANNOUNCE}, \text{PUBLISH}\}\), \(t\) is an ISO-8601 timestamp, and \(H = \text{SHA\_256}(\text{serialize}(e \setminus \{H\}))\) is the cryptographic hash computed over all fields except the hash itself.
+
+\subsubsection{Canonical Serialization for Cryptographic Hashing}\label{canonical-serialization-for-cryptographic-hashing}
+
+To ensure that SHA-256 hashes are deterministic and platform-independent, ADL Lite defines a canonical serialization procedure that is applied before hashing. The procedure converts the event record to a JSON string with the following constraints:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  \textbf{Field ordering.} Fields are serialized in the fixed order: \(\text{event\_id}\), \(\text{concept\_id}\), \(\text{event\_type}\), \(\text{actor}\), \(\text{reasoning}\), \(\text{payload}\), \(\text{previous\_event\_id}\). The \(\text{timestamp}\) field is \textbf{excluded} from the hash input (see Section 3.6 for the clock-skew rationale). The \(\text{hash}\) field is naturally excluded because it is the value being computed.
+\item
+  \textbf{Recursive key sorting.} All JSON object keys are sorted lexicographically. The \(\text{payload}\) dictionary is recursively sorted so that nested objects have their keys ordered deterministically regardless of insertion order.
+\item
+  \textbf{Whitespace elimination.} No spaces, newlines, or indentation are included in the serialized output. The canonical form is a single line of JSON.
+\item
+  \textbf{UTF-8 encoding.} The JSON string is encoded as UTF-8 before hashing, ensuring consistent byte representation across platforms.
+\item
+  \textbf{Number normalization.} All floating-point values in \(\text{payload}\) are rounded to six decimal places to prevent precision-based hash differences across hardware platforms and Python interpreter versions.
+\end{enumerate}
+
+Formally, let \(\mathsf{serialize\_canonical}(e)\) produce a byte sequence \(b\) such that:
+
+\[
+b = \mathsf{UTF\text{-}8}\bigl(\mathsf{JSON\text{-}SORTED}(e \setminus \{\text{hash}, \text{timestamp}\})\bigr)
+\]
+
+where \(\mathsf{JSON\text{-}SORTED}\) denotes JSON serialization with lexicographically sorted keys at every nesting level and no whitespace, and \(\setminus\) denotes record subtraction (field removal). The event hash is then:
+
+\[
+H(e) = \mathsf{SHA\text{-}256}(b)
+\]
+
+\textbf{Proposition 1 (Hash Determinism).} For any two event records \(e_1\) and \(e_2\), if \(e_1 \setminus \{\text{hash}, \text{timestamp}\} = e_2 \setminus \{\text{hash}, \text{timestamp}\}\), then \(H(e_1) = H(e_2)\).
+
+\emph{Proof.} The canonical serialization \(\mathsf{serialize\_canonical}\) is a pure function: it removes the \(\text{hash}\) and \(\text{timestamp}\) fields, recursively sorts all object keys, eliminates whitespace, rounds floating-point values to six decimal places, and encodes the result as UTF-8. Each of these operations is deterministic and total over valid event records. Therefore, equal inputs produce identical byte sequences \(b\), and since \(\mathsf{SHA\text{-}256}\) is itself a deterministic function over byte sequences, equal inputs yield equal hashes. \(\square\)
+
+\textbf{Proposition 2 (Malleability Resistance).} Two semantically identical events produce identical hashes regardless of the source format (YAML front matter, Markdown body, or programmatic construction).
+
+\emph{Proof.} All source formats are parsed into the same internal event record structure before canonicalization. The canonical serialization discards format-specific artifacts (YAML indentation, Markdown syntax, insertion-order differences in programmatically constructed dictionaries). By Proposition 1, identical internal records yield identical hashes. \(\square\)
+
+\textbf{Proposition 3 (Timestamp Independence).} The hash of an event does not depend on its \(\text{timestamp}\) field.
+
+\emph{Proof.} The \(\text{timestamp}\) field is explicitly removed by the set subtraction \(e \setminus \{\text{hash}, \text{timestamp}\}\) prior to serialization. Therefore, two events that differ only in their timestamp values produce identical byte sequences \(b\) and hence identical hashes. \(\square\)
+
+\textbf{Remark on hash chain integrity.} The exclusion of \(\text{timestamp}\) from the hash input is a deliberate design choice. Event ordering is determined entirely by the append sequence (i.e., the \(\text{previous\_event\_id}\) linkage), not by timestamp values. This ensures that clock skew---whether benign (agent with misconfigured clock) or adversarial (intentional backdating)---cannot cause hash mismatches or chain forks. The timestamp field serves informational purposes only: human readability, coarse temporal queries, and audit log display. It is not used for verification or ordering.
+
+\textbf{Remark on payload normalization.} The six-decimal rounding of floating-point values in \(\text{payload}\) is sufficient for confidence values expressed in the range \([0, 1]\) and prevents hash divergence caused by platform-specific floating-point representations (e.g., IEEE 754 double-precision vs.~extended precision). Domains requiring higher precision may configure the rounding parameter in \(\text{adl\_core\_ontology.yaml}\); however, all participants in a shared repository must agree on the same rounding policy to maintain hash consistency.
+
+\subsubsection{Clock Skew and Timestamp Handling}\label{clock-skew-and-timestamp-handling}
+
+The EventChain architecture makes a strict separation between \textbf{event ordering} (a cryptographic property) and \textbf{event timing} (an informational annotation). This separation enables ADL Lite to tolerate arbitrary clock skew across agents while maintaining deterministic chain integrity.
+
+\textbf{Timestamp exclusion from the hash input.} The \(\text{timestamp}\) field of every event is explicitly excluded from the SHA-256 hash computation, as specified in Section 3.3.1. Formally, for any event \(e\):
+
+\[
+H(e) = \mathsf{SHA\text{-}256}\bigl(\mathsf{serialize\_canonical}(e \setminus \{\text{hash}, \text{timestamp}\})\bigr)
+\]
+
+This means that two events that differ only in their \(\text{timestamp}\) values are cryptographically indistinguishable: they produce identical hashes and can therefore be substituted for one another without breaking the chain. The practical consequence is that clock skew---whether caused by misconfigured NTP, timezone differences, or adversarial backdating---cannot cause hash mismatches or invalidate chain integrity.
+
+\textbf{Event ordering by append sequence, not timestamp.} The temporal order of events within a single EventChain is determined entirely by the \(\text{previous\_event\_id}\) linkage, which forms a cryptographic linked list. An event \(e_i\) precedes \(e_j\) in the chain if and only if there exists a sequence of \(\text{previous\_event\_id}\) links from \(e_j\) back to \(e_i\). This is a \textbf{happens-before} relation defined by cryptographic reference, not by timestamp comparison.
+
+Formally, define the happens-before relation \(\prec\) on events in a chain:
+
+\[
+e_i \prec e_j \iff \exists\, k_1, k_2, \ldots, k_m \;:\; e_j.\text{prev\_id} = H(e_{k_1}) \land e_{k_1}.\text{prev\_id} = H(e_{k_2}) \land \cdots \land e_{k_m}.\text{prev\_id} = H(e_i)
+\]
+
+The relation \(\prec\) is a strict partial order: it is irreflexive (no event happens before itself), transitive (by composition of hash links), and asymmetric (the cryptographic hash function is collision-resistant, so \(e_i \prec e_j\) implies \(e_j \not\prec e_i\)). The timestamp field plays no role in defining \(\prec\).
+
+\textbf{Non-monotonic timestamp tolerance.} Because timestamps are not used for ordering or hashing, ADL Lite tolerates arbitrary non-monotonicity in timestamp values. An event may carry a timestamp earlier than its predecessor, later than its successor, or any other value, without affecting chain validity. This is essential for distributed settings where agents may have unsynchronized clocks.
+
+\textbf{Timestamp role: informational only.} The \(\text{timestamp}\) field serves three informational purposes:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Human readability.} Timestamps provide coarse temporal context for audit logs and chain visualization.
+\item
+  \textbf{Temporal querying.} The \(\text{snapshot\_at}(t)\) operation (not implemented in Phase 1) would reconstruct the state of a concept as it existed at a given wall-clock time by filtering events by timestamp. This is a best-effort convenience feature, not a verification mechanism.
+\item
+  \textbf{Debugging and diagnostics.} Timestamp anomalies (e.g., an event timestamped hours before its predecessor) can signal clock misconfiguration or delayed event propagation.
+\end{enumerate}
+
+At no point is the \(\text{timestamp}\) field used for integrity verification, status derivation, or consensus.
+
+\textbf{Preventing chain branching.} If two events are appended concurrently with the same \(\text{previous\_event\_id}\), the EventChain enforces a \textbf{single-successor rule}: the first event to be accepted by the append operation becomes the legitimate successor, and the second is rejected. This prevents the chain from branching into a tree structure. Formally:
+
+\[
+\text{append}(E, e_{\text{new}}) = \begin{cases}
+E \oplus [e_{\text{new}}] & \text{if } e_{\text{new}}.\text{prev\_id} = H(\text{last}(E)) \text{ and } \text{successor}(\text{last}(E)) = \bot \\
+\text{reject} & \text{otherwise}
+\end{cases}
+\]
+
+where \(\text{successor}(e)\) denotes the unique event (if any) whose \(\text{previous\_event\_id}\) equals \(H(e)\). The single-successor rule ensures that the EventChain remains a linear sequence rather than a directed acyclic graph.
+
+\textbf{Future work: logical clocks for distributed settings.} The current design assumes a single append point per chain (e.g., one agent or a coordinated merge process). For fully distributed settings without a trusted timestamp authority or centralized append point, ADL Lite Phase 2 will introduce optional logical clocks. Two mechanisms are planned:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  \textbf{Lamport timestamps} \cite{ref24} for capturing the happens-before relation among events across distributed agents. Each agent maintains a monotonic counter, incremented on every local event and propagated with messages. Lamport clocks provide a partial order consistent with the causal relation but cannot distinguish concurrent events.
+\item
+  \textbf{Vector clocks} \cite{ref25} for identifying concurrent events precisely. A vector clock assigns a vector of counters (one per agent) to each event, enabling the detection of causality, concurrency, and potential conflicts. Vector clocks are more expressive than Lamport clocks but incur \(O(n)\) space overhead for \(n\) agents.
+\end{enumerate}
+
+The introduction of logical clocks will be backward-compatible: events without vector clock annotations continue to validate under the current \(\text{previous\_event\_id}\)-based ordering. Logical clocks augment, rather than replace, the cryptographic linkage.
+
+The EventChain supports five primary operations. The \texttt{append(event)} operation links a new event to the chain by setting \texttt{previous\_event\_id} to the hash of the preceding event and recomputing the hash of the new event over its full serialized content. The \texttt{verify\_integrity()} operation traverses the chain from genesis to tip, recomputing each event's hash and validating that it matches the stored value; it further confirms that each \texttt{previous\_event\_id} correctly references the preceding event's hash, establishing a chain of cryptographic trust from the most recent event back to the genesis event. The \texttt{status} property is computed by scanning the chain for the most recent lifecycle event (REGISTER, VALIDATE, DEPRECATE, FORK, or ARCHIVE) and returning the corresponding status; if no lifecycle event is present, the default status \texttt{provisional} is returned. The \texttt{confidence} property aggregates validate event payloads according to domain-specific rules. The \texttt{validators} property accumulates unique \texttt{actor} values from lifecycle events. The \texttt{history()} method returns the full audit trail in temporal order; \texttt{snapshot()} derives an \texttt{ADLFrontMatter} instance representing the current computed state for serialization to L1 YAML.
+
+Integrity verification operates in \(\mathcal{O}(n)\) time for a chain of \(n\) events. Each verification recomputes SHA-256 hashes for all events and checks link consistency. Because events are append-only and hashes cover all prior content---including the previous event's hash through the \texttt{previous\_event\_id} field---any modification to historical data, whether payload tampering, event reordering, link breakage, or concept ID mismatch, is detectable as a hash mismatch at the point of first alteration. The verification process is deterministic and side-effect-free, enabling it to be run at any time without modifying chain state. For a chain containing 168,508 events (the maximum observed in the IBM AML dataset), verification completes in linear time proportional to the chain length, with each hash computation imposing negligible constant overhead on modern hardware.
+
+\subsection{Action Executor with Structured Preconditions}\label{action-executor-with-structured-preconditions}
+
+The ActionExecutor enforces that all lifecycle transitions and side effects satisfy declarative precondition rules defined in \texttt{adl\_core\_ontology.yaml}. The registry specifies nine core actions. The \texttt{register} action transitions a concept from null to \texttt{provisional} with no preconditions. The \texttt{validate} action transitions from \texttt{provisional} to \texttt{validated}, requiring \(\text{confidence} \geq 0.5\) and \(\text{status} = \text{provisional}\). The \texttt{fork} action transitions from \texttt{provisional} to \texttt{forked}, requiring \(\text{status} = \text{provisional}\). The \texttt{deprecate} action transitions from \texttt{validated} to \texttt{deprecated}, requiring \(\text{status} = \text{validated}\). The \texttt{archive} action transitions from \texttt{deprecated} to \texttt{archived}, requiring \(\text{status} = \text{deprecated}\). The \texttt{announce}, \texttt{publish}, \texttt{sync\_dashboard}, and \texttt{listen} actions effect no status transitions but require the presence of \texttt{chat\_id}, \texttt{wiki\_space}, \texttt{sheet\_id}, and \texttt{feedback\_file} parameters, respectively.
+
+Precondition rules are modeled through a \texttt{PreconditionRule} structure containing three fields: \texttt{field} (the \texttt{ADLFrontMatter} field name to evaluate), \texttt{comparator} (a typed enumeration drawn from a closed set), and \texttt{value} (the expected value for comparison). The \texttt{Comparator} enumeration defines eight operators: EQ (equality), NEQ (inequality), GT (greater than), GTE (greater than or equal), LT (less than), LTE (less than or equal), IN (membership in a specified set), and EXISTS (non-null presence of the field). The \texttt{check(fm)} method evaluates a precondition rule against a front matter instance by extracting the specified field and applying the comparator through a statically typed dispatch.
+
+This design replaces runtime \texttt{eval()}---a common but unsafe pattern in action dispatch systems that introduces arbitrary code execution vulnerabilities---with statically typed, parse-time-validatable Pydantic models \cite{ref18}. Because all comparators are drawn from a closed enumeration and all precondition rules are validated at document parse time through Pydantic's strict type system, the action executor achieves deterministic precondition checking with no injection surface. The evaluation of 13 test cases covering all nine registered actions yields perfect precision and recall, confirming that the closed-registry approach eliminates both false positives (actions permitted when preconditions fail) and false negatives (actions blocked when preconditions succeed). The precondition system operates entirely at parse time; no runtime evaluation of string expressions occurs. The action registry is itself versioned through \texttt{adl\_core\_ontology.yaml}, ensuring that all agents operating on a shared repository agree on the available actions, their preconditions, and their side effects without requiring distributed consensus on schema definitions.
+
+\subsection{Consensus and Status Transitions}\label{consensus-and-status-transitions}
+
+The \texttt{ConsensusEngine} governs the lifecycle of ontological concepts through a finite status machine with five states and twelve valid transitions. Table 3 specifies the complete transition matrix.
+
+\textbf{Table 3: Status Transition Matrix. The \texttt{ConsensusEngine} enforces valid transitions through the \texttt{fork} workflow, in which a forked concept spawns a new EventChain with a fresh \texttt{adl\_id} starting at \texttt{provisional}.}
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+Source Status & Valid Target States \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\texttt{provisional} & \texttt{validated}, \texttt{deprecated}, \texttt{forked}, \texttt{archived} \\
+\texttt{validated} & \texttt{deprecated}, \texttt{forked}, \texttt{archived} \\
+\texttt{forked} & \texttt{validated}, \texttt{deprecated}, \texttt{archived} \\
+\texttt{deprecated} & \texttt{archived} \\
+\texttt{archived} & (none --- terminal) \\
+\end{longtable}
+
+The fork workflow operates as follows. When a \texttt{FORK} event is appended to a concept's EventChain, the source concept transitions from \texttt{provisional} to \texttt{forked}. A new concept document is created with a fresh \texttt{adl\_id} and a new EventChain starting at \texttt{provisional}. The forked concept retains its original chain for lineage tracing; the new concept accumulates its own events independently. Resolution strategies---merge, parallel maintenance, or prune---are policy-level decisions recorded as subsequent events on the respective chains; the transition system itself only enforces that forked concepts may subsequently transition to \texttt{validated}, \texttt{deprecated}, or \texttt{archived} through normal lifecycle actions. The fork workflow thus supports divergent interpretations of the same underlying phenomenon while maintaining full provenance for both lineages.
+
+The \texttt{ConsensusEngine} enforces transitions by querying the current chain-derived status and verifying that the requested action's target state appears in the valid transition set for that status. Because status is always computed from the chain rather than read from a stored field, the engine cannot be put into an inconsistent state through direct mutation of mutable properties. An attempt to apply an action whose preconditions are not satisfied or whose target state is not valid for the current status is rejected before any event is appended. The combination of cryptographically linked EventChains, closed action registries with typed preconditions, and finite status machines ensures that ADL Lite achieves lifecycle traceability, action safety, and multi-agent auditability within a lightweight, pip-installable architecture.
+
+\textbf{Figure 1} presents the system architecture. Markdown concept files containing L1--L4 content are parsed by the \texttt{ADLParser} into \texttt{ADLDocument} instances and their associated \texttt{EventChain} representations. The \texttt{OntologyManager} consults \texttt{adl\_core\_ontology.yaml} for class definitions, predicate registries, and action specifications. The \texttt{ActionExecutor} validates preconditions against front matter fields using the \texttt{Comparator} enumeration before dispatching side effects. The \texttt{ConsensusEngine} appends validated events to chains, enforcing status transitions through the finite machine defined in Table 3. Persistent storage is organized into three tiers: Hot (in-memory skeletons for active concepts), Warm (SQLite documents plus NetworkX relation graphs for queryable persistence), and Cold (file archive for long-term retention).
+
+\begin{verbatim}
+Markdown Concept Files (L1 / L2 / L3 / L4)
+            |
+            v
+    +---------------+
+    |   ADLParser   | --> ADLDocument + EventChain
+    +---------------+
+            |
+            v
+    +---------------------------+
+    |   OntologyManager         | <-- adl_core_ontology.yaml
+    |   (classes / predicates   |     (closed action registry)
+    |    / actions / transitions)
+    +---------------------------+
+            |
+            v
+    +-------------------------------+
+    |   ActionExecutor              |
+    |   (PreconditionRule +         |
+    |    Comparator enum --- no eval) |
+    +-------------------------------+
+            |
+            v
+    +-------------------------------+
+    |   ConsensusEngine             |
+    |   (append-only status chain)  |
+    +-------------------------------+
+            |
+            v
+    +-------------------------------+
+    |   ADLMemory                   |
+    |   Hot skeleton /              |
+    |   Warm SQLite + NetworkX /    |
+    |   Cold archive                |
+    +-------------------------------+
+\end{verbatim}
+
+\emph{Figure 1: ADL Lite system architecture. Markdown documents flow through the parser into the ontology layer, where the ActionExecutor validates preconditions before the ConsensusEngine appends events. The OntologyManager provides the semantic schema governing all operations, and ADLMemory provides three-tier persistent storage.}
+
+\subsection{Concurrency Model and Conflict Resolution}\label{concurrency-model-and-conflict-resolution}
+
+ADL Lite adopts a Git branch-based concurrency model in which agents operate on independent branches, proposing concepts through Markdown files and L4 action blocks that are merged into a shared main branch via pull requests. This section formalizes the concurrency semantics: how divergent chains are detected, how conflicts are resolved, and how canonical status is determined when multiple valid histories exist for the same concept.
+
+\textbf{Branch-based authoring.} Each agent authors concepts on its own branch, appending events to local EventChains and committing Markdown files to the shared Git repository. Event ordering within a single branch is deterministic: events are appended in commit order, with timestamps assigned at append time. Cross-branch ordering is not guaranteed: two agents may append events to concept chains on different branches without knowledge of each other's operations until a merge occurs.
+
+\textbf{Divergent chain detection.} When branches are merged, the Git merge driver compares the Markdown files line by line. A divergent chain is detected when the \texttt{previous\_event\_id} field of an event on one branch does not match the hash of the last event on the other branch at the merge point. Specifically, if branch \(A\) has chain \(C_A = [e_1, \ldots, e_n]\) and branch \(B\) has chain \(C_B = [e_1, \ldots, e_m]\) with \(e_n \neq e_m\) (both valid continuations of the shared prefix), the merge produces a hash mismatch at the divergence point. This is analogous to a blockchain fork: both histories are valid continuations of the shared prefix, but they are mutually exclusive as a single linear chain.
+
+\textbf{Conflict resolution: last-write-wins at the event level.} ADL Lite resolves conflicts at the granularity of individual events rather than entire chains. The resolution policy is deterministic: when two branches contain concurrent events (events appended after the last common ancestor with no happens-before relationship between them), the event with the lexicographically greater \texttt{event\_id} is retained. This \emph{last-write-wins} (LWW) policy is deterministic, computable without coordination, and produces the same result regardless of which agent performs the merge. The discarded event is not deleted; it is recorded as a \texttt{CONFLICT} annotation in the merged chain's metadata, preserving an audit trail of the resolution decision.
+
+\textbf{Fork as explicit divergence.} When concurrent events on the same concept represent genuinely incompatible assertions (e.g., one agent proposes \texttt{VALIDATE} while another proposes \texttt{DEPRECATE}), the merge policy triggers an explicit fork. The concept's chain receives a \texttt{FORK} event, the source concept transitions to \texttt{forked} status, and the conflicting continuation is moved to a new concept document with a fresh \texttt{adl\_id}. This behavior is deterministic: the fork condition is evaluated by comparing the target statuses of concurrent lifecycle events, and a fork is created whenever the statuses are mutually exclusive (i.e., neither is a valid transition from the other under Table 3). The fork workflow thus transforms implicit merge conflicts into explicit divergence with full lineage preservation.
+
+\textbf{Canonical status: longest valid chain.} When a concept exists in multiple branches with divergent but non-conflicting histories (e.g., one agent added an \texttt{EVIDENCE} event while another added a \texttt{RELATE} event), the canonical version is determined by the longest valid chain, measured by event count. This rule is analogous to the longest-chain consensus in proof-of-work blockchains: the chain with the most accumulated work (here, events) is considered authoritative. Ties are broken by lexicographic comparison of the tip event's hash. The canonical selection is local to the merging agent's view and can be re-evaluated when new events arrive; there is no global consensus protocol.
+
+\textbf{Merge policy summary.} Events are ordered by timestamp where a happens-before relationship exists. Concurrent events (no happens-before relationship) are resolved by deterministic LWW at the event level. Concurrent lifecycle events targeting mutually exclusive statuses trigger an explicit fork. The canonical branch for a concept is the one with the longest valid chain. This policy ensures that (i) every merge produces a deterministic result, (ii) genuine disagreements are preserved as forks rather than silently overridden, and (iii) no central coordinator is required.
+
+\textbf{Concurrent lifecycle events on the same branch.} A distinct concurrency scenario arises when two agents append \emph{conflicting lifecycle events} to the \textbf{same} concept on the \textbf{same} branch before either event is merged. Consider the case where agent \(\alpha\) appends a \texttt{VALIDATE} event and agent \(\beta\) appends a \texttt{DEPRECATE} event to the same EventChain, with \(\beta\)'s event having a later timestamp. Because the EventChain is append-only, \textbf{both events are retained} in the order they were received. The resulting chain is \([\ldots, \text{VALIDATE}(\alpha, t_1), \text{DEPRECATE}(\beta, t_2)]\). The concept's status is then determined by \texttt{DeriveStatus} (Algorithm 1): the last lifecycle event wins, yielding \(\text{status} = \text{deprecated}\). This deterministic behavior---\emph{last lifecycle event wins}---prevents race conditions because every agent observing the same chain derives the same status, regardless of local ordering. However, it may surprise agents that expect their \texttt{VALIDATE} to ``stick'' when a subsequent \texttt{DEPRECATE} overrides it. This semantic is a deliberate design choice: ADL Lite prefers deterministic, auditable outcomes over heuristics that attempt to infer agent intent. The surprised agent's recourse is to append a new \texttt{VALIDATE} event, which would again become the last lifecycle event and restore \texttt{validated} status. A future CRDT-based merge model (see Discussion §6.5) would provide richer semantics for concurrent lifecycle events by representing status as a semi-lattice with domain-specific merge functions, but this is deferred to Phase 2.
+
+\subsection{Trust Model and Security Boundaries}\label{trust-model-and-security-boundaries}
+
+The security guarantees of ADL Lite must be understood in terms of the threat model against which they are designed. This section makes explicit what the system protects against, what it does not protect against, and the engineering path to stronger guarantees.
+
+\textbf{Current threat model: collaborative audit.} ADL Lite is designed for collaborative audit scenarios in which participants are mutually trusted but accountable. The typical deployment is a small-to-medium research team (2--10 agents, human or synthetic) collaborating within a shared Git repository. In this setting, the primary threats are: accidental modification of event history (e.g., a manual edit to a Markdown file that corrupts a hash chain); misattribution of events (an agent appending an event with an incorrect \texttt{actor} field due to a configuration error); and undetected branching (two agents modifying the same concept concurrently without awareness of each other's changes). The hash chain addresses the first threat: \texttt{verify\_integrity()} detects any modification to historical events. The Git audit log (\texttt{git\ blame}, signed commits) addresses the second threat in conjunction with institutional norms. The concurrency model (Section 3.6) addresses the third.
+
+\textbf{What is NOT protected: adversarial resistance.} The current system does not resist adversarial actors who control a participant's write access. Specifically: (i) the \texttt{actor} field is a plain string, not cryptographically bound to an identity---any participant with repository write access can append an event claiming any actor name; (ii) there are no digital signatures on events, so a malicious participant can forge events attributed to other agents without cryptographic detection; (iii) there is no public-key infrastructure (PKI) or certificate authority binding actor names to cryptographic keys; and (iv) a malicious participant with repository access can rewrite history (via force-push) in a way that breaks the hash chain, though the breakage itself is detectable by other participants. These limitations are deliberate Phase 1 simplifications, not oversights.
+
+\textbf{Hash chaining: tamper-evidence, not tamper-proofness.} The SHA-256 hash chain provides \emph{tamper-evidence}: any modification to an event's payload, reordering of events, or breakage of the \texttt{previous\_event\_id} link is detectable through \texttt{verify\_integrity()}. It does not provide \emph{tamper-proofness}: a malicious actor with write access can delete the entire chain, replace it with a forged chain, or append forged events. The distinction is critical. Tamper-evidence supports accountability in trusted-collaborator settings by making accidental or negligent modifications detectable. Tamper-proofness would require digital signatures on each event (preventing forgery), a distributed consensus protocol (preventing unilateral rewriting), and a PKI (binding actor names to keys)---each substantially increasing deployment complexity.
+
+\textbf{Table 13: Tampering Detection Taxonomy. Attack classes evaluated against the EventChain integrity model. Rows marked YES are detected by \texttt{verify\_integrity()} in Phase 1. Rows marked NO require digital signatures and are deferred to Phase 3 (Linked Data Proofs).}
+
+\begin{longtable}[]{@{}>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1884}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1884}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3478}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2754}}@{}}
+\toprule
+Attack Class
+& Description
+& Detected by EventChain?
+& Detection Mechanism
+\\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Content tampering & Modify payload of existing event & YES & SHA-256 hash mismatch \\
+Link breakage & Alter \texttt{previous\_event\_id} of an event & YES & Hash chain discontinuity \\
+Event deletion & Remove event from chain & YES & Hash chain discontinuity at deletion point \\
+Event reordering & Swap order of two events & YES & SHA-256 cascade invalidation \\
+Cross-chain injection & Insert event belonging to different concept & YES & \texttt{concept\_id} mismatch at append time \\
+Equivocation (same actor, conflicting claims) & Actor appends contradictory events without attribution & NO & Requires digital signatures to bind actor to key \\
+Replay attack & Copy valid event to different chain & NO* & *Detected if \texttt{concept\_id} differs; undetected if \texttt{concept\_id} forged \\
+Backdating & Create event with false timestamp & NO & Timestamps are not cryptographically verified \\
+Impersonation & Append event with another actor's name & NO & \texttt{actor} field is plain string, not signed \\
+\end{longtable}
+
+The taxonomy reveals that the EventChain detects all \emph{structural} tampering classes---modifications to event content, ordering, or linkage---because the SHA-256 hash cascade binds each event to its full history. The bottom four rows (Equivocation, Replay, Backdating, Impersonation) are \emph{attribution} attacks: they exploit the absence of cryptographic identity binding, not weaknesses in the hash chain itself. These attacks require digital signatures (Phase 3, Linked Data Proofs) for detection: a signed event cannot be replayed without the private key, an actor cannot equivocate without repudiable signatures on contradictory claims, and timestamps can be bound to trusted timestamping authorities. The distinction between structural and attribution attacks clarifies the incremental security path: Phase 1 provides tamper-evidence for the collaborative audit setting; Phase 3 upgrades to tamper-resistance for adversarial environments.
+
+\textbf{Future path: Linked Data Proofs and PKI integration.} Phase 2 and beyond will address adversarial resistance through two mechanisms. First, \emph{Linked Data Proofs} \cite{ref21} will be used to cryptographically sign event objects. Each event will be canonicalized using the URDNA2015 algorithm and signed with the actor's ed25519 private key; verification will use the actor's public key, distributed through a repository-level key registry or an external PKI. Second, \emph{multi-signature thresholds} for critical transitions (e.g., \texttt{VALIDATE} requiring signatures from \(k\) of \(n\) validators) will prevent any single compromised key from altering concept status. Third, \emph{Git commit signing} will be integrated with event authentication, such that unsigned commits containing event modifications are rejected by the merge policy. These enhancements will upgrade the trust model from collaborative audit to authenticated multi-party consensus while preserving the pip-installable, Git-backed deployment model.
+
+\subsection{Semantic Web Interoperability}\label{semantic-web-interoperability}
+
+ADL Lite is designed as a document-native operational ontology that does not require a triple store or OWL reasoner for its core operation. However, the L3 relation blocks and EventChain structure have direct mappings to W3C Semantic Web standards, enabling optional interoperability with RDF toolchains. This section specifies the PROV-O provenance mapping, the RDF triple serialization of L3 content, and the path to SHACL-based validation as future work.
+
+\textbf{PROV-O provenance mapping.} The PROV-O ontology \cite{ref22} provides a standard vocabulary for provenance information on the Web. ADL Lite's event model maps naturally to PROV-O's activity-centric model, as summarized in Table 4.
+
+\textbf{Table 4: Mapping from ADL Lite constructs to PROV-O classes and properties.}
+
+\begin{longtable}[]{@{}>{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.4000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3200}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.2800}}@{}}
+\toprule
+ADL Lite
+& PROV-O
+& Notes
+\\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Event & \texttt{prov:Activity} & Each event is an activity that occurred at a specific time \\
+EventChain (concept) & \texttt{prov:Entity} & The concept-as-entity is generated by its constituent activities \\
+actor & \texttt{prov:wasAssociatedWith} & Links the activity to the participating agent \\
+previous\_event\_id & \texttt{prov:wasInformedBy} & Sequential dependency between activities \\
+payload & \texttt{prov:value} & Activity-specific data as a literal value \\
+REGISTER $\rightarrow$ VALIDATE $\rightarrow$ DEPRECATE & \texttt{prov:wasGeneratedBy} & Lifecycle events generate the entity in successive states \\
+L3 relation (source--relation--target) & RDF triple (subject--predicate--object) & Direct translation to \texttt{rdf:Statement} \\
+\end{longtable}
+
+This mapping enables ADL Lite concepts to be exported as valid PROV-O traces consumable by provenance-aware tools such as the W3C PROV-JSON validator, ProvPy, and ProvStore. The export is one-way: ADL Lite does not consume PROV-O data internally, but can serialize its event chains to PROV-O for interoperability with systems that require standard provenance representations.
+
+\textbf{RDF triple serialization (Path B).} L3 relation blocks encode typed assertions in the form \texttt{source\ concept\ ---predicate$\rightarrow$\ target\ concept}, which are structurally isomorphic to RDF triples. The mapping is direct: the source concept's \texttt{adl\_id} becomes the RDF subject (as a URI in the \texttt{adl://} namespace), the relation predicate becomes the RDF predicate (mapped to a registered URI in \texttt{adl\_core\_ontology.yaml}), and the target concept's \texttt{adl\_id} becomes the RDF object. L1 YAML scalars (\texttt{confidence}, \texttt{novelty}, \texttt{domain}) map to \texttt{owl:DatatypeProperty} assertions. L2 Markdown bodies map to \texttt{rdfs:comment} annotations. The optional Turtle export (Phase 3) will serialize an ADL Lite concept document as a named graph containing its triples, provenance activities, and datatype properties, enabling consumption by standard SPARQL endpoints without requiring ADL Lite-specific query infrastructure.
+
+\textbf{SHACL as a future validation path.} The current precondition system uses a \texttt{Comparator} enumeration (EQ, NEQ, GT, GTE, LT, LTE, IN, EXISTS) to validate scalar conditions against \texttt{ADLFrontMatter} fields. This design is deliberately simple: it handles scalar preconditions deterministically, eliminates runtime \texttt{eval()}, and achieves perfect precision and recall on the test suite (E4). However, the \texttt{Comparator} enum is less expressive than the Shapes Constraint Language (SHACL) \cite{ref23} in several dimensions. SHACL supports graph-shaped constraints that the \texttt{Comparator} enum cannot express: node-kind constraints (e.g., requiring that a property value be an IRI rather than a literal), path constraints (e.g., requiring that a property chain have a specific cardinality), and cross-property validation (e.g., requiring that \texttt{confidence\ \textgreater{}\ 0.5} when \texttt{status\ =\ validated}). SHACL also supports SPARQL-based constraints for arbitrary graph-pattern validation and closed-world cardinality checking that complements OWL's open-world semantics.
+
+The integration path to SHACL is as follows. In Phase 2, \texttt{adl\_core\_ontology.yaml} will be extended to include SHACL shapes for L3 predicate validation: each registered predicate will declare its expected domain and range, and the \texttt{ADLValidator} will optionally enforce these constraints through \texttt{pyshacl} or a native Python implementation. In Phase 3, L4 action preconditions will be expressible as \texttt{sh:Constraint} components within SHACL shapes, enabling graph-pattern preconditions (e.g., ``allow VALIDATE only if the concept has at least one EVIDENCE event linked to a non-empty data reference''). The current \texttt{Comparator} enum will remain as a fast path for scalar preconditions; SHACL validation will be an optional, more expressive layer that can be enabled when graph-shaped constraints are required. This phased approach preserves the deployment simplicity of the current system while providing a clear migration path to standards-based constraint validation.
+
+\textbf{SPARQL queryability.} The optional Turtle export enables SPARQL queryability without requiring ADL Lite to implement a query engine. Once concept documents are exported as Turtle named graphs, standard SPARQL 1.1 endpoints can answer queries such as: ``Find all concepts with \texttt{status\ =\ validated} and at least one \texttt{isomorphic-to} relation to a concept in scope \texttt{public}'' or ``Trace the provenance of all \texttt{VALIDATE} events authored by a specific actor.'' This capability is explicitly out of scope for Phase 1: ADL Lite's native query interface operates through the \texttt{WarmIndex} (SQLite + NetworkX) rather than SPARQL. The Turtle export bridge (Path B) is a Phase 3 deliverable, to be evaluated based on demonstrated demand for interoperability with existing RDF toolchains.
+
+\subsection{Formal Derivation Semantics}\label{formal-derivation-semantics}
+
+The event-first architecture of ADL Lite delegates all derived properties---status, confidence, validators---to deterministic functions over the EventChain. This subsection formalizes the two primary derivation functions, specifies fork resolution semantics, and documents the quorum configuration rules that govern the transition from \texttt{provisional} to \texttt{validated}.
+
+\subsubsection{Status Derivation with Fork Semantics}\label{status-derivation-with-fork-semantics}
+
+The status of a concept depends exclusively on the most recent lifecycle event in its EventChain. Communication events (\(\text{ANNOUNCE}\), \(\text{PUBLISH}\), \(\text{RELATE}\), \(\text{EVIDENCE}\), \(\text{SEAL}\)) do not affect status. Algorithm 1 specifies the complete derivation procedure, including fork handling and concurrent-event semantics.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\textbf{Algorithm 1:} \(\textsc{DeriveStatus}(E)\) --- Derive concept status from event sequence
+
+\textbf{Input:} Ordered sequence of events \(E = [e_1, e_2, \ldots, e_n]\)
+
+\textbf{Output:} Discovery status \(s \in \{\text{provisional}, \text{validated}, \text{deprecated}, \text{forked}, \text{archived}\}\)
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\begin{verbatim}
+1:  L $\leftarrow$ {REGISTER, VALIDATE, DEPRECATE, FORK, ARCHIVE}       $\triangleright$ lifecycle event types
+2:  E_life $\leftarrow$ [e $\in$ E | e.event_type $\in$ L]                      $\triangleright$ filter to lifecycle events
+3:  if E_life = [] then
+4:      return provisional                                     $\triangleright$ default: no lifecycle events
+5:  e_last $\leftarrow$ last element of E_life                           $\triangleright$ last lifecycle event wins
+6:  match e_last.event_type:
+7:      REGISTER  $\rightarrow$ return provisional
+8:      VALIDATE  $\rightarrow$ return validated
+9:      DEPRECATE $\rightarrow$ return deprecated
+10:     FORK      $\rightarrow$ return forked
+11:     ARCHIVE   $\rightarrow$ return archived
+\end{verbatim}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\textbf{Fork handling semantics.} When the last lifecycle event is \(\text{FORK}\) (line 10), the original concept's EventChain stops growing. A new concept document is created with a fresh \(\text{adl\_id}\) and a new EventChain starting at \(\text{provisional}\). Both the original (forked) concept and the new (fork descendant) may independently accumulate \(\text{VALIDATE}\) events thereafter. A \(\text{MERGE}\) event type, which would consolidate two forked interpretations by specifying a target concept and merge rationale, is deferred to Phase 2 (see §6.5).
+
+\textbf{Concurrent-event semantics.} When multiple lifecycle events appear in \(E_{\text{life}}\), \textbf{only} the last determines status. This holds regardless of the actors, timestamps, or payloads of the preceding events:
+
+\begin{itemize}
+\tightlist
+\item
+  Example: \([\text{REGISTER}, \text{VALIDATE}, \text{DEPRECATE}] \rightarrow \text{deprecated}\)
+\item
+  Example: \([\text{REGISTER}, \text{VALIDATE}(\alpha), \text{VALIDATE}(\beta)] \rightarrow \text{validated}\)
+\item
+  Example: \([\text{REGISTER}, \text{VALIDATE}, \text{FORK}] \rightarrow \text{forked}\)
+\end{itemize}
+
+The last-lifecycle-event rule is a deliberate design choice: it yields deterministic, auditable outcomes without requiring heuristics that attempt to infer agent intent.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\textbf{Theorem 1 (Determinism).} For any event sequence \(E\), \(\textsc{DeriveStatus}(E)\) returns a unique status \(s \in \{\text{provisional}, \text{validated}, \text{deprecated}, \text{forked}, \text{archived}\}\) that depends only on the last lifecycle event in \(E\).
+
+\emph{Proof.} Algorithm 1 proceeds in three steps. First, it filters \(E\) to the subsequence \(E_{\text{life}}\) of lifecycle events (lines 1--2); this is a deterministic function of \(E\). Second, if \(E_{\text{life}}\) is empty, it returns \(\text{provisional}\) (lines 3--4); this is a constant function. Third, it selects the last element \(e_{\text{last}}\) of \(E_{\text{life}}\) (line 5) and maps it to a status via a total function \(f : \{\text{REGISTER}, \text{VALIDATE}, \text{DEPRECATE}, \text{FORK}, \text{ARCHIVE}\} \rightarrow \{\text{provisional}, \text{validated}, \text{deprecated}, \text{forked}, \text{archived}\}\) defined by lines 6--11. Because \(f\) is total and single-valued, and because the last element of a finite ordered sequence is unique, \(s\) is uniquely determined for any \(E\). The empty-sequence case is also unique. Therefore, \(\textsc{DeriveStatus}\) is a deterministic function. \(\square\)
+
+\textbf{Corollary 1 (Status Stability).} Appending a non-lifecycle event to \(E\) does not change \(\textsc{DeriveStatus}(E)\).
+
+\emph{Proof.} Non-lifecycle events are excluded by the filter in line 2. Therefore \(E_{\text{life}}\) is unchanged, so \(e_{\text{last}}\) is unchanged, so the returned status is unchanged by Theorem 1. \(\square\)
+
+\textbf{Theorem 2 (Confluence under Fork).} Let \(C\) be a concept with event sequence \(E\). If \(C\) forks by appending a \(\text{FORK}\) event, producing the augmented sequence \(E_{\text{fork}} = E \oplus [e_{\text{FORK}}]\), and a new concept \(C'\) is created with fresh chain \(E' = [e_{\text{REGISTER}}'] \oplus E_{\text{new}}\), then:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \(\textsc{DeriveStatus}(E_{\text{fork}}) = \text{forked}\); and
+\item
+  \(\textsc{DeriveStatus}(E') = \text{provisional}\) regardless of \(E\) and \(E_{\text{new}}\).
+\end{enumerate}
+
+\emph{Proof.} (1) The \(\text{FORK}\) event is a lifecycle event. By Theorem 1, \(\textsc{DeriveStatus}(E_{\text{fork}})\) depends only on the last lifecycle event in \(E_{\text{fork}}\). Since \(e_{\text{FORK}}\) is appended after all events in \(E\), it is the last lifecycle event, and the match in line 10 of Algorithm 1 returns \(\text{forked}\).
+
+\begin{enumerate}
+\def\labelenumi{(\arabic{enumi})}
+\setcounter{enumi}{1}
+\tightlist
+\item
+  The new concept \(C'\) starts with a fresh chain whose first event is \(e_{\text{REGISTER}}'\). By Theorem 1, \(\textsc{DeriveStatus}(E')\) depends only on the last lifecycle event in \(E'\). If \(E_{\text{new}} = \emptyset\), then \(E' = [e_{\text{REGISTER}}']\) and the last (only) lifecycle event is \(\text{REGISTER}\), yielding \(\text{provisional}\) by line 7. Any subsequent lifecycle events in \(E_{\text{new}}\) are governed by Theorem 1 independently of \(E\). The two derivations operate on disjoint event sequences and are therefore independent. \(\square\)
+\end{enumerate}
+
+\textbf{Theorem 3 (Monotonicity of Status Transitions).} Let \(E\) be an event sequence and let \(s = \textsc{DeriveStatus}(E)\). For any event \(e_{\text{new}}\), the status transition from \(s\) to \(s' = \textsc{DeriveStatus}(E \oplus [e_{\text{new}}])\) is a valid transition according to Table 3 if and only if \(e_{\text{new}}.\text{event\_type}\) is a lifecycle event and the corresponding status change appears in the transition matrix.
+
+\emph{Proof.} If \(e_{\text{new}}\) is a non-lifecycle event, then by Corollary 1, \(s' = s\) and no transition occurs. If \(e_{\text{new}}\) is a lifecycle event, then by Theorem 1, \(s'\) is determined by \(e_{\text{new}}.\text{event\_type}\). The mapping from event type to status (lines 6--11) yields exactly the target states defined in Table 3: \(\text{REGISTER} \rightarrow \text{provisional}\), \(\text{VALIDATE} \rightarrow \text{validated}\), \(\text{DEPRECATE} \rightarrow \text{deprecated}\), \(\text{FORK} \rightarrow \text{forked}\), \(\text{ARCHIVE} \rightarrow \text{archived}\). Therefore, the transition from \(s\) to \(s'\) is valid if and only if the corresponding entry exists in the transition matrix. \(\square\)
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Confidence Derivation with Tie-Breaking and Quorum Rules}\label{confidence-derivation-with-tie-breaking-and-quorum-rules}
+
+Confidence is derived from the set of \(\text{VALIDATE}\) events in the chain, with explicit handling for duplicate validators, conflicting lifecycle events, and configurable quorum thresholds. Algorithm 2 specifies the complete derivation procedure.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\textbf{Algorithm 2:} \(\textsc{DeriveConfidence}(E)\) --- Derive concept confidence from event sequence
+
+\textbf{Input:} Ordered sequence of events \(E = [e_1, e_2, \ldots, e_n]\)
+
+\textbf{Output:} Confidence value \(c \in [0, 1]\)
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\begin{verbatim}
+1:  V $\leftarrow$ [e $\in$ E | e.event_type = VALIDATE]                    $\triangleright$ all VALIDATE events
+2:  if V = [] then
+3:      return 0.0                                            $\triangleright$ no validation $\rightarrow$ zero confidence
+4:  actors $\leftarrow$ unique([v.actor for v $\in$ V])                     $\triangleright$ distinct validator actors
+5:  V_per_actor $\leftarrow$ for each a $\in$ actors:
+6:       {a $\rightarrow$ argmax([v.payload.confidence | v $\in$ V $\land$ v.actor = a])}  $\triangleright$ highest confidence per actor
+7:  c_base $\leftarrow$ max(0.5, mean([V_per_actor[a] for a $\in$ actors])) $\triangleright$ mean of best-per-actor confidences
+8:  N_vals $\leftarrow$ |actors|                                         $\triangleright$ distinct validator count
+9:  return min(1.0, c_base + 0.05 $\times$ (N_vals $-$ 1))           $\triangleright$ +0.05 per additional validator
+\end{verbatim}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\textbf{Tie-breaking rules.} Algorithm 2 incorporates three tie-breaking and conflict-resolution mechanisms:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  \textbf{Multiple validations from the same actor (lines 5--6).} If a single actor submits multiple \(\text{VALIDATE}\) events with different confidence values, only the highest confidence value is retained. An actor cannot inflate confidence by submitting multiple validations. This is enforced by the \(\text{argmax}\) selection in line 6.
+\item
+  \textbf{Conflicting \(\text{VALIDATE}\)/\(\text{DEPRECATE}\) events.} If the last lifecycle event in \(E\) is \(\text{DEPRECATE}\), then \(\textsc{DeriveStatus}(E) = \text{deprecated}\) (Theorem 1), and the confidence value is \textbf{irrelevant}: the concept is deprecated regardless of confidence. Algorithm 2 still computes a numerical confidence, but the status derivation takes precedence.
+\item
+  \textbf{Minimum quorum thresholds.} Two parameters govern the transition from \(\text{provisional}\) to \(\text{validated}\):
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \(\text{min\_validators}\): the minimum number of distinct actors that must have submitted \(\text{VALIDATE}\) events (default: 1).
+  \item
+    \(\text{min\_confidence}\): the minimum confidence value returned by Algorithm 2 (default: 0.5).
+  \end{itemize}
+
+  Both parameters are configurable in \(\text{adl\_core\_ontology.yaml}\). The ActionExecutor checks these thresholds as preconditions before permitting a \(\text{VALIDATE}\) event to transition status.
+\end{enumerate}
+
+\textbf{Challenge events (future work).} A \(\text{CHALLENGE}\) event type, not implemented in Phase 1, would reset confidence to \(0.0\) and status to \(\text{provisional}\), requiring re-validation from scratch. A \(\text{CHALLENGE}\) is itself a lifecycle event; by Theorem 1, it would override the status of any preceding \(\text{VALIDATE}\), and by Corollary 1 it would not be affected by subsequent non-lifecycle events. The \(\text{CHALLENGE}\) type is planned for Phase 2 as part of the adversarial-resistance framework.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\textbf{Theorem 4 (Confidence Boundedness).} For any event sequence \(E\), \(\textsc{DeriveConfidence}(E) \in [0, 1]\).
+
+\emph{Proof.} If \(E\) contains no \(\text{VALIDATE}\) events, Algorithm 2 returns 0.0 (line 3). Otherwise, \(c_{\text{base}} = \max(0.5, \text{mean}(\cdot)) \geq 0.5\) (line 7), so the confidence is at least 0.5. The return value in line 9 is \(\min(1.0, c_{\text{base}} + 0.05 \times (N_{\text{vals}} - 1))\). Since \(c_{\text{base}} \leq 1.0\) (each per-actor confidence is in \([0, 1]\) and the mean of values in \([0, 1]\) is in \([0, 1]\)), and the increment \(0.05 \times (N_{\text{vals}} - 1)\) is non-negative, the expression inside the \(\min\) is at least 0.5. The \(\min\) with 1.0 ensures the result does not exceed 1.0. Therefore, the output is in \([0, 1]\) for all \(E\). \(\square\)
+
+\textbf{Theorem 5 (Confidence Monotonicity under Independent Validation).} Let \(E\) be an event sequence with \(\textsc{DeriveConfidence}(E) = c\). Let \(e_{\text{new}}\) be a \(\text{VALIDATE}\) event from an actor \(a\) not present in \(E\). Then \(\textsc{DeriveConfidence}(E \oplus [e_{\text{new}}]) \geq c\), with strict inequality if \(c < 1.0\).
+
+\emph{Proof.} Let \(A\) be the set of distinct actors in \(E\)'s \(\text{VALIDATE}\) events, and let \(A' = A \cup \{a\}\). Since \(a \notin A\), we have \(|A'| = |A| + 1\). By line 6, the new actor contributes a confidence value \(\gamma = e_{\text{new}}.\text{payload}.\text{confidence} \in [0, 1]\). The new base confidence is:
+
+\[
+c'_{\text{base}} = \max\Bigl(0.5, \frac{|A| \cdot \mu + \gamma}{|A| + 1}\Bigr)
+\]
+
+where \(\mu\) is the previous mean of per-actor confidences. The new returned confidence is \(c' = \min(1.0, c'_{\text{base}} + 0.05 \cdot |A|)\). The previous confidence was \(c = \min(1.0, c_{\text{base}} + 0.05 \cdot (|A| - 1))\). The validator count increment adds \(0.05\) to the bonus term. Even if \(c'_{\text{base}} \leq c_{\text{base}}\) (which can occur if \(\gamma < \mu\)), the additional \(0.05\) from the validator count ensures \(c' \geq c\). If \(c < 1.0\), the \(\min(1.0, \cdot)\) is not binding, so \(c' > c\). \(\square\)
+
+\textbf{Corollary 2 (Sybil Resistance).} A single actor cannot increase confidence by submitting multiple \(\text{VALIDATE}\) events.
+
+\emph{Proof.} By line 6 of Algorithm 2, only the highest confidence value per actor is retained. Subsequent \(\text{VALIDATE}\) events from the same actor either (i) have lower confidence, in which case they do not change \(V_{\text{per\_actor}}\), or (ii) have higher confidence, in which case they replace the previous value. In neither case does the number of distinct validators \(N_{\text{vals}}\) increase, so the bonus term \(0.05 \times (N_{\text{vals}} - 1)\) is unchanged. \(\square\)
+
+\textbf{Theorem 6 (Status--Confidence Consistency).} For any event sequence \(E\), if \(\textsc{DeriveStatus}(E) = \text{validated}\), then \(\textsc{DeriveConfidence}(E) \geq 0.5\).
+
+\emph{Proof.} If \(\textsc{DeriveStatus}(E) = \text{validated}\), then by Theorem 1, the last lifecycle event in \(E\) is \(\text{VALIDATE}\). Therefore \(E\) contains at least one \(\text{VALIDATE}\) event, so \(V \neq \emptyset\) and Algorithm 2 does not return 0.0. By line 7, \(c_{\text{base}} = \max(0.5, \text{mean}(\cdot)) \geq 0.5\). By Theorem 4, the final returned value is at least \(c_{\text{base}} \geq 0.5\). \(\square\)
+
+\subsection{Threat Detection and Phase Boundaries}\label{threat-detection-and-phase-boundaries}
+
+The tampering detection taxonomy (Table 13, §3.7) and the derivation semantics (§3.9) collectively define the security boundary between Phase 1 (collaborative audit) and Phase 3 (adversarial resistance). Phase 1 provides deterministic, computable guarantees: structural tampering is detectable, status derivation is a pure function, and quorum rules are statically configurable. Phase 3 extends these guarantees to adversarial settings through cryptographic identity binding. The incremental design ensures that Phase 1 deployments are not prematurely encumbered by PKI infrastructure while preserving a clear migration path to authenticated multi-party consensus.

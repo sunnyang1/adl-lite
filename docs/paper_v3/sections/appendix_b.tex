@@ -1,0 +1,458 @@
+\subsection{B. SHACL Shape for L3 Relation Validation}\label{b.-shacl-shape-for-l3-relation-validation}
+
+This appendix provides a complete, syntactically valid SHACL \footnote{W3C SHACL: \url{https://www.w3.org/TR/shacl/}.} shape graph for validating ADL Lite Level~3 (L3) relation blocks. The shape ensures that every relation declared between two concepts conforms to the structural and semantic constraints of the ADL Core ontology: valid concept identifiers, closed predicate sets, properly typed confidence values, and mandatory directionality. A worked validation report demonstrates how constraint violations are reported when a relation block fails to conform.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+
+\subsection{B.1 Prefix Declarations}\label{b.1-prefix-declarations}
+
+\begin{lstlisting}
+@prefix sh:   \textless{http://www.w3.org/ns/shacl\#\textgreater{} .}
+@prefix adl:  \textless{https://adl{-}lite.org/ns/\textgreater{} .}
+@prefix xsd:  \textless{http://www.w3.org/2001/XMLSchema\#\textgreater{} .}
+@prefix rdfs: \textless{http://www.w3.org/2000/01/rdf{-}schema\#\textgreater{} .}
+\end{lstlisting}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+
+\subsection{B.2 ADL Core Relation Ontology}\label{b.2-adl-core-relation-ontology}
+
+Before defining the shapes, we declare the ADL Core relation predicates as RDF properties. These predicates form the \emph{closed set} that the SHACL shape enforces. No predicate outside this set may appear in a validated relation block.
+
+\begin{lstlisting}
+\# {-{-}{-} ADL Core Relation Predicates (closed set) {-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}}
+
+adl:isomorphic{-to}
+    a rdfs:Property ;
+    rdfs:label "isomorphic to"@en ;
+    rdfs:comment "Structural equivalence between two concepts"@en ;
+    rdfs:domain adl:RelationBlock ;
+    rdfs:range adl:Concept .
+
+adl:specialisation{-of}
+    a rdfs:Property ;
+    rdfs:label "specialisation of"@en ;
+    rdfs:comment "The subject concept is a specialisation of the object concept"@en ;
+    rdfs:domain adl:RelationBlock ;
+    rdfs:range adl:Concept .
+
+adl:co{-occurs{-}with}
+    a rdfs:Property ;
+    rdfs:label "co{-occurs with"@en ;}
+    rdfs:comment "Concepts that appear together in the same context or corpus"@en ;
+    rdfs:domain adl:RelationBlock ;
+    rdfs:range adl:Concept .
+
+adl:related{-to}
+    a rdfs:Property ;
+    rdfs:label "related to"@en ;
+    rdfs:comment "Generic relatedness without further specificity"@en ;
+    rdfs:domain adl:RelationBlock ;
+    rdfs:range adl:Concept .
+
+adl:analogical{-to}
+    a rdfs:Property ;
+    rdfs:label "analogical to"@en ;
+    rdfs:comment "Analogy{-based relationship between concepts from different domains"@en ;}
+    rdfs:domain adl:RelationBlock ;
+    rdfs:range adl:Concept .
+
+adl:dual{-of}
+    a rdfs:Property ;
+    rdfs:label "dual of"@en ;
+    rdfs:comment "Duality relationship where each concept is the complement of the other"@en ;
+    rdfs:domain adl:RelationBlock ;
+    rdfs:range adl:Concept .
+
+adl:fork{-of}
+    a rdfs:Property ;
+    rdfs:label "fork of"@en ;
+    rdfs:comment "The subject concept is a fork (variant) of the object concept"@en ;
+    rdfs:domain adl:RelationBlock ;
+    rdfs:range adl:Concept .
+\end{lstlisting}
+
+The closed set comprises seven predicates, covering the most common inter-concept relationships in the ADL corpus. The \texttt{adl:fork-of} predicate is generated automatically by the fork workflow (Section 4.7); the remaining six are declared explicitly by authors or inferred by the \texttt{DataImporter} during ingestion (Section 4.8).
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+
+\subsection{B.3 Relation Shape Definition}\label{b.3-relation-shape-definition}
+
+The \texttt{adl:RelationShape} is a \texttt{sh:NodeShape} that targets all instances of \texttt{adl:RelationBlock}. It enforces five constraint groups:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Source existence and validity.} Every relation must have exactly one source concept, identified by a valid concept ID.
+\item
+  \textbf{Predicate closed set.} The predicate must be one of the seven ADL Core predicates declared in Section B.2.
+\item
+  \textbf{Target existence.} Every relation must have exactly one target concept.
+\item
+  \textbf{Confidence bounds.} If confidence is provided, it must be a float in \([0, 1]\).
+\item
+  \textbf{Bidirectional consistency (optional).} If a relation is declared bidirectional, the inverse relation must also exist.
+\end{enumerate}
+
+\begin{lstlisting}
+adl:RelationShape
+    a sh:NodeShape ;
+    rdfs:label "ADL L3 Relation Block Shape"@en ;
+    rdfs:comment "Validates relation blocks in ADL Lite Level 3 (L3) concept definitions"@en ;
+    sh:targetClass adl:RelationBlock ;
+
+    \# {-{-}{-} Constraint 1: Source concept {-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}}
+    sh:property [
+        sh:path adl:source ;
+        sh:name "source concept" ;
+        sh:description "The source concept of the relation" ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:pattern "\^{[a{-}z0{-}9\_{-}]+\$" ;}
+        sh:message
+            "Relation source must be a valid concept ID: non{-empty lowercase "}
+            "alphanumeric string with hyphens and underscores only" ;
+        sh:severity sh:Violation
+    ] ;
+
+    \# {-{-}{-} Constraint 2: Predicate (closed set) {-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}}
+    sh:property [
+        sh:path adl:predicate ;
+        sh:name "relation predicate" ;
+        sh:description "The predicate defining the relationship type" ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:in (
+            adl:isomorphic{-to}
+            adl:specialisation{-of}
+            adl:co{-occurs{-}with}
+            adl:related{-to}
+            adl:analogical{-to}
+            adl:dual{-of}
+            adl:fork{-of}
+        ) ;
+        sh:message
+            "Predicate must be from the closed ADL Core set: "
+            "isomorphic{-to, specialisation{-}of, co{-}occurs{-}with, "}
+            "related{-to, analogical{-}to, dual{-}of, or fork{-}of" ;}
+        sh:severity sh:Violation
+    ] ;
+
+    \# {-{-}{-} Constraint 3: Target concept {-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}}
+    sh:property [
+        sh:path adl:target ;
+        sh:name "target concept" ;
+        sh:description "The target concept of the relation" ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:pattern "\^{[a{-}z0{-}9\_{-}]+\$" ;}
+        sh:message
+            "Relation target must be a valid concept ID: non{-empty lowercase "}
+            "alphanumeric string with hyphens and underscores only" ;
+        sh:severity sh:Violation
+    ] ;
+
+    \# {-{-}{-} Constraint 4: Confidence (optional, bounded) {-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}}
+    sh:property [
+        sh:path adl:confidence ;
+        sh:name "relation confidence" ;
+        sh:description "Confidence score for the relation assertion" ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:float ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 1.0 ;
+        sh:message
+            "Confidence must be a float in the range [0.0, 1.0]" ;
+        sh:severity sh:Violation
+    ] ;
+
+    \# {-{-}{-} Constraint 5: Directionality {-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}}
+    sh:property [
+        sh:path adl:bidirectional ;
+        sh:name "bidirectional flag" ;
+        sh:description "Whether the relation is bidirectional" ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:boolean ;
+        sh:message
+            "Bidirectional flag must be a boolean (true or false)" ;
+        sh:severity sh:Violation
+    ] ;
+
+    \# {-{-}{-} Constraint 6: Evidence reference (optional) {-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}}
+    sh:property [
+        sh:path adl:evidence ;
+        sh:name "evidence reference" ;
+        sh:description "URI or citation supporting the relation" ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:anyURI ;
+        sh:message
+            "Evidence reference must be a valid URI" ;
+        sh:severity sh:Warning
+    ] .
+\end{lstlisting}
+
+\subsubsection{Constraint Design Rationale}\label{b.3.1-constraint-design-rationale}
+
+\textbf{Closed predicate set (Constraint 2).} The \texttt{sh:in} constraint on \texttt{adl:predicate} enforces the closed-world assumption of the ADL Core ontology. This prevents ontology drift: authors cannot introduce ad-hoc predicates (e.g., \texttt{similar-to}, \texttt{like}, \texttt{connected-to}) that would fragment the concept graph and compromise interoperability. If a new relationship type is needed, it must be added to the ADL Core ontology (via the governance process described in Section 3.2) and to the \texttt{sh:in} list in the shape definition before it can be used in relation blocks.
+
+\textbf{Concept ID pattern (Constraints 1 and 3).} The \texttt{sh:pattern\ "\^{}{[}a-z0-9\_-{]}+\$"} ensures that source and target values are valid ADL concept identifiers: lowercase alphanumeric strings with hyphens and underscores. This prevents malformed references, empty strings, and identifiers containing spaces or special characters that would break URL construction or file-system operations.
+
+\textbf{Confidence bounding (Constraint 4).} The \texttt{sh:minInclusive} and \texttt{sh:maxInclusive} constraints on \texttt{adl:confidence} ensure that confidence scores are interpretable probabilities. Values outside \([0, 1]\) indicate a data-entry error or a miscalibrated confidence model and are rejected at validation time.
+
+\textbf{Severity levels.} Violations of structural constraints (source, predicate, target, confidence) are reported as \texttt{sh:Violation} (the default), meaning the data graph does not conform to the shape. The evidence reference constraint is reported as \texttt{sh:Warning}, meaning the relation block is structurally valid but lacks supporting evidence, which is permissible but not recommended.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+
+\subsection{B.4 Worked Validation Example}\label{b.4-worked-validation-example}
+
+Consider the following data graph containing two relation blocks: one valid and one invalid.
+
+\begin{lstlisting}
+@prefix adl: \textless{https://adl{-}lite.org/ns/\textgreater{} .}
+@prefix xsd: \textless{http://www.w3.org/2001/XMLSchema\#\textgreater{} .}
+
+\# {-{-}{-} Valid relation block {-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}}
+
+adl:relation{-001}
+    a adl:RelationBlock ;
+    adl:source "disc{-capital{-}trap" ;}
+    adl:predicate adl:specialisation{-of ;}
+    adl:target "aml{-rapid{-}move" ;}
+    adl:confidence "0.85"\^{\^{}xsd:float ;}
+    adl:bidirectional false ;
+    adl:evidence "https://doi.org/10.1000/capital{-trap{-}2024"\^{}\^{}xsd:anyURI .}
+
+\# {-{-}{-} Invalid relation block (predicate not in closed set) {-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}}
+
+adl:relation{-002}
+    a adl:RelationBlock ;
+    adl:source "disc{-attention{-}residual" ;}
+    adl:predicate "similar{-to" ;              \# \textless{}{-}{-} NOT in ADL Core set}
+    adl:target "concept{-gradient{-}explosion" ;}
+    adl:confidence "1.5"\^{\^{}xsd:float .         \# \textless{}{-}{-} Out of bounds}
+\end{lstlisting}
+
+\subsubsection{Validation Report}\label{b.4.1-validation-report}
+
+Executing the SHACL validator (e.g., Apache Jena \texttt{shacl\ validate} or \texttt{pyshacl}) against the data graph produces the following validation report:
+
+\begin{verbatim}
+================================================================================
+Validation Report
+================================================================================
+Conforms: False
+
+Results (3):
+--------------------------------------------------------------------------------
+Result 1:
+  Severity:     sh:Violation
+  Source Shape: adl:RelationShape > adl:predicate
+  Focus Node:   adl:relation-002
+  Result Path:  adl:predicate
+  Value:        "similar-to"
+  Message:      Predicate must be from the closed ADL Core set:
+                isomorphic-to, specialisation-of, co-occurs-with,
+                related-to, analogical-to, dual-of, or fork-of
+  Debug Info:   The predicate "similar-to" is not registered in the
+                ADL Core ontology. To use this predicate, submit a
+                proposal to the ADL governance process (Section 3.2)
+                to add it to the closed set.
+
+--------------------------------------------------------------------------------
+Result 2:
+  Severity:     sh:Violation
+  Source Shape: adl:RelationShape > adl:confidence
+  Focus Node:   adl:relation-002
+  Result Path:  adl:confidence
+  Value:        "1.5"^^xsd:float
+  Message:      Confidence must be a float in the range [0.0, 1.0]
+  Debug Info:   Received confidence value 1.5 which exceeds the
+                maximum inclusive bound of 1.0. Confidence scores
+                must be normalised to the [0.0, 1.0] interval.
+
+--------------------------------------------------------------------------------
+Result 3:
+  Severity:     sh:Warning
+  Source Shape: adl:RelationShape > adl:evidence
+  Focus Node:   adl:relation-002
+  Result Path:  adl:evidence
+  Message:      Evidence reference is recommended for relation assertions
+  Debug Info:   Relation adl:relation-002 lacks an evidence reference.
+                While not required, providing a URI or citation improves
+                auditability and supports confidence calibration.
+================================================================================
+\end{verbatim}
+
+\subsubsection{Interpretation}\label{b.4.2-interpretation}
+
+The validator rejects \texttt{adl:relation-002} for two structural violations and issues one warning:
+
+\begin{itemize}
+\item
+  \textbf{Violation 1 (predicate):} The string \texttt{"similar-to"} is not a member of the closed \texttt{sh:in} set. This is the most common validation failure in practice: authors frequently use natural-language predicate names that have not been admitted to the ADL Core ontology. The fix is either to map \texttt{"similar-to"} to the closest registered predicate (e.g., \texttt{adl:related-to}) or to propose the new predicate through the governance process.
+\item
+  \textbf{Violation 2 (confidence):} The value \texttt{1.5} exceeds the \texttt{sh:maxInclusive\ 1.0} bound. This typically indicates a bug in the confidence computation pipeline (e.g., unnormalised raw scores passed directly to the relation block) or a data-entry error. The fix is to normalise the confidence score to \([0, 1]\) before serialisation.
+\item
+  \textbf{Warning (evidence):} The absence of an \texttt{adl:evidence} property is reported as a \texttt{sh:Warning}, not a violation, because evidence is recommended but not mandatory. This allows relation blocks to pass validation during early-stage authoring while encouraging authors to add citations before final publication.
+\end{itemize}
+
+The valid relation block (\texttt{adl:relation-001}) produces no validation results: all constraints are satisfied, the predicate \texttt{adl:specialisation-of} is in the closed set, the confidence \texttt{0.85} is within bounds, and the evidence URI is well-formed.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+
+\subsection{B.5 Integrating SHACL Validation into the ADL Pipeline}\label{b.5-integrating-shacl-validation-into-the-adl-pipeline}
+
+The SHACL shape is executed at two points in the ADL Lite pipeline:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  \textbf{Author-time validation.} When a concept file is saved, the \texttt{adl\ validate} command runs the SHACL validator against all L3 relation blocks in the file. Validation failures block the commit (if pre-commit hooks are installed) or generate error annotations in the editor.
+\item
+  \textbf{Ingestion-time validation.} When the \texttt{DataImporter} processes an external dataset (e.g., the IBM AML dataset in E6), it constructs \texttt{RelationBlock} objects from inferred co-occurrence and class-membership patterns and validates them against \texttt{adl:RelationShape}. Invalid relations are logged to a reject file for manual review rather than silently discarded.
+\end{enumerate}
+
+The shape graph is versioned alongside the ADL Core ontology. When a new predicate is admitted through governance, it is added to both the ontology file (\texttt{adl\_core\_ontology.yaml}) and the SHACL shape (\texttt{adl\_relation\_shape.ttl}), ensuring that the structural constraints remain synchronised with the semantic vocabulary.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+
+\subsection{B.6 Complete Shape Graph}\label{b.6-complete-shape-graph}
+
+The following listing presents the complete SHACL shape graph and ADL Core predicate definitions in a single Turtle document suitable for loading into any SHACL-compliant validator.
+
+\begin{lstlisting}
+@prefix sh:   \textless{http://www.w3.org/ns/shacl\#\textgreater{} .}
+@prefix adl:  \textless{https://adl{-}lite.org/ns/\textgreater{} .}
+@prefix xsd:  \textless{http://www.w3.org/2001/XMLSchema\#\textgreater{} .}
+@prefix rdfs: \textless{http://www.w3.org/2000/01/rdf{-}schema\#\textgreater{} .}
+
+\# {-{-}{-} ADL Core Relation Predicates (closed set) {-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}}
+
+adl:isomorphic{-to}
+    a rdfs:Property ;
+    rdfs:label "isomorphic to"@en ;
+    rdfs:comment "Structural equivalence between two concepts"@en .
+
+adl:specialisation{-of}
+    a rdfs:Property ;
+    rdfs:label "specialisation of"@en ;
+    rdfs:comment "The subject concept is a specialisation of the object concept"@en .
+
+adl:co{-occurs{-}with}
+    a rdfs:Property ;
+    rdfs:label "co{-occurs with"@en ;}
+    rdfs:comment "Concepts that appear together in the same context or corpus"@en .
+
+adl:related{-to}
+    a rdfs:Property ;
+    rdfs:label "related to"@en ;
+    rdfs:comment "Generic relatedness without further specificity"@en .
+
+adl:analogical{-to}
+    a rdfs:Property ;
+    rdfs:label "analogical to"@en ;
+    rdfs:comment "Analogy{-based relationship between concepts from different domains"@en .}
+
+adl:dual{-of}
+    a rdfs:Property ;
+    rdfs:label "dual of"@en ;
+    rdfs:comment "Duality relationship where each concept is the complement of the other"@en .
+
+adl:fork{-of}
+    a rdfs:Property ;
+    rdfs:label "fork of"@en ;
+    rdfs:comment "The subject concept is a fork (variant) of the object concept"@en .
+
+\# {-{-}{-} Relation Shape Definition {-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}}
+
+adl:RelationShape
+    a sh:NodeShape ;
+    rdfs:label "ADL L3 Relation Block Shape"@en ;
+    rdfs:comment "Validates relation blocks in ADL Lite Level 3 (L3) concept definitions"@en ;
+    sh:targetClass adl:RelationBlock ;
+
+    sh:property [
+        sh:path adl:source ;
+        sh:name "source concept" ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:pattern "\^{[a{-}z0{-}9\_{-}]+\$" ;}
+        sh:message
+            "Relation source must be a valid concept ID: non{-empty lowercase "}
+            "alphanumeric string with hyphens and underscores only" ;
+        sh:severity sh:Violation
+    ] ;
+
+    sh:property [
+        sh:path adl:predicate ;
+        sh:name "relation predicate" ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:in (
+            adl:isomorphic{-to}
+            adl:specialisation{-of}
+            adl:co{-occurs{-}with}
+            adl:related{-to}
+            adl:analogical{-to}
+            adl:dual{-of}
+            adl:fork{-of}
+        ) ;
+        sh:message
+            "Predicate must be from the closed ADL Core set: "
+            "isomorphic{-to, specialisation{-}of, co{-}occurs{-}with, "}
+            "related{-to, analogical{-}to, dual{-}of, or fork{-}of" ;}
+        sh:severity sh:Violation
+    ] ;
+
+    sh:property [
+        sh:path adl:target ;
+        sh:name "target concept" ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:pattern "\^{[a{-}z0{-}9\_{-}]+\$" ;}
+        sh:message
+            "Relation target must be a valid concept ID: non{-empty lowercase "}
+            "alphanumeric string with hyphens and underscores only" ;
+        sh:severity sh:Violation
+    ] ;
+
+    sh:property [
+        sh:path adl:confidence ;
+        sh:name "relation confidence" ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:float ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 1.0 ;
+        sh:message "Confidence must be a float in the range [0.0, 1.0]" ;
+        sh:severity sh:Violation
+    ] ;
+
+    sh:property [
+        sh:path adl:bidirectional ;
+        sh:name "bidirectional flag" ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:boolean ;
+        sh:message "Bidirectional flag must be a boolean (true or false)" ;
+        sh:severity sh:Violation
+    ] ;
+
+    sh:property [
+        sh:path adl:evidence ;
+        sh:name "evidence reference" ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:anyURI ;
+        sh:message "Evidence reference must be a valid URI" ;
+        sh:severity sh:Warning
+    ] .
+\end{lstlisting}

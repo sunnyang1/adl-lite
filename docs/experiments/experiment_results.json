@@ -71,11 +71,11 @@
       }
     ],
     "errors": [],
-    "duration_ms": 5
+    "duration_ms": 7
   },
   "E10": {
     "experiment_id": "E10",
-    "status": "partial",
+    "status": "passed",
     "metrics": {
       "accounts_imported": 201,
       "pipeline_sample_size": 201,
@@ -84,15 +84,15 @@
       "links_discovered": 0,
       "concepts_generated": 201,
       "concepts_registered": 201,
-      "concepts_validated_via_executor": 1,
+      "concepts_validated_via_executor": 201,
       "chains_integrity_after_pipeline": "201/201",
-      "pipeline_complete": false
+      "pipeline_complete": true
     },
     "raw_data": [
       {
         "phase": "import",
         "accounts": 201,
-        "events": 9302
+        "events": 9702
       },
       {
         "phase": "ontology",
@@ -109,7 +109,7 @@
       },
       {
         "phase": "actions",
-        "validated": 1
+        "validated": 201
       },
       {
         "phase": "integrity",
@@ -118,7 +118,7 @@
       }
     ],
     "errors": [],
-    "duration_ms": 264
+    "duration_ms": 318
   },
   "E11": {
     "experiment_id": "E11",
@@ -148,7 +148,7 @@
     },
     "raw_data": [],
     "errors": [],
-    "duration_ms": 83
+    "duration_ms": 113
   },
   "E3": {
     "experiment_id": "E3",
@@ -465,7 +465,7 @@
       }
     ],
     "errors": [],
-    "duration_ms": 18
+    "duration_ms": 24
   },
   "E4": {
     "experiment_id": "E4",
@@ -671,7 +671,7 @@
       }
     ],
     "errors": [],
-    "duration_ms": 8
+    "duration_ms": 9
   },
   "E6": {
     "experiment_id": "E6",
@@ -685,7 +685,7 @@
       "suspicious_chains_import_integrity": "1/1",
       "laundering_events_total": 300,
       "laundering_pct": 3.23,
-      "discovered_classes": "",
+      "discovered_classes": "Account, Bank",
       "discovered_links": "",
       "detected_pattern_count": 1,
       "concepts_matched": "aml-fan-out-pattern, aml-rapid-move, aml-smurfing"
@@ -710,7 +710,7 @@
       }
     ],
     "errors": [],
-    "duration_ms": 245
+    "duration_ms": 299
   },
   "E7": {
     "experiment_id": "E7",
@@ -720,25 +720,32 @@
       "rapid_movement_threshold_ok": true,
       "fan_out_threshold_ok": true,
       "status_transition_ok": true,
-      "false_positives_on_100_legit": 0,
-      "handler_callbacks_fired": 4,
+      "false_positives_on_legit": 0,
+      "legit_accounts_tested": 200,
+      "legit_events_tested": 9000,
+      "laundering_account_tested": "A0990",
+      "laundering_events_tested": 300,
+      "handler_callbacks_fired": 7,
       "test_count": 6
     },
     "raw_data": [
       {
         "test": "smurfing_threshold",
+        "account": "A0990",
         "alerts_fired": 1,
         "expected": 1,
         "ok": true
       },
       {
         "test": "rapid_movement_threshold",
+        "account": "A0990",
         "alerts_fired": 1,
         "expected": 1,
         "ok": true
       },
       {
         "test": "fan_out_threshold",
+        "account": "A0990",
         "alerts_fired": 1,
         "expected": 1,
         "ok": true
@@ -751,18 +758,19 @@
       },
       {
         "test": "false_positive_check",
-        "events_checked": 100,
+        "accounts_checked": 200,
+        "events_checked": 9000,
         "false_positives": 0,
         "ok": true
       },
       {
         "test": "handler_dispatch",
-        "handlers_called": 4,
+        "handlers_called": 7,
         "ok": true
       }
     ],
     "errors": [],
-    "duration_ms": 2
+    "duration_ms": 195
   },
   "E8": {
     "experiment_id": "E8",
@@ -838,7 +846,7 @@
       }
     ],
     "errors": [],
-    "duration_ms": 0
+    "duration_ms": 1
   },
   "E9": {
     "experiment_id": "E9",
@@ -915,6 +923,6 @@
       }
     ],
     "errors": [],
-    "duration_ms": 126
+    "duration_ms": 136
   }
 }

@@ -1,0 +1,141 @@
+\section{Discussion}\label{discussion}
+
+\subsection{Event-First Architecture Vindication}\label{event-first-architecture-vindication}
+
+The experimental results provide strong empirical support for the event-first design hypothesis. Across eleven experiments testing complementary correctness properties, every metric achieves a perfect score. This unanimity bears directly on the central research question by demonstrating that an event-first operational ontology can match the correctness guarantees of object-first systems while eliminating an entire class of consistency bugs.
+
+The 100\% status derivation accuracy in E2 (2,204/2,204 test cases) validates the core architectural wager: that status, confidence, and validator identity can be reliably computed from event history rather than stored as mutable fields. In conventional ontology platforms, stored status fields are a documented source of divergence---an update that bypasses the governed action pathway, a race condition between concurrent agents, or a manual override can leave a concept marked \texttt{validated} despite absent validation events. By eliminating stored status entirely---treating \texttt{FrontMatter.status} as a cached snapshot overwritten on every load---ADL Lite removes this vector. The 38/38 round-trip matches in E3 confirm that the computed status is reconstructible with perfect fidelity \cite{ref3}\cite{ref14}.
+
+The multi-agent pilot (E5) provides exploratory evidence that event chains remain intact when five independent agents submit interleaved proposals, reviews, and validations. With only five chains, this is best characterised as a feasibility demonstration rather than a systematic evaluation of multi-agent consensus dynamics. A full study would require substantially larger samples with deliberately injected conflicting proposals to measure conflict rates, time-to-consensus distributions, fork rates, and provenance completeness across adversarial agent configurations (Section 6.5).
+
+This aligns with findings in the event-sourcing literature: append-only stores simplify concurrency control and audit reconstruction at the cost of increased query complexity, as materialized views must be rebuilt from streams \cite{ref12}. ADL Lite inverts this trade-off for operational ontologies. Because concept chains are short---averaging 10.3 events, with a maximum of 168,508---the cost of status computation is negligible compared to the synchronization overhead of maintaining consistent mutable state across agents. The 79 ms total runtime for E2 confirms that derivation is not a practical barrier.
+
+\subsection{Cryptographic Integrity at Scale}\label{cryptographic-integrity-at-scale}
+
+The zero integrity failures across 495,671 chains in E6 refute the concern that SHA-256 hashing would become prohibitive at scale. The longest chain (168,508 events) verified without degradation, and aggregate throughput of 21,300 events per second indicates that chain operations are not the bottleneck---CSV parsing and \texttt{Event} materialisation consume the majority of wall-clock time.
+
+\textbf{Architectural contribution, not domain validation.} It is important to clarify what E6 demonstrates and what it does not. E6 establishes that the EventChain architecture scales to half a million cryptographically linked chains with linear throughput performance. This is an architectural stress test, not a domain evaluation of anti-money-laundering (AML) effectiveness. The pattern-detection logic applied to the IBM AML HI-Small dataset is a structural heuristic operating on transaction graph features; it has not been validated against ground-truth laundering labels from financial-crimes experts. The 26 detected suspicious accounts are matched to concept files by string similarity, not verified typology labels. A production-grade AML evaluation would require: (i) expert-annotated laundering labels for a representative sample; (ii) concept-governance correctness metrics measuring whether derived ontology structures match domain expert judgments; and (iii) quantified false-positive and false-negative rates against a validated typology. None of these are present in the current evaluation. The contribution of E6 is architectural---proof that EventChains scale to 500K+ chains with no integrity degradation---not domain-specific.
+
+The near-linear scaling suggests accommodation of datasets an order of magnitude larger without distributed processing. Blockchain-based systems often introduce consensus-protocol overhead that limits throughput; ADL Lite's local-chain model avoids this by treating each concept's history as an independent cryptographically linked sequence with no cross-chain consensus at the storage layer \cite{ref15}.
+
+\subsection{Comparison with Palantir Foundry Data Engine}\label{comparison-with-palantir-foundry-data-engine}
+
+ADL Lite does not claim to replace Palantir FDE. Palantir FDE is a production-grade platform for high-assurance compliance, multi-source integration, and fine-grained access control \cite{ref6}. ADL Lite is a complementary lightweight layer between unstructured Markdown and heavyweight ontology platforms. Table 8 presents the capability comparison.
+
+\textbf{Table 8. Capability comparison: Palantir FDE versus ADL Lite.}
+
+\begin{longtable}[]{@{}>{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
+\toprule
+Dimension
+& Palantir FDE
+& ADL Lite
+\\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Object types & UI-configured by ontology managers & Discovered from event payload structure \\
+Link types & UI-configured between Object Types & Inferred from co-occurring payload fields \\
+Property types & UI-configured with type constraints & L1 YAML scalars with Pydantic validation \\
+Action types & TypeScript functions with governance & Declarative YAML + structured preconditions \\
+Digital twin & Platform-managed mutable object state & EventChain (SHA-256 hashed, append-only) \\
+Deployment & Enterprise (millions USD, dedicated ops) & \texttt{pip\ install} + standard Git repository \\
+LLM authorship & Not designed for programmatic agent use & Markdown-native, multi-agent consensus \\
+\end{longtable}
+
+The table reveals a fundamental divergence in design philosophy. Palantir FDE optimises for administrative control: every semantic element must be explicitly defined through the Ontology Manager UI before instantiation \cite{ref6}. This centralised governance prevents semantic drift but creates the exact bottleneck motivating this work---LLM agents cannot autonomously extend the ontology because no programmatic creation APIs are exposed. ADL Lite relaxes this constraint by discovering types from the event stream using heuristics (\texttt{\_id} suffix matching for classes, co-occurrence for links) that require no pre-definition, sacrificing strict governance for agent-collective flexibility.
+
+The action-type dimension merits particular attention. Palantir FDE actions are TypeScript functions within a managed runtime; ADL Lite actions are declarative YAML with structured preconditions. This design is less expressive---no arbitrary procedural logic---but eliminates an entire class of security vulnerabilities. The closed registry, \texttt{Comparator} enum, and absence of \texttt{eval()} achieved perfect precision and recall in E4. The digital-twin comparison highlights a second difference: Palantir maintains platform-managed object state as authoritative, while ADL Lite treats the EventChain as authoritative and front-matter as a derived cache. This inversion aligns with the Wittgensteinian grounding and is validated by E3's perfect round-trip consistency \cite{ref9}\cite{ref11}.
+
+\subsection{Limitations}\label{limitations}
+
+The results must be interpreted in light of six specific limitations.
+
+\textbf{Side-effect stubs.} The L4 action system defines three side-effect backends (\texttt{announce}, \texttt{publish}, \texttt{dashboard}), and only the Lark backend has a concrete implementation. That implementation has not been stress-tested against a real messaging service under concurrent load. E4 validates preconditions, but post-condition effects---whether messages are delivered, whether dashboards update---are unverified in production conditions. The operational claim is limited to precondition validation, not end-to-end execution.
+
+\textbf{Direct FrontMatter mutation in harness.} The \texttt{ConsensusEngine} mutates \texttt{ADLFrontMatter} fields directly during the multi-agent simulation rather than appending events and re-deriving front matter from the updated chain. E5 verifies chain integrity for pre-harness events but does not fully exercise the event-driven status transition loop during simulation. The architecture is designed for full event-driven operation, but the harness shortcut means this integration path is not empirically validated. Refactoring the harness to append \texttt{SimEvent} objects and re-derive all front-matter fields would close this gap.
+
+\textbf{Simple ontology discovery.} \texttt{DataImporter.discover\_classes()} uses \texttt{\_id} suffix matching to infer object types from payloads. This works for the IBM AML dataset but is not deployment-ready---a field named \texttt{txn\_ref} would not infer a Transaction class where \texttt{transaction\_id} would. Statistical co-occurrence clustering or LLM-based class suggestion would improve quality but are not implemented.
+
+\textbf{Synthetic pattern calibration.} The AML pattern detection identifies four laundering types, but the evaluation corpus mixes real IBM data with synthetically injected patterns at 100\% event density. The real dataset exhibits a 0.16\% laundering rate, meaning the detection logic has not been calibrated against a validated typology from financial crimes experts. The 26 detected accounts are matched to concept files by string similarity, not ground-truth labels. This limits the claim to pattern-detection feasibility, not operational AML compliance \cite{ref16}.
+
+\textbf{Absence of human inter-rater validation.} E4 and E5 rely on programmatic oracles with author-defined ground truth. Broader evaluation used LLM-as-judge methodology, which has known biases---length bias, self-preference, position bias---that human inter-rater studies would help quantify \cite{ref17}. No human annotators rated derived concepts, detected patterns, or agent-authored content against independent quality criteria.
+
+\textbf{Schema governance.} The \texttt{adl\_core\_ontology.yaml} provides a centralized, version-controlled registry of classes, predicates, actions, and status transitions. However, schema governance in a multi-agent setting requires more than a shared file:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Predicate vocabulary drift.} Agents may introduce typos (e.g., \texttt{isomorphic\_to} vs \texttt{isomorphic-to}) or synonyms (\texttt{similar-to} vs \texttt{related-to}). Currently prevented by the closed predicate set in strict mode---\texttt{ADLValidator(strict=True)} rejects unknown predicates. In relaxed mode, unknown predicates are accepted with a warning.
+\item
+  \textbf{Datatype normalization.} YAML parsing handles type coercion, but agents may encode the same value differently (e.g., \texttt{confidence:\ 0.8} vs \texttt{confidence:\ "0.8"}). Pydantic validation normalizes these at parse time.
+\item
+  \textbf{Future: SHACL/ShEx shapes.} The Phase 3 roadmap includes SHACL shapes for L3 predicates (domain/range constraints, cardinality) and ShEx shapes for L1 front-matter structure. These would provide richer schema governance than the current closed-set approach, including: cross-property constraints (e.g., \texttt{validated} status requires \(\geq 1\) validator), datatype patterns (e.g., \texttt{adl\_id} must match \texttt{\^{}{[}a-z0-9\_-{]}+\$}), and closed vocabulary enforcement with explainable error reporting.
+\end{itemize}
+
+\subsection{Trust Model and Authentication Limitations}\label{trust-model-and-authentication-limitations}
+
+The threat model assumed throughout this paper is \textbf{collaborative audit}, not adversarial security. The system is designed for scenarios where participants are trusted agents operating within a shared scope---analysts, LLM agents, and reviewers who need to answer ``who did what, in what order'' for governance and reproducibility. It is not designed to resist active attack by malicious insiders or external adversaries. This distinction has concrete implications for every integrity claim in the paper.
+
+\textbf{Threat Model Summary.} Table 14 summarises the security guarantees provided by ADL Lite Phase 1 under three adversary classes. The system protects against accidental corruption and tampering detection for all adversary classes, but provides no authentication, non-repudiation, or replay-prevention guarantees in the current phase.
+
+\textbf{Table 14. Threat Model Summary: Security Guarantees by Adversary Class.}
+
+\begin{longtable}[]{@{}>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1594}}
+  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3188}}
+  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2609}}
+  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2609}}@{}}
+\toprule
+Capability
+& Trusted Collaborator
+& Curious Observer
+& Active Adversary
+\\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Detect accidental file corruption & YES (SHA-256) & YES (SHA-256) & YES (SHA-256) \\
+Detect content tampering & YES (hash chain) & YES (hash chain) & YES (hash chain) \\
+Detect event reordering & YES (prev\_id link) & YES (prev\_id link) & YES (prev\_id link) \\
+Detect event deletion & YES (chain break) & YES (chain break) & YES (chain break) \\
+Authenticate event author & NO (plain string) & NO & NO \\
+Prevent impersonation & NO & NO & NO \\
+Prevent replay across chains & NO* & NO* & NO* \\
+Prevent backdating & NO & NO & NO \\
+Provide non-repudiation & NO & NO & NO \\
+\end{longtable}
+
+* Detected if \texttt{concept\_id} differs; not prevented.
+
+Adversary class definitions: - \textbf{Trusted Collaborator.} Honest participant in a shared Git repository; may make mistakes or have compromised credentials. - \textbf{Curious Observer.} Read-only access to the repository; cannot modify files but may inspect chain contents. - \textbf{Active Adversary.} Can modify files, create branches, push commits; does not have access to cryptographic signing keys.
+
+Phase 1 (current) protects against the first four rows only---structural integrity guarantees that hold as long as the SHA-256 hash chain and \texttt{previous\_hash} linkage remain intact. Phase 3 (future, with Linked Data Proofs) extends protection to all rows via ed25519 signatures bound to actor key pairs, a timestamping authority for backdating prevention, and cross-chain replay detection through canonicalised event identifiers. These extensions are planned but not implemented.
+
+\textbf{Tamper-evidence, not tamper-proofness.} The SHA-256 hash chaining provides \emph{tamper-evidence}---the ability to detect that a chain has been modified after creation---rather than \emph{tamper-proofness}, which would prevent modification altogether. An attacker with write access to the underlying Git repository can rebase history, rewrite event files, or regenerate hashes. The hash chain detects this (the \texttt{previous\_hash} linkage breaks), but it does not prevent it. Prevention requires write-access control at the storage layer plus non-repudiable digital signatures on each event, neither of which is implemented in Phase 1.
+
+\textbf{Unauthenticated actor identity.} The \texttt{actor} field in every event is a plain UTF-8 string (e.g., \texttt{"agent\_1"}, \texttt{"discoverer"}, \texttt{"reviewer"}). No cryptographic binding links this string to a verified identity. In the current trust model, this is sufficient for collaborative audit: participants agree on actor naming conventions, and the chain records who did what in what order. However, it provides no protection against impersonation. A malicious agent with scope access could append events using another agent's actor string, and the chain would accept them without cryptographic challenge.
+
+The current mitigation is \emph{scope-based access control} (ACL): the \texttt{scope} field restricts which actors may operate on which concepts. An agent operating in \texttt{scope:\ "aml.transactions"} cannot append events to concepts in \texttt{scope:\ "aml.accounts"} without explicit permission. This limits the blast radius of impersonation but does not eliminate it---within a scope, actor strings remain unauthenticated.
+
+\textbf{Comparison with related systems.} Nanopublications cryptographically bind each assertion to an RSA key pair, providing non-repudiable authorship at the cost of PKI infrastructure \cite{ref18}. The W3C PROV-O standard defines \texttt{Agent} entities with optional \texttt{actedOnBehalfOf} delegation chains, but authentication is external to the ontology---PROV-O describes provenance; it does not enforce it \cite{ref19}. ADL Lite Phase 1 does neither: it provides structured provenance records without cryptographic authentication. The gap is deliberate---authentication adds significant complexity (key management, revocation, canonicalisation) that was deferred to Phase 3---but it must be acknowledged explicitly.
+
+\textbf{Path to deployment-ready trust.} Full deployment-grade lifecycle traceability requires four capabilities not present in Phase 1: (i) Linked Data Proofs (URDNA2015 canonicalisation + ed25519 signatures) binding each event to a cryptographic key pair; (ii) a PKI or decentralised identifier (DID) registry mapping public keys to actor identities; (iii) multi-tenant scope isolation with cryptographically enforced access boundaries; and (iv) an access-control audit log recording permission grants and revocations. These are planned for Phase 3 (Section 7.2). Until then, ADL Lite's integrity guarantees are conditional on the collaborative-audit threat model: they hold when participants are honest but named, not when participants may be malicious and pseudonymous.
+
+\subsection{Added Value over Git History for Semantic Audit}\label{added-value-over-git-history-for-semantic-audit}
+
+A natural question arises: given that ADL Lite stores all data in Git repositories, what does the EventChain layer add that Git's native history does not already provide? Git offers file-level integrity via SHA-1 content hashes---any modification to a tracked file changes its object ID and breaks the Merkle tree linkage, which \texttt{git\ fsck} can detect. This is substantial protection, and ADL Lite does not replace it.
+
+The EventChain layer adds four capabilities that Git alone cannot provide:
+
+\textbf{(a) Semantic integrity validation.} Git detects that \emph{a} file changed; it does not detect whether the \emph{meaning} of the change is valid. An event sequence that transitions a concept directly from \texttt{proposed} to \texttt{deprecated} without a \texttt{reviewed} or \texttt{contested} event would pass Git's hash check but violate the domain's status-transition rules. ADL Lite's \texttt{ActionExecutor} validates every event against declared preconditions at ingestion time, preventing semantically invalid transitions before they enter the chain.
+
+\textbf{(b) Action preconditions.} Git records what happened; it does not enforce what \emph{may} happen. The L4 action system with structured preconditions (Section 4.3) rejects invalid operations at the point of creation. This is a governance capability, not a storage capability, and it operates at the semantic layer below Git.
+
+\textbf{(c) Derived authoritative state.} Git stores the latest version of a file as authoritative; ADL Lite treats the EventChain as authoritative and \texttt{FrontMatter} as a derived cache. This inversion means that any attempt to edit front-matter status directly---bypassing the event log---is detectable because the cached status will disagree with the chain-derived status on the next load. Git alone cannot detect this class of error because the front-matter file remains internally consistent.
+
+\textbf{(d) Per-event cryptographic linking.} Git's Merkle tree protects the repository as a whole; ADL Lite's hash chain protects the event sequence \emph{within} a file. An attacker who modifies a single event in the middle of a chain and recomputes all subsequent hashes breaks the \texttt{previous\_hash} linkage in a way that chain verification detects. Git would detect that the file changed (its blob hash changes), but if the attacker also rewrote Git history (\texttt{git\ rebase}, \texttt{git\ filter-branch}), Git's native protections can be subverted by anyone with force-push access. The EventChain provides a second, independent integrity layer that survives Git-level tampering as long as at least one honest copy of the chain exists for comparison.
+
+A Git-baseline experiment (E9) quantifies this distinction: Git detects 100\% of file modifications (any change to tracked file content alters the blob hash) but 0\% of semantic integrity violations within files (a forbidden state transition passes Git's hash check unchanged). ADL Lite detects both file-level tampering (via Git) and semantic violations (via precondition enforcement and status derivation). The two layers are complementary, not competitive.

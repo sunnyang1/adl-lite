@@ -55,8 +55,8 @@ class E6AMLPipeline(BaseExperiment):
         n_chains = len(chains)
         n_events = sum(c.length for c in chains.values())
 
-        # 2. Discover ontology from event payloads
-        classes = DataImporter.discover_classes(chains)
+        # 2. Discover ontology from event payloads (smart mode for dot-notation schema)
+        classes = DataImporter.discover_classes(chains, smart=True)
         links = DataImporter.discover_links(chains)
 
         # 3. Flag suspicious accounts (any laundering event)

@@ -1,0 +1,142 @@
+\documentclass[runningheads]{llncs}
+
+% Encoding and fonts
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+
+% Mathematics
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{mathtools}
+
+% Graphics and tables
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{tabularx}
+
+% Algorithms
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+% Code listings
+\usepackage{listings}
+\usepackage{xcolor}
+\definecolor{shadecolor}{RGB}{240,240,240}
+
+% Hyperlinks
+\usepackage[hypertexnames=false]{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=cyan,
+    citecolor=blue,
+    pdftitle={Event-First Operational Ontology: Cryptographic Event Chains for Multi-Agent Concept Consensus},
+    pdfauthor={ADL Lite Team},
+}
+
+% Bibliography
+\usepackage[numbers]{natbib}
+\bibliographystyle{splncs04}
+
+% Other utilities
+\usepackage{enumitem}
+\usepackage{cleveref}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage{framed}
+
+% Pandoc compatibility definitions
+\newenvironment{Shaded}{}{}
+\newenvironment{Highlighting}{\ttfamily\small}{}
+\newcommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\newcommand{\AlertTok}[1]{#1}
+\newcommand{\AnnotationTok}[1]{#1}
+\newcommand{\AttributeTok}[1]{#1}
+\newcommand{\BaseNTok}[1]{#1}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{#1}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{#1}
+\newcommand{\ConstantTok}[1]{#1}
+\newcommand{\ControlFlowTok}[1]{#1}
+\newcommand{\DataTypeTok}[1]{#1}
+\newcommand{\DecValTok}[1]{#1}
+\newcommand{\DocumentationTok}[1]{#1}
+\newcommand{\ErrorTok}[1]{\textbf{#1}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{#1}
+\newcommand{\FunctionTok}[1]{#1}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{#1}
+\newcommand{\KeywordTok}[1]{\textbf{#1}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{#1}
+\newcommand{\OtherTok}[1]{#1}
+\newcommand{\PreprocessorTok}[1]{#1}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{#1}
+\newcommand{\SpecialStringTok}[1]{#1}
+\newcommand{\StringTok}[1]{#1}
+\newcommand{\VariableTok}[1]{#1}
+\newcommand{\VerbatimStringTok}[1]{#1}
+\newcommand{\WarningTok}[1]{#1}
+
+% Custom commands
+\newcommand{\adl}{ADL~Lite}
+\newcommand{\eventchain}{EventChain}
+\newcommand{\actionexecutor}{ActionExecutor}
+\newcommand{\consensusengine}{ConsensusEngine}
+
+% Code style
+\lstset{
+    basicstyle=\small\ttfamily,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    showstringspaces=false,
+}
+
+\begin{document}
+
+% Title
+\title{Event-First Operational Ontology:\\Cryptographic Event Chains for Multi-Agent Concept Consensus}
+\titlerunning{Event-First Operational Ontology}
+
+% Authors
+\author{Anonymous Author(s)\inst{1}}
+\authorrunning{Anonymous}
+\institute{Anonymous Institution}
+
+\maketitle
+
+% Abstract
+\input{sections/abstract}
+
+% Main content
+\input{sections/01_introduction}
+\input{sections/02_related_work}
+\input{sections/03_architecture}
+\input{sections/04_experiment_design}
+\input{sections/05_results}
+\input{sections/06_discussion}
+\input{sections/07_conclusion}
+
+% Bibliography
+\bibliography{references}
+
+% Appendices
+\appendix
+\input{sections/appendix_a}
+\input{sections/appendix_b}
+
+\end{document}

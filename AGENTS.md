@@ -4,29 +4,126 @@ Markdown-native **event-first operational ontology** for agentic KG authoring an
 
 Philosophy: Wittgenstein Tractatus §1.1 — "The world is the totality of facts, not of things." → Action-first. Concepts are event chains.
 
+## Project Overview
+
+ADL Lite is a Python 3.10+ package that implements a four-layer document model for concept representation and multi-agent consensus. Every concept is an append-only, cryptographically hashed `EventChain`. Status, confidence, and validators are **derived from the chain**, never stored as mutable fields.
+
+- **Version**: 0.2.0
+- **License**: MIT
+- **Build backend**: hatchling
+- **Entry point**: `adl-lite` CLI (`adl_lite.cli:main`)
+
+## Technology Stack
+
+| Dependency | Minimum | Purpose |
+|------------|---------|---------|
+| Python | 3.10 | Runtime |
+| pydantic | 2.0 | Data models & validation |
+| pyyaml | 6.0 | YAML front-matter parsing |
+| networkx | 3.0 | Graph operations (relations, memory) |
+| pytest | 7.0 | Test runner (dev) |
+| pytest-cov | 4.0 | Coverage (dev) |
+| mypy | 1.0 | Static type checking (dev) |
+| ruff | 0.1.0 | Linting & formatting (dev) |
+
+Optional experiment dependencies:
+- `openai>=1.0`, `anthropic>=0.25` (experiments)
+- `sentence-transformers>=2.2` (experiments-embeddings)
+
+## Build, Install, and Test Commands
+
+```bash
+# Development install
+pip install -e ".[dev]"
+
+# Run all unit tests with coverage
+pytest tests/ -v --cov=adl_lite --cov-report=xml --cov-report=term-missing
+
+# Run all scripted experiments
+python -m experiments.runner all
+
+# List experiments
+python -m experiments.runner list
+
+# Run a single experiment
+python -m experiments.runner E2 --verbose
+
+# Lint (matches CI)
+ruff check adl_lite/
+
+# Type check (matches CI)
+mypy adl_lite/ --ignore-missing-imports
+
+# Pre-commit (runs ruff + mypy)
+pre-commit run --all-files
+```
+
+## Code Style Guidelines
+
+- **Line length**: 100 characters (`tool.ruff.line-length = 100`)
+- **Target Python**: 3.10 (`target-version = "py310"`)
+- **Excluded paths**: `archive/`, `data/aml/scripts/`
+- **Lint rules**: E, F, W, I, N, UP, B, C4 (ruff select)
+- **Ignored rules**: E501 (line too long — handled by formatter)
+- **Format**: ruff-format (enforced in CI and pre-commit)
+- **Type hints**: Encouraged but not mandatory (`disallow_untyped_defs = false` in mypy)
+- **Docstrings**: Module-level docstrings explain architecture; classes explain design intent.
+- **Comments**: Code comments and docstrings are in English. User-facing CLI output may be bilingual.
+
 ## Architecture
+
+### Four-Layer Document Model
+
+| Layer | Syntax | Role | Event Types |
+|-------|--------|------|-------------|
+| L1 | YAML front matter | Identity metadata (derived snapshot) | SNAPSHOT |
+| L2 | Markdown body | Human/LLM prose, `[[Wiki Links]]` | — |
+| L3 | `adl:*` fenced blocks | Semantic assertions (relation, evidence, seal) | RELATE, EVIDENCE, SEAL |
+| L4 | `adl:action` fenced blocks | Typed actions with preconditions & side effects | REGISTER, VALIDATE, FORK, ... |
+
+### Module Reference
 
 | Module | Role |
 |--------|------|
 | `adl_lite/parser.py` | L1 YAML, L2 Markdown body, L3 `adl:*` blocks, L4 `adl:action` blocks |
-| `adl_lite/models.py` | Pydantic types (`Event`, `EventChain`, `ADLDocument`, L3 blocks, L4 action blocks, `PreconditionRule`) |
+| `adl_lite/models.py` | Pydantic types: `Event`, `EventChain`, `ADLDocument`, L3/L4 blocks, `PreconditionRule` |
 | `adl_lite/validator.py` | SSA semantic validation + scope ACL |
 | `adl_lite/consensus.py` | Status transitions, forks, chain integrity |
 | `adl_lite/action_executor.py` | Action validation (preconditions) + side-effect dispatch |
 | `adl_lite/data_importer.py` | CSV/JSON → Event import + ontology discovery |
 | `adl_lite/ontology.py` | `OntologyManager` — predicates, actions, transitions from YAML registry |
 | `adl_lite/memory.py` | Hot/Warm/Cold hybrid index (`ADLMemory`) |
-| `adl_lite/tools.py` | Agent-facing wrappers matching CLI semantics |
-| `experiments/harness.py` | Scripted 5-agent simulation |
+| `adl_lite/tools.py` | Agent-facing Python wrappers matching CLI semantics |
+| `adl_lite/cli.py` | `adl-lite` CLI entry point (argparse) |
+| `adl_lite/realtime.py` | Real-time event watcher and stream ingestion |
+| `adl_lite/sync_manager.py` | Edge-to-core sync coordination |
+| `adl_lite/crdt.py` | CRDT merge semantics for distributed consensus |
+| `adl_lite/lark/` | Feishu/Lark bridge: publish, announce, listen, dashboard, namespace, registry |
+| `experiments/base.py` | `BaseExperiment` + `ExperimentResult` |
+| `experiments/registry.py` | `@register("E1")` decorator for experiment discovery |
+| `experiments/runner.py` | `python -m experiments.runner` CLI |
+| `experiments/harness.py` | Scripted 5-agent simulation harness |
 
-Public API: `from adl_lite import parse_file, Event, EventChain, ActionExecutor, ADLMemory, ConsensusEngine, ...`
+Public API:
+```python
+from adl_lite import (
+    parse_file, parse_text, ADLParser, ADLParseError,
+    Event, EventChain, EventType, DiscoveryStatus,
+    ADLDocument, ADLFrontMatter, ADLActionBlock, ADLRelationBlock, ADLEvidenceBlock,
+    Comparator, PreconditionRule, ActionDef, ActionExecStatus,
+    ConceptSkeleton, ExecutionEntry,
+    ADLValidator, OntologyManager, ActionExecutor,
+    ConsensusEngine, ForkManager, ForkResolution,
+    ADLMemory, HotIndex, WarmIndex,
+)
+```
 
-## Event-First Design
+### Event-First Design
 
 ```python
 from adl_lite import Event, EventChain, EventType, DiscoveryStatus
 
-# Concept = EventChain (not mutable object)
+# Concept = EventChain (not a mutable object)
 chain = EventChain(concept_id="disc-capital-trap")
 
 chain.append(Event(concept_id="disc-capital-trap",
@@ -42,37 +139,36 @@ assert chain.verify_integrity()
 assert len(chain.history()) == 2
 ```
 
-## Commands
+## CLI Commands
 
 ```bash
-pip install -e ".[dev]"
-pytest tests/ -v
-
-# CLI
+# Parse & validate
 adl-lite validate examples/*.md
 adl-lite validate --strict examples/*.md
 adl-lite parse examples/capital_reflux_trap.md
+
+# Memory
 adl-lite store examples/capital_reflux_trap.md --db /tmp/adl.db
 adl-lite related concept-gradient-explosion --db /tmp/adl.db
+
+# Consensus
 adl-lite consensus register examples/capital_reflux_trap.md
 adl-lite consensus transition disc-capital-trap --to validated --actor agent_1
+adl-lite consensus verify disc-capital-trap
 
 # Ontology
 adl-lite ontology validate
+adl-lite ontology validate --examples --aml
 adl-lite ontology query --json
 adl-lite ontology query --predicate isomorphic-to
 
 # Lark bridge
 adl-lite lark doctor
 adl-lite lark publish examples/capital_reflux_trap.md --registry .adl_lark_registry.json
-
-# Experiments
-python -m experiments.runner list
-python -m experiments.runner all
-python -m experiments.runner E6 --verbose
+adl-lite lark init-dashboard --sheet "ADL Board" --db /tmp/adl.db
 ```
 
-## Agent tools (Python)
+## Agent Tools (Python)
 
 ```python
 from adl_lite.tools import adl_parse, adl_validate, adl_store, adl_query_related
@@ -95,7 +191,7 @@ from adl_lite.data_importer import DataImporter
 chains = DataImporter().import_csv("data.csv", event_type=EventType.REGISTER, concept_id_field="id")
 ```
 
-## ADL document shape (L1/L2/L3/L4)
+## ADL Document Shape (L1/L2/L3/L4)
 
 - **L1**: YAML with `adl_type`, `adl_id`, `status`, `confidence`, `scope`, etc.
 - **L2**: Markdown body (human/LLM prose, `[[Wiki Links]]`)
@@ -113,15 +209,28 @@ params:
 ```
 ```
 
-## Ontology registry (adl_core_ontology.yaml v0.2)
+## Ontology Registry (`adl_core_ontology.yaml` v0.2)
 
 Closed sets:
-- **classes**: discovery, concept, relation, evidence, formal_seal
-- **predicates**: isomorphic-to, specialisation-of, co-occurs-with, related-to, analogical-to, analogical-transfer, dual-of, fork-of, mitigated-by, indexed-phrase
-- **actions**: register, validate, fork, deprecate, archive, announce, publish, sync_dashboard, listen
-- **status_transitions**: provisional→validated/deprecated/forked/archived, validated→deprecated/forked/archived, ...
+- **classes**: `discovery`, `concept`, `relation`, `evidence`, `formal_seal`
+- **predicates**: `isomorphic-to`, `specialisation-of`, `co-occurs-with`, `related-to`, `analogical-to`, `analogical-transfer`, `dual-of`, `fork-of`, `mitigated-by`, `indexed-phrase`
+- **actions**: `register`, `validate`, `fork`, `deprecate`, `archive`, `announce`, `publish`, `sync_dashboard`, `listen`
+- **status_transitions**: `provisional` → `validated`/`deprecated`/`forked`/`archived`, `validated` → `deprecated`/`forked`/`archived`, ...
 
-## Experiments (6/6 PASS, 238s)
+## Testing Strategy
+
+- **Framework**: pytest with `pytest-cov`
+- **Test count**: ~26 test files under `tests/`
+- **Coverage target**: Run with `--cov=adl_lite --cov-report=term-missing`
+- **Fixtures**: Shared fixtures in `tests/fixtures/` and `tests/conftest.py`
+- **Experiment tests**: `tests/test_experiments.py` validates experiment infrastructure
+- **Before claiming work complete**, run:
+  ```bash
+  pytest tests/ -v
+  python -m experiments.runner all
+  ```
+
+## Experiments (11 registered)
 
 ```bash
 python -m experiments.runner all
@@ -135,12 +244,72 @@ python -m experiments.runner all
 | E4 | Precondition enforcement | ActionExecutor |
 | E5 | 5-agent audit | ConsensusEngine + harness |
 | E6 | IBM AML pipeline | DataImporter + EventChain + patterns |
+| E7 | Real-time watcher | realtime.py |
+| E8 | Edge sync | sync_manager.py |
+| E9 | Git baseline | parser + consensus |
+| E10 | FDE pipeline | OntologyManager + ActionExecutor |
+| E11 | Side-effect stress | ActionExecutor + side effects |
 
-## Conventions
+## CI / CD Pipeline
 
-- Python 3.10+, Pydantic v2, NetworkX for graph ops
-- Event-first: status/confidence/validators derived from EventChain, NOT stored
-- Status flow: `provisional` → `validated` / `deprecated` / `forked` / `archived`
-- Scopes: `public`, `private/<org>`, `user/<id>`, `shared/<collab>`
-- Precondition rules: `Comparator` enum (EQ/NEQ/GT/GTE/LT/LTE/IN/EXISTS), NO eval()
-- Run `pytest tests/ -v` and `python -m experiments.runner all` before claiming work complete
+GitHub Actions (`.github/workflows/ci.yml`):
+
+1. **Lint** (`ruff check adl_lite/`)
+2. **Test matrix** (Python 3.10, 3.11, 3.12) with coverage → Codecov
+3. **Type check** (`mypy adl_lite/ --ignore-missing-imports`)
+
+Pre-commit hooks (`.pre-commit-config.yaml`):
+- `ruff` (lint + auto-fix)
+- `ruff-format`
+- `mypy` (with `pydantic>=2.0`, `types-PyYAML`)
+
+## Conventions & Design Rules
+
+- **Event-first**: `status`/`confidence`/`validators` are derived from `EventChain`, NOT stored.
+- **Status flow**: `provisional` → `validated` / `deprecated` / `forked` / `archived`
+- **Scopes**: `public`, `private/<org>`, `user/<id>`, `shared/<collab>`
+- **Precondition rules**: `Comparator` enum (`EQ`/`NEQ`/`GT`/`GTE`/`LT`/`LTE`/`IN`/`EXISTS`). **NO `eval()`**.
+- **Cryptographic chaining**: Each `Event` stores a SHA-256 hash that includes its predecessor's hash. `EventChain.verify_integrity()` validates the full chain.
+- **Thread safety**: `EventChain` uses `threading.Lock` around mutations and reads.
+- **Synthetic events**: Events reconstructed from YAML front matter during parsing are tagged `synthetic=True` in their payload to distinguish them from agent-authored actions.
+- **Front matter is a snapshot**: `ADLFrontMatter` is a derived view of the chain, not the source of truth. Mutate the chain, then call `refresh_snapshot()`.
+
+## Security Considerations
+
+- **No `eval()` or `exec()`**: Precondition evaluation uses a closed `Comparator` enum with explicit operator dispatch. Never use dynamic evaluation on user input.
+- **Hash integrity**: Event hashes include the previous event's hash, forming a tamper-evident chain. Any modification breaks `verify_integrity()`.
+- **Scope ACL**: `ADLValidator` enforces scope prefix rules (`public`, `private/`, `user/`, `shared/`).
+- **Lark CLI bridge**: The `lark/` subpackage shells out to `lark-cli`. Do not pass unsanitized user input directly to subprocess arguments; the CLI layer uses `Path` validation and argparse sanitization.
+- **CSV/JSON import**: `DataImporter` reads tabular data and maps rows to events. Validate `concept_id_field` and payload shapes before appending to chains in production scenarios.
+
+## Project Structure Summary
+
+```
+adl-lite/
+├── adl_lite/              # Main package
+│   ├── lark/              # Feishu/Lark bridge
+│   ├── adl_core_ontology.yaml
+│   ├── __init__.py
+│   ├── action_executor.py
+│   ├── cli.py
+│   ├── consensus.py
+│   ├── crdt.py
+│   ├── data_importer.py
+│   ├── memory.py
+│   ├── models.py
+│   ├── ontology.py
+│   ├── parser.py
+│   ├── realtime.py
+│   ├── sync_manager.py
+│   ├── tools.py
+│   └── validator.py
+├── tests/                 # pytest suite (~26 files)
+├── experiments/           # 11 scripted experiments
+├── examples/              # Sample ADL Markdown files
+├── data/aml/              # AML dataset + concepts
+├── docs/                  # Paper, specs, proposals, reports
+├── archive/               # Deprecated files (excluded from lint)
+├── pyproject.toml         # Package config, ruff, mypy
+├── .github/workflows/ci.yml
+└── .pre-commit-config.yaml
+```

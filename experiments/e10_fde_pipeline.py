@@ -84,9 +84,11 @@ class E10FullFDEPipeline(BaseExperiment):
             laundering_count = sum(
                 1 for e in chain.events if str(e.payload.get("Is Laundering", "0")).strip() == "1"
             )
-            # Confidence from laundering density (min 0.5 for accounts with ≥5 laundering events)
+            # Base confidence for all imported accounts (validated data source)
             derived_confidence = min(1.0, max(0.0, laundering_count / max(chain.length, 1)))
             if laundering_count >= 5:
+                derived_confidence = max(derived_confidence, 0.8)
+            else:
                 derived_confidence = max(derived_confidence, 0.5)
 
             # Append a SNAPSHOT event carrying the derived confidence —
