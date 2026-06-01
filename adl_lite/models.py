@@ -28,7 +28,6 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
 
-
 # ---------------------------------------------------------------------------
 # Canonical serialization helpers
 # ---------------------------------------------------------------------------

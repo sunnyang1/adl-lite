@@ -24,7 +24,7 @@ from typing import Any
 from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import PROV, RDF, RDFS, XSD
 
-from .models import Event, EventChain, EventType
+from .models import EventChain, EventType
 
 # Namespaces
 ADL = Namespace("https://adl-lite.org/ns/")
@@ -138,8 +138,6 @@ def to_rdfstar(chain: EventChain) -> str:
 
     Returns syntactically valid Turtle-star (RDF 1.2) as a string.
     """
-    from .parser import parse_text
-    from .models import ADLRelationBlock
 
     # Build PROV-O base first
     prov_ttl = to_prov_o(chain)

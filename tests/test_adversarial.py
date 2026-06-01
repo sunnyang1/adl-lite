@@ -46,7 +46,6 @@ class TestPayloadTampering:
         assert chain.verify_integrity() is True, "Chain should be valid before tampering"
 
         # Tamper: modify e1's payload without updating hash
-        chain._events[0].hash
         chain._events[0].payload["amount"] = 999999  # Laundered!
 
         # Verification should detect the tampering because hash chain now breaks

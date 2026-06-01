@@ -12,8 +12,8 @@ Example usage:
 
 from __future__ import annotations
 
-from rdflib import Graph, Namespace, URIRef
 from pyshacl import validate
+from rdflib import Graph, Namespace
 
 ADL = Namespace("https://adl-lite.org/ns/")
 

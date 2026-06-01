@@ -23,8 +23,8 @@ from __future__ import annotations
 import base64
 import json
 
-from cryptography.hazmat.primitives.asymmetric import ed25519
 from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric import ed25519
 
 from .models import Event
 
