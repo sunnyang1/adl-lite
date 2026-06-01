@@ -1,0 +1,64 @@
+\subsection{Event-First Architecture: Ontological Implications}\label{subsec:ontological-implications}
+
+The empirical results provide support for the event-first design, but the deeper contribution lies in the ontological analysis. By treating events as the fundamental primitive, ADL Lite inverts the traditional object-first hierarchy and raises three ontological questions that merit discussion.
+
+\textbf{Question 1: What is the ontological status of a concept?} In an object-first ontology, a concept is a continuant: it exists in full at every moment, and its properties change over time. In ADL Lite, a concept is a generically dependent continuant that depends on its EventChain for existence. This raises the question: does the concept exist before any events have occurred? The answer is no: a concept comes into existence at the moment of its genesis event (\texttt{REGISTER}). Prior to that event, there is no concept---only the potential for one. This is analogous to how, in BFO, a process comes into existence at the moment it begins: there is no ``pre-existing'' process waiting to unfold.
+
+\textbf{Question 2: Are status and confidence real properties or derived properties?} In an object-first ontology, status is a real property that inheres in the concept. In ADL Lite, status is a derived property: it is computed by $\delta(C)$ and has no existence independent of the events that constitute the chain. This aligns with the DOLCE view that some properties are ``constructed'' by cognitive agents rather than discovered in the world \cite{dolce}. A concept's status is not a feature of reality; it is a feature of the community's judgment about the concept, as recorded in the event history.
+
+\textbf{Question 3: What happens to a concept when it is deprecated?} In an object-first ontology, deprecation might be modeled as a change of a status field. In ADL Lite, deprecation is the appendage of a \texttt{DEPRECATE} event to the chain. The concept continues to exist (it retains its \texttt{concept\_id}), but its status changes to \texttt{deprecated}. The historical events remain intact, providing a complete audit trail of why the concept was deprecated and by whom. This preserves the ``right to be forgotten'' in reverse: the concept is not erased, but it is explicitly marked as no longer endorsed.
+
+\subsection{Conceptual Modeling Contribution}\label{subsec:conceptual-modeling}
+
+ADL Lite contributes to conceptual modeling practice in three ways.
+
+\textbf{Layered conceptual modeling.} The L1--L4 document model provides a structured approach to concept representation that spans identity, narrative, assertion, and action. This layering is not merely a syntactic convenience; it reflects cognitive distinctions that humans (and LLMs) naturally make when describing concepts. L1 answers ``what is it?''; L2 answers ``what is it about?''; L3 answers ``how does it relate to other concepts?''; L4 answers ``what can be done with it?'' This four-layer structure can serve as a conceptual modeling methodology for domains beyond multi-agent concept governance.
+
+\textbf{Event-driven lifecycle modeling.} Traditional conceptual modeling approaches (e.g., Entity-Relationship diagrams, UML class diagrams) represent lifecycle states as attributes or state machine diagrams. ADL Lite represents lifecycle states as event histories. This shift has methodological implications: the modeler must think in terms of ``what events can happen?'' rather than ``what states can the entity be in?'' This event-driven perspective is particularly valuable for domains with high conceptual velocity, where new event types emerge frequently.
+
+\textbf{Collaborative ontology governance.} The precondition system and closed action registry provide a lightweight mechanism for governing ontology evolution. Unlike heavyweight governance frameworks (e.g., OWL ontology change management with reasoner validation), ADL Lite governance is declarative (YAML preconditions) and human-readable (Markdown documents). This lowers the barrier to collaborative ontology authoring while maintaining machine-checkable constraints.
+
+\subsection{Limitations}\label{subsec:limitations}
+
+The results must be interpreted in light of nine specific limitations.
+
+\textbf{Confidence calibration.} The confidence value in a \texttt{VALIDATE} event is self-reported by the actor. Cognitive-science and LLM-evaluation literature demonstrate overconfidence: agents frequently report $\mathit{confidence} = 0.99$ when actual accuracy is lower. ADL Lite currently has no calibration mechanism.
+
+\textbf{Unstructured agent communication.} L2 Markdown body imposes no structure on agent reasoning. Fixed reasoning templates would provide stronger guarantees than lexical restrictions, but no template mechanism is implemented in Phase~1.
+
+\textbf{Append-only accumulation.} The append-only design treats every event as a permanent fact, creating three problems: junk accumulation, concept redundancy, and preference drift. Phase~2 directions include quality gates, embedding-based deduplication, and controlled forgetting.
+
+\textbf{Side-effect stubs.} Only the Lark backend has a concrete implementation; post-condition effects are unverified in production conditions.
+
+\textbf{Simple ontology discovery.} \texttt{DataImporter.discover\_classes()} uses \texttt{\_id} suffix matching; statistical clustering or LLM-based suggestion would improve quality.
+
+\textbf{Synthetic pattern calibration.} The AML evaluation mixes real data with synthetically injected patterns; the detection logic has not been calibrated against expert labels.
+
+\textbf{Absence of human inter-rater validation.} E4 and E5 rely on programmatic oracles; no human annotators rated derived concepts against independent quality criteria.
+
+\textbf{Schema governance.} The closed predicate set prevents vocabulary drift but does not provide cross-property constraints or datatype patterns. SHACL shapes are planned for Phase~3.
+
+\textbf{Trust model.} Phase~1 assumes collaborative audit among trusted participants. Cryptographic authentication, non-repudiation, and replay prevention require Phase~3 extensions (Linked Data Proofs, PKI).
+
+\subsection{Comparison with Foundational Ontologies}\label{subsec:comparison-foundational}
+
+The ontological analysis in Section~\ref{sec:ontological-analysis} positions ADL Lite as a pragmatic intermediate between lightweight event-logging systems and heavyweight foundational ontologies. Table~\ref{tab:foundational-positioning} compares ADL Lite with BFO, DOLCE, and UFO across five dimensions salient to applied ontology.
+
+\begin{table}[htbp]
+\centering
+\caption{Positioning of ADL Lite against foundational ontologies.}
+\label{tab:foundational-positioning}
+\begin{tabular}{@{}p{2.8cm}p{2.8cm}p{2.8cm}p{2.8cm}p{2.8cm}@{}}
+\toprule
+\textbf{Dimension} & \textbf{BFO} & \textbf{DOLCE} & \textbf{UFO} & \textbf{ADL Lite} \\
+\midrule
+Primary focus & Biomedical entities & Cognitive-linguistic categories & Conceptual modeling & Concept lifecycle governance \\
+Event treatment & Occurrent / process & Perdurant / event & Event / action & Event as fundamental primitive \\
+Object treatment & Continuant / independent & Endurant / physical & Object / type & Object as event projection \\
+Formalism & OWL-DL & OWL-DL + FOL & OntoUML & Event algebra + hash chain \\
+Deployment & Expert curation & Expert curation & Model-driven engineering & Markdown + Git \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+ADL Lite does not replace foundational ontologies; it complements them by providing a lightweight, deployment-ready layer for concept governance that can be authored by non-experts. The ontological analysis establishes the mapping to foundational categories, enabling future integration: an ADL Lite concept can be exported as a BFO continuant, its events as DOLCE perdurants, and its relations as UFO relators.

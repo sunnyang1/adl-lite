@@ -1,0 +1,273 @@
+\section{Formal Semantics of EventChains}\label{c.-formal-semantics-of-eventchains}
+
+This appendix provides the complete formal foundation for the derivation semantics, cryptographic integrity, and fork-confluence properties used in Section~3.9 of the main paper. All definitions, theorems, and proof sketches are self-contained; the reader need only be familiar with the EventChain model introduced in Section~3.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+
+\subsection{C.1 Event Alphabet}\label{c.1-event-alphabet}
+
+Let $\Sigma$ denote the set of all event types in ADL~Lite. The alphabet is partitioned into \emph{lifecycle} events $\Sigma_{\text{life}}$, which affect concept status, and \emph{communication} events $\Sigma_{\text{comm}}$, which do not:
+
+\begin{align}
+\Sigma_{\text{life}} &= \{\text{REGISTER},\; \text{VALIDATE},\; \text{DEPRECATE},\; \text{FORK},\; \text{ARCHIVE}\} \\
+\Sigma_{\text{comm}} &= \{\text{RELATE},\; \text{EVIDENCE},\; \text{SEAL},\; \text{ANNOUNCE},\; \text{PUBLISH},\; \text{SNAPSHOT}\} \\
+\Sigma &= \Sigma_{\text{life}} \cup \Sigma_{\text{comm}}
+\end{align}
+
+An \emph{event} is a tuple $e = (\tau, a, t, p, h, h_{\text{prev}}, e_{\text{prev}})$ where:
+\begin{itemize}
+\tightlist
+\item
+  $\tau \in \Sigma$ is the event type;
+\item
+  $a \in \mathcal{A}$ is the actor identifier, drawn from a countable set of actor names $\mathcal{A}$;
+\item
+  $t \in \mathbb{R}_{\geq 0}$ is the timestamp (ISO-8601 serialised);
+\item
+  $p \in \mathcal{P}$ is the payload, a JSON-encodable dictionary from a payload space $\mathcal{P}$;
+\item
+  $h \in \{0,1\}^{256}$ is the SHA-256 hash of the event's canonical content;
+\item
+  $h_{\text{prev}} \in \{0,1\}^{256} \cup \{\text{genesis}\}$ is the hash of the preceding event (or $\text{genesis}$ for the first event);
+\item
+  $e_{\text{prev}} \in \text{ID} \cup \{\text{null}\}$ is the unique identifier of the preceding event.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+
+\subsection{C.2 Well-Formedness Predicate}\label{c.2-well-formedness-predicate}
+
+An \emph{EventChain} $C$ for concept $c$ is a finite sequence of events $C = [e_1, e_2, \ldots, e_n]$ satisfying the following well-formedness predicate $\text{WF}(C)$:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Genesis anchoring.} $e_1.h_{\text{prev}} = \text{genesis}$ and $e_1.e_{\text{prev}} = \text{null}$.
+\item
+  \textbf{Concept consistency.} Every event in $C$ has the same $\text{concept\_id}$, namely $c$.
+\item
+  \textbf{Cryptographic linkage.} For all $i \in \{2, \ldots, n\}$:
+  \[
+  e_i.h_{\text{prev}} = e_{i-1}.h \quad \text{and} \quad e_i.e_{\text{prev}} = e_{i-1}.\text{event\_id}.
+  \]
+\item
+  \textbf{Hash correctness.} For all $i \in \{1, \ldots, n\}$:
+  \[
+  e_i.h = \text{SHA-256}\bigl(\text{Canon}(e_i)\bigr)
+  \]
+  where $\text{Canon}(e)$ is the canonical JSON serialization of $e$ with keys sorted lexicographically, floats rounded to six decimal places, and all fields (including timestamp $t$) included in the serialization.
+\item
+  \textbf{Identifier uniqueness.} All $\text{event\_id}$ values within $C$ are pairwise distinct.
+\end{enumerate}
+
+The canonicalization function $\text{Canon}(\cdot)$ is defined as:
+\begin{align}
+\text{Canon}(e) &= \text{JSON}_{\text{sorted}}\bigl(\text{Round}_6(\kappa(e))\bigr) \\
+\kappa(e) &= \{\; \text{``event\_id''} \mapsto e.\text{event\_id},\; \text{``concept\_id''} \mapsto c,\; \text{``event\_type''} \mapsto e.\tau, \nonumber \\
+&\qquad\quad \text{``actor''} \mapsto e.a,\; \text{``timestamp''} \mapsto e.t,\; \text{``payload''} \mapsto e.p, \nonumber \\
+&\qquad\quad \text{``previous\_event\_id''} \mapsto e.e_{\text{prev}},\; \text{``prev\_hash''} \mapsto e.h_{\text{prev}} \;\} \\
+\text{Round}_6(x) &=
+  \begin{cases}
+  \text{round}(x, 6) & x \in \mathbb{R} \\
+  \{k \mapsto \text{Round}_6(v) \mid (k,v) \in x\} & x \in \text{dict} \\
+  [\text{Round}_6(v) \mid v \in x] & x \in \text{list} \\
+  x & \text{otherwise}
+  \end{cases}
+\end{align}
+
+\textbf{Remark on timestamp inclusion.} The timestamp $t$ is explicitly included in $\kappa(e)$ and therefore in the hash input. This ensures that two otherwise-identical events created at different times produce different hashes, preserving tamper-evidence for provenance. Event \emph{ordering} within a chain is determined by cryptographic linkage ($h_{\text{prev}}$), not by timestamp comparison, so clock skew does not affect chain validity.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+
+\subsection{C.3 Status Derivation Function $\delta$}\label{c.3-status-derivation-function-delta}
+
+The status derivation function $\delta : \mathcal{C} \to S$ maps a well-formed EventChain to a status value in the status space
+\[
+S = \{\text{provisional},\; \text{validated},\; \text{deprecated},\; \text{forked},\; \text{archived}\}.
+\]
+
+For a chain $C = [e_1, \ldots, e_n]$, define the \emph{lifecycle subsequence}:
+\[
+C_{\text{life}} = [e \in C \mid e.\tau \in \Sigma_{\text{life}}].
+\]
+
+Then $\delta$ is defined:
+\begin{equation}
+\delta(C) =
+  \begin{cases}
+  \text{provisional} & C_{\text{life}} = [] \\
+  f(\tau_{\text{last}}) & \text{otherwise}
+  \end{cases}
+\end{equation}
+where $\tau_{\text{last}}$ is the event type of the last element of $C_{\text{life}}$, and $f : \Sigma_{\text{life}} \to S$ is the total function:
+\begin{equation}
+f(\tau) =
+  \begin{cases}
+  \text{provisional} & \tau = \text{REGISTER} \\
+  \text{validated} & \tau = \text{VALIDATE} \\
+  \text{deprecated} & \tau = \text{DEPRECATE} \\
+  \text{forked} & \tau = \text{FORK} \\
+  \text{archived} & \tau = \text{ARCHIVE}.
+  \end{cases}
+\end{equation}
+
+This formalizes Algorithm~1 from Section~3.9.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+
+\subsection{C.4 Confidence Aggregation Function $\gamma$}\label{c.4-confidence-aggregation-function-gamma}
+
+The confidence aggregation function $\gamma : \mathcal{C} \to [0, 1]$ maps a well-formed EventChain to a confidence score. Let $V = [e \in C \mid e.\tau = \text{VALIDATE}]$ be the subsequence of validation events.
+
+\begin{equation}
+\gamma(C) =
+  \begin{cases}
+  0.0 & V = [] \\
+  \min\bigl(1.0,\; c_{\text{base}} + 0.05 \times (N_{\text{vals}} - 1)\bigr) & \text{otherwise}
+  \end{cases}
+\end{equation}
+where
+\begin{align}
+\text{actors}(V) &= \{e.a \mid e \in V\} \\
+\phi(a, V) &= \max\, \{e.p.\text{confidence} \mid e \in V \land e.a = a\} \\
+c_{\text{base}} &= \max\Bigl(0.5,\; \frac{1}{N_{\text{vals}}} \sum_{a \in \text{actors}(V)} \phi(a, V)\Bigr) \\
+N_{\text{vals}} &= |\text{actors}(V)|.
+\end{align}
+
+The function $\phi(a, V)$ selects the highest confidence value submitted by actor $a$, ensuring that duplicate validations from the same actor do not compound. The base confidence $c_{\text{base}}$ is the mean of per-actor maxima, floored at 0.5. An additive bonus of $0.05$ per additional distinct validator (beyond the first) is applied, capped at 1.0.
+
+This formalizes Algorithm~2 from Section~3.9.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+
+\subsection{C.5 Fork and Confluence Semantics}\label{c.5-fork-and-confluence-semantics}
+
+A \emph{fork} transforms a concept $C$ into a pair $(C_{\text{fork}}, C')$ where $C_{\text{fork}}$ is the original concept with a $\text{FORK}$ event appended, and $C'$ is a new concept with a fresh identifier and genesis event.
+
+\textbf{Definition (Fork).} Let $C = [e_1, \ldots, e_n]$ be a well-formed chain with $\delta(C) \neq \text{forked}$. A fork by actor $a$ with timestamp $t$ and payload $p$ produces:
+\begin{align}
+e_{\text{FORK}} &= (\text{FORK}, a, t, p, h, h_{\text{prev}}, e_{\text{prev}}) \\
+C_{\text{fork}} &= C \oplus [e_{\text{FORK}}] \\
+e'_{\text{REG}} &= (\text{REGISTER}, a, t, p', h', \text{genesis}, \text{null}) \\
+C' &= [e'_{\text{REG}}]
+\end{align}
+where $h_{\text{prev}} = e_n.h$, $e_{\text{prev}} = e_n.\text{event\_id}$, $h = \text{SHA-256}(\text{Canon}(e_{\text{FORK}}))$, and $h'$, $p'$ are the hash and payload of the new concept's registration event. The forked concept identifier is recorded in $e_{\text{FORK}}.p.\text{fork\_target}$.
+
+\textbf{Definition (Confluence).} Two chains $C_1$ and $C_2$ are \emph{confluent} if they share a common prefix $P$ such that $C_1 = P \oplus S_1$ and $C_2 = P \oplus S_2$, and the first events of $S_1$ and $S_2$ (if non-empty) both have $h_{\text{prev}}$ equal to the hash of the last event in $P$.
+
+Confluence captures the notion that two agents can independently extend the same chain without conflict, provided their extensions form valid cryptographic continuations of the shared prefix. The CRDT merge operation (Section~3.6, §6.5) preserves confluence by taking the union of all events and topologically sorting by the partial order induced by $e_{\text{prev}}$ links.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+
+\subsection{C.6 Proof Sketches}\label{c.6-proof-sketches}
+
+This section restates the six theorems and two corollaries from Section~3.9 and provides complete proof sketches referencing the formal definitions above.
+
+\subsubsection{Theorem 1 (Determinism)}\label{c.6.1-theorem-1-determinism}
+
+\textbf{Statement.} For any well-formed EventChain $C$, $\delta(C)$ returns a unique status $s \in S$ that depends only on the last lifecycle event in $C$.
+
+\emph{Proof sketch.} By definition of $\delta$ (Section~C.3), the derivation proceeds in three deterministic steps: (i) filter $C$ to $C_{\text{life}}$ using the fixed predicate $\tau \in \Sigma_{\text{life}}$; (ii) if $C_{\text{life}}$ is empty, return the constant $\text{provisional}$; (iii) otherwise extract the last element of $C_{\text{life}}$ and apply the total function $f$. Each step is a deterministic function of $C$. The last element of a finite ordered sequence is unique. Therefore $\delta(C)$ is unique for any $C$. $\square$
+
+\subsubsection{Corollary 1 (Status Stability)}\label{c.6.2-corollary-1-status-stability}
+
+\textbf{Statement.} Appending a non-lifecycle event to $C$ does not change $\delta(C)$.
+
+\emph{Proof sketch.} A non-lifecycle event has $\tau \notin \Sigma_{\text{life}}$, so it is excluded by the filter in the definition of $C_{\text{life}}$. Therefore $C_{\text{life}}$ is unchanged, $\tau_{\text{last}}$ is unchanged, and by Theorem~1, $\delta(C)$ is unchanged. $\square$
+
+\subsubsection{Theorem 2 (Confluence under Fork)}\label{c.6.3-theorem-2-confluence-under-fork}
+
+\textbf{Statement.} Let $C$ be a well-formed chain. If $C$ forks, producing $C_{\text{fork}} = C \oplus [e_{\text{FORK}}]$ and a new chain $C' = [e'_{\text{REG}}] \oplus C_{\text{new}}$, then:
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  $\delta(C_{\text{fork}}) = \text{forked}$; and
+\item
+  $\delta(C') = \text{provisional}$ regardless of $C$ and $C_{\text{new}}$.
+\end{enumerate}
+
+\emph{Proof sketch.} (1) The $\text{FORK}$ event is a lifecycle event ($\text{FORK} \in \Sigma_{\text{life}}$). By Theorem~1, $\delta(C_{\text{fork}})$ depends only on the last lifecycle event in $C_{\text{fork}}$. Since $e_{\text{FORK}}$ is appended after all events in $C$, it is the last lifecycle event, and $f(\text{FORK}) = \text{forked}$.
+
+(2) The new chain $C'$ starts with $e'_{\text{REG}}$, a $\text{REGISTER}$ event. By Theorem~1, $\delta(C')$ depends only on the last lifecycle event in $C'$. If $C_{\text{new}} = \emptyset$, the last (only) lifecycle event is $\text{REGISTER}$, so $\delta(C') = f(\text{REGISTER}) = \text{provisional}$. Any subsequent lifecycle events in $C_{\text{new}}$ are governed by Theorem~1 independently of $C$. The two derivations operate on disjoint event sequences. $\square$
+
+\subsubsection{Theorem 3 (Monotonicity of Status Transitions)}\label{c.6.4-theorem-3-monotonicity-of-status-transitions}
+
+\textbf{Statement.} Let $C$ be a well-formed chain with $s = \delta(C)$. For any event $e_{\text{new}}$, the status transition from $s$ to $s' = \delta(C \oplus [e_{\text{new}}])$ is a valid transition according to the transition matrix (Table~3) if and only if $e_{\text{new}}.\tau$ is a lifecycle event and the corresponding status change appears in the matrix.
+
+\emph{Proof sketch.} If $e_{\text{new}}$ is a non-lifecycle event, then by Corollary~1, $s' = s$ and no transition occurs (identity is always a valid ``transition''). If $e_{\text{new}}$ is a lifecycle event, then by Theorem~1, $s'$ is determined by $e_{\text{new}}.\tau$ via $f$. The mapping $f$ yields exactly the target states defined in the transition matrix: $\text{REGISTER} \to \text{provisional}$, $\text{VALIDATE} \to \text{validated}$, $\text{DEPRECATE} \to \text{deprecated}$, $\text{FORK} \to \text{forked}$, $\text{ARCHIVE} \to \text{archived}$. Therefore the transition is valid if and only if the corresponding entry exists. $\square$
+
+\subsubsection{Theorem 4 (Confidence Boundedness)}\label{c.6.5-theorem-4-confidence-boundedness}
+
+\textbf{Statement.} For any well-formed EventChain $C$, $\gamma(C) \in [0, 1]$.
+
+\emph{Proof sketch.} If $C$ contains no $\text{VALIDATE}$ events, then $V = []$ and $\gamma(C) = 0.0$ by definition. Otherwise, $c_{\text{base}} = \max(0.5, \text{mean}(\cdot)) \geq 0.5$. Each per-actor confidence $\phi(a, V) \in [0, 1]$ by construction (payload validation enforces this bound), so their mean is also in $[0, 1]$. The return value is $\min(1.0, c_{\text{base}} + 0.05 \times (N_{\text{vals}} - 1))$. The increment is non-negative, so the expression inside $\min$ is at least $c_{\text{base}} \geq 0.5$. The $\min$ with 1.0 caps the result at 1.0. Therefore $\gamma(C) \in [0, 1]$. $\square$
+
+\subsubsection{Theorem 5 (Confidence Monotonicity under Independent Validation)}\label{c.6.6-theorem-5-confidence-monotonicity-under-independent-validation}
+
+\textbf{Statement.} Let $C$ be a well-formed chain with $\gamma(C) = c$. Let $e_{\text{new}}$ be a $\text{VALIDATE}$ event from an actor $a \notin \text{actors}(V)$. Then $\gamma(C \oplus [e_{\text{new}}]) \geq c$, with strict inequality if $c < 1.0$.
+
+\emph{Proof sketch.} Let $A = \text{actors}(V)$ and $A' = A \cup \{a\}$. Since $a \notin A$, we have $N'_{\text{vals}} = |A'| = |A| + 1 = N_{\text{vals}} + 1$. The new base confidence is
+\[
+c'_{\text{base}} = \max\Bigl(0.5,\; \frac{N_{\text{vals}} \cdot \mu + \gamma}{N_{\text{vals}} + 1}\Bigr)
+\]
+where $\mu$ is the previous mean of per-actor maxima and $\gamma = e_{\text{new}}.p.\text{confidence} \in [0, 1]$. The new returned confidence is $c' = \min(1.0,\; c'_{\text{base}} + 0.05 \cdot N_{\text{vals}})$. The previous confidence was $c = \min(1.0,\; c_{\text{base}} + 0.05 \cdot (N_{\text{vals}} - 1))$. The validator count increment adds $0.05$ to the bonus term. Even if $c'_{\text{base}} \leq c_{\text{base}}$ (which can occur if $\gamma < \mu$), the additional $0.05$ ensures $c' \geq c$. If $c < 1.0$, the $\min$ is not binding and $c' > c$. $\square$
+
+\subsubsection{Corollary 2 (Bounded Confidence Aggregation per Distinct Actor)}\label{c.6.7-corollary-2-bounded-confidence-aggregation-per-distinct-actor}
+
+\textbf{Statement.} A single actor cannot increase confidence by submitting multiple $\text{VALIDATE}$ events. Full Sybil resistance---preventing an adversary from creating arbitrarily many distinct actor identities to inflate confidence---requires cryptographic actor authentication (Phase~3; Section~3.7).
+
+\emph{Proof sketch.} By definition of $\phi(a, V)$, only the highest confidence value per actor is retained. A subsequent $\text{VALIDATE}$ event from the same actor either (i) has lower confidence, leaving $\phi(a, V)$ unchanged, or (ii) has higher confidence, replacing the previous value. In neither case does $N_{\text{vals}}$ increase, so the bonus term $0.05 \times (N_{\text{vals}} - 1)$ is unchanged. Therefore the actor cannot increase $\gamma(C)$ by submitting additional validations. $\square$
+
+\subsubsection{Theorem 6 (Status--Confidence Consistency)}\label{c.6.8-theorem-6-statusconfidence-consistency}
+
+\textbf{Statement.} For any well-formed EventChain $C$, if $\delta(C) = \text{validated}$, then $\gamma(C) \geq 0.5$.
+
+\emph{Proof sketch.} If $\delta(C) = \text{validated}$, then by Theorem~1, the last lifecycle event in $C$ is $\text{VALIDATE}$. Therefore $C$ contains at least one $\text{VALIDATE}$ event, so $V \neq \emptyset$ and $\gamma(C)$ does not return 0.0. By definition of $c_{\text{base}}$, we have $c_{\text{base}} = \max(0.5, \text{mean}(\cdot)) \geq 0.5$. By Theorem~4, the final returned value is at least $c_{\text{base}} \geq 0.5$. $\square$
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+
+\subsection{C.7 Cryptographic Integrity as a Predicate}\label{c.7-cryptographic-integrity-as-a-predicate}
+
+The integrity verification procedure $\textsc{VerifyIntegrity}(C)$ used in experiments E1 and E5 can be stated as a predicate over chains:
+
+\begin{equation}
+\textsc{VerifyIntegrity}(C) \;\equiv\; \text{WF}(C) \;\land\; \bigwedge_{i=2}^{|C|} \bigl(e_i.h_{\text{prev}} = e_{i-1}.h\bigr) \;\land\; \bigwedge_{i=1}^{|C|} \bigl(e_i.h = \text{SHA-256}(\text{Canon}(e_i))\bigr).
+\end{equation}
+
+This predicate is \emph{decidable} in $O(n)$ time for a chain of length $n$, and \emph{falsifiable} by any of the attack classes in Table~13: payload tampering breaks the hash equality for the tampered event; reordering breaks the $h_{\text{prev}}$ linkage at the swap boundary; deletion breaks the linkage at the deletion point; and replay (inserting an event from a different chain) breaks the $h_{\text{prev}}$ linkage because the replayed event's $h_{\text{prev}}$ does not equal the hash of the preceding event in the target chain.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+
+\subsection{C.8 Summary of Formal Guarantees}\label{c.8-summary-of-formal-guarantees}
+
+Table~C.1 summarises the formal properties proved in this appendix and their correspondence to the main paper theorems.
+
+\begin{table}[h]
+\centering
+\caption{Formal property summary. Each property is proved from the definitions in Sections C.1--C.4.}
+\label{tab:formal-properties}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Property} & \textbf{Formal Statement} & \textbf{Paper Reference} \\
+\midrule
+Determinism & $\delta$ is a total function & Theorem~1 \\
+Status stability & Non-lifecycle events are $\delta$-neutral & Corollary~1 \\
+Fork confluence & $\delta(C_{\text{fork}}) = \text{forked} \land \delta(C') = \text{provisional}$ & Theorem~2 \\
+Transition monotonicity & $\delta$ respects the transition matrix & Theorem~3 \\
+Confidence boundedness & $\gamma(C) \in [0, 1]$ & Theorem~4 \\
+Confidence monotonicity & Independent validators increase $\gamma$ & Theorem~5 \\
+Bounded aggregation & Same-actor duplicates are $\gamma$-neutral & Corollary~2 \\
+Status--confidence consistency & $\delta(C) = \text{validated} \Rightarrow \gamma(C) \geq 0.5$ & Theorem~6 \\
+\bottomrule
+\end{tabular}
+\end{table}

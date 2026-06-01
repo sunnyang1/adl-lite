@@ -89,6 +89,29 @@ ADL Lite's EventChain can be directly mapped to PROV-O: each Event in an EventCh
 
 Key differences between the two approaches reveal complementary rather than competing design goals. First, nanopublications focus on \emph{atomic claims} with single assertions (e.g., ``gene X is associated with disease Y''), while ADL Lite models full \emph{concept lifecycles} as multi-event chains spanning registration, validation, deprecation, forking, and archival. Second, nanopublications use RSA digital signatures for author authentication, binding each assertion to a verifiable cryptographic identity; ADL Lite Phase 1 currently relies on string identifiers for actors, with LD-Proof integration planned for Phase 3 to achieve equivalent signature-based authentication. Third, nanopublications require RDF/SPARQL infrastructure for publication, querying, and verification, while ADL Lite operates over Markdown files in standard Git repositories without a triple store. Nanopublications thus target the publication of individual scientific assertions to decentralized servers, while ADL Lite targets the governance of evolving concept definitions within multi-agent document-native workflows.
 
+Table~\ref{tab:nanopub-comparison} provides an empirical comparison across nine measurable dimensions. The structural-overhead figures for nanopublications are drawn from published datasets: neXtProt reports a decontextualized ratio of 0.55 (55\% of triples are assertion content, 45\% structural overhead) and OpenBEL reports 0.69 \cite{ref40,ref41,ref42}. ADL Lite's per-event overhead is the 64-byte SHA-256 hash plus linkage metadata---approximately 200 bytes per event, independent of payload size---yielding negligible overhead for typical concept chains of 5--50 events.
+
+\begin{table}[h]
+\centering
+\caption{Empirical comparison of nanopublications with Trusty URIs and ADL Lite EventChains across nine operational dimensions. Nanopublication figures are derived from published dataset analyses \cite{ref40,ref41,ref42}.}
+\label{tab:nanopub-comparison}
+\begin{tabular}{@{}p{3.2cm}p{5.0cm}p{5.0cm}@{}}
+\toprule
+\textbf{Dimension} & \textbf{Nanopublications + Trusty URIs} & \textbf{ADL Lite EventChain} \\
+\midrule
+Granularity & Atomic claim (single RDF triple or small graph) & Concept lifecycle (multi-event chain) \\
+Mutability & Immutable: new version = new Trusty URI & Append-only: events accumulate, status derived \\
+Authentication & RSA digital signatures per nanopub & String identifiers (Phase 1); Ed25519 LD-Proofs (Phase 3) \\
+Integrity mechanism & Content-addressed SHA-256 hash in URI & Cryptographic hash chain ($h_{\text{prev}}$ linkage) \\
+Structural overhead & 31--86\% of triples are non-assertion (head, provenance, pub-info) & $\approx$200 bytes/hash per event ($<$1\% for typical chains) \\
+Infrastructure & RDF/SPARQL triplestore + nanopub server network & Markdown files in standard Git repositories \\
+Verification time & $O(1)$ per nanopub (hash $ightarrow$ URI comparison) & $O(n)$ per chain (sequential hash verification) \\
+Lifecycle governance & None (status is publication metadata, not derived) & Deterministic status derivation + precondition rules \\
+Fork support & Manual: create new nanopub, no automatic linkage & Automatic: \textsc{FORK} event + derived child chain \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \textbf{Linked Data Proofs and RDF Dataset Canonicalization.} The W3C Verifiable Credential Data Integrity specification \cite{ref43}---formerly known as Linked Data Proofs---describes mechanisms for ensuring the authenticity and integrity of constrained digital documents using cryptography, especially through digital signatures over canonicalized RDF datasets. The specification defines a vocabulary for proof types, verification methods, and canonicalization algorithms, and is accompanied by concrete cryptographic suites including EdDSA (Ed25519Signature2020) and ECDSA variants \cite{ref44}. Underpinning this signing capability is the RDF Dataset Canonicalization algorithm (URDNA2015) \cite{ref45}, which produces a deterministic, byte-for-byte consistent serialization of an RDF dataset regardless of the original ordering of triples or blank node labels---a prerequisite for signature verification over RDF data.
 
 This technology provides the authenticated provenance that ADL Lite currently lacks: the ability to bind actor identities to events through cryptographic signatures rather than string identifiers. An LD-Proof over an ADL Lite event would enable any verifier to confirm that a specific actor (identified by a Decentralized Identifier, or DID) authored a specific event, without requiring trust in the storage medium or the party presenting the chain. The reviewer specifically recommended this as a path forward for authenticated event logging in ADL Lite. The current status of LD-Proofs is a W3C Recommendation (May 2025), with implementations including \texttt{vc-js} and \texttt{jsonld-signatures} that support multiple cryptographic suites. ADL Lite's future Phase 3 includes LD-Proof integration for authenticated events, targeting \texttt{Ed25519Signature2020} as the initial suite given its balance of security and computational efficiency.

@@ -172,10 +172,10 @@ class SyncManager:
         # across machines (event_id is uuid4, non-deterministic)
         all_events.sort(key=lambda e: (e.timestamp, e.hash))
 
-        # Rebuild unified chain
+        # Rebuild unified chain — copy events to avoid mutating originals
         unified = EventChain(concept_id=self.concept_id)
         for event in all_events:
-            unified.append(event)
+            unified.append(event.model_copy())
 
         return unified
 
@@ -203,9 +203,9 @@ class SyncManager:
         new_events = SyncManager.diff(center_chain, edge_chain)
         updated = EventChain(concept_id=center_chain.concept_id)
         for e in center_chain.events:
-            updated.append(e)
+            updated.append(e.model_copy())
         for e in sorted(new_events, key=lambda e: (e.timestamp, e.hash)):
-            updated.append(e)
+            updated.append(e.model_copy())
         return updated
 
     @staticmethod

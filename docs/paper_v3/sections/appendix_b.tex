@@ -1,6 +1,6 @@
 \subsection{B. SHACL Shape for L3 Relation Validation}\label{b.-shacl-shape-for-l3-relation-validation}
 
-This appendix provides a complete, syntactically valid SHACL \footnote{W3C SHACL: \url{https://www.w3.org/TR/shacl/}.} shape graph for validating ADL Lite Level~3 (L3) relation blocks. The shape ensures that every relation declared between two concepts conforms to the structural and semantic constraints of the ADL Core ontology: valid concept identifiers, closed predicate sets, properly typed confidence values, and mandatory directionality. A worked validation report demonstrates how constraint violations are reported when a relation block fails to conform.
+This appendix provides a complete, syntactically valid SHACL \footnote{W3C SHACL: \url{https://www.w3.org/TR/shacl/}.} shape graph for validating ADL Lite Level~3 (L3) relation blocks. The shape ensures that every relation declared between two concepts conforms to the structural and semantic constraints of the ADL Core ontology: valid concept identifiers, closed predicate sets, properly typed confidence values, and mandatory directionality. A worked validation report demonstrates how constraint violations are reported when a relation block fails to conform. The SHACL shape is defined in \texttt{adl\_lite/shacl\_validation.py} and executed by \texttt{bash scripts/reproduce/reproduce\_shacl.sh}, which validates all exported PROV-O Turtle files against the built-in shape graph using \texttt{pyshacl}.
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 

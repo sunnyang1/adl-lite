@@ -1,0 +1,62 @@
+\subsection{Validation Strategy: Correctness as Ontological Consistency}\label{subsec:validation-strategy}
+
+The empirical evaluation of ADL Lite is designed to validate three ontological hypotheses:
+\begin{enumerate}[label=(\arabic*)]
+    \item \textbf{Integrity hypothesis.} The cryptographic hash chain correctly detects all structural modifications (content tampering, reordering, deletion).
+    \item \textbf{Derivation hypothesis.} The status and confidence derivation functions produce correct results for all possible event sequences.
+    \item \textbf{Precondition hypothesis.} The action precondition system correctly accepts valid actions and rejects invalid ones.
+\end{enumerate}
+
+These hypotheses are validated through four experiments: chain integrity (E1), status derivation exhaustiveness (E2), precondition enforcement (E4), and scalability on real-world data (E6). The experiments do not constitute domain-level evaluation of anti-money-laundering (AML) effectiveness; they validate that the event-first ontological architecture is computationally feasible and empirically correct.
+
+\subsection{Chain Integrity and Tamper Detection (E1)}\label{subsec:e1}
+
+E1 tests the integrity verification predicate $\text{VerifyIntegrity}(C)$ on 60 chains: 50 valid chains and 10 intentionally corrupted chains. The corrupted chains exhibit four attack classes:
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{Content tampering:} Modify the payload of an existing event.
+    \item \textbf{Event reordering:} Swap two events in the chain.
+    \item \textbf{Event deletion:} Remove a middle event.
+    \item \textbf{Event replay:} Copy an event from one chain into another.
+\end{itemize}
+
+Results: precision = 1.0, recall = 1.0, F1 = 1.0. All 50 valid chains pass verification; all 10 corrupted chains fail verification. The attack detection is deterministic: any modification to an event's content, reordering of events, or deletion of events breaks the cryptographic linkage at the point of first alteration.
+
+\subsection{Status Derivation Exhaustiveness (E2)}\label{subsec:e2}
+
+E2 tests the status derivation function $\delta(C)$ on all possible event sequences of length up to 3 over the 5 lifecycle event types, plus 7 edge cases (empty chain, single-event chains, full lifecycle sequences, mixed lifecycle/communication sequences). The total test corpus comprises 2,204 cases.
+
+Results: 2,204/2,204 correct (accuracy = 1.0). Edge cases confirm that communication events ($\Sigma_{\text{comm}}$) never modify status, while lifecycle events ($\Sigma_{\text{life}}$) deterministically drive transitions according to the transition matrix. This validates Theorem~1 (Determinism) and Theorem~3 (Transition Monotonicity) empirically.
+
+\subsection{Precondition Enforcement (E4)}\label{subsec:e4}
+
+E4 tests the ActionExecutor's precondition validation on all 9 registered actions across 13 test cases covering valid preconditions, violated preconditions, boundary values, and type mismatches.
+
+Results: precision = 1.0, recall = 1.0, F1 = 1.0. Zero false positives (no valid action rejected) and zero false negatives (no invalid action accepted). The closed Comparator enumeration eliminates runtime code injection; the absence of \texttt{eval()} ensures that precondition evaluation is decidable and safe.
+
+\subsection{Scalability on Real-World Data (E6)}\label{subsec:e6}
+
+E6 evaluates throughput and integrity on the IBM Anti-Money Laundering (AML) HI-Small dataset, comprising 9,300 transactions from 201 accounts. Each account is imported as an EventChain; transactions become \texttt{Event} objects. The mean chain length is 46.3 events; the maximum is 300 events.
+
+Results: All 201 chains maintain integrity (zero failures). Wall-clock runtime is 299 ms, yielding throughput of approximately 31,100 events per second. Profiling indicates that the bottleneck is CSV parsing and event materialization, not chain operations or SHA-256 hashing.
+
+\textbf{Architectural contribution, not domain validation.} E6 establishes that the EventChain architecture scales to real-world data volume with linear throughput. This is an architectural stress test, not a domain evaluation of AML effectiveness. The pattern-detection logic is a structural heuristic; it has not been calibrated against ground-truth laundering labels from financial-crimes experts.
+
+\subsection{Summary of Results}\label{subsec:results-summary}
+
+Table~\ref{tab:results} summarizes the empirical validation. All four experiments achieve perfect scores, providing strong evidence for the three ontological hypotheses. The experiments validate that the event-first architecture is computationally feasible and empirically correct; they do not, by themselves, demonstrate the novelty of the event-first ontological stance. That novelty is established through the ontological analysis (Section~\ref{sec:ontological-analysis}) and formal semantics (Section~\ref{subsec:formal-semantics}).
+
+\begin{table}[htbp]
+\centering
+\caption{Summary of empirical validation results.}
+\label{tab:results}
+\begin{tabular}{@{}lllll@{}}
+\toprule
+\textbf{Experiment} & \textbf{Hypothesis} & \textbf{Metric} & \textbf{Result} & \textbf{Scale} \\
+\midrule
+E1 & Integrity & P / R / F1 & 1.0 / 1.0 / 1.0 & 60 chains \\
+E2 & Derivation & Accuracy & 1.0 (2,204/2,204) & Exhaustive to length 3 \\
+E4 & Precondition & P / R / F1 & 1.0 / 1.0 / 1.0 & 13 test cases \\
+E6 & Scalability & Integrity & 0 failures & 201 chains, 9,300 events \\
+\bottomrule
+\end{tabular}
+\end{table}

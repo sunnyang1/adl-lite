@@ -28,6 +28,28 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
 
+
+# ---------------------------------------------------------------------------
+# Canonical serialization helpers
+# ---------------------------------------------------------------------------
+
+
+def _round_floats(obj: Any, ndigits: int = 6) -> Any:
+    """Recursively round floats to *ndigits* decimal places for canonical hashing.
+
+    This ensures cross-platform hash determinism: the same event produces the
+    same SHA-256 digest regardless of Python version, OS, or JSON library
+    float-string formatting differences.
+    """
+    if isinstance(obj, float):
+        return round(obj, ndigits)
+    if isinstance(obj, dict):
+        return {k: _round_floats(v, ndigits) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_round_floats(item, ndigits) for item in obj]
+    return obj
+
+
 # ---------------------------------------------------------------------------
 # Enumerations — Consensus & Semantic Types
 # ---------------------------------------------------------------------------
@@ -141,17 +163,34 @@ class Event(BaseModel):
             self.hash = self._compute_hash()
 
     def _compute_hash(self) -> str:
+        """Return a deterministic SHA-256 hash of this event's canonical content.
+
+        Canonicalization rules (platform-independent):
+          1. Include: event_id, concept_id, event_type, actor, timestamp,
+             payload, previous_event_id, prev_hash.
+          2. Exclude: the hash field itself (to avoid circular self-reference).
+          3. Recursively sort all object keys.
+          4. Recursively round all floating-point values to 6 decimal places.
+          5. Encode as UTF-8 JSON.
+
+        The timestamp is intentionally INCLUDED in the hash input so that
+        post-hoc timestamp edits are detectable as integrity violations.
+        Clock-skew tolerance is handled at the application layer (event
+        ordering uses previous_event_id linkage, not timestamp comparison).
+        """
         content = {
             "event_id": self.event_id,
             "concept_id": self.concept_id,
             "event_type": self.event_type.value,
             "actor": self.actor,
             "timestamp": self.timestamp,
-            "payload": self.payload,
+            "payload": _round_floats(self.payload),
             "previous_event_id": self.previous_event_id,
             "prev_hash": self._prev_hash,
         }
-        return hashlib.sha256(json.dumps(content, sort_keys=True, default=str).encode()).hexdigest()
+        return hashlib.sha256(
+            json.dumps(content, sort_keys=True, default=str).encode("utf-8")
+        ).hexdigest()
 
 
 class EventChain:

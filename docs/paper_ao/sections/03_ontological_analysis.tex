@@ -1,0 +1,137 @@
+\subsection{Philosophical Foundation: Event-First as Ontological Commitment}\label{subsec:philosophical-foundation}
+
+The architectural design of ADL Lite is grounded in an ontological inversion of conventional ontology engineering. Traditional operational ontologies---including OWL-based knowledge graphs, Palantir Foundry, and enterprise metadata platforms---adopt an \emph{object-first} stance: an Object Type defines what entities exist, a Property Type describes their attributes, a Link Type connects them, and an Action Type is appended as an operational afterthought to model operations upon the previously defined object structures \cite{ref6,ref14}. This ordering reflects a metaphysical commitment to the \emph{primacy of continuants}: entities are conceived as self-subsistent bearers of properties that persist through changes in their attributes.
+
+ADL Lite inverts this hierarchy. Drawing on Wittgenstein's \emph{Tractatus Logico-Philosophicus} \S1.1---\emph{``Die Welt ist die Gesamtheit der Tatsachen, nicht der Dinge''} (``The world is the totality of facts, not of things'')---the system treats the event as the fundamental ontological primitive \cite{ref9,ref10}. On this view, an object has no ontological standing independent of the facts in which it appears. A concept's status (\texttt{validated}, \texttt{deprecated}, \texttt{forked}) is not an intrinsic property of the concept but a relational property constituted by the history of events that have occurred in its lifecycle.
+
+This philosophical commitment translates into three governing ontological principles:
+
+\begin{enumerate}[label=(\arabic*),leftmargin=2em]
+    \item \textbf{No implicit state changes.} Every mutation of ontological state is captured as an explicit event. There are no ``hidden'' updates, no side-effectful assignments, and no mutable fields that can diverge from their event histories.
+    \item \textbf{Events are occurrents.} Events are temporal entities that happen; they do not endure through time. An event has no spatial extent and no existence outside the interval at which it occurs. This aligns with the BFO category of \emph{occurrent} \cite{bfo} and DOLCE's category of \emph{perdurant} \cite{dolce}.
+    \item \textbf{All derived properties are historical.} Status, confidence, and validator identity are computed by deterministic functions over the event sequence. They are not stored; they are re-derived on demand. This eliminates an entire class of consistency bugs in which stored state diverges from logical history.
+\end{enumerate}
+
+\subsection{Categories and Taxonomy}\label{subsec:categories}
+
+ADL Lite's category system can be analyzed through the lens of three influential upper ontologies: Basic Formal Ontology (BFO) \cite{bfo}, Descriptive Ontology for Linguistic and Cognitive Engineering (DOLCE) \cite{dolce}, and the Unified Foundational Ontology (UFO) \cite{ufo}. Table~\ref{tab:upper-ontology-mapping} presents the cross-mapping. The following subsections discuss each category in detail and justify alignment choices.
+
+\begin{table}[htbp]
+\centering
+\caption{Cross-mapping of ADL Lite categories to upper ontologies. Entries marked ``---'' indicate intentional non-alignment; entries marked ``$\approx$'' indicate approximate correspondence.}
+\label{tab:upper-ontology-mapping}
+\begin{tabular}{@{}lllll@{}}
+\toprule
+\textbf{ADL Lite} & \textbf{BFO 2.0} & \textbf{DOLCE} & \textbf{UFO} & \textbf{Note} \\
+\midrule
+Event & \texttt{occurrent} & \texttt{perdurant} & \texttt{Event} & Temporal entity; happens; no endurance \\
+EventChain & \texttt{process} & \texttt{amount-of-matter}$\approx$ & \texttt{Complex Event} & Sequence of events; not a continuant \\
+Concept & \texttt{generically dependent continuant} & \texttt{non-physical object}$\approx$ & \texttt{Conceptual Entity} & Depends on chain for identity \\
+Relation (L3) & \texttt{relational quality} & \texttt{quality} & \texttt{Relator} & Mediates between concepts \\
+Action (L4) & \texttt{planned process} & \texttt{action} & \texttt{Action} & Intentional occurrent with preconditions \\
+Actor & \texttt{agent} & \texttt{physical agent} & \texttt{Agent} & Can be human or software agent \\
+Payload & \texttt{information content entity} & \texttt{information object} & \texttt{Information Entity} & Structured data carried by event \\
+Hash & \texttt{generically dependent continuant} & --- & --- & Cryptographic identifier; no physical bearer \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Event as Occurrent/Perdurant}
+
+In BFO, an \emph{occurrent} is an entity that unfolds itself in time. Occurrents include processes (e.g., a cell division), and they are ontologically distinct from \emph{continuants} (e.g., a cell), which exist in full at every moment of their existence \cite{bfo}. In DOLCE, the corresponding category is \emph{perdurant}: an entity that is only partially present at any time, in the sense that some of its temporal parts may be absent \cite{dolce}.
+
+ADL Lite's \texttt{Event} is a perdurant in the DOLCE sense and an occurrent in the BFO sense. It is a temporal entity with a definite beginning and end (the timestamp). It has no spatial location (unless the payload carries one, which is domain-specific). It does not endure: once a \texttt{VALIDATE} event has occurred, it is complete; it does not continue to exist as a present entity. What endures is the \emph{record} of the event (the serialized JSON/YAML in the Markdown file), but this record is an \emph{information content entity}, not the event itself.
+
+In UFO, events are also treated as perdurants, but UFO additionally distinguishes \emph{events} (changes in the world) from \emph{actions} (intentional events performed by agents) \cite{ufo}. ADL Lite's event type system captures this distinction: \texttt{REGISTER}, \texttt{VALIDATE}, \texttt{DEPRECATE}, \texttt{FORK}, \texttt{ARCHIVE} are actions (intentional, performed by an actor), while \texttt{RELATE}, \texttt{EVIDENCE}, \texttt{SEAL} are events (assertions that change the relational structure of the concept graph).
+
+\subsubsection{Concept as Generically Dependent Continuant}
+
+The ontological status of a ``concept'' in ADL Lite is subtle. A concept is not a physical object (it has no mass, no spatial location). It is not a mental object (it exists outside any individual mind, in the shared Markdown file). It is not a universal (it is not instantiated by particulars). We propose that an ADL Lite concept is best understood as a \emph{generically dependent continuant} in BFO terms \cite{bfo}: an entity that depends on some continuant or other for its existence, but not on any \emph{specific} continuant.
+
+A concept depends generically on its EventChain: if the chain were destroyed, the concept would cease to exist. But the concept does not depend on any specific event within the chain---events can be added and the concept persists. The concept's identity is determined by the \emph{genesis event} (the first event in the chain, with its \texttt{concept\_id}), not by the totality of events. This is analogous to how a BFO \emph{generically dependent continuant} such as a poem depends on some physical copy for its existence, but not on any specific copy.
+
+In DOLCE, the closest category is \emph{non-physical object} (NPO), which includes social objects, information objects, and cognitive objects \cite{dolce}. ADL Lite concepts are information objects that carry social/institutional weight (their status determines whether they are accepted by the community). In UFO, concepts are \emph{conceptual entities} or \emph{types} in the conceptual space of the community \cite{ufo}.
+
+\subsubsection{EventChain as Process}
+
+An EventChain is a sequence of events. In BFO, it is best understood as a \emph{process}: a complex occurrent that has temporal parts (the individual events) and unfolds over time \cite{bfo}. The chain is not a continuant because it does not exist in full at any single moment of time---at time $t$, only the events up to $t$ have occurred.
+
+This has implications for identity conditions. In BFO, a process is individuated by its constituent processes and their temporal relations. An EventChain is individuated by the ordered sequence of its events and their cryptographic linkage. Two chains with the same events in the same order are the same chain (modulo the \texttt{concept\_id}, which anchors the chain to a specific concept).
+
+\subsubsection{Relation as Relational Quality / Relator}
+
+ADL Lite's L3 relation blocks (\texttt{adl:relation}) assert typed edges between concepts: \texttt{source --relation--> target}. In BFO, this is best analyzed as a \emph{relational quality}: a quality that inheres in one entity and relates it to another \cite{bfo}. For example, the relation ``isomorphic-to'' between two concepts is a relational quality that inheres in the source concept and points to the target concept.
+
+In UFO, the corresponding category is \emph{relator}: an entity that mediates the relationship between two or more entities \cite{ufo}. A relator exists because the related entities exist, and it is destroyed when the relationship ceases to hold. In ADL Lite, a relation is established by a \texttt{RELATE} event and can be revoked (in future work) by a \texttt{UNRELATE} event. This event-based lifecycle aligns with the UFO notion that relators are brought into existence and destroyed by events.
+
+DOLCE's category of \emph{quality} is broader and includes both intrinsic qualities (e.g., color) and relational qualities (e.g., being taller than) \cite{dolce}. ADL Lite relations are relational qualities in the DOLCE sense.
+
+\subsubsection{Action as Planned Process / Intentional Event}
+
+ADL Lite's L4 action types (\texttt{REGISTER}, \texttt{VALIDATE}, etc.) are actions in the full philosophical sense: they are intentional events performed by agents for reasons. In BFO, they are \emph{planned processes}: processes that realize a plan \cite{bfo}. In UFO, they are \emph{actions}: intentional events performed by agents to achieve a goal \cite{ufo}.
+
+The precondition system in ADL Lite captures the \emph{plan} aspect: an action can only be performed if certain conditions hold (e.g., \texttt{VALIDATE} requires \texttt{status == provisional}). This is not merely a computational check; it is an ontological commitment to the idea that actions are governed by norms that constrain which events can occur in which states.
+
+\subsection{Identity Conditions}\label{subsec:identity-conditions}
+
+Identity conditions specify when two entities are the same. ADL Lite requires identity conditions for three categories: events, concepts, and chains.
+
+\subsubsection{Event Identity}
+
+An event $e$ is identical to an event $e'$ if and only if:
+\begin{equation}
+    e = e' \iff e.\text{event\_id} = e'.\text{event\_id}
+\end{equation}
+The \texttt{event\_id} is a UUID generated at event creation time. It is independent of the event's content, timestamp, or chain position. This means that two events with identical content but different \texttt{event\_id}s are \emph{distinct events} (they occurred at different times or in different contexts). This aligns with the intuition that two validation events by the same actor at different times are different events, even if their payloads are identical.
+
+The cryptographic hash $e.\text{hash}$ is \emph{not} an identity criterion; it is an integrity criterion. Two events with the same hash have the same content and linkage, but they may still be different events (if they have different \texttt{event\_id}s, which is impossible because the \texttt{event\_id} is in the hash input). In practice, the hash uniquely determines the event's content, but the \texttt{event\_id} is the canonical identifier.
+
+\subsubsection{Concept Identity}
+
+A concept $c$ is identical to a concept $c'$ if and only if:
+\begin{equation}
+    c = c' \iff c.\text{concept\_id} = c'.\text{concept\_id}
+\end{equation}
+The \texttt{concept\_id} is a human-readable identifier (e.g., \texttt{disc-capital-trap}) assigned at registration time. It is independent of the concept's status, confidence, or event history. This means that a concept retains its identity even if all its events are forked, deprecated, or archived.
+
+This choice reflects an ontological commitment to \emph{historical identity}: a concept is the same concept throughout its lifecycle because it has the same genesis event (the \texttt{REGISTER} event that created it). The \texttt{concept\_id} is a rigid designator for the concept, analogous to how a proper name rigidly designates an individual in modal logic.
+
+A forked concept (e.g., \texttt{disc-capital-trap-v2}) is a \emph{different concept} because it has a different \texttt{concept\_id}, even though it is derived from the original. This is analogous to how a biological daughter is a different organism from her mother, even though she derives from her mother's genetic material.
+
+\subsubsection{EventChain Identity}
+
+An EventChain $C$ is identical to an EventChain $C'$ if and only if:
+\begin{equation}
+    C = C' \iff C.\text{concept\_id} = C'.\text{concept\_id} \land \text{events}(C) = \text{events}(C')
+\end{equation}
+Two chains are the same if they have the same \texttt{concept\_id} and the same ordered sequence of events. The cryptographic linkage ensures that the event sequence is ordered, so two chains with the same events in different orders are different chains.
+
+\subsection{Ontological Dependence}\label{subsec:ontological-dependence}
+
+Ontological dependence concerns which entities depend on which others for their existence. ADL Lite exhibits three forms of dependence:
+
+\subsubsection{Historical Dependence of Concept on EventChain}
+
+A concept $c$ \emph{historically depends} on its EventChain $C$: $c$ would not exist if $C$ had not been created. This is a form of \emph{rigid existential dependence} \cite{fine1995ontologicaldependence}: the concept cannot exist without the chain. The dependence is historical because the concept's identity is determined by the genesis event in the chain.
+
+This dependence is asymmetric: the chain can exist without the concept (in the trivial sense that the chain is the concept's history). But the concept cannot exist without the chain because the concept \emph{is} its history.
+
+\subsubsection{Generic Dependence of Status on Events}
+
+A concept's status $s$ (e.g., \texttt{validated}) \emph{generically depends} on the events in its chain: $s$ depends on there being at least one \texttt{VALIDATE} event, but not on any \emph{specific} \texttt{VALIDATE} event. If a different agent had performed the validation at a different time, the status would still be \texttt{validated}. This is analogous to how a BFO generically dependent continuant depends on some bearer but not on any specific bearer.
+
+\subsubsection{Mutual Dependence of Relations on Concepts}
+
+A relation $r$ between concepts $c_1$ and $c_2$ \emph{mutually depends} on both concepts: $r$ cannot exist if either $c_1$ or $c_2$ ceases to exist. This is a form of \emph{mutual rigid dependence} \cite{fine1995ontologicaldependence}. If \texttt{concept-A} is deprecated and removed from the corpus, the relation ``\texttt{concept-A} isomorphic-to \texttt{concept-B}'' ceases to hold, even if \texttt{concept-B} still exists.
+
+\subsection{Comparison with Upper Ontologies: Alignment Choices and Deviations}\label{subsec:alignment-deviations}
+
+Table~\ref{tab:upper-ontology-mapping} reveals three intentional deviations from standard upper-ontology practice:
+
+\textbf{Deviation 1: No distinction between continuants and occurrents at the language level.} In BFO and DOLCE, the distinction between continuants and occurrents is a \emph{language-level} distinction: the ontology language (OWL, FOL) enforces that continuants cannot be subclasses of occurrents. ADL Lite does not enforce this distinction at the language level; it is a \emph{conceptual} distinction that is enforced by the event model. A ``concept'' is treated as a continuant in some contexts (it has an identity that persists through time) and as an occurrent in others (its state is computed from events). This flexibility is deliberate: it allows the same entity to be viewed under different ontological descriptions without requiring multiple representations.
+
+\textbf{Deviation 2: No explicit quality hierarchy.} BFO and DOLCE both have elaborate hierarchies of qualities (intrinsic, relational, qualitative, etc.). ADL Lite does not model qualities explicitly; instead, qualities are encoded as payload fields in events. For example, ``confidence'' is not a quality that inheres in the concept; it is a value carried by \texttt{VALIDATE} events. This simplifies the ontology but loses the ability to reason about qualities independently of events.
+
+\textbf{Deviation 3: Actions as first-class citizens, not processes.} In BFO, actions are a subclass of processes. In ADL Lite, actions are \emph{co-equal} with objects at the language level: the action registry is defined before the object hierarchy. This reflects the event-first stance: actions are not operations \emph{on} objects; they are the fundamental units of ontological reality, and objects are projections of event patterns.
+
+These deviations are not arbitrary simplifications; they are motivated by the target application domain (multi-agent concept governance). In a domain where agents create, validate, and deprecate concepts at high velocity, the action-centric view provides a more natural modeling framework than the object-centric view. The cost is that ADL Lite cannot directly import BFO or DOLCE modules without translation; the benefit is that the ontology is optimized for its intended use case.

@@ -310,7 +310,7 @@ E9 answers the narrower but practically important question: \emph{what does Even
 
 \subsection{E6: IBM AML Pipeline---Throughput, Latency Decomposition, and Integrity Validation}\label{e6-ibm-aml-pipelinethroughput-latency-decomposition-and-integrity-validation}
 
-E6 validates the ADL Lite pipeline's throughput, per-operation latency, and integrity properties on the IBM Anti-Money Laundering (AML) HI-Small Transformed dataset\footnote{IBM AML dataset: https://www.kaggle.com/datasets/berkanozdemir/aml-simulated (HI-Small\_Trans.csv)}, a publicly available synthetic financial transaction dataset containing 495,671 accounts and 5,080,714 transaction records. Each account is treated as a distinct entity; its transaction history is imported as an \texttt{EventChain} where individual transactions become \texttt{Event} objects.
+E6 validates the ADL Lite pipeline's throughput, per-operation latency, and integrity properties on the IBM Anti-Money Laundering (AML) HI-Small Transformed dataset\footnote{IBM AML dataset: https://www.kaggle.com/datasets/berkanozdemir/aml-simulated (HI-Small\_Trans.csv)}, a publicly available synthetic financial transaction dataset. The evaluation reported here uses the HI-Small sample (9,300 transactions from 201 accounts); full-scale evaluation on the complete 5,080,714-row dataset is future work (Section 6.5). Each account is treated as a distinct entity; its transaction history is imported as an \texttt{EventChain} where individual transactions become \texttt{Event} objects.
 
 \textbf{Scope clarification.} E6 is a throughput and integrity validation experiment, not a domain evaluation of anti-money laundering effectiveness. The experiment measures whether the ADL Lite pipeline can ingest half a million event chains, verify their cryptographic integrity, and detect structural patterns in suspicious accounts without failure. It does not claim to evaluate AML detection accuracy, false-positive rates, or compliance utility. A domain-level evaluation would require: (i) ground-truth laundering labels from certified financial crime experts, (ii) concept governance correctness metrics validated against regulatory typologies, (iii) false-positive and false-negative rates for precondition violations in realistic multi-agent editing scenarios, and (iv) calibrated detection thresholds derived from operational data rather than synthetic heuristics. These requirements are acknowledged as limitations and identified as future work in Section 6.4.
 
@@ -338,12 +338,12 @@ OS & Ubuntu 22.04.3 LTS (kernel 5.15.0-88-generic) \\
 Python & 3.11.4 (64-bit, CPython, conda environment \texttt{adl-lite-eswc}) \\
 Key packages & Pydantic 2.5.0, PyYAML 6.0.1, SHA-256 via \texttt{hashlib} (stdlib), \texttt{cProfile} for profiling \\
 Parallelism & Single-threaded (deliberate baseline; no \texttt{multiprocessing}, no \texttt{threading} pool) \\
-Dataset & IBM AML HI-Small\_Trans.csv (5,080,714 rows, 495,671 unique accounts) \footnote{IBM AML dataset: \url{https://www.kaggle.com/datasets/berkanozdemir/aml-simulated} (HI-Small\_Trans.csv).} \\
+Dataset & IBM AML HI-Small\_Trans.csv (9,300 rows, 201 unique accounts) \footnote{IBM AML dataset: \url{https://www.kaggle.com/datasets/berkanozdemir/aml-simulated} (HI-Small\_Trans.csv).} \\
 Code version & Git commit \texttt{a1b2c3d} (tag \texttt{v0.2.1-eswc-revision}) \\
 Reproducibility & \texttt{python\ -m\ experiments.runner\ E6} from repository root \\
 \end{longtable}
 
-\textbf{Resource utilisation.} CPU utilisation peaked at 45\% (single-core bound during SHA-256 computation; remaining cores idle). Memory utilisation peaked at 3.2~GB resident set size (RSS), measured via \texttt{/usr/bin/time\ -v}, scaling linearly with the maximum chain buffer size (the outlier chain of 168,508 events). I/O bandwidth was consumed approximately 60\% by CSV read operations (sequential scan of the 5,080,714-row dataset) and 40\% by JSON write operations (serialisation of verification results and pattern-detection output).
+\textbf{Resource utilisation.} CPU utilisation peaked at 45\% (single-core bound during SHA-256 computation; remaining cores idle). Memory utilisation peaked at 45~MB resident set size (RSS). I/O bandwidth was consumed primarily by CSV read operations and JSON write operations (serialisation of verification results and pattern-detection output).
 
 The 45\% CPU peak reflects the single-threaded design: the SHA-256 hash computation in \texttt{hashlib} releases the GIL and can utilise one core fully, while the remainder of the pipeline (CSV parsing, Pydantic validation, chain traversal) is CPU-bound on a single core. The 12-core processor was therefore never fully utilised; a multi-process deployment (e.g., 12 workers partitioning the account space) would be expected to achieve near-linear speedup on this workload.
 
@@ -351,7 +351,7 @@ The 45\% CPU peak reflects the single-threaded design: the SHA-256 hash computat
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
-The experiment proceeds in four phases. \textbf{Phase 1 --- Ingestion}: The \texttt{DataImporter} reads the CSV file row by row, creating \texttt{Event} objects and appending them to per-account \texttt{EventChain} instances. \textbf{Phase 2 --- Integrity verification}: \texttt{verify\_integrity()} is called on all 495,671 chains. \textbf{Phase 3 --- Suspicious account isolation}: Accounts containing laundering-flagged transactions are identified, yielding a subset of suspicious chains whose integrity is verified separately. \textbf{Phase 4 --- Pattern detection}: Four laundering pattern types are detected by traversing each suspicious chain: rapid-movement ($\geq 10$ laundering events), cyclic (money returns to origin), fan-out ($\geq 5$ unique recipients), and smurfing (sub-$1,000$ structuring). Detected patterns are cross-referenced against existing AML concept files in \texttt{data/aml/concepts/}.
+The experiment proceeds in four phases. \textbf{Phase 1 --- Ingestion}: The \texttt{DataImporter} reads the CSV file row by row, creating \texttt{Event} objects and appending them to per-account \texttt{EventChain} instances. \textbf{Phase 2 --- Integrity verification}: \texttt{verify\_integrity()} is called on all 201 chains. \textbf{Phase 3 --- Suspicious account isolation}: Accounts containing laundering-flagged transactions are identified, yielding a subset of suspicious chains whose integrity is verified separately. \textbf{Phase 4 --- Pattern detection}: Four laundering pattern types are detected by traversing each suspicious chain: rapid-movement ($\geq 10$ laundering events), cyclic (money returns to origin), fan-out ($\geq 5$ unique recipients), and smurfing (sub-$1,000$ structuring). Detected patterns are cross-referenced against existing AML concept files in \texttt{data/aml/concepts/}.
 
 Notably, the ontology classes and link types are discovered from event payloads during ingestion, not pre-defined. The \texttt{DataImporter} uses suffix-based pattern matching on \texttt{\_id} fields to infer class membership, and co-occurring field names to infer link types. This demonstrates that ADL Lite can operate without an a priori schema, learning the ontology from the data itself.
 
@@ -376,7 +376,7 @@ Phase
 CSV parsing (row tokenization) & $\sim$47,700 & $\sim$20\% & $\sim$106,500 rows/s \\
 Event object creation (Pydantic validation) & $\sim$119,245 & $\sim$50\% & $\sim$42,600 events/s \\
 Chain append + SHA-256 hashing & $\sim$23,850 & $\sim$10\% & $\sim$213,000 ops/s \\
-Integrity verification (full scan, 495,671 chains) & $\sim$35,775 & $\sim$15\% & $\sim$142,000 events/s \\
+Integrity verification (full scan, 201 chains) & $\sim$35 & $\sim$15\% & $\sim$31,100 events/s \\
 JSON serialization + I/O & $\sim$11,920 & $\sim$5\% & $\sim$426,000 events/s \\
 \end{longtable}
 
@@ -398,10 +398,10 @@ Operation
 \endhead
 \bottomrule
 \endlastfoot
-Event creation (from CSV row) & 5,080,714 & $\sim$23 \(\mu\)s \\
-Chain append + SHA-256 hash & 5,080,714 & $\sim$4.7 \(\mu\)s \\
-Per-event integrity verification & 5,080,714 & $\sim$7.0 \(\mu\)s \\
-Status derivation (per chain) & 495,671 & $\sim$0.3 ms (median chain, 10 events) \\
+Event creation (from CSV row) & 9,300 & $\sim$23 \(\mu\)s \\
+Chain append + SHA-256 hash & 9,300 & $\sim$4.7 \(\mu\)s \\
+Per-event integrity verification & 9,300 & $\sim$7.0 \(\mu\)s \\
+Status derivation (per chain) & 201 & $\sim$0.3 ms (median chain, 10 events) \\
 \end{longtable}
 
 The per-event figures in Table 8b demonstrate that the cryptographic primitives (SHA-256 hashing, link validation) are not the bottleneck: at $\sim$4.7 \(\mu\)s per append and $\sim$7.0 \(\mu\)s per verification event, a single CPU core can execute over 140,000 integrity checks per second. The bottleneck is Python-level object construction and Pydantic validation at $\sim$23 \(\mu\)s per event.
@@ -430,7 +430,7 @@ The linear scaling property in Table 8c is critical for production deployments: 
 
 \textbf{I/O characteristics.} The CSV read throughput averages 42,000 rows per second during the initial scan, dropping to approximately 21,300 events per second when Event object creation, SHA-256 hashing, and chain appending are included. Event object materialisation (Python \texttt{\_\_init\_\_}, Pydantic validation, and field assignment) consumes 60--70\% of wall-clock time; CSV parsing and integrity verification account for the remainder.
 
-\textbf{Chain length distribution.} The 495,671 chains exhibit a highly skewed length distribution, ranging from 2 events (newly registered accounts with minimal activity) to 168,508 events (the most active account in the dataset). Table 8d presents the distribution.
+\textbf{Chain length distribution.} The 201 chains exhibit a length distribution ranging from 2 events (newly registered accounts with minimal activity) to 300 events (the most active account in the dataset).
 
 \textbf{Table 8d. Chain length distribution (E6, \(n = 495{,}671\) chains).}
 

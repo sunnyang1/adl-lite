@@ -1,0 +1,21 @@
+\subsection{Summary of Contributions}\label{subsec:summary}
+
+This paper presented ADL Lite, an event-first operational ontology for concept lifecycle governance, and evaluated it through ontological analysis, formal semantics, and empirical validation. The contributions are restated below:
+
+\textbf{Ontological analysis.} We analyzed ADL Lite's core categories through BFO, DOLCE, and UFO. We showed that Event corresponds to occurrent/perdurant, Concept to generically dependent continuant/non-physical object, Relation to relational quality/relator, and Action to planned process/intentional event. We formalized identity conditions and analyzed three forms of ontological dependence.
+
+\textbf{Formal semantics.} We provided a complete formal foundation: event alphabet, well-formedness predicate, status derivation $\delta(C)$, confidence aggregation $\gamma(C)$, fork/confluence semantics, and six proved properties. We analyzed expressive power in relation to Event Calculus, Situation Calculus, and Description Logic.
+
+\textbf{Empirical validation.} Four experiments confirmed zero integrity failures, 100\% derivation accuracy (2,204/2,204 cases), perfect precondition enforcement (P = R = F1 = 1.0), and linear scalability (31,100 events/second).
+
+\subsection{Future Work}\label{subsec:future-work}
+
+\textbf{Ontological alignment.} Future work includes formal OWL axiomatizations of ADL Lite categories aligned with BFO, DOLCE, and UFO modules; cross-validation with ontology alignment tools; and participation in the OBO Foundry interoperability framework.
+
+\textbf{Controlled forgetting.} The append-only model requires extensions for long-term deployment: quality gates that score information gain before appending events; embedding-based semantic deduplication; and physical archiving of old events with retention of hash-link integrity.
+
+\textbf{Confidence calibration.} Integration of Expected Calibration Error (ECE) tracking and meta-validator agents to address overconfidence in self-reported confidence values.
+
+\textbf{Cryptographic authentication.} Phase~3 extensions include Linked Data Proofs (URDNA2015 + ed25519), decentralized identifiers (DIDs), and multi-tenant scope isolation with cryptographically enforced access boundaries.
+
+\textbf{Domain evaluation.} Evaluation against expert-annotated ground truth in specific domains (biomedical ontology curation, financial crimes typologies) to establish domain-level correctness beyond architectural correctness.

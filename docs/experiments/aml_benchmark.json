@@ -1,0 +1,13 @@
+{
+  "dataset": "IBM AML HI-Small_Trans.csv",
+  "total_accounts": 201,
+  "total_events": 9300,
+  "ground_truth_positives": 1,
+  "predicted_positives": 1,
+  "tp": 1,
+  "fp": 0,
+  "fn": 0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "f1": 1.0
+}

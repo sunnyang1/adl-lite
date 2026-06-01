@@ -3,6 +3,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![ESWC + ISWC 2027 Target](https://img.shields.io/badge/Target-ESWC%20%2B%20ISWC%202027-blue.svg)](https://eswc-conferences.org/)
+[![Applied Ontology Target](https://img.shields.io/badge/Target%20Journal-Applied%20Ontology-blue.svg)](https://www.iospress.nl/journal/applied-ontology/)
 [![Experiments: 6/6 PASS](https://img.shields.io/badge/experiments-6%2F6%20PASS-brightgreen.svg)]()
 [![IBM AML: 495K chains 100% integrity](https://img.shields.io/badge/IBM%20AML-495K%20chains%20100%25%20OK-blue.svg)]()
 

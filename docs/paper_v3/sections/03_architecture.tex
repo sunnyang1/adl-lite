@@ -52,7 +52,7 @@ An \emph{event} \(e\) is a structured record comprising nine fields: \texttt{eve
 e = (\text{event\_id}, \text{concept\_id}, \tau, \text{actor}, \text{reasoning}, t, \text{payload}, \text{prev\_id}, H)\nonumber
 \]
 
-where \(\tau \in \{\text{REGISTER}, \text{VALIDATE}, \text{DEPRECATE}, \text{FORK}, \text{ARCHIVE}, \text{RELATE}, \text{EVIDENCE}, \text{SEAL}, \text{ANNOUNCE}, \text{PUBLISH}\}\), \(t\) is an ISO-8601 timestamp, and \(H = \text{SHA\_256}(\text{serialize}(e \setminus \{H\}))\) is the cryptographic hash computed over all fields except the hash itself.
+where \(\tau \in \{\text{REGISTER}, \text{VALIDATE}, \text{DEPRECATE}, \text{FORK}, \text{ARCHIVE}, \text{RELATE}, \text{EVIDENCE}, \text{SEAL}, \text{ANNOUNCE}, \text{PUBLISH}\}\), \(t\) is an ISO-8601 timestamp, and \(H = \text{SHA\_256}(\text{serialize}(e \setminus \{H\}))\) is the cryptographic hash computed over all fields except the hash itself. The timestamp is included in the hashed payload so that post-hoc timestamp edits are detectable as integrity violations.
 
 \subsubsection{Canonical Serialization for Cryptographic Hashing}\label{canonical-serialization-for-cryptographic-hashing}
 
@@ -61,7 +61,7 @@ To ensure that SHA-256 hashes are deterministic and platform-independent, ADL Li
 \begin{enumerate}
 \def\labelenumi{\arabic{enumi}.}
 \item
-  \textbf{Field ordering.} Fields are serialized in the fixed order: \(\text{event\_id}\), \(\text{concept\_id}\), \(\text{event\_type}\), \(\text{actor}\), \(\text{reasoning}\), \(\text{payload}\), \(\text{previous\_event\_id}\). The \(\text{timestamp}\) field is \textbf{excluded} from the hash input (see Section 3.6 for the clock-skew rationale). The \(\text{hash}\) field is naturally excluded because it is the value being computed.
+  \textbf{Field ordering.} Fields are serialized in the fixed order: \(\text{event\_id}\), \(\text{concept\_id}\), \(\text{event\_type}\), \(\text{actor}\), \(\text{reasoning}\), \(\text{timestamp}\), \(\text{payload}\), \(\text{previous\_event\_id}\). The \(\text{hash}\) field is naturally excluded because it is the value being computed.
 \item
   \textbf{Recursive key sorting.} All JSON object keys are sorted lexicographically. The \(\text{payload}\) dictionary is recursively sorted so that nested objects have their keys ordered deterministically regardless of insertion order.
 \item
@@ -75,7 +75,7 @@ To ensure that SHA-256 hashes are deterministic and platform-independent, ADL Li
 Formally, let \(\mathsf{serialize\_canonical}(e)\) produce a byte sequence \(b\) such that:
 
 \[
-b = \mathsf{UTF\text{-}8}\bigl(\mathsf{JSON\text{-}SORTED}(e \setminus \{\text{hash}, \text{timestamp}\})\bigr)
+b = \mathsf{UTF\text{-}8}\bigl(\mathsf{JSON\text{-}SORTED}(e \setminus \{\text{hash}\})\bigr)
 \]
 
 where \(\mathsf{JSON\text{-}SORTED}\) denotes JSON serialization with lexicographically sorted keys at every nesting level and no whitespace, and \(\setminus\) denotes record subtraction (field removal). The event hash is then:
@@ -84,19 +84,19 @@ where \(\mathsf{JSON\text{-}SORTED}\) denotes JSON serialization with lexicograp
 H(e) = \mathsf{SHA\text{-}256}(b)
 \]
 
-\textbf{Proposition 1 (Hash Determinism).} For any two event records \(e_1\) and \(e_2\), if \(e_1 \setminus \{\text{hash}, \text{timestamp}\} = e_2 \setminus \{\text{hash}, \text{timestamp}\}\), then \(H(e_1) = H(e_2)\).
+\textbf{Proposition 1 (Hash Determinism).} For any two event records \(e_1\) and \(e_2\), if \(e_1 \setminus \{\text{hash}\} = e_2 \setminus \{\text{hash}\}\), then \(H(e_1) = H(e_2)\).
 
-\emph{Proof.} The canonical serialization \(\mathsf{serialize\_canonical}\) is a pure function: it removes the \(\text{hash}\) and \(\text{timestamp}\) fields, recursively sorts all object keys, eliminates whitespace, rounds floating-point values to six decimal places, and encodes the result as UTF-8. Each of these operations is deterministic and total over valid event records. Therefore, equal inputs produce identical byte sequences \(b\), and since \(\mathsf{SHA\text{-}256}\) is itself a deterministic function over byte sequences, equal inputs yield equal hashes. \(\square\)
+\emph{Proof.} The canonical serialization \(\mathsf{serialize\_canonical}\) is a pure function: it removes the \(\text{hash}\) field, recursively sorts all object keys, eliminates whitespace, rounds floating-point values to six decimal places, and encodes the result as UTF-8. Each of these operations is deterministic and total over valid event records. Therefore, equal inputs produce identical byte sequences \(b\), and since \(\mathsf{SHA\text{-}256}\) is itself a deterministic function over byte sequences, equal inputs yield equal hashes. \(\square\)
 
 \textbf{Proposition 2 (Malleability Resistance).} Two semantically identical events produce identical hashes regardless of the source format (YAML front matter, Markdown body, or programmatic construction).
 
 \emph{Proof.} All source formats are parsed into the same internal event record structure before canonicalization. The canonical serialization discards format-specific artifacts (YAML indentation, Markdown syntax, insertion-order differences in programmatically constructed dictionaries). By Proposition 1, identical internal records yield identical hashes. \(\square\)
 
-\textbf{Proposition 3 (Timestamp Independence).} The hash of an event does not depend on its \(\text{timestamp}\) field.
+\textbf{Proposition 3 (Timestamp Integrity).} Any modification to an event's \(\text{timestamp}\) field changes its hash.
 
-\emph{Proof.} The \(\text{timestamp}\) field is explicitly removed by the set subtraction \(e \setminus \{\text{hash}, \text{timestamp}\}\) prior to serialization. Therefore, two events that differ only in their timestamp values produce identical byte sequences \(b\) and hence identical hashes. \(\square\)
+\emph{Proof.} The \(\text{timestamp}\) field is included in the set of fields serialized prior to hashing. Therefore, two events that differ only in their timestamp values produce different byte sequences \(b\) and hence different hashes. Any post-hoc timestamp edit breaks the chain integrity check at the next event link. \(\square\)
 
-\textbf{Remark on hash chain integrity.} The exclusion of \(\text{timestamp}\) from the hash input is a deliberate design choice. Event ordering is determined entirely by the append sequence (i.e., the \(\text{previous\_event\_id}\) linkage), not by timestamp values. This ensures that clock skew---whether benign (agent with misconfigured clock) or adversarial (intentional backdating)---cannot cause hash mismatches or chain forks. The timestamp field serves informational purposes only: human readability, coarse temporal queries, and audit log display. It is not used for verification or ordering.
+\textbf{Remark on hash chain integrity.} The inclusion of \(\text{timestamp}\) in the hash input preserves tamper-evidence for provenance: any post-hoc edit to a timestamp is detectable as an integrity violation. Event ordering, however, is determined entirely by the append sequence (i.e., the \(\text{previous\_event\_id}\) linkage), not by timestamp values. This separation ensures that clock skew---whether benign (agent with misconfigured clock) or adversarial (intentional backdating)---cannot cause spurious chain forks, because ordering does not depend on timestamps. The timestamp field therefore serves dual purposes: (i) integrity-sensitive provenance annotation, and (ii) human-readable temporal context for audit logs and chain visualization.
 
 \textbf{Remark on payload normalization.} The six-decimal rounding of floating-point values in \(\text{payload}\) is sufficient for confidence values expressed in the range \([0, 1]\) and prevents hash divergence caused by platform-specific floating-point representations (e.g., IEEE 754 double-precision vs.~extended precision). Domains requiring higher precision may configure the rounding parameter in \(\text{adl\_core\_ontology.yaml}\); however, all participants in a shared repository must agree on the same rounding policy to maintain hash consistency.
 
@@ -104,13 +104,13 @@ H(e) = \mathsf{SHA\text{-}256}(b)
 
 The EventChain architecture makes a strict separation between \textbf{event ordering} (a cryptographic property) and \textbf{event timing} (an informational annotation). This separation enables ADL Lite to tolerate arbitrary clock skew across agents while maintaining deterministic chain integrity.
 
-\textbf{Timestamp exclusion from the hash input.} The \(\text{timestamp}\) field of every event is explicitly excluded from the SHA-256 hash computation, as specified in Section 3.3.1. Formally, for any event \(e\):
+\textbf{Timestamp inclusion in the hash input.} The \(\text{timestamp}\) field of every event is explicitly included in the SHA-256 hash computation, as specified in Section 3.3.1. Formally, for any event \(e\):
 
 \[
-H(e) = \mathsf{SHA\text{-}256}\bigl(\mathsf{serialize\_canonical}(e \setminus \{\text{hash}, \text{timestamp}\})\bigr)
+H(e) = \mathsf{SHA\text{-}256}\bigl(\mathsf{serialize\_canonical}(e \setminus \{\text{hash}\})\bigr)
 \]
 
-This means that two events that differ only in their \(\text{timestamp}\) values are cryptographically indistinguishable: they produce identical hashes and can therefore be substituted for one another without breaking the chain. The practical consequence is that clock skew---whether caused by misconfigured NTP, timezone differences, or adversarial backdating---cannot cause hash mismatches or invalidate chain integrity.
+This means that two events that differ only in their \(\text{timestamp}\) values produce different hashes. Any post-hoc timestamp edit therefore breaks the cryptographic chain at the next event link, making timestamp tampering detectable during \(\texttt{verify\_integrity()}\). Clock skew tolerance is achieved not by excluding timestamps from the hash, but by defining event ordering exclusively through the \(\texttt{previous\_event\_id}\) cryptographic linkage, which is independent of wall-clock time.
 
 \textbf{Event ordering by append sequence, not timestamp.} The temporal order of events within a single EventChain is determined entirely by the \(\text{previous\_event\_id}\) linkage, which forms a cryptographic linked list. An event \(e_i\) precedes \(e_j\) in the chain if and only if there exists a sequence of \(\text{previous\_event\_id}\) links from \(e_j\) back to \(e_i\). This is a \textbf{happens-before} relation defined by cryptographic reference, not by timestamp comparison.
 
@@ -122,7 +122,7 @@ e_i \prec e_j \iff \exists\, k_1, k_2, \ldots, k_m \;:\; e_j.\text{prev\_id} = H
 
 The relation \(\prec\) is a strict partial order: it is irreflexive (no event happens before itself), transitive (by composition of hash links), and asymmetric (the cryptographic hash function is collision-resistant, so \(e_i \prec e_j\) implies \(e_j \not\prec e_i\)). The timestamp field plays no role in defining \(\prec\).
 
-\textbf{Non-monotonic timestamp tolerance.} Because timestamps are not used for ordering or hashing, ADL Lite tolerates arbitrary non-monotonicity in timestamp values. An event may carry a timestamp earlier than its predecessor, later than its successor, or any other value, without affecting chain validity. This is essential for distributed settings where agents may have unsynchronized clocks.
+\textbf{Non-monotonic timestamp tolerance.} Because timestamps are not used for ordering, ADL Lite tolerates arbitrary non-monotonicity in timestamp values. An event may carry a timestamp earlier than its predecessor, later than its successor, or any other value, without affecting chain validity---though such anomalies will be detectable as hash mismatches if the timestamp is edited after the event is appended. This is essential for distributed settings where agents may have unsynchronized clocks.
 
 \textbf{Timestamp role: informational only.} The \(\text{timestamp}\) field serves three informational purposes:
 
@@ -492,7 +492,7 @@ c'_{\text{base}} = \max\Bigl(0.5, \frac{|A| \cdot \mu + \gamma}{|A| + 1}\Bigr)
 
 where \(\mu\) is the previous mean of per-actor confidences. The new returned confidence is \(c' = \min(1.0, c'_{\text{base}} + 0.05 \cdot |A|)\). The previous confidence was \(c = \min(1.0, c_{\text{base}} + 0.05 \cdot (|A| - 1))\). The validator count increment adds \(0.05\) to the bonus term. Even if \(c'_{\text{base}} \leq c_{\text{base}}\) (which can occur if \(\gamma < \mu\)), the additional \(0.05\) from the validator count ensures \(c' \geq c\). If \(c < 1.0\), the \(\min(1.0, \cdot)\) is not binding, so \(c' > c\). \(\square\)
 
-\textbf{Corollary 2 (Sybil Resistance).} A single actor cannot increase confidence by submitting multiple \(\text{VALIDATE}\) events.
+\textbf{Corollary 2 (Bounded Confidence Aggregation per Distinct Actor).} A single actor cannot increase confidence by submitting multiple \(\text{VALIDATE}\) events. Full Sybil resistance---preventing an adversary from creating arbitrarily many distinct actor identities to inflate confidence---requires cryptographic actor authentication (Phase 3; Section 3.7). In Phase 1, the bound provides Sybil \emph{awareness} (redundant events from the same actor string do not compound) but not Sybil \emph{resistance} under adversarial identity fabrication.
 
 \emph{Proof.} By line 6 of Algorithm 2, only the highest confidence value per actor is retained. Subsequent \(\text{VALIDATE}\) events from the same actor either (i) have lower confidence, in which case they do not change \(V_{\text{per\_actor}}\), or (ii) have higher confidence, in which case they replace the previous value. In neither case does the number of distinct validators \(N_{\text{vals}}\) increase, so the bonus term \(0.05 \times (N_{\text{vals}} - 1)\) is unchanged. \(\square\)
 

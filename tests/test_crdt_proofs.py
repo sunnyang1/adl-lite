@@ -12,7 +12,6 @@ Covers:
   8. from_chain: derive CRDT state from existing EventChain
 """
 
-
 from adl_lite.crdt import (
     CRDTState,
     StatusOrder,
