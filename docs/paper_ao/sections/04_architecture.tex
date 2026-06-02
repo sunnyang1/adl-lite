@@ -24,6 +24,20 @@ The L2 layer consists of the Markdown body: human- and LLM-readable prose. The S
 
 The L3 layer introduces typed semantic assertions through fenced code blocks: \texttt{adl:relation} for typed edges between concepts (supporting predicates such as \texttt{isomorphic-to} and \texttt{specialisation-of}), \texttt{adl:evidence} for evidentiary support, and \texttt{adl:seal} for formal assertions. These blocks are machine-parseable RDF-like triples that remain editable in ordinary text editors.
 
+\subsubsection{L3 Relation Lifecycle Operations}\label{subsubsec:l3-lifecycle}
+
+ADL Lite's L3 relation blocks support three lifecycle operations: \emph{establishment}, \emph{modification}, and \emph{revocation}. Each operation is recorded as an event in the concept's EventChain, enabling full provenance tracking for relational assertions.
+
+\textbf{Establishment.} A relation is established by a \texttt{RELATE} event with fields: \texttt{source}, \texttt{relation} (predicate from closed registry), \texttt{target}, optional \texttt{confidence}, and optional \texttt{mapping\_type}. The relation becomes part of the concept's derived state. Precondition: the \texttt{relation} predicate must be registered in \texttt{adl\_core\_ontology.yaml} (strict mode) or will be accepted with a warning (relaxed mode).
+
+\textbf{Modification.} A relation's confidence or mapping type can be modified by a subsequent \texttt{RELATE} event with the same \texttt{source}, \texttt{relation}, and \texttt{target} but different \texttt{confidence} or \texttt{mapping\_type}. The new event \emph{supersedes} the previous one: derived queries return the most recent value. Both events remain in the chain for audit purposes. This is analogous to SQL UPDATE with full audit logging.
+
+\textbf{Revocation.} A relation is revoked by a \texttt{RELATE} event with the same \texttt{source}, \texttt{relation}, \texttt{target} but \texttt{confidence = 0.0} or a special \texttt{revoked: true} flag. The relation is excluded from derived state. The revocation itself is cryptographically linked to the original establishment event via the chain, providing non-repudiable revocation provenance.
+
+\textbf{Truth maintenance under forks.} When a concept forks, all active relations from the parent chain are \emph{inherited} by the child chain at the fork point. Subsequent modifications in either lineage do not affect the other---each fork maintains its own relation state. This is consistent with the fork semantics: a fork is a competing interpretation, and competing interpretations may have different relational assertions about the same entities.
+
+\textbf{Conflicting relation assertions.} If two agents assert contradictory relations (e.g., A says ``X isomorphic-to Y'' with confidence 0.9, B says ``X unrelated-to Y'' with confidence 0.8), both events are appended to the chain. The derived state includes both assertions (they are not mutually exclusive at the event level), and downstream consumers must apply their own resolution logic. ADL Lite provides the \emph{provenance infrastructure} for conflict detection but does not prescribe a single resolution strategy---this is a deliberate design choice to accommodate diverse domain requirements.
+
 The L4 layer introduces \texttt{adl:action} blocks: typed actions with structured precondition rules that govern lifecycle transitions and trigger side effects. The four-layer design enables a single Markdown file to serve simultaneously as human-readable documentation, LLM authoring surface, machine-parseable semantic assertion container, and auditable action log.
 
 \subsection{EventChain: Core Data Structure}\label{subsec:eventchain}
@@ -166,28 +180,3 @@ The derivation functions $\delta$ and $\gamma$ are computable in polynomial time
 Specifically, $\delta$ corresponds to a \emph{path query} over the event chain: ``find the last event in the chain whose type is in $\Sigma_{\text{life}}$, and return the corresponding status.'' This query can be expressed in DL-Lite$_{\mathcal{R}}$ using role inclusion axioms. The confidence aggregation $\gamma$ involves aggregation (mean, max) over sets of events, which goes beyond standard DL query answering but can be handled by DL extensions with aggregation operators \cite{dl_lite}.
 
 The practical implication is that ADL Lite's derivation semantics are \emph{tractable}: they do not require OWL reasoners or complex inference engines. This aligns with the design goal of lightweight deployment: the ontology can be processed by a simple Python script operating over Markdown files, without requiring a triple store or DL reasoner.
-
-\subsubsection{Comparison with DL-Lite Family}\label{subsubsec:dl-lite-comparison}
-
-The derivation functions $\delta$ and $\gamma$ can be precisely characterized in terms of Description Logic (DL) expressivity. Table~\ref{tab:dl-lite-comparison} compares ADL Lite's event algebra with two lightweight DL families: DL-Lite$_{\mathcal{R}}$ (the core DL-Lite dialect supporting role inclusion and inverse roles) and Datalog$^{\pm}$ (the rule-based extension with existential quantification and tuple-generating dependencies).
-
-\begin{table}[htbp]
-\centering
-\caption{Expressivity comparison: ADL Lite Event Algebra vs.\ DL-Lite$_{\mathcal{R}}$ vs.\ Datalog$^{\pm}$.}
-\label{tab:dl-lite-comparison}
-\begin{tabular}{@{}p{3.5cm}p{3.0cm}p{3.0cm}p{3.0cm}@{}}
-\toprule
-\textbf{Capability} & \textbf{ADL Lite} & \textbf{DL-Lite$_{\mathcal{R}}$} & \textbf{Datalog$^{\pm}$} \\
-\midrule
-Concept lifecycle state & $\delta(C)$ (path query) & Role chain query & Linear recursive rule \\
-Precondition checking & Closed Comparator enum & N/A (no actions) & EGD with built-in \\
-Fork/merge semantics & \textsc{FORK} event + child chain & N/A (no versioning) & N/A \\
-Confidence aggregation & $\gamma(C)$ (aggregation) & N/A & Aggregate function \\
-Temporal reasoning & Chain ordering (sequential) & N/A & N/A \\
-Cryptographic integrity & SHA-256 hash chain & N/A & N/A \\
-Query complexity & $O(n)$ per chain & AC$^0$ (data complexity) & PTIME \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-ADL Lite's status derivation $\delta(C)$ corresponds to a \emph{path query} over the event chain: ``find the last event whose type is in $\Sigma_{\text{life}}$, and return the corresponding status.'' This query can be expressed in DL-Lite$_{\mathcal{R}}$ using role inclusion axioms of the form $\text{prev} \circ \text{type} \sqsubseteq \text{transitionsTo}$, but the aggregation in $\gamma(C)$ (mean, max over sets of events) exceeds standard DL query answering. The practical implication is that ADL Lite's derivation semantics are tractable---they do not require OWL reasoners or complex inference engines---but they occupy a distinct expressive niche that is not fully captured by existing DL families. ADL Lite is best understood not as a replacement for DL but as a \emph{lightweight operational layer} that complements DL-based ontologies with event-sourced lifecycle governance and cryptographic provenance.

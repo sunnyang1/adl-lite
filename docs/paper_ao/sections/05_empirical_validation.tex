@@ -90,3 +90,40 @@ E6 & Scalability & Integrity & 0 failures & 201 chains, 9,300 events \\
 \bottomrule
 \end{tabular}
 \end{table}
+% =============================================================================
+% Human-in-the-Loop Evaluation Methodology
+% Subsection for domain-level evaluation with human subjects
+%
+% This file should be included in the main evaluation section of the paper
+% (e.g., \input{sections/evaluation_methodology} or pasted into the
+% relevant .tex file).
+%
+% Prerequisites: \usepackage{enumitem} for custom enumerate labels
+% =============================================================================
+
+\subsection{Human-in-the-Loop Evaluation: Methodology}\label{subsec:human-eval}
+
+To complement the architectural correctness evaluation (E1--E4), we propose a human-in-the-loop study measuring ADL~Lite's practical utility for ontology curation.
+
+\textbf{Study design.} A between-subjects experiment with two conditions:
+\begin{itemize}
+    \item \textbf{Control}: Curators use standard Markdown + Git for collaborative concept governance.
+    \item \textbf{Treatment}: Curators use ADL~Lite with EventChain validation, precondition enforcement, and automated provenance tracking.
+\end{itemize}
+
+\textbf{Participants.} 10--15 ontology curators per condition, recruited from the OBO Foundry community and biomedical ontology mailing lists. Participants have at least 2 years of ontology curation experience.
+
+\textbf{Task.} Participants collaborate on curating a set of 20 AML-related concepts over a 2-week period. Concepts include known laundering patterns (smurfing, rapid movement, layering) and novel patterns discovered during the study.
+
+\textbf{Metrics.}
+\begin{enumerate}[label=(\arabic*)]
+    \item \emph{Curator agreement}: Inter-rater reliability (Cohen's $\kappa$) on concept validation decisions.
+    \item \emph{Time-to-resolution}: Median time from concept proposal to final status (validated/deprecated).
+    \item \emph{Conflict rate}: Number of \textsc{Fork} events per concept.
+    \item \emph{Audit completeness}: Fraction of status transitions with complete evidence chains.
+    \item \emph{Perceived utility}: Post-study questionnaire (5-point Likert) on perceived auditability, trust, and collaboration quality.
+\end{enumerate}
+
+\textbf{Expected outcomes.} We expect the Treatment condition to show: (a) higher curator agreement due to structured precondition enforcement; (b) faster time-to-resolution due to automated status derivation; (c) lower conflict rate due to deterministic fork semantics; (d) higher audit completeness by design; (e) higher perceived utility scores, particularly for auditability.
+
+\textbf{Ethics.} The study will be approved by the institutional ethics committee. All participants provide informed consent. Data is anonymized and stored in compliance with GDPR.

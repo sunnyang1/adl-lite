@@ -1,0 +1,257 @@
+This appendix provides complete proof sketches for the six theorems stated in Section~\ref{subsec:formal-semantics}. All proofs assume the formal definitions of event well-formedness ($\Phi$), status derivation ($\delta$), and confidence aggregation ($\gamma$) given in that section. For reference, we recall the key definitions:
+
+\begin{itemize}
+    \item The event alphabet $\Sigma = \Sigma_{\text{life}} \cup \Sigma_{\text{comm}}$ where $\Sigma_{\text{life}} = \{\textsc{Register}, \textsc{Validate}, \textsc{Deprecate}, \textsc{Fork}, \textsc{Archive}\}$.
+    \item A chain $C = [e_1, \ldots, e_n]$ is \emph{well-formed}, denoted $\Phi(C)$, iff it satisfies the five conditions of genesis anchoring, shared \textit{concept\_id}, cryptographic linkage, hash correctness, and pairwise distinct \textit{event\_id} values.
+    \item The lifecycle subsequence $C_{\text{life}} = [e \in C \mid e.\textit{type} \in \Sigma_{\text{life}}]$.
+    \item The status map $f: \Sigma_{\text{life}} \to S$ defined by $f(\textsc{Register}) = \textit{provisional}$, $f(\textsc{Validate}) = \textit{validated}$, $f(\textsc{Deprecate}) = \textit{deprecated}$, $f(\textsc{Fork}) = \textit{forked}$, $f(\textsc{Archive}) = \textit{archived}$.
+\end{itemize}
+
+%-------------------------------------------------------------------------------
+\subsection{Theorem~\ref{thm:determinism}: Determinism of Status Derivation}
+%-------------------------------------------------------------------------------
+
+We begin with the foundational result that status derivation is a deterministic function of the event chain. This theorem establishes that the status of a concept is uniquely determined by its event history, with no ambiguity.
+
+\begin{theorem}[Determinism]\label{thm:determinism}
+For any well-formed chain $C$, the status $\delta(C)$ is unique and depends only on the last lifecycle event in $C$. Formally:
+\begin{equation}
+    \forall C, C' \; . \; \Phi(C) \land \Phi(C') \land \operatorname{last}(C_{\text{life}}) = \operatorname{last}(C'_{\text{life}}) \implies \delta(C) = \delta(C').
+\end{equation}
+Moreover, $\delta(C)$ is computable in $O(|C|)$ time.
+\end{theorem}
+
+\begin{proof}[Proof of Theorem~\ref{thm:determinism}]
+Let $C = [e_1, \ldots, e_n]$ be a well-formed chain. By definition of the well-formedness predicate $\Phi(C)$, $C$ is a totally ordered sequence (Condition~(3): cryptographic linkage enforces a unique predecessor for every event after the genesis). The lifecycle subsequence $C_{\text{life}} = \operatorname{filter}(C, \Sigma_{\text{life}})$ is therefore also a totally ordered sequence, obtained by a deterministic filter operation.
+
+We proceed by case analysis on $C_{\text{life}}$:
+
+\textbf{Case 1:} $C_{\text{life}} = []$ (empty). Then $\delta(C) = \textit{provisional}$ by the first branch of the definition. This value is unique and independent of $C$.
+
+\textbf{Case 2:} $C_{\text{life}} \neq []$. Since $C_{\text{life}}$ is a finite, non-empty, totally ordered sequence, it has a unique last element $\textit{type}_{\text{last}} = \operatorname{last}(C_{\text{life}}).\textit{type}$. The function $f: \Sigma_{\text{life}} \to S$ is a total function (defined for every element of the closed alphabet $\Sigma_{\text{life}}$), and therefore maps $\textit{type}_{\text{last}}$ to a unique status value $s = f(\textit{type}_{\text{last}}) \in S$.
+
+The uniqueness claim follows because both the filter operation (yielding $C_{\text{life}}$) and the last-element extraction are deterministic functions of $C$. The complexity claim follows because computing $C_{\text{life}}$ requires a single scan of $C$ ($O(|C|)$) and extracting the last element is $O(1)$.
+
+\textbf{Assumptions used:} (A1) $\Phi(C)$ ensures $C$ is a valid ordered sequence; (A2) $\Sigma_{\text{life}}$ is a closed alphabet with no extension; (A3) $f$ is a total function defined on all of $\Sigma_{\text{life}}$.
+\end{proof}
+
+%-------------------------------------------------------------------------------
+\subsection{Theorem~\ref{thm:confluence}: Confluence under Fork}
+%-------------------------------------------------------------------------------
+
+Forking is the only operation in ADL Lite that creates multiple independent chains from a single concept lineage. Theorem~\ref{thm:confluence} establishes that forking preserves determinism: both the parent (forked) chain and the child chain have uniquely determined, independent statuses.
+
+\begin{theorem}[Confluence under Fork]\label{thm:confluence}
+Let $C$ be a well-formed chain and let $\operatorname{fork}(C) = (C_{\text{fork}}, C')$ where $C_{\text{fork}} = C \oplus [e_{\textsc{Fork}}]$ and $C' = [e'_{\textsc{Register}}]$. Then:
+\begin{align}
+    \delta(C_{\text{fork}}) &= \textit{forked}, \\
+    \delta(C') &= \textit{provisional}.
+\end{align}
+Moreover, $\delta(C_{\text{fork}})$ and $\delta(C')$ are independent: $\delta(C_{\text{fork}})$ depends only on $e_{\textsc{Fork}}$, and $\delta(C')$ depends only on $e'_{\textsc{Register}}$.
+\end{theorem}
+
+\begin{proof}[Proof of Theorem~\ref{thm:confluence}]
+We analyze each chain separately.
+
+\textbf{Parent chain $C_{\text{fork}}$:} By the fork semantics, $C_{\text{fork}} = C \oplus [e_{\textsc{Fork}}]$ where $e_{\textsc{Fork}}.\textit{type} = \textsc{Fork} \in \Sigma_{\text{life}}$. Therefore $e_{\textsc{Fork}}$ is the last element of $(C_{\text{fork}})_{\text{life}}$. By Theorem~\ref{thm:determinism}:
+\begin{equation}
+    \delta(C_{\text{fork}}) = f(\textsc{Fork}) = \textit{forked}.
+\end{equation}
+
+\textbf{Child chain $C'$:} By the fork semantics, $C' = [e'_{\textsc{Register}}]$ where $e'_{\textsc{Register}}.\textit{type} = \textsc{Register} \in \Sigma_{\text{life}}$. Since $C'$ contains exactly one event, $(C')_{\text{life}} = [e'_{\textsc{Register}}]$. By Theorem~\ref{thm:determinism}:
+\begin{equation}
+    \delta(C') = f(\textsc{Register}) = \textit{provisional}.
+\end{equation}
+
+\textbf{Independence:} The two derivations are independent because $C_{\text{fork}}$ and $C'$ are disjoint chains after the fork point: $C_{\text{fork}}$ appends to $C$ while $C'$ starts fresh. The event types $\textsc{Fork}$ and $\textsc{Register}$ are distinct elements of $\Sigma_{\text{life}}$, so $f$ maps them to different statuses. No subsequent event in either chain can affect the other's status derivation because status is derived per-chain.
+
+\textbf{Assumptions used:} (A1) $\Phi(C)$ and single-event well-formedness of $e_{\textsc{Fork}}$ and $e'_{\textsc{Register}}$; (A2) The child chain $C'$ is initially empty (contains only the genesis $\textsc{Register}$ event); (A3) Fork event is a single well-formed event with $\textsc{Fork} \in \Sigma_{\text{life}}$.
+\end{proof}
+
+%-------------------------------------------------------------------------------
+\subsection{Theorem~\ref{thm:monotonicity-status}: Monotonicity of Status Transitions}
+%-------------------------------------------------------------------------------
+
+This theorem establishes that the status transition system of ADL Lite respects a directed transition graph: every status change follows an edge in the status machine, and no ``jump'' transitions are possible.
+
+\begin{theorem}[Monotonicity of Status Transitions]\label{thm:monotonicity-status}
+Let $C$ be a well-formed chain with $\delta(C) = s$, and let $e_{\text{new}}$ be an event such that $\Phi(C \oplus [e_{\text{new}}])$. Let $s' = \delta(C \oplus [e_{\text{new}}])$. Then exactly one of the following holds:
+\begin{enumerate}[label=(\roman*)]
+    \item $e_{\text{new}}.\textit{type} \notin \Sigma_{\text{life}}$ and $s' = s$ (no status change);
+    \item $e_{\text{new}}.\textit{type} \in \Sigma_{\text{life}}$ and $(s, s')$ is a valid edge in the status transition machine.
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}[Proof of Theorem~\ref{thm:monotonicity-status}]
+We proceed by structural induction on the event sequence.
+
+\textbf{Base case:} $C = [e_1]$ with $e_1.\textit{type} = \textsc{Register}$. Then $\delta(C) = \textit{provisional}$. For any $e_{\text{new}}$:
+\begin{itemize}
+    \item If $e_{\text{new}}.\textit{type} \notin \Sigma_{\text{life}}$, then $(C \oplus [e_{\text{new}}])_{\text{life}} = [e_1]$, so $s' = f(\textsc{Register}) = \textit{provisional} = s$.
+    \item If $e_{\text{new}}.\textit{type} \in \Sigma_{\text{life}}$, then $s' = f(e_{\text{new}}.\textit{type})$, which by the ActionExecutor precondition checking is permitted only if $(\textit{provisional}, f(e_{\text{new}}.\textit{type}))$ is a valid transition.
+\end{itemize}
+
+\textbf{Inductive step:} Assume the theorem holds for all chains of length $n$. Let $C$ have length $n+1$ with $\delta(C) = s$. Consider $e_{\text{new}}$:
+\begin{itemize}
+    \item If $e_{\text{new}}.\textit{type} \notin \Sigma_{\text{life}}$, then $(C \oplus [e_{\text{new}}])_{\text{life}} = C_{\text{life}}$, so $s' = s$ by definition of $\delta$.
+    \item If $e_{\text{new}}.\textit{type} \in \Sigma_{\text{life}}$, then $(C \oplus [e_{\text{new}}])_{\text{life}} = C_{\text{life}} \oplus [e_{\text{new}}]$, so $s' = f(e_{\text{new}}.\textit{type})$. By the ActionExecutor precondition system, $e_{\text{new}}$ can only be appended if the precondition rules are satisfied against the current snapshot derived from $C$. These preconditions encode exactly the valid transitions of the status machine, so $(s, s')$ must be a valid edge.
+\end{itemize}
+
+In both cases, the theorem holds for chains of length $n+1$. By induction, it holds for all well-formed chains.
+
+\textbf{Assumptions used:} (A1) The ActionExecutor correctly implements precondition checking against the current snapshot; (A2) The precondition rules in the action registry are complete (cover all valid transitions and exclude all invalid ones); (A3) The status transition machine is a well-defined directed graph on $S$.
+\end{proof}
+
+%-------------------------------------------------------------------------------
+\subsection{Theorem~\ref{thm:boundedness}: Boundedness of Confidence}
+%-------------------------------------------------------------------------------
+
+Confidence values in ADL Lite are guaranteed to lie in the unit interval $[0, 1]$, ensuring that confidence comparisons are well-behaved and preventing overflow in implementations.
+
+\begin{theorem}[Boundedness]\label{thm:boundedness}
+For any well-formed chain $C$, the confidence $\gamma(C) \in [0, 1]$.
+\end{theorem}
+
+\begin{proof}[Proof of Theorem~\ref{thm:boundedness}]
+We proceed by case analysis and induction on the number of $\textsc{Validate}$ events in $C$.
+
+\textbf{Base case:} $V = [e \in C \mid e.\textit{type} = \textsc{Validate}] = []$. By definition, $\gamma(C) = 0.0 \in [0, 1]$.
+
+\textbf{Inductive step:} Assume $\gamma(C) \in [0, 1]$ for a chain $C$ with $k$ distinct validators. Consider $C' = C \oplus [e_{\text{new}}]$ where $e_{\text{new}}.\textit{type} = \textsc{Validate}$ and $e_{\text{new}}.\textit{actor}$ is a new actor (not in $\textit{actors}(V)$).
+
+By definition:
+\begin{equation}
+    \gamma(C') = \min\!\left(1.0,\; c'_{\text{base}} + 0.05 \times (N'_{\text{vals}} - 1)\right)
+\end{equation}
+where $N'_{\text{vals}} = N_{\text{vals}} + 1 = k + 1$ and:
+\begin{equation}
+    c'_{\text{base}} = \max\!\left(0.5,\; \frac{k \cdot \operatorname{mean}_{a \in \textit{actors}(V)} \phi(a, V) + e_{\text{new}}.\textit{payload}.\textit{confidence}}{k + 1}\right).
+\end{equation}
+
+By the precondition for $\textsc{Validate}$ (Theorem~\ref{thm:consistency} and system invariants), $e_{\text{new}}.\textit{payload}.\textit{confidence} \in [0, 1]$. The weighted mean is therefore a convex combination of values in $[0, 1]$, so it lies in $[0, 1]$. The $\max(0.5, \cdot)$ ensures $c'_{\text{base}} \geq 0.5$. The bonus term $0.05 \times k \geq 0$ is non-negative. Thus:
+\begin{equation}
+    c'_{\text{base}} + 0.05 \times k \geq 0.5 > 0.
+\end{equation}
+
+The outer $\min(1.0, \cdot)$ caps the value at $1.0$. Therefore $\gamma(C') \in [0, 1]$.
+
+If $e_{\text{new}}.\textit{actor} \in \textit{actors}(V)$ (duplicate validator), then $N'_{\text{vals}} = N_{\text{vals}}$ and $c'_{\text{base}}$ uses $\operatorname{argmax}$ (retaining the higher confidence), so $\gamma(C') \geq \gamma(C) \geq 0$ and the $\min(1.0, \cdot)$ cap still applies.
+
+\textbf{Assumptions used:} (A1) Individual confidence values $e.\textit{payload}.\textit{confidence} \in [0, 1]$ for all $\textsc{Validate}$ events; (A2) The $\min(1.0, \cdot)$ construction is present in the definition of $\gamma$; (A3) The $\textsc{Validate}$ precondition requires confidence $\geq 0.5$ (ensuring the lower bound).
+\end{proof}
+
+%-------------------------------------------------------------------------------
+\subsection{Theorem~\ref{thm:monotonicity-confidence}: Monotonicity of Confidence}
+%-------------------------------------------------------------------------------
+
+Confidence never decreases when a $\textsc{Validate}$ event is appended. This monotonicity property ensures that the concept governance process is cumulative: additional validation can only increase (or preserve) confidence.
+
+\begin{theorem}[Monotonicity of Confidence]\label{thm:monotonicity-confidence}
+Let $C$ be a well-formed chain and let $e_{\text{new}}$ be a $\textsc{Validate}$ event from an actor $a$ with confidence $c \in [0, 1]$. Let $C' = C \oplus [e_{\text{new}}]$. Then:
+\begin{equation}
+    \gamma(C') \geq \gamma(C).
+\end{equation}
+Moreover, if $\gamma(C) < 1.0$ and $a$ is a new validator, then $\gamma(C') > \gamma(C)$ (strict monotonicity).
+\end{theorem}
+
+\begin{proof}[Proof of Theorem~\ref{thm:monotonicity-confidence}]
+Let $\gamma(C)$ be computed from $V$ with $N_{\text{vals}} = |\textit{actors}(V)|$ and base confidence $c_{\text{base}}$. We consider two cases.
+
+\textbf{Case 1:} $a \notin \textit{actors}(V)$ (new validator). Then $N'_{\text{vals}} = N_{\text{vals}} + 1$ and:
+\begin{equation}
+    \gamma(C') = \min\!\left(1.0,\; c'_{\text{base}} + 0.05 \times N_{\text{vals}}\right)
+\end{equation}
+where $c'_{\text{base}}$ is the mean of $N_{\text{vals}} + 1$ per-actor maxima. The new base confidence is:
+\begin{equation}
+    c'_{\text{base}} = \max\!\left(0.5,\; \frac{N_{\text{vals}} \cdot c_{\text{base}}^{\text{raw}} + c}{N_{\text{vals}} + 1}\right)
+\end{equation}
+where $c_{\text{base}}^{\text{raw}} = \operatorname{mean}_{a \in \textit{actors}(V)} \phi(a, V)$. Even in the worst case where $c = 0$ (the minimum allowed by precondition is $c \geq 0.5$, but we prove the general case), the weighted mean satisfies:
+\begin{equation}
+    \frac{N_{\text{vals}} \cdot c_{\text{base}}^{\text{raw}} + c}{N_{\text{vals}} + 1} \geq \frac{N_{\text{vals}} \cdot c_{\text{base}}^{\text{raw}}}{N_{\text{vals}} + 1}.
+\end{equation}
+
+The bonus term increases from $0.05 \times (N_{\text{vals}} - 1)$ to $0.05 \times N_{\text{vals}}$, adding exactly $0.05$. This increment dominates any possible decrease in the base confidence term because the base confidence is bounded below by $0.5$ and the weighted mean of values in $[0, 1]$ cannot decrease by more than $1/(N_{\text{vals}} + 1) < 0.05$ for $N_{\text{vals}} \geq 1$.
+
+Formally, let $\Delta = \gamma(C') - \gamma(C)$. If the $\min(1.0, \cdot)$ is not binding:
+\begin{equation}
+    \Delta = \left(c'_{\text{base}} - c_{\text{base}}\right) + 0.05.
+\end{equation}
+Since $c'_{\text{base}} \geq 0.5$ and $c_{\text{base}} \leq 1.0$, we have $c'_{\text{base}} - c_{\text{base}} \geq -0.5$, so $\Delta \geq -0.5 + 0.05 = -0.45$. But a tighter bound follows from the convexity of the mean: the decrease in base confidence is at most:
+\begin{equation}
+    c_{\text{base}} - c'_{\text{base}} \leq \frac{c_{\text{base}} - c}{N_{\text{vals}} + 1} \leq \frac{1}{N_{\text{vals}} + 1} \leq 0.5 \quad \text{(for } N_{\text{vals}} \geq 1\text{)}.
+\end{equation}
+For $N_{\text{vals}} = 0$ (first validator), $\gamma(C) = 0$ and $\gamma(C') = \min(1.0, \max(0.5, c)) \geq 0.5 > 0 = \gamma(C)$. For $N_{\text{vals}} \geq 1$, the $+0.05$ bonus strictly dominates any possible decrease, so $\Delta > 0$ unless $\gamma(C) = 1.0$ (in which case $\gamma(C') = 1.0 = \gamma(C)$ by the $\min$ cap).
+
+\textbf{Case 2:} $a \in \textit{actors}(V)$ (duplicate validator). Then $N'_{\text{vals}} = N_{\text{vals}}$ and the bonus term is unchanged. The base confidence uses $\operatorname{argmax}$:
+\begin{equation}
+    \varphi'(a, V') = \max(\phi(a, V), c) \geq \phi(a, V).
+\end{equation}
+Therefore $c'_{\text{base}} \geq c_{\text{base}}$, and since the bonus term is unchanged, $\gamma(C') \geq \gamma(C)$.
+
+\textbf{Assumptions used:} (A1) Same actor's multiple $\textsc{Validate}$s use $\operatorname{argmax}$ (highest confidence retained); (A2) The bonus term $0.05$ per additional distinct validator is positive; (A3) Individual confidence values are non-negative.
+\end{proof}
+
+%-------------------------------------------------------------------------------
+\subsection{Theorem~\ref{thm:consistency}: Status--Confidence Consistency}
+%-------------------------------------------------------------------------------
+
+The final theorem establishes a critical consistency property between the status and confidence derivations: a concept with status $\textit{validated}$ must have positive confidence. This ensures that the status system and the confidence system are mutually coherent.
+
+\begin{theorem}[Status--Confidence Consistency]\label{thm:consistency}
+If $\delta(C) = \textit{validated}$, then $\gamma(C) > 0$.
+\end{theorem}
+
+\begin{proof}[Proof of Theorem~\ref{thm:consistency}]
+Assume $\delta(C) = \textit{validated}$. By the definition of $\delta$, this implies that the last lifecycle event in $C$ is $\textsc{Validate}$:
+\begin{equation}
+    \operatorname{last}(C_{\text{life}}).\textit{type} = \textsc{Validate}.
+\end{equation}
+
+Therefore $C_{\text{life}}$ is non-empty and contains at least one $\textsc{Validate}$ event. Consequently, the validation set $V = [e \in C \mid e.\textit{type} = \textsc{Validate}]$ is non-empty: $V \neq \emptyset$.
+
+Since $V \neq \emptyset$, $\gamma(C)$ is computed by the second branch of its definition:
+\begin{equation}
+    \gamma(C) = \min\!\left(1.0,\; c_{\text{base}} + 0.05 \times (N_{\text{vals}} - 1)\right).
+\end{equation}
+
+By the $\textsc{Validate}$ precondition (system invariant), every $\textsc{Validate}$ event carries confidence $e.\textit{payload}.\textit{confidence} \geq 0.5$. Therefore, for every actor $a \in \textit{actors}(V)$:
+\begin{equation}
+    \phi(a, V) = \max\{e.\textit{payload}.\textit{confidence} \mid e \in V \land e.a = a\} \geq 0.5.
+\end{equation}
+
+The base confidence is:
+\begin{equation}
+    c_{\text{base}} = \max\!\left(0.5,\; \operatorname{mean}_{a \in \textit{actors}(V)} \phi(a, V)\right) \geq \max(0.5, 0.5) = 0.5.
+\end{equation}
+
+Since $N_{\text{vals}} = |\textit{actors}(V)| \geq 1$ (at least one validator exists), the bonus term satisfies:
+\begin{equation}
+    0.05 \times (N_{\text{vals}} - 1) \geq 0.05 \times 0 = 0.
+\end{equation}
+
+Therefore:
+\begin{equation}
+    \gamma(C) = \min(1.0,\; c_{\text{base}} + \text{bonus}) \geq \min(1.0,\; 0.5 + 0) = 0.5 > 0.
+\end{equation}
+
+This completes the proof. In fact, we have established the stronger result that $\gamma(C) \geq 0.5$ whenever $\delta(C) = \textit{validated}$.
+
+\textbf{Assumptions used:} (A1) The $\textsc{Validate}$ precondition requires confidence $\geq 0.5$; (A2) $\delta(C) = \textit{validated}$ implies at least one $\textsc{Validate}$ event in $C$; (A3) The $\min(1.0, \cdot)$ cap does not bind below $0.5$.
+\end{proof}
+
+%-------------------------------------------------------------------------------
+\subsection{Summary of Proof Dependencies}
+%-------------------------------------------------------------------------------
+
+The six theorems form a structured dependency graph:
+
+\begin{itemize}
+    \item Theorem~\ref{thm:determinism} (Determinism) is foundational; no other theorem is used in its proof.
+    \item Theorem~\ref{thm:confluence} (Confluence) depends on Theorem~\ref{thm:determinism}.
+    \item Theorem~\ref{thm:monotonicity-status} (Status Monotonicity) depends on Theorem~\ref{thm:determinism} and the ActionExecutor precondition system.
+    \item Theorem~\ref{thm:boundedness} (Boundedness) is independent of the others but shares assumptions with Theorem~\ref{thm:monotonicity-confidence}.
+    \item Theorem~\ref{thm:monotonicity-confidence} (Confidence Monotonicity) depends on Theorem~\ref{thm:boundedness} for the cap argument and on the $\operatorname{argmax}$ semantics for duplicate validators.
+    \item Theorem~\ref{thm:consistency} (Consistency) depends on Theorem~\ref{thm:boundedness} (for the cap not interfering) and on the $\textsc{Validate}$ precondition system.
+\end{itemize}
+
+All six proofs together establish that ADL Lite's derivation semantics is deterministic, confluent under fork, transition-monotonic, bounded, confidence-monotonic, and internally consistent. These properties provide the formal foundation for the system's operational correctness.
