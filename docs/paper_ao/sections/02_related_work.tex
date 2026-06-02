@@ -1,0 +1,202 @@
+\subsection{Upper Ontologies and Foundational Ontologies}\label{subsec:upper-ontologies}
+
+Foundational ontologies provide top-level categories that constrain and guide domain ontology development. Three influential frameworks---Basic Formal Ontology (BFO), the Descriptive Ontology for Linguistic and Cognitive Engineering (DOLCE), and the Unified Foundational Ontology (UFO)---offer distinct but complementary perspectives on the categories of entity, the nature of events, and the relationship between objects and processes. Understanding ADL Lite's position with respect to these frameworks requires examining their treatment of \emph{occurrents} (temporal entities), \emph{continuants} (enduring entities), and the ontological status of information objects.
+
+\subsubsection{Basic Formal Ontology (BFO)}
+
+BFO is a top-level ontology developed primarily for the biomedical and life-science domains \cite{bfo}. Its core distinction is between \emph{continuants} (entities that exist in full at every moment of their existence) and \emph{occurrents} (entities that unfold in time and have temporal parts). Continuants include independent continuants (material objects), dependent continuants (qualities, roles, dispositions), and generically dependent continuants (information content entities). Occurrents include processes (events with temporal extent).
+
+BFO's treatment of events is particularly relevant to ADL Lite. In BFO 2.0, a \emph{process} is an occurrent that has a temporal extent and at least one participant that is a continuant \cite{bfo}. Processes are not changes of state; they are entities in their own right. A validation process, for instance, is not merely the transition of a concept from \texttt{provisional} to \texttt{validated}; it is an occurrent with its own identity, participants (the validating agent, the concept being validated), and temporal boundaries.
+
+ADL Lite's \texttt{Event} corresponds closely to BFO's \emph{process}. Both are occurrents with temporal extent and participants. However, ADL Lite does not adopt BFO's full continuant/occurrent hierarchy; instead, it collapses the distinction into a single event model in which all state changes are represented as events. This simplification is motivated by the target domain (multi-agent concept governance), where the primary concern is recording what happened, not classifying entities into a complex hierarchy of types.
+
+A second BFO concept relevant to ADL Lite is the \emph{generically dependent continuant} (GDC). A GDC depends on some continuant for its existence, but not on any specific continuant \cite{bfo}. A poem, for instance, is a GDC because it depends on some physical copy (a book, a memory) but not on any specific copy. ADL Lite's ``concept'' is best understood as a GDC: it depends on its EventChain for existence, but not on any specific event within the chain.
+
+\subsubsection{DOLCE}
+
+DOLCE is a foundational ontology designed with a strong cognitive-linguistic orientation \cite{dolce}. Its top-level categories include \emph{particulars} (entities that exist in space and time) and \emph{universals} (entities that can be instantiated). Among particulars, DOLCE distinguishes \emph{perdurants} (entities that are only partially present at any time) from \emph{endurants} (entities that are wholly present at any time).
+
+DOLCE's category of \emph{perdurant} corresponds to BFO's \emph{occurrent} and ADL Lite's \texttt{Event}. However, DOLCE makes finer-grained distinctions among perdurants: \emph{events} (changes of state), \emph{processes} (activities with no definite endpoint), \emph{states} (stable conditions), and \emph{accomplishments} (activities with a definite endpoint) \cite{dolce}. ADL Lite's event types do not explicitly adopt this taxonomy, but they can be mapped to it: \texttt{REGISTER} and \texttt{VALIDATE} are events (changes of state), while \texttt{ANNOUNCE} and \texttt{PUBLISH} are accomplishments (activities with a definite endpoint).
+
+DOLCE's category of \emph{non-physical object} (NPO) is also relevant. NPOs include social objects (e.g., organizations, contracts), information objects (e.g., documents, databases), and cognitive objects (e.g., thoughts, beliefs) \cite{dolce}. ADL Lite concepts are information objects that carry social weight (their status reflects community acceptance). In DOLCE terms, they are NPOs that depend on a community of agents for their interpretation and validation.
+
+A key DOLCE principle is \emph{descriptive adequacy}: the ontology should capture the categories that humans naturally use to conceptualize the world \cite{dolce}. ADL Lite's document model (L1--L4) is designed with this principle in mind: the layers correspond to human cognitive distinctions between identity (L1), narrative (L2), assertions (L3), and actions (L4). This alignment is intentional: ADL Lite targets human-LLM collaborative authoring, so its categories must be cognitively accessible.
+
+\subsubsection{Unified Foundational Ontology (UFO)}
+
+UFO is a foundational ontology developed specifically for conceptual modeling and software engineering \cite{ufo}. It combines insights from BFO, DOLCE, and cognitive linguistics into a framework designed for building domain ontologies and conceptual models. UFO's distinctive contribution is its treatment of \emph{types}, \emph{roles}, \emph{phases}, and \emph{mixins}---categories that are essential for modeling dynamic domains but are not explicitly represented in BFO or DOLCE.
+
+UFO distinguishes three ontological levels: \emph{individuals} (particular entities), \emph{types} (categories that classify individuals), and \emph{concepts} (mental representations of types) \cite{ufo}. ADL Lite operates primarily at the type level: \texttt{concept\_id} identifies a type (e.g., ``Capital Trap''), and the EventChain records the history of that type. However, ADL Lite also has elements of the individual level: each event is an individual occurrent, and each concept instance (e.g., a specific application of the Capital Trap pattern) is an individual.
+
+UFO's treatment of \emph{events} and \emph{actions} is particularly relevant. In UFO, an event is a change in the world, while an action is an intentional event performed by an agent to achieve a goal \cite{ufo}. ADL Lite's event type system captures this distinction: \texttt{REGISTER}, \texttt{VALIDATE}, \texttt{DEPRECATE} are actions (intentional, performed by agents), while \texttt{RELATE}, \texttt{EVIDENCE}, \texttt{SEAL} are events (assertions that change relational structure). The precondition system in ADL Lite reflects the \emph{plan} aspect of actions: an action is not merely a change; it is a change that is governed by norms.
+
+UFO's category of \emph{relator} is also relevant to ADL Lite's L3 relation blocks. A relator is an entity that mediates the relationship between two or more entities \cite{ufo}. In ADL Lite, a relation between two concepts is established by a \texttt{RELATE} event and can be revoked by a future event. This event-based lifecycle aligns with UFO's view that relators are brought into existence and destroyed by events.
+
+\subsubsection{Synthesis: ADL Lite's Position in the Foundational Ontology Landscape}
+
+Table~\ref{tab:foundational-comparison} summarizes the comparison across the three foundational ontologies.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparison of foundational ontology perspectives on ADL Lite categories.}
+\label{tab:foundational-comparison}
+\begin{tabular}{@{}p{2.8cm}p{3.5cm}p{3.5cm}p{3.5cm}@{}}
+\toprule
+\textbf{Feature} & \textbf{BFO} & \textbf{DOLCE} & \textbf{UFO} \\
+\midrule
+Event category & Process (occurrent) & Perdurant (event) & Event / Action \\
+Concept category & Generically dependent continuant & Non-physical object (information) & Conceptual entity / Type \\
+Relation category & Relational quality & Quality (relational) & Relator \\
+Identity of concept & concept\_id (rigid designator) & Social object identity & Type identity \\
+Temporal reasoning & Process parthood & Temporal part & Event sequence \\
+Agent involvement & Process has participant & Agentive physical object & Agent performs action \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+ADL Lite does not fully align with any single foundational ontology. Instead, it adopts a \emph{pragmatic pluralism}: it uses BFO's continuant/occurrent distinction as a conceptual guide, DOLCE's descriptive adequacy as a design principle, and UFO's event/action distinction as a modeling framework. This pluralism is deliberate: the target domain (multi-agent concept governance) requires a lightweight ontology that can be authored by non-experts in Markdown, not a heavyweight foundational ontology that requires expert curation in OWL.
+
+The cost of this pluralism is that ADL Lite cannot directly import BFO, DOLCE, or UFO modules without translation. The benefit is that the ontology is optimized for its intended use case: lightweight, human-LLM collaborative, event-first concept governance. Section~\ref{sec:ontological-analysis} provides the detailed ontological analysis that justifies these alignment choices.
+
+\subsection{Ontology Engineering and Knowledge Graph Construction}\label{subsec:ontology-engineering}
+
+The Semantic Web vision articulated by Berners-Lee, Hendler, and Lassila \cite{bernerslee2001semanticweb} established the foundational goal of machine-readable, interlinked knowledge representations. This vision was operationalized through OWL~2, whose formal semantics rooted in description logics provide expressiveness ranging from the lightweight OWL~2~EL profile to the fully decidable OWL~2~DL \cite{owl2}. Standard toolchains including Prot\'{e}g\'{e}, Apache Jena, and Virtuoso Universal Server enable ontology authoring, persistence, and SPARQL query evaluation at considerable scale. Reasoners such as HermiT and Pellet support automated classification and consistency checking, albeit with computational costs that scale poorly for large or rapidly evolving knowledge bases \cite{ref6}.
+
+However, the deployment cost of full OWL-based pipelines remains prohibitive for many operational contexts. Triple stores require dedicated infrastructure; OWL reasoners impose batch-oriented computation ill-suited to streaming workloads; and the expertise required for ontology engineering creates a bottleneck distinct from application development \cite{ref7}. These factors confine heavyweight Semantic Web technologies to domains where upfront investment in formal knowledge representation is justified by long-term reasoning requirements.
+
+In response, the community has developed lightweight approaches that trade full logical expressiveness for accessibility. Schema.org provides a pragmatic, property-centric vocabulary adopted on over 40\% of web pages \cite{ref8}. JSON-LD extends conventional JSON with namespace support, allowing RDF-compatible serialization without requiring full Linked Data processing \cite{json_ld}. SHACL provides data validation without inference, enabling closed-world constraint checking over RDF graphs \cite{w3c_shacl}. These technologies lower the barrier to structured data publishing but remain tethered to the RDF data model, excluding the vast corpus of domain knowledge encoded in Markdown documentation and plain-text notes.
+
+The past decade has witnessed significant growth in Markdown-based knowledge management tools. Foam, Obsidian, and Dendron extend plain-text Markdown with wiki-style links, backlinks, and graph visualization, enabling knowledge workers to construct personal knowledge graphs without leaving their editing environment \cite{ref16}. Dendron introduces hierarchical note schemas with refactoring capabilities that preserve link integrity during structural changes \cite{ref14}. These tools demonstrate that meaningful semantic structure can emerge from authoring conventions. However, they lack machine-checkable coordination primitives: no constraint language prevents schema drift, and no consensus mechanism mediates conflicting contributions from multiple agents. ADL Lite builds directly on this document-native paradigm while addressing each of these gaps.
+
+\subsubsection{LLM-Native Ontology Engineering}\label{subsubsec:llm-native-oe}
+
+The past two years have witnessed the emergence of LLM-native approaches to ontology engineering, in which large language models serve not merely as assistive tools but as autonomous agents in the ontology construction pipeline. This subsection surveys three representative lines of work and positions ADL Lite relative to each.
+
+\textbf{LLM4ACOE} \cite{llm4acoe} is the first complete multi-agent collaborative ontology engineering framework. It uses LLMs to simulate three roles---Knowledge Engineer, Domain Expert, and Knowledge Worker---and employs retrieval-augmented generation (RAG) to inject domain data and OWL documents, generating domain ontologies automatically. While LLM4ACOE demonstrates that multi-agent LLM systems can produce coherent ontologies, it generates standard OWL without cryptographic provenance and provides no lifecycle governance mechanism for concepts.
+
+\textbf{Sim-HCOME} \cite{sim_hcome} extends the HCONE methodology with fully automated LLM role-playing, validating its approach on SAR tasks and Parkinson's disease ontologies. It reveals systematic patterns in how ontology quality changes as human involvement decreases, but like LLM4ACOE, it produces static OWL files without append-only audit trails.
+
+\textbf{Ontology-Constrained Neural Reasoning} \cite{ontology_constrained_agents} proposes a three-layer architecture---Role Ontology, Interaction Ontology, and Governance Constraints---that uses ontological constraints to limit the operational envelope of LLM agents. This work demonstrates that ontological governance can reduce agent hallucination, but the constraints are expressed in OWL and require a full reasoning stack.
+
+A comprehensive survey by Garijo and Shimizu \cite{garijo2025llmoe} analyzes over 200 papers and identifies five task categories for LLMs in ontology engineering: learning, enrichment, alignment, evaluation, and query generation. The survey notes that LLM-generated OWL axioms often suffer from insufficient expressiveness and lack provenance tracking.
+
+These approaches collectively establish three research routes: (1) fully automated multi-agent collaboration producing OWL (LLM4ACOE, Sim-HCOME); (2) LLM-assisted traditional OE workflows (OntoGPT, Chowlk); and (3) ontology-constrained agent behavior (Ontology-Constrained Agents). ADL Lite occupies a fourth route: \emph{document-native authoring with event-sourced provenance and cryptographic integrity}---a combination that no existing LLM-native OE framework has explored.
+
+\subsection{Provenance, Trust, and Verifiable Publishing}\label{subsec:provenance-trust}
+
+The landscape of Semantic Web provenance encompasses several standards that address complementary aspects of the problem space that ADL Lite targets: recording \emph{who} said \emph{what}, \emph{when}, and with \emph{what} evidentiary basis.
+
+\textbf{W3C PROV-O.} The W3C PROV Ontology \cite{w3c_prov_o} provides a standard model for provenance interchange, expressing the PROV Data Model in OWL~2. PROV-O defines core concepts including \texttt{Entity}, \texttt{Activity}, and \texttt{Agent}, along with properties such as \texttt{wasGeneratedBy} and \texttt{wasAssociatedWith} that establish causal and responsibility relationships. ADL Lite's EventChain can be directly mapped to PROV-O: each Event corresponds to a \texttt{prov:Activity}, the concept being modified corresponds to a \texttt{prov:Entity}, and the \texttt{actor} field maps to \texttt{prov:wasAssociatedWith}. However, PROV-O alone does not provide cryptographic integrity guarantees---it is a data model for describing provenance, not a mechanism for verifying it. ADL Lite complements PROV-O by extending its descriptive provenance model with built-in SHA-256 hash chaining.
+
+\textbf{Nanopublications and Trusty URIs.} The nanopublication framework \cite{nanopublications} provides a standardized way to publish small, granular scientific claims with cryptographically signed provenance. Each nanopublication consists of three named graphs: an assertion graph, a provenance graph, and a publication-info graph \cite{carroll2005namedgraphs}. The Trusty URI mechanism \cite{trusty_uris} provides content-addressed identifiers via Base64-encoded SHA-256 hashes, ensuring that any modification to a nanopublication's content changes its URI. This achieves decentralized verifiable publishing---a goal shared with ADL Lite's append-only EventChain. Table~\ref{tab:nanopub-comparison} provides an empirical comparison across nine operational dimensions.
+
+\begin{table}[htbp]
+\centering
+\caption{Empirical comparison of nanopublications with Trusty URIs and ADL Lite EventChains.}
+\label{tab:nanopub-comparison}
+\begin{tabular}{@{}p{3.2cm}p{5.0cm}p{5.0cm}@{}}
+\toprule
+\textbf{Dimension} & \textbf{Nanopublications + Trusty URIs} & \textbf{ADL Lite EventChain} \\
+\midrule
+Granularity & Atomic claim (single RDF triple or small graph) & Concept lifecycle (multi-event chain) \\
+Mutability & Immutable: new version = new Trusty URI & Append-only: events accumulate, status derived \\
+Authentication & RSA digital signatures per nanopub & String identifiers (Phase~1); Ed25519 LD-Proofs (Phase~3) \\
+Integrity mechanism & Content-addressed SHA-256 hash in URI & Cryptographic hash chain ($h_{\text{prev}}$ linkage) \\
+Structural overhead & 31--86\% non-assertion triples & $\approx$200~bytes/hash per event ($<$1\% for typical chains) \\
+Infrastructure & RDF/SPARQL triplestore + nanopub server & Markdown files in standard Git repositories \\
+Verification time & $O(1)$ per nanopub (hash comparison) & $O(n)$ per chain (sequential hash verification) \\
+Lifecycle governance & None (status is publication metadata) & Deterministic status derivation + precondition rules \\
+Fork support & Manual: create new nanopub, no automatic linkage & Automatic: \textsc{FORK} event + derived child chain \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Linked Data Proofs.} The W3C Verifiable Credential Data Integrity specification \cite{linked_data_proofs} describes mechanisms for ensuring authenticity and integrity of digital documents through digital signatures over canonicalized RDF datasets. Underpinning this is the RDF Dataset Canonicalization algorithm (URDNA2015) \cite{w3c_rdf_canon}, which produces a deterministic serialization regardless of original triple ordering. This technology provides authenticated provenance that ADL Lite currently lacks: the ability to bind actor identities to events through cryptographic signatures rather than string identifiers. ADL Lite's Phase~3 includes LD-Proof integration for authenticated events.
+
+\textbf{RDF-star.} RDF-star \cite{rdf_star} provides statement-level annotation by enabling triples to function as subjects or objects of other triples, without the syntactic verbosity of explicit reification. ADL Lite's L3 relation blocks---encoding \texttt{source}-\texttt{relation}-\texttt{target} triples within Markdown fenced code blocks---can be viewed as a Markdown-native form of RDF triples, with each EventChain entry providing statement-level provenance analogous to an RDF-star annotation.
+
+\subsection{Event-Centric Ontologies}\label{subsec:event-centric}
+
+The ontologies surveyed above vary in their treatment of events. This subsection examines event-centric approaches that share ADL Lite's premise that \emph{change in the world is best understood through events} rather than through direct property mutations of persistent objects.
+
+\subsubsection{CIDOC CRM}\label{subsubsec:cidoc-crm}
+
+The CIDOC Conceptual Reference Model \cite{cidoc_crm} is an ISO 21127 standard for cultural heritage information integration. CIDOC CRM is fundamentally event-centric: it models reality through the \texttt{E5 Event} class that brings together \texttt{E39 Actor} participants with \texttt{E18 Physical Thing} objects in spatiotemporal contexts. The ontology's core commitment is that change is understood through events, not through property mutations. ADL Lite shares this philosophical stance: concept lifecycle changes are explicit events in an append-only chain rather than mutable field updates. The key difference is purpose: CIDOC CRM is \emph{descriptive} (documenting what happened), while ADL Lite is \emph{operational} (enforcing what can happen through preconditions).
+
+\subsubsection{SEM and LODE}\label{subsubsec:sem-lode}
+
+The Simple Event Model (SEM) \cite{vanhage2011sem} and Linked Open Descriptions of Events (LODE) \cite{shaw2011lode} represent lightweight alternatives for publishing event data on the Semantic Web. SEM provides a minimal vocabulary comprising \texttt{sem:Event}, \texttt{sem:Actor}, \texttt{sem:Place}, and \texttt{sem:Time}. LODE extends SEM with Dublin Core compatibility and SKOS-based event type hierarchies. Both are \emph{descriptive} ontologies for event publishing: they enable data providers to expose event descriptions in RDF for consumption and querying. They do not provide constraint mechanisms for governing which events can occur, nor do they offer integrity guarantees for event sequences. ADL Lite complements these frameworks with an \emph{operational} layer: the EventChain is a tamper-evident, precondition-governed mechanism for controlling concept lifecycle transitions.
+
+\subsubsection{RDF Stream Processing}\label{subsubsec:rdf-stream}
+
+The W3C RDF Stream Processing Community Group defined models for continuous processing over timestamped RDF triples arriving in streams \cite{w3c_rsp}. Systems such as C-SPARQL \cite{c_sparql} and CQELS \cite{lephuoc2011cqels} extend SPARQL with windowing operators and continuous query semantics, enabling real-time pattern detection over streaming RDF data. ADL Lite's EventChain can be viewed as a \emph{materialized} RDF stream: each event appends triples to a persistent, cryptographically linked chain, enabling retrospective provenance queries rather than real-time pattern detection.
+
+\subsubsection{Subject-Event Ontology and Occurrence-Only Modeling}\label{subsubsec:seo-occurrence}
+
+Two recent proposals share ADL Lite's commitment to event-first modeling but pursue different formal foundations.
+
+\textbf{Reactive Subject-Event Ontology (SEO).} Boldachev \cite{boldachev2025seo} proposes a complete Subject-Event Ontology in which events are causal primitives connected by a happens-before ($\prec$) relation forming a directed acyclic graph. SEO supports reactive guards---triggers that fire when causal preconditions are met---and validates consistency through conformance tests against formal axioms (A1--A9) and invariants (I1--I3). The key structural difference from ADL Lite is topology: SEO uses a \emph{causal graph} (events as nodes, $\prec$ as edges), while ADL Lite uses a \emph{linear hash chain} (events as sequence elements, SHA-256 as linkage). The causal graph excels in distributed concurrent scenarios where multiple agents contribute events without global coordination; the linear chain excels in sequential audit scenarios where total order and cryptographic tamper-evidence are paramount. ADL Lite prioritizes the latter because concept lifecycle governance is inherently sequential: a concept must be \texttt{REGISTER}ed before it can be \texttt{VALIDATE}d, and the order of these transitions carries semantic weight that a partial order cannot capture.
+
+\textbf{Occurrence-Only Modeling.} Al-Fedaghi \cite{alfedaghi2024occurrence} proposes an ``occurrence-only'' paradigm that models the world as compositions of events rather than as objects with properties. Using ``region'' (static blueprint) and ``breath'' (dynamic temporal span) as core categories, this work provides independent philosophical grounding for the event-first stance that ADL Lite adopts from Wittgenstein. While Al-Fedaghi's framework lacks cryptographic integrity mechanisms and multi-agent governance, its category system offers a complementary ontological analysis that could inform future extensions to ADL Lite's event taxonomy.
+
+\textbf{UFO-B Executable Specifications.} Guizzardi et al.\ \cite{guizzardi2024ufob} extend UFO-B (the event-driven extension of UFO) with ``Social Relator,'' ``Disposition,'' and ``Institutional Event'' as executable event-log specifications. Events become the sole mechanism for changing social objects. ADL Lite's L4 Action blocks correspond directly to UFO-B ``Institutional Events'': both are intentional actions governed by preconditions that change the state of the ontological world. The key difference is formalization depth: UFO-B provides full axiomatic semantics in first-order logic, while ADL Lite provides lightweight YAML-declared preconditions validated at parse time.
+
+\subsubsection{Conflict-Free Replicated Data Types}\label{subsubsec:crdts}
+
+CRDTs \cite{crdts} provide a theoretical foundation for reconciling concurrent updates without centralized coordination. Automerge \cite{automerge} is a JSON CRDT library that preserves all concurrent edits rather than choosing a single winner. Yjs \cite{yjs} is a widely deployed CRDT framework for real-time collaborative editing, optimized for shared text documents. Recent research has explored applying CRDTs to knowledge graph editing \cite{ref59}. ADL Lite's Git-native design already provides branch-based concurrent authoring; what CRDTs would add is automatic merge semantics for event chains, eliminating the last-write-wins limitation without sacrificing tamper evidence.
+
+\textbf{Formally Verified CRDTs.} Nieto \cite{nieto2024crdt} provides abstract specifications for CRDTs in the Iris separation logic framework, defining CRDT states as denotations of event sets and proving convergence properties. ADL Lite's EventChain can be viewed as a specific CRDT---an append-only log---but lacks the formal convergence guarantees that Iris provides. This gap represents a promising direction for future formalization (see Section~\ref{subsec:future-work}).
+
+\textbf{Byzantine-Tolerant CRDTs.} The Blocklace \cite{blocklace2024} proposes a cryptographic hash DAG as a universal CRDT capable of detecting and excluding Byzantine nodes. ADL Lite's EventChain is a linear special case of the Blocklace DAG, but ADL Lite currently lacks Byzantine fault tolerance---a limitation scoped to Phase~1's collaborative-audit threat model. The Blocklace's equivocation-detection mechanism could inform Phase~3's transition to adversarial robustness.
+
+\textbf{Concurrent Admin Conflict Resolution.} Recent work on epoch-resolved arbitration \cite{epoch_arbitration2026} addresses the ``duelling admins'' problem in CRDT-based group management, where concurrent revocation operations create unresolvable conflicts. The proposed epoch mechanism---assigning monotonic epoch numbers to administrative operations and using epoch comparison to break ties---offers a concrete path beyond ADL Lite's current last-write-wins semantics for fork resolution.
+
+\subsubsection{Summary: Event Topology and Integrity Mechanisms}\label{subsubsec:event-topology-summary}
+
+Table~\ref{tab:event-topology} compares ADL Lite with the event-centric frameworks surveyed above across three salient dimensions: event topology (how events are structured), integrity mechanism (how tampering is detected), and governance semantics (how lifecycle transitions are controlled).
+
+\begin{table}[htbp]
+\centering
+\caption{Comparison of event-centric frameworks: topology, integrity, and governance.}
+\label{tab:event-topology}
+\begin{tabular}{@{}p{2.8cm}p{2.5cm}p{3.5cm}p{3.5cm}@{}}
+\toprule
+\textbf{Framework} & \textbf{Event Topology} & \textbf{Integrity Mechanism} & \textbf{Governance Semantics} \\
+\midrule
+CIDOC CRM & Descriptive event graph & None (documentation) & None \\
+SEM/LODE & Minimal event vocabulary & None (publishing) & None \\
+SEO (2025) & Causal DAG ($\prec$ relation) & Conformance tests (A1--A9) & Reactive guards \\
+Blocklace (2024) & Cryptographic hash DAG & SHA-256 + BFT consensus & Byzantine exclusion \\
+ADL Lite & Linear SHA-256 chain & Sequential hash verification & Precondition rules + $\delta(C)$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Positioning}\label{subsec:positioning}
+
+Palantir Foundry represents the most prominent industrial embodiment of an operational ontology platform. Its Data Engine exposes four core ontological primitives: Object Type, Property, Link, and Action \cite{palantir_fde}. This architecture unifies ``semantic elements'' (nouns) with ``kinetic elements'' (verbs), enabling AI agents to both query and act upon the ontology through governed interfaces \cite{palantir_fde}. Despite its sophistication, Palantir exhibits three limitations: enterprise-scale deployment cost, proprietary ontology authoring tooling, and no design for LLM-native authorship. ADL Lite addresses each by offering pip-installable deployment, Markdown-native authoring, and explicit multi-agent concept consensus.
+
+Table~\ref{tab:positioning} positions ADL Lite against three reference approaches across seven salient dimensions.
+
+\begin{table}[htbp]
+\centering
+\caption{Positioning of ADL Lite against reference approaches.}
+\label{tab:positioning}
+\begin{tabular}{@{}p{2.8cm}p{2.5cm}p{2.5cm}p{2.5cm}p{2.5cm}@{}}
+\toprule
+\textbf{Dimension} & \textbf{Palantir FDE} & \textbf{OWL/SPARQL} & \textbf{Markdown-only} & \textbf{ADL Lite} \\
+\midrule
+Deployment Cost & Enterprise ($M$+) & High (triple store + reasoner) & Low (Git repo) & Very Low (\texttt{pip install} + Git) \\
+LLM Authorship & Not designed & Requires ontology expertise & Informal (free-text) & Native (YAML + Markdown) \\
+Integrity Guarantees & Platform-managed & Reasoner-based consistency & None & SHA-256 EventChain (append-only) \\
+Action Preconditions & TypeScript functions & OWL/SWRL rules & None & Declarative YAML + SSA validation \\
+Consensus Mechanism & Centralized (admin UI) & N/A (single authority) & N/A (no coordination) & Multi-agent quorum + event history \\
+Scalability & Billions of objects & Millions of triples & Thousands of notes & Pilot: 201 chains; target: $10^4$ \\
+Standards Alignment & Proprietary & Full W3C stack & None & Partial (PROV-O mappable, SHACL-integrable) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+ADL Lite occupies a deliberate middle ground. Palantir delivers industrial-strength operational semantics at deployment cost and accessibility barriers that exclude small teams and LLM-native workflows. OWL/SPARQL pipelines offer unmatched formal expressiveness yet require specialized expertise and infrastructure. Markdown-based tools democratize knowledge capture but provide no machine-checkable guarantees against schema drift or conflicting definitions.
+
+The gap that ADL Lite fills is the intersection of four properties that no existing approach combines: (a) document-native authoring in plain Markdown, (b) built-in tamper detection through cryptographic hash chaining, (c) lifecycle state machines with declarative preconditions, and (d) pip-installable deployment requiring no enterprise infrastructure. PROV-O provides (a) only when combined with RDF authoring tools and lacks (b) natively; nanopublications provide (b) for published claims but lack (a), (c), and (d); CIDOC CRM provides event-centric modeling but requires heavyweight RDF infrastructure. ADL Lite enables multiple LLM agents proposing, challenging, and refining concepts within a shared document-native ontology, with the EventChain providing the audit trail and consensus mechanism that makes decentralized authorship accountable.

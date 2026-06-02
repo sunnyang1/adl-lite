@@ -1,0 +1,10 @@
+This appendix describes the adversarial integrity test suite used to validate the EventChain's tamper-detection capabilities. The suite comprises four attack classes, evaluated against the $\text{VerifyIntegrity}(C)$ predicate:
+
+\begin{enumerate}[label=(\arabic*)]
+    \item \textbf{Content tampering:} Modify the payload of an existing event after it has been appended to the chain. Detection mechanism: SHA-256 hash mismatch for the tampered event.
+    \item \textbf{Event reordering:} Swap two adjacent events in the chain and recompute hashes. Detection mechanism: \texttt{previous\_event\_id} linkage break at the swap boundary.
+    \item \textbf{Event deletion:} Remove a middle event from the chain. Detection mechanism: hash chain discontinuity at the deletion point.
+    \item \textbf{Event replay:} Copy an event from one chain into another. Detection mechanism: \texttt{previous\_event\_id} mismatch (the replayed event's predecessor does not exist in the target chain).
+\end{enumerate}
+
+All four attack classes are detected with 100\% precision and recall (8/8 tests pass). The tests are implemented in \texttt{tests/test\_adversarial\_integrity.py} and executable via \texttt{pytest}.

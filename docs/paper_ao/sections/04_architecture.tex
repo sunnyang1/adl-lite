@@ -1,0 +1,193 @@
+\subsection{Document Model: L1--L4 as Conceptual Modeling Layers}\label{subsec:document-model}
+
+ADL Lite organizes concept documents into four semantic layers, each with distinct syntax, role, and corresponding event types. The layering separates identity metadata (L1), narrative content (L2), typed assertions (L3), and executable actions (L4), enabling both human readability and machine processing within a single Markdown file. Table~\ref{tab:document-model} summarizes the document model.
+
+\begin{table}[htbp]
+\centering
+\caption{The L1--L4 Document Model. Each layer contributes distinct semantics to the concept document.}
+\label{tab:document-model}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Layer} & \textbf{Syntax} & \textbf{Role} & \textbf{Event Type} \\
+\midrule
+L1 & YAML front matter & Identity metadata (derived snapshot) & SNAPSHOT \\
+L2 & Markdown body & Human/LLM narrative prose & --- \\
+L3 & \texttt{adl:relation}, \texttt{adl:evidence}, \texttt{adl:seal} & Typed semantic assertions & RELATE, EVIDENCE, SEAL \\
+L4 & \texttt{adl:action} & Typed actions with preconditions & REGISTER, VALIDATE, DEPRECATE, \ldots \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The L1 layer comprises YAML front matter containing identity metadata: \texttt{adl\_type}, \texttt{adl\_id}, \texttt{status}, \texttt{confidence}, \texttt{novelty}, \texttt{scope}, and \texttt{provisional\_names}. Critically, the L1 fields are \emph{derived snapshots} recomputed from the EventChain, not sources of truth. A discrepancy between L1 \texttt{status} and the chain-derived status indicates an incomplete event history in the source document.
+
+The L2 layer consists of the Markdown body: human- and LLM-readable prose. The Singular Subjectivity Assertion (SSA) prohibits fuzzy referents---including pronouns such as ``this,'' ``that,'' ``it''---that would compromise cross-agent alignment \cite{ref16}. SSA is configurable: \texttt{strict} mode enforces explicit reference for all agent-authored content, while \texttt{lax} mode permits natural pronoun use for human-authored narrative.
+
+The L3 layer introduces typed semantic assertions through fenced code blocks: \texttt{adl:relation} for typed edges between concepts (supporting predicates such as \texttt{isomorphic-to} and \texttt{specialisation-of}), \texttt{adl:evidence} for evidentiary support, and \texttt{adl:seal} for formal assertions. These blocks are machine-parseable RDF-like triples that remain editable in ordinary text editors.
+
+The L4 layer introduces \texttt{adl:action} blocks: typed actions with structured precondition rules that govern lifecycle transitions and trigger side effects. The four-layer design enables a single Markdown file to serve simultaneously as human-readable documentation, LLM authoring surface, machine-parseable semantic assertion container, and auditable action log.
+
+\subsection{EventChain: Core Data Structure}\label{subsec:eventchain}
+
+The EventChain is the fundamental data structure of ADL Lite. Each ontological concept is represented by exactly one EventChain: an append-only sequence of cryptographically linked events.
+
+An \emph{event} $e$ is a structured record comprising nine fields: \texttt{event\_id} (UUID-derived unique identifier), \texttt{concept\_id} (the concept to which the event belongs), \texttt{event\_type} (drawn from a closed set of lifecycle, assertion, and communication types), \texttt{actor} (the entity causing the event), \texttt{reasoning} (justification), \texttt{timestamp} (ISO-8601 occurrence time), \texttt{payload} (event-specific key-value data), \texttt{previous\_event\_id} (cryptographic link to the preceding event), and \texttt{hash} (SHA-256 digest of serialized content).
+
+The event type system is partitioned into two disjoint sets:
+\begin{align}
+    \Sigma_{\text{life}} &= \{\text{REGISTER},\; \text{VALIDATE},\; \text{DEPRECATE},\; \text{FORK},\; \text{ARCHIVE}\} \\
+    \Sigma_{\text{comm}} &= \{\text{RELATE},\; \text{EVIDENCE},\; \text{SEAL},\; \text{ANNOUNCE},\; \text{PUBLISH},\; \text{SNAPSHOT}\}
+\end{align}
+Lifecycle events affect concept status; communication events do not. This partition is central to the derivation semantics (Section~\ref{subsec:formal-semantics}).
+
+\subsection{Canonical Serialization and Cryptographic Integrity}\label{subsec:crypto}
+
+Each event's hash is computed over a canonical JSON serialization with the following properties: (i) keys are sorted lexicographically; (ii) floating-point values are rounded to six decimal places; (iii) all fields including the timestamp are included in the serialization; (iv) the hash field itself is excluded to avoid circular self-reference.
+
+Timestamps are \emph{included} in the hash input to ensure that two otherwise-identical events created at different times produce different hashes, preserving tamper-evidence for provenance. Event \emph{ordering} within a chain uses cryptographic linkage (\texttt{previous\_event\_id}) rather than timestamp comparison, so clock skew does not affect chain validity.
+
+The integrity verification predicate $\text{VerifyIntegrity}(C)$ checks three conditions for a chain $C = [e_1, \ldots, e_n]$:
+\begin{enumerate}[label=(\arabic*)]
+    \item Genesis anchoring: $e_1.\text{previous\_event\_id} = \text{null}$ and $e_1.\text{prev\_hash} = \text{genesis}$.
+    \item Cryptographic linkage: for all $i \in \{2, \ldots, n\}$, $e_i.\text{prev\_hash} = e_{i-1}.\text{hash}$.
+    \item Hash correctness: for all $i \in \{1, \ldots, n\}$, $e_i.\text{hash} = \text{SHA-256}(\text{Canon}(e_i))$.
+\end{enumerate}
+
+\subsection{Action Executor with Structured Preconditions}\label{subsec:action-executor}
+
+The ActionExecutor validates L4 action blocks against a closed action registry defined in \texttt{adl\_core\_ontology.yaml}. Each action definition specifies preconditions as a list of \texttt{PreconditionRule} objects, each comprising a \texttt{field} (the ADLFrontMatter field to inspect), a \texttt{comparator} (EQ, NEQ, GT, GTE, LT, LTE, IN, EXISTS), and a \texttt{value} (the expected value or threshold).
+
+Precondition evaluation uses explicit lambda dispatch on the \texttt{Comparator} enumeration; there is no runtime \texttt{eval()} or code injection path. This closed evaluation model achieves perfect precision and recall on all registered actions (Section~\ref{subsec:e4}).
+
+\subsection{Consensus and Status Transitions}\label{subsec:consensus}
+
+Status transitions are governed by a transition matrix that defines which lifecycle events are permitted from each status. The matrix is total: every status has at least one permissible outgoing transition. The ConsensusEngine enforces these transitions by validating preconditions before appending events to chains.
+
+Fork semantics deserve special attention. When a concept forks, a \texttt{FORK} event is appended to the original chain, and a new chain is created with a fresh \texttt{REGISTER} event. The original concept's status becomes \texttt{forked}; the new concept's status is \texttt{provisional}. Both chains evolve independently thereafter. This preserves the historical integrity of the original concept while enabling divergent evolution.
+
+\subsection{Formal Derivation Semantics}\label{subsec:formal-semantics}
+
+This section provides the complete formal foundation for the derivation semantics. All definitions are self-contained.
+
+\subsubsection{Event Alphabet and Well-Formedness}
+
+Let $\Sigma = \Sigma_{\text{life}} \cup \Sigma_{\text{comm}}$ be the event alphabet. An event is a tuple $e = (\tau, a, t, p, h, h_{\text{prev}}, e_{\text{prev}})$ where $\tau \in \Sigma$, $a \in \mathcal{A}$ (actor set), $t \in \mathbb{R}_{\geq 0}$ (timestamp), $p \in \mathcal{P}$ (payload), $h \in \{0,1\}^{256}$ (hash), $h_{\text{prev}} \in \{0,1\}^{256} \cup \{\text{genesis}\}$, and $e_{\text{prev}} \in \text{ID} \cup \{\text{null}\}$.
+
+A chain $C = [e_1, \ldots, e_n]$ is well-formed, denoted $\text{WF}(C)$, if:
+\begin{enumerate}[label=(\arabic*)]
+    \item $e_1.h_{\text{prev}} = \text{genesis}$ and $e_1.e_{\text{prev}} = \text{null}$.
+    \item All events in $C$ share the same $\text{concept\_id}$.
+    \item For all $i \geq 2$: $e_i.h_{\text{prev}} = e_{i-1}.h$ and $e_i.e_{\text{prev}} = e_{i-1}.\text{event\_id}$.
+    \item For all $i$: $e_i.h = \text{SHA-256}(\text{Canon}(e_i))$.
+    \item All $\text{event\_id}$ values in $C$ are pairwise distinct.
+\end{enumerate}
+
+The canonicalization function $\text{Canon}(e)$ serializes $e$ as UTF-8 JSON with sorted keys, six-decimal float rounding, and all fields (including timestamp) included.
+
+\subsubsection{Status Derivation $\delta$}
+
+The status space is $S = \{\text{provisional},\; \text{validated},\; \text{deprecated},\; \text{forked},\; \text{archived}\}$. For a chain $C$, let $C_{\text{life}} = [e \in C \mid e.\tau \in \Sigma_{\text{life}}]$ be the lifecycle subsequence. Then:
+\begin{equation}
+    \delta(C) = \begin{cases}
+        \text{provisional} & \text{if } C_{\text{life}} = [] \\
+        f(\tau_{\text{last}}) & \text{otherwise}
+    \end{cases}
+\end{equation}
+where $\tau_{\text{last}}$ is the event type of the last element of $C_{\text{life}}$, and $f$ maps $\text{REGISTER} \to \text{provisional}$, $\text{VALIDATE} \to \text{validated}$, $\text{DEPRECATE} \to \text{deprecated}$, $\text{FORK} \to \text{forked}$, $\text{ARCHIVE} \to \text{archived}$.
+
+\subsubsection{Confidence Aggregation $\gamma$}
+
+Let $V = [e \in C \mid e.\tau = \text{VALIDATE}]$. Then:
+\begin{equation}
+    \gamma(C) = \begin{cases}
+        0.0 & \text{if } V = [] \\
+        \min(1.0,\; c_{\text{base}} + 0.05 \times (N_{\text{vals}} - 1)) & \text{otherwise}
+    \end{cases}
+\end{equation}
+where $\text{actors}(V) = \{e.a \mid e \in V\}$, $\phi(a, V) = \max\{e.p.\text{confidence} \mid e \in V \land e.a = a\}$, $c_{\text{base}} = \max(0.5,\; \text{mean}_{a \in \text{actors}(V)} \phi(a, V))$, and $N_{\text{vals}} = |\text{actors}(V)|$.
+
+The per-actor maxima ensure duplicate validations from the same actor do not compound. The base confidence floor of 0.5 ensures that any validated concept has at least moderate confidence. The bonus of 0.05 per additional distinct validator rewards independent confirmation.
+
+\subsubsection{Fork and Confluence Semantics}
+
+A fork transforms a concept $C$ into $(C_{\text{fork}}, C')$ where $C_{\text{fork}} = C \oplus [e_{\text{FORK}}]$ and $C' = [e'_{\text{REG}}]$ is a new chain with fresh identifier. The forked concept identifier is recorded in $e_{\text{FORK}}.p.\text{fork\_target}$.
+
+\textbf{Theorem 1 (Determinism).} For any well-formed $C$, $\delta(C)$ is unique and depends only on the last lifecycle event in $C$.
+
+\emph{Proof.} By definition, $\delta$ filters $C$ to $C_{\text{life}}$ (deterministic), checks emptiness (deterministic), and applies total function $f$ to the last element (unique for ordered sequences). $\square$
+
+\textbf{Theorem 2 (Confluence under Fork).} Let $C$ fork to $(C_{\text{fork}}, C')$. Then $\delta(C_{\text{fork}}) = \text{forked}$ and $\delta(C') = \text{provisional}$.
+
+\emph{Proof.} $e_{\text{FORK}} \in \Sigma_{\text{life}}$ is the last lifecycle event in $C_{\text{fork}}$, so $f(\text{FORK}) = \text{forked}$. $C'$ contains only $e'_{\text{REG}}$, so $f(\text{REGISTER}) = \text{provisional}$. $\square$
+
+\textbf{Theorem 3 (Transition Monotonicity).} For any well-formed $C$ and event $e_{\text{new}}$, the transition from $s = \delta(C)$ to $s' = \delta(C \oplus [e_{\text{new}}])$ is valid iff $e_{\text{new}}.\tau \in \Sigma_{\text{life}}$.
+
+\emph{Proof.} If $e_{\text{new}}.\tau \notin \Sigma_{\text{life}}$, then $C_{\text{life}}$ is unchanged, so $s' = s$ (identity transition, always valid). If $e_{\text{new}}.\tau \in \Sigma_{\text{life}}$, then $s' = f(e_{\text{new}}.\tau)$, which is exactly the target state defined by the transition matrix. $\square$
+
+\textbf{Theorem 4 (Confidence Boundedness).} For any well-formed $C$, $\gamma(C) \in [0, 1]$.
+
+\emph{Proof.} If $V = []$, $\gamma(C) = 0.0$. Otherwise, each $\phi(a, V) \in [0, 1]$ by payload validation, so their mean is in $[0, 1]$. Thus $c_{\text{base}} \geq 0.5$. The bonus term is non-negative, and the outer $\min(1.0, \cdot)$ caps at 1.0. $\square$
+
+\textbf{Theorem 5 (Confidence Monotonicity).} Let $\gamma(C) = c$ and let $e_{\text{new}}$ be a \texttt{VALIDATE} event from a new actor. Then $\gamma(C \oplus [e_{\text{new}}]) \geq c$, with strict inequality if $c < 1.0$.
+
+\emph{Proof.} Let $N'_{\text{vals}} = N_{\text{vals}} + 1$. The new base confidence $c'_{\text{base}}$ is a weighted mean of the old mean and the new actor's confidence. Even if $c'_{\text{base}} \leq c_{\text{base}}$, the validator count increment adds 0.05 to the bonus term, ensuring the final value is at least $c$. If $c < 1.0$, the $\min(1.0, \cdot)$ is not binding, so strict inequality holds. $\square$
+
+\textbf{Theorem 6 (Status--Confidence Consistency).} If $\delta(C) = \text{validated}$, then $\gamma(C) \geq 0.5$.
+
+\emph{Proof.} $\delta(C) = \text{validated}$ implies the last lifecycle event is \texttt{VALIDATE}, so $V \neq \emptyset$. Thus $c_{\text{base}} = \max(0.5, \text{mean}(\cdot)) \geq 0.5$. By Theorem~4, the final value is at least $c_{\text{base}} \geq 0.5$. $\square$
+
+\subsection{Comparison with Formal Event Frameworks}\label{subsec:event-frameworks}
+
+ADL Lite's event model can be compared with three classical formal frameworks for reasoning about events and change: Event Calculus, Situation Calculus, and Description Logic.
+
+\subsubsection{Event Calculus}
+
+The Event Calculus (EC), introduced by Kowalski and Sergot \cite{event_calculus}, is a logic programming framework for reasoning about events and their effects. EC distinguishes \emph{events} (occurrences that initiate or terminate \emph{fluents}), \emph{fluents} (properties that hold over intervals of time), and \emph{axioms} that specify which events initiate or terminate which fluents.
+
+In EC, a concept's status would be modeled as a fluent: $\text{Validated}(c)$ holds over an interval $[t_1, t_2)$ if a \texttt{VALIDATE} event initiated it at $t_1$ and no subsequent \texttt{DEPRECATE} event terminated it before $t_2$. ADL Lite's $\delta(C)$ function computes exactly this fluent, but it does so by examining the entire event history rather than maintaining a set of currently holding fluents.
+
+The key difference is temporal representation. EC uses \emph{interval-based} temporal reasoning: fluents hold over intervals, and events are points that initiate or terminate intervals. ADL Lite uses \emph{chain-based} temporal reasoning: the current state is computed by scanning the ordered event sequence from genesis to present. Both approaches are equivalent in expressive power for the class of properties that ADL Lite models (status transitions with no continuous change), but the chain-based approach is computationally simpler---$\delta(C)$ is $O(n)$ in the chain length---and provides built-in cryptographic integrity.
+
+EC also supports \emph{continuous change} (e.g., a moving object's position changes continuously over time). ADL Lite does not support continuous change; all state changes are discrete events. This is a deliberate limitation: the target domain (concept lifecycle governance) involves discrete state transitions (proposed $\to$ validated $\to$ deprecated), not continuous physical processes.
+
+\subsubsection{Situation Calculus}
+
+The Situation Calculus (SC), developed by McCarthy and Hayes \cite{situation_calculus}, is a first-order logical framework for reasoning about action and change. SC distinguishes \emph{situations} (snapshots of the world at a point in time) and \emph{actions} (functions that map situations to situations). The fundamental axiom of SC is the \emph{frame axiom}: an action changes only the properties it is specified to change; all other properties remain unchanged.
+
+ADL Lite's EventChain can be viewed as a sequence of situations: each event $e_i$ transforms the situation $S_{i-1}$ into $S_i$. The status derivation $\delta(C)$ computes the value of a specific fluent (status) in the final situation $S_n$. However, ADL Lite does not explicitly represent situations; it represents only the event sequence. This is analogous to the \emph{event sourcing} pattern in software engineering: the state is reconstructed by replaying events, not by storing snapshots.
+
+The frame axiom in SC is a source of the \emph{frame problem}: specifying which properties do \emph{not} change after an action requires an unbounded number of axioms. ADL Lite avoids the frame problem by construction: because there are no stored mutable fields, there are no properties that need to be preserved across state transitions. All derived properties are recomputed from the event sequence, so the ``frame'' is implicit in the derivation functions.
+
+\subsubsection{Description Logic Expressivity}
+
+ADL Lite's derivation functions can be analyzed in terms of Description Logic (DL) expressivity. The status derivation $\delta(C)$ is a function from a sequence of events to a status value. In DL terms, this is a \emph{role chain} query: the status of a concept is determined by the type of the last event in the chain of events related to the concept by the \texttt{previous\_event\_id} role.
+
+The derivation functions $\delta$ and $\gamma$ are computable in polynomial time ($O(n)$ in the chain length). They do not require the full expressive power of OWL-DL (which is NExpTime-complete for satisfiability). In fact, $\delta$ and $\gamma$ can be expressed in the DL-lite family of lightweight description logics, which support efficient query answering over large datasets \cite{dl_lite}.
+
+Specifically, $\delta$ corresponds to a \emph{path query} over the event chain: ``find the last event in the chain whose type is in $\Sigma_{\text{life}}$, and return the corresponding status.'' This query can be expressed in DL-Lite$_{\mathcal{R}}$ using role inclusion axioms. The confidence aggregation $\gamma$ involves aggregation (mean, max) over sets of events, which goes beyond standard DL query answering but can be handled by DL extensions with aggregation operators \cite{dl_lite}.
+
+The practical implication is that ADL Lite's derivation semantics are \emph{tractable}: they do not require OWL reasoners or complex inference engines. This aligns with the design goal of lightweight deployment: the ontology can be processed by a simple Python script operating over Markdown files, without requiring a triple store or DL reasoner.
+
+\subsubsection{Comparison with DL-Lite Family}\label{subsubsec:dl-lite-comparison}
+
+The derivation functions $\delta$ and $\gamma$ can be precisely characterized in terms of Description Logic (DL) expressivity. Table~\ref{tab:dl-lite-comparison} compares ADL Lite's event algebra with two lightweight DL families: DL-Lite$_{\mathcal{R}}$ (the core DL-Lite dialect supporting role inclusion and inverse roles) and Datalog$^{\pm}$ (the rule-based extension with existential quantification and tuple-generating dependencies).
+
+\begin{table}[htbp]
+\centering
+\caption{Expressivity comparison: ADL Lite Event Algebra vs.\ DL-Lite$_{\mathcal{R}}$ vs.\ Datalog$^{\pm}$.}
+\label{tab:dl-lite-comparison}
+\begin{tabular}{@{}p{3.5cm}p{3.0cm}p{3.0cm}p{3.0cm}@{}}
+\toprule
+\textbf{Capability} & \textbf{ADL Lite} & \textbf{DL-Lite$_{\mathcal{R}}$} & \textbf{Datalog$^{\pm}$} \\
+\midrule
+Concept lifecycle state & $\delta(C)$ (path query) & Role chain query & Linear recursive rule \\
+Precondition checking & Closed Comparator enum & N/A (no actions) & EGD with built-in \\
+Fork/merge semantics & \textsc{FORK} event + child chain & N/A (no versioning) & N/A \\
+Confidence aggregation & $\gamma(C)$ (aggregation) & N/A & Aggregate function \\
+Temporal reasoning & Chain ordering (sequential) & N/A & N/A \\
+Cryptographic integrity & SHA-256 hash chain & N/A & N/A \\
+Query complexity & $O(n)$ per chain & AC$^0$ (data complexity) & PTIME \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+ADL Lite's status derivation $\delta(C)$ corresponds to a \emph{path query} over the event chain: ``find the last event whose type is in $\Sigma_{\text{life}}$, and return the corresponding status.'' This query can be expressed in DL-Lite$_{\mathcal{R}}$ using role inclusion axioms of the form $\text{prev} \circ \text{type} \sqsubseteq \text{transitionsTo}$, but the aggregation in $\gamma(C)$ (mean, max over sets of events) exceeds standard DL query answering. The practical implication is that ADL Lite's derivation semantics are tractable---they do not require OWL reasoners or complex inference engines---but they occupy a distinct expressive niche that is not fully captured by existing DL families. ADL Lite is best understood not as a replacement for DL but as a \emph{lightweight operational layer} that complements DL-based ontologies with event-sourced lifecycle governance and cryptographic provenance.
