@@ -20,7 +20,7 @@ L4 & \texttt{adl:action} & Typed actions with preconditions & REGISTER, VALIDATE
 
 The L1 layer comprises YAML front matter containing identity metadata: \texttt{adl\_type}, \texttt{adl\_id}, \texttt{status}, \texttt{confidence}, \texttt{novelty}, \texttt{scope}, and \texttt{provisional\_names}. Critically, the L1 fields are \emph{derived snapshots} recomputed from the EventChain, not sources of truth. A discrepancy between L1 \texttt{status} and the chain-derived status indicates an incomplete event history in the source document.
 
-The L2 layer consists of the Markdown body: human- and LLM-readable prose. The Singular Subjectivity Assertion (SSA) prohibits fuzzy referents---including pronouns such as ``this,'' ``that,'' ``it''---that would compromise cross-agent alignment \cite{ref16}. SSA is configurable: \texttt{strict} mode enforces explicit reference for all agent-authored content, while \texttt{lax} mode permits natural pronoun use for human-authored narrative.
+The L2 layer consists of the Markdown body: human- and LLM-readable prose. The Singular Subjectivity Assertion (SSA) prohibits fuzzy referents---including pronouns such as ``this,'' ``that,'' ``it''---that would compromise cross-agent alignment \cite{foam2020}. SSA is configurable: \texttt{strict} mode enforces explicit reference for all agent-authored content, while \texttt{lax} mode permits natural pronoun use for human-authored narrative.
 
 The L3 layer introduces typed semantic assertions through fenced code blocks: \texttt{adl:relation} for typed edges between concepts (supporting predicates such as \texttt{isomorphic-to} and \texttt{specialisation-of}), \texttt{adl:evidence} for evidentiary support, and \texttt{adl:seal} for formal assertions. These blocks are machine-parseable RDF-like triples that remain editable in ordinary text editors.
 
@@ -80,7 +80,28 @@ Fork semantics deserve special attention. When a concept forks, a \texttt{FORK} 
 
 \subsection{Formal Derivation Semantics}\label{subsec:formal-semantics}
 
-This section provides the complete formal foundation for the derivation semantics. All definitions are self-contained.
+This section provides the complete formal foundation for the derivation semantics. All definitions are self-contained; expanded proof sketches appear in Appendix~\ref{app:proofs}. Table~\ref{tab:formal-notation} summarizes the key notation.
+
+\begin{table}[htbp]
+\centering
+\caption{Formal notation for the derivation semantics.}
+\label{tab:formal-notation}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Symbol} & \textbf{Definition} \\
+\midrule
+$\Sigma = \Sigma_{\text{life}} \cup \Sigma_{\text{comm}}$ & Event alphabet (lifecycle $\cup$ communication) \\
+$C = [e_1, \ldots, e_n]$ & Well-formed EventChain \\
+$\text{WF}(C)$ & Well-formedness predicate (5 axioms) \\
+$\delta(C) \in S$ & Status derivation function \\
+$\gamma(C) \in [0,1]$ & Confidence aggregation function \\
+$C_{\text{life}}$ & Lifecycle subsequence $\{e \in C \mid e.\tau \in \Sigma_{\text{life}}\}$ \\
+$S$ & Status space \{provisional, validated, deprecated, forked, archived\} \\
+$f: \Sigma_{\text{life}} \to S$ & Event-type-to-status mapping \\
+$\text{Fork}(C, a)$ & Fork operation producing $(C_{\text{fork}}, C')$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsubsection{Event Alphabet and Well-Formedness}
 
@@ -123,7 +144,26 @@ The per-actor maxima ensure duplicate validations from the same actor do not com
 
 \subsubsection{Fork and Confluence Semantics}
 
-A fork transforms a concept $C$ into $(C_{\text{fork}}, C')$ where $C_{\text{fork}} = C \oplus [e_{\text{FORK}}]$ and $C' = [e'_{\text{REG}}]$ is a new chain with fresh identifier. The forked concept identifier is recorded in $e_{\text{FORK}}.p.\text{fork\_target}$.
+A fork operation $\text{Fork}(C, a)$, parameterized by an initiating agent $a$, transforms a concept chain $C$ into a parent-child pair:
+\begin{align}
+    \text{Fork}(C, a) &= (C_{\text{fork}}, C') \\
+    C_{\text{fork}} &= C \oplus [e_{\text{FORK}}] \\
+    C' &= [e'_{\text{REG}}]
+\end{align}
+where $e_{\text{FORK}}$ carries payload $\{\text{fork\_target}: C'.\text{concept\_id}, \text{reason}: \dots\}$ and $e'_{\text{REG}}$ initialises the new concept with a fresh $\text{concept\_id}$.
+
+\textbf{Fork-level confluence.} For any well-formed $C$ and any pair of agents $a_1, a_2$:
+$$\text{Fork}(C, a_1)_{\text{child}} \perp \text{Fork}(C, a_2)_{\text{child}}$$
+where $\perp$ denotes independence: each child chain's derived state depends only on its own event sequence, never on the sibling chain. This follows from the per-chain semantics of $\delta$ and the fact that child chains carry distinct $\text{concept\_id}$ values. The parent chain's status becomes $\text{forked}$ regardless of which agent initiated the fork, preserving determinism (Theorem~1).
+
+\textbf{Optional CRDT merge semantics.} For concurrent modifications by different agents who subsequently reconcile, ADL Lite supports optional LWW-Element-Set (LWW-Set) merge semantics on the confidence aggregation. For concurrent branches $B_1, B_2$:
+\begin{align}
+    \text{Merge}(B_1, B_2) &= B_1 \cup B_2 \quad \text{(event union, deduplicated by event\_id)} \\
+    \text{with tie-breaking by} &\quad \text{event\_id} \text{ for equal-timestamp events}
+\end{align}
+The merge operation is commutative, associative, and idempotent, satisfying the CRDT convergence conditions: $\text{Merge}(B_1, B_2) = \text{Merge}(B_2, B_1)$ and $\text{Merge}(\text{Merge}(B_1, B_2), B_3) = \text{Merge}(B_1, \text{Merge}(B_2, B_3))$.
+
+We emphasise that CRDT merge is an \emph{optional} strategy, not the default. The primary mechanism for handling divergent interpretations is fork-and-deprecate: competing views coexist as independent chains, and the community converges through social consensus---deprecating abandoned forks, validating accepted ones. ADL Lite provides the provenance infrastructure for both approaches without prescribing one over the other.
 
 \textbf{Theorem 1 (Determinism).} For any well-formed $C$, $\delta(C)$ is unique and depends only on the last lifecycle event in $C$.
 
@@ -146,8 +186,22 @@ A fork transforms a concept $C$ into $(C_{\text{fork}}, C')$ where $C_{\text{for
 \emph{Proof.} Let $N'_{\text{vals}} = N_{\text{vals}} + 1$. The new base confidence $c'_{\text{base}}$ is a weighted mean of the old mean and the new actor's confidence. Even if $c'_{\text{base}} \leq c_{\text{base}}$, the validator count increment adds 0.05 to the bonus term, ensuring the final value is at least $c$. If $c < 1.0$, the $\min(1.0, \cdot)$ is not binding, so strict inequality holds. $\square$
 
 \textbf{Theorem 6 (Status--Confidence Consistency).} If $\delta(C) = \text{validated}$, then $\gamma(C) \geq 0.5$.
+\smallskip
 
 \emph{Proof.} $\delta(C) = \text{validated}$ implies the last lifecycle event is \texttt{VALIDATE}, so $V \neq \emptyset$. Thus $c_{\text{base}} = \max(0.5, \text{mean}(\cdot)) \geq 0.5$. By Theorem~4, the final value is at least $c_{\text{base}} \geq 0.5$. $\square$
+
+\textbf{Theorem 7 (CRDT Convergence).} For any well-formed concurrent branches $B_1, B_2$ derived from the same genesis event, the LWW-Set merge satisfies:
+\begin{align}
+    \text{Merge}(B_1, B_2) &= \text{Merge}(B_2, B_1) \quad \text{(commutativity)} \\
+    \text{Merge}(\text{Merge}(B_1, B_2), B_3) &= \text{Merge}(B_1, \text{Merge}(B_2, B_3)) \quad \text{(associativity)} \\
+    \text{Merge}(B_1, B_1) &= B_1 \quad \text{(idempotence)}
+\end{align}
+Furthermore, after merge, $\delta(\text{Merge}(B_1, B_2))$ is uniquely determined.
+\smallskip
+
+\emph{Proof.} Events are deduplicated by $\text{event\_id}$, so union is idempotent. Union is commutative and associative by set semantics. $\delta$ depends only on the last lifecycle event in the merged set; for equal-timestamp ties, event\_id provides a total order, making $\delta$ deterministic.
+
+\textbf{Corollary (Event-Level CRDT).} Each event $e$ is a trivial CRDT: it is immutable (no update operation), so trivially convergent. The chain $C$ as an append-only log is a grow-only set (G-Set) CRDT.\footnote{A TLA$^{+}$ specification of the EventChain state machine, including fork/confluence semantics and CRDT merge properties, is available in the supplementary materials. While the proof sketches in this section and Appendix~\ref{app:proofs} provide the formal foundation, the TLA$^{+}$ model enables mechanised verification of safety properties (no invalid transitions) and liveness properties (every fork eventually produces a child chain) using the TLC model checker.}
 
 \subsection{Comparison with Formal Event Frameworks}\label{subsec:event-frameworks}
 
@@ -180,3 +234,49 @@ The derivation functions $\delta$ and $\gamma$ are computable in polynomial time
 Specifically, $\delta$ corresponds to a \emph{path query} over the event chain: ``find the last event in the chain whose type is in $\Sigma_{\text{life}}$, and return the corresponding status.'' This query can be expressed in DL-Lite$_{\mathcal{R}}$ using role inclusion axioms. The confidence aggregation $\gamma$ involves aggregation (mean, max) over sets of events, which goes beyond standard DL query answering but can be handled by DL extensions with aggregation operators \cite{dl_lite}.
 
 The practical implication is that ADL Lite's derivation semantics are \emph{tractable}: they do not require OWL reasoners or complex inference engines. This aligns with the design goal of lightweight deployment: the ontology can be processed by a simple Python script operating over Markdown files, without requiring a triple store or DL reasoner.
+
+\subsection{Trust Model and Security Boundaries}\label{subsec:trust-model}
+
+The cryptographic hash chain ensures \emph{content integrity}: any modification, reordering, or deletion of events breaks the chain linkage and is detected by $\text{VerifyIntegrity}(C)$. However, hash chains alone do not provide \emph{actor authentication}: nothing in the current system prevents an agent from claiming any actor identity when appending events. This section makes the trust model explicit and identifies known limitations.
+
+\subsubsection{Trust Assumptions}
+
+ADL Lite's current phase (v0.2) assumes the following trust boundaries:
+
+\begin{enumerate}[label=(\arabic*)]
+    \item \textbf{Trusted storage.} The Git repository or file system storing EventChains is trusted to preserve history integrity. Force-pushes or rebases can rewrite history, but (a) signed Git commits provide tamper-evidence via GPG signatures, and (b) ADL Lite's chain verification detects any modification because the hash chain would break at the point of alteration. The authoritative chain is determined by agent quorum, not Git HEAD.
+    \item \textbf{Trusted authoring environment.} Agents are assumed not to be compromised. A compromised agent can inject arbitrary events, but those events are recorded—the chain provides \emph{non-repudiable evidence} of what occurred, even if what occurred was malicious.
+    \item \textbf{Clock skew tolerance.} Event ordering is determined by cryptographic linkage (\texttt{previous\_event\_id}), not by timestamps. Clock skew between agents does not affect chain validity. Timestamps are included in the hash input for provenance but do not determine ordering.
+\end{enumerate}
+
+\subsubsection{Known Limitations and Planned Mitigations}
+
+\textbf{Limitation 1: No actor identity verification (Phase 3).} Currently, event actors are self-declared strings. An agent can claim to be another agent when appending events. Planned Phase~3 will add W3C Linked Data Proofs~\cite{linked_data_proofs}: each event will carry an Ed25519 signature verifiable against a public key published via DIDs or key transparency logs. This provides cryptographic actor authentication without centralised PKI. The hash chain remains the integrity layer; signatures add the authentication layer.
+
+\textbf{Limitation 2: No Byzantine resilience.} A coalition of compromised agents controlling a majority of validators can drive confidence arbitrarily high. ADL Lite does not implement Byzantine fault tolerance. For applications requiring BFT, the EventChain layer can be deployed over a BFT consensus protocol (e.g., PBFT~\cite{pbft}) at the transport layer, with ADL Lite providing the semantic governance layer above.
+
+\textbf{Limitation 3: No equivocation prevention.} An agent can post contradictory events (e.g., validating and deprecating the same concept) across different chains. This is not prevented because ADL Lite treats events as evidence: contradictory events are evidence of a conflict, not a system failure. Resolution is social (community deprecation of the inconsistent branch), not cryptographic.
+
+\textbf{Limitation 4: Genesis event immutability.} In Git-based workflows, a force-push can rewrite the genesis event. However: (a) the hash chain from the genesis event onward would detect any change; (b) signed Git commits provide additional tamper-evidence; (c) the concept's identity is tied to the genesis event's hash---rewriting it creates a \emph{different concept} with a different identity. The original concept's chain persists in the Git reflog and in any agent's local copy.}
+
+\subsubsection{Threat model summary}
+
+\begin{table}[htbp]
+\centering
+\caption{Threat model for ADL Lite v0.2. $\checkmark$ = mitigated; $\circ$ = detected but not prevented; $\times$ = not addressed.}
+\label{tab:threat-model}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Threat} & \textbf{Status} & \textbf{Mitigation} \\
+\midrule
+Content tampering & $\checkmark$ & Hash chain (SHA-256 linkage) \\
+Event reordering & $\checkmark$ & \texttt{previous\_event\_id} linkage \\
+Event deletion & $\checkmark$ & Hash chain break detection \\
+Actor impersonation & $\times$ & Planned: Ed25519 + DIDs (Phase 3) \\
+Equivocation & $\circ$ & Detected as conflicting events; social resolution \\
+Clock skew & $\checkmark$ & Ordering via linkage, not timestamps \\
+Genesis replacement & $\circ$ & Hash break detection; Git reflog recovery \\
+Byzantine majority & $\times$ & Planned: optional BFT transport layer \\
+\bottomrule
+\end{tabular}
+\end{table}

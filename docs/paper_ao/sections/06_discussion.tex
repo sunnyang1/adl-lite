@@ -64,3 +64,13 @@ Deployment & Expert curation & Expert curation & Model-driven engineering & Mark
 \end{table}
 
 ADL Lite does not replace foundational ontologies; it complements them by providing a lightweight, deployment-ready layer for concept governance that can be authored by non-experts. The ontological analysis establishes the mapping to foundational categories, enabling future integration: an ADL Lite concept can be exported as a BFO continuant, its events as DOLCE perdurants, and its relations as UFO relators.
+
+\subsection{Complementary Systems: PLUGMEM Integration}\label{subsec:plugmem-integration}
+
+PLUGMEM (arXiv:2603.03296) is a recent agent memory framework that provides structured memory abstraction and retrieval for LLM agents but acknowledges it lacks governance and versioning mechanisms for agent memories---a gap that ADL Lite directly addresses. The two systems are complementary at different architectural layers:
+
+\begin{center}
+\textsf{PLUGMEM: memory storage + retrieval} $\; \xrightarrow{\text{complemented by}} \;$ \textsf{ADL Lite: lifecycle governance + consensus}
+\end{center}
+
+In a potential integration, each PLUGMEM memory entry would be registered as an ADL Lite concept with a corresponding EventChain. PLUGMEM would handle efficient memory indexing and semantic retrieval (using its neural memory abstractions), while ADL Lite would govern the lifecycle of those memories: validation by peer agents ($\textsc{VALIDATE}$ events), deprecation of outdated memories ($\textsc{DEPRECATE}$ events), and forking of contested interpretations ($\textsc{FORK}$ events). The cryptographic hash chain would provide tamper-evident provenance for every memory state transition, addressing PLUGMEM's acknowledged governance gap. Demonstrating this integration concretely---with shared API boundaries, serialization formats, and benchmark task suites---is planned for future joint work.

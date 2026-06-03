@@ -1,8 +1,8 @@
 \subsection{Philosophical Foundation: Event-First as Ontological Commitment}\label{subsec:philosophical-foundation}
 
-The architectural design of ADL Lite is grounded in an ontological inversion of conventional ontology engineering. Traditional operational ontologies---including OWL-based knowledge graphs, Palantir Foundry, and enterprise metadata platforms---adopt an \emph{object-first} stance: an Object Type defines what entities exist, a Property Type describes their attributes, a Link Type connects them, and an Action Type is appended as an operational afterthought to model operations upon the previously defined object structures \cite{ref6,ref14}. This ordering reflects a metaphysical commitment to the \emph{primacy of continuants}: entities are conceived as self-subsistent bearers of properties that persist through changes in their attributes.
+The architectural design of ADL Lite is grounded in an ontological inversion of conventional ontology engineering. Traditional operational ontologies---including OWL-based knowledge graphs, Palantir Foundry, and enterprise metadata platforms---adopt an \emph{object-first} stance: an Object Type defines what entities exist, a Property Type describes their attributes, a Link Type connects them, and an Action Type is appended as an operational afterthought to model operations upon the previously defined object structures \cite{palantir_fde,dendron2020}. This ordering reflects a metaphysical commitment to the \emph{primacy of continuants}: entities are conceived as self-subsistent bearers of properties that persist through changes in their attributes.
 
-ADL Lite inverts this hierarchy. Drawing on Wittgenstein's \emph{Tractatus Logico-Philosophicus} \S1.1---\emph{``Die Welt ist die Gesamtheit der Tatsachen, nicht der Dinge''} (``The world is the totality of facts, not of things'')---the system treats the event as the fundamental ontological primitive \cite{ref9,ref10}. On this view, an object has no ontological standing independent of the facts in which it appears. A concept's status (\texttt{validated}, \texttt{deprecated}, \texttt{forked}) is not an intrinsic property of the concept but a relational property constituted by the history of events that have occurred in its lifecycle.
+ADL Lite inverts this hierarchy. Drawing on Wittgenstein's \emph{Tractatus Logico-Philosophicus} \S1.1---\emph{``Die Welt ist die Gesamtheit der Tatsachen, nicht der Dinge''} (``The world is the totality of facts, not of things'')---the system treats the event as the fundamental ontological primitive \cite{wittgenstein_tractatus,event_sourcing}. On this view, an object has no ontological standing independent of the facts in which it appears. A concept's status (\texttt{validated}, \texttt{deprecated}, \texttt{forked}) is not an intrinsic property of the concept but a relational property constituted by the history of events that have occurred in its lifecycle.
 
 This philosophical commitment translates into three governing ontological principles:
 
@@ -26,7 +26,7 @@ ADL Lite's category system can be analyzed through the lens of three influential
 \midrule
 Event & \texttt{occurrent} & \texttt{perdurant} & \texttt{Event} & Temporal entity; happens; no endurance \\
 EventChain & \texttt{process} & \texttt{amount-of-matter}$\approx$ & \texttt{Complex Event} & Sequence of events; not a continuant \\
-Concept & \texttt{generically dependent continuant} & \texttt{non-physical object}$\approx$ & \texttt{Conceptual Entity} & Depends on chain for identity \\
+Concept & \texttt{generically dependent continuant} & \texttt{non-physical object}$\approx$ & \texttt{Conceptual Entity} & Depends on EventChain as ICE bearer (not occurrent) \\
 Relation (L3) & \texttt{relational quality} & \texttt{quality} & \texttt{Relator} & Mediates between concepts \\
 Action (L4) & \texttt{planned process} & \texttt{action} & \texttt{Action} & Intentional occurrent with preconditions \\
 Actor & \texttt{agent} & \texttt{physical agent} & \texttt{Agent} & Can be human or software agent \\
@@ -48,7 +48,7 @@ In UFO, events are also treated as perdurants, but UFO additionally distinguishe
 
 The ontological status of a ``concept'' in ADL Lite is subtle. A concept is not a physical object (it has no mass, no spatial location). It is not a mental object (it exists outside any individual mind, in the shared Markdown file). It is not a universal (it is not instantiated by particulars). We propose that an ADL Lite concept is best understood as a \emph{generically dependent continuant} in BFO terms \cite{bfo}: an entity that depends on some continuant or other for its existence, but not on any \emph{specific} continuant.
 
-A concept depends generically on its EventChain: if the chain were destroyed, the concept would cease to exist. But the concept does not depend on any specific event within the chain---events can be added and the concept persists. The concept's identity is determined by the \emph{genesis event} (the first event in the chain, with its \texttt{concept\_id}), not by the totality of events. This is analogous to how a BFO \emph{generically dependent continuant} such as a poem depends on some physical copy for its existence, but not on any specific copy.
+A concept depends generically on its EventChain \emph{as an information content entity (ICE)}---a continuant that encodes the event history---rather than on the occurrent process of events happening. In BFO 2020, an ICE is a GDC concretized by some material bearer (the Markdown file on disk). The events themselves are occurrents; the serialized chain record is the continuant ICA that bears the concept's identity.\footnote{This distinction resolves an apparent category mismatch: a GDC must depend on a continuant bearer, not on an occurrent. The EventChain qua ICE is the bearer; the events occurring constitute the temporal process that produces and updates the ICE.} If the chain record were destroyed, the concept would cease to exist. But the concept does not depend on any specific event within the chain---events can be added and the concept persists. The concept's identity is determined by the \emph{genesis event} (the first event in the chain, with its \texttt{concept\_id}), not by the totality of events. This is analogous to how a BFO \emph{generically dependent continuant} such as a poem depends on some physical copy for its existence, but not on any specific copy.
 
 In DOLCE, the closest category is \emph{non-physical object} (NPO), which includes social objects, information objects, and cognitive objects \cite{dolce}. ADL Lite concepts are information objects that carry social/institutional weight (their status determines whether they are accepted by the community). In UFO, concepts are \emph{conceptual entities} or \emph{types} in the conceptual space of the community \cite{ufo}.
 
@@ -112,7 +112,13 @@ Ontological dependence concerns which entities depend on which others for their 
 
 \subsubsection{Identity and Dependence Conditions}\label{subsubsec:identity-dependence}
 
-The treatment of Concept as a generically dependent continuant (GDC) that depends on an EventChain raises questions about cross-category dependence that merit precise formulation.
+The treatment of Concept as a generically dependent continuant (GDC) that depends on an EventChain raises questions about cross-category dependence that merit precise formulation. We formalize the dependency as:
+\vspace{0.3em}
+\begin{center}
+\textsf{Concept} $\; \xrightarrow{\text{GDC}} \;$ \textsf{ICE}(\textsf{EventChain\_record}) $\; \xrightarrow{\text{concretized\_by}} \;$ \textsf{Markdown\_file}
+\end{center}
+\vspace{0.3em}
+The Concept depends on an \emph{information content entity} (ICE)---the serialized EventChain record---which is itself a GDC concretized by the Markdown file on disk. The events occurring in the chain are occurrents; the Concept does not depend on them directly, but on the ICE that records them. This resolves the apparent category mismatch: a GDC cannot depend on an occurrent, but it can depend on the ICE that documents that occurrent.
 
 \textbf{What does the Concept depend on?} A Concept in ADL Lite depends on the \emph{information artifact} (the serialized EventChain record) rather than on the occurrent (the process of events occurring). This is consistent with BFO's GDC criteria: a GDC depends on some continuant bearer but is not identical to any particular bearer. The EventChain is the bearer---a structured information entity that encodes the history of occurrents. The Concept (as GDC) is the \emph{interpretation} of that history: the rules that project status, confidence, and validators from the event sequence.
 

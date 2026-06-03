@@ -127,3 +127,80 @@ To complement the architectural correctness evaluation (E1--E4), we propose a hu
 \textbf{Expected outcomes.} We expect the Treatment condition to show: (a) higher curator agreement due to structured precondition enforcement; (b) faster time-to-resolution due to automated status derivation; (c) lower conflict rate due to deterministic fork semantics; (d) higher audit completeness by design; (e) higher perceived utility scores, particularly for auditability.
 
 \textbf{Ethics.} The study will be approved by the institutional ethics committee. All participants provide informed consent. Data is anonymized and stored in compliance with GDPR.
+
+\subsection{Comparative Governance Evaluation}\label{subsec:comparative-eval}
+
+To position ADL Lite relative to established provenance solutions, we present a structured comparison against nanopublications with Trusty URIs and a PROV-O pipeline on a governance task suite. This comparison is methodological rather than experimental---we report operational characteristics rather than benchmark timings, acknowledging that a full empirical comparison requires the authentication layer planned for Phase~3.
+
+\subsubsection{Governance Task Suite}
+
+We define four governance tasks representative of multi-agent concept lifecycle management:
+
+\begin{enumerate}[label=(\arabic*)]
+    \item \textbf{Acceptance workflow.} A concept is proposed, reviewed by $k$ validators, and accepted only if the quorum threshold (minimum validations) is met. Measure: number of system steps required to reach final status.
+    \item \textbf{Retraction/deprecation workflow.} A previously accepted concept is deprecated based on new evidence. Measure: completeness of the audit trail linking deprecation to the evidence that justified it.
+    \item \textbf{Audit query.} A downstream consumer asks: ``What was the status of concept $X$ at time $t$, and who contributed to its validation?'' Measure: time to answer ($O(1)$ for nanopub lookup vs. $O(n)$ for EventChain scan).
+    \item \textbf{Consensus threshold check.} Determine whether a concept has reached a configurable confidence threshold (e.g., $\gamma(C) \geq 0.7$) and which validators contributed. Measure: computational cost of threshold evaluation.
+\end{enumerate}
+
+\subsubsection{Comparison Results}
+
+\begin{table}[htbp]
+\centering
+\caption{Comparative evaluation across four governance tasks. $\checkmark$ = supported; $\circ$ = partially supported via external tooling; $\times$ = not supported.}
+\label{tab:comparative-eval}
+\begin{tabular}{@{}p{3.0cm}p{3.5cm}p{3.5cm}p{3.5cm}@{}}
+\toprule
+\textbf{Task} & \textbf{Nanopubs + Trusty URIs} & \textbf{PROV-O Pipeline} & \textbf{ADL Lite (v0.2)} \\
+\midrule
+Acceptance workflow & $\circ$ (manual versioning) & $\circ$ (requires external workflow engine) & $\checkmark$ (deterministic $\delta(C)$) \\
+Retraction/deprecation & $\checkmark$ (new nanopub with retraction) & $\checkmark$ (prov:wasInvalidatedBy) & $\checkmark$ (\textsc{DEPRECATE} + precondition) \\
+Audit query (status at time $t$) & $\checkmark$ ($O(1)$ per nanopub) & $\checkmark$ (SPARQL query) & $\circ$ ($O(n)$ per chain; linear scan of events) \\
+Consensus threshold & $\times$ (no built-in aggregation) & $\times$ (no built-in aggregation) & $\checkmark$ ($\gamma(C)$ with quorum rules) \\
+Multi-event lifecycle view & $\circ$ (chained nanopubs) & $\checkmark$ (activity sequences) & $\checkmark$ (native EventChain) \\
+Verification cost & $O(1)$ per nanopub & $\sim O(|\text{activities}|)$ & $O(n)$ per chain \\
+Authentication & $\checkmark$ (RSA signatures) & $\circ$ (planned: LD-Proofs) & $\times$ (planned: Phase~3) \\
+Infrastructure & RDF triplestore + nanopub server & RDF triplestore + PROV tooling & Git + \texttt{pip install adl-lite} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Interpretation.} Nanopublications with Trusty URIs provide superior $O(1)$ per-claim verification with built-in RSA signatures---an authentication capability that ADL Lite currently lacks. However, nanopubs are atomic (single-claim) units without built-in lifecycle state machines or consensus thresholds. PROV-O pipelines offer rich workflow descriptions but require external execution engines for governance enforcement. ADL Lite uniquely combines deterministic lifecycle derivation ($\delta$), configurable confidence aggregation ($\gamma$), and precondition-governed actions within a single package, at the cost of $O(n)$ audit query time and the absence of actor authentication in the current version.
+
+\textbf{Authentication gap.} The most significant difference is authentication: nanopubs provide RSA-signed assertions with key verification, while ADL Lite v0.2 uses self-declared string identifiers. This gap is acknowledged and scoped to Phase~3 (Section~\ref{subsec:trust-model}). When authentication is added, ADL Lite will combine signed assertions with its existing lifecycle governance, closing the gap while retaining unique advantages in derivation semantics and precondition enforcement.
+
+\subsection{E6: Hardware Environment and Latency Decomposition}\label{subsec:e6-hardware}
+
+The E6 throughput measurement of 31,100 events per second (§\ref{subsec:e6}) was obtained on the following hardware:
+
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{CPU}: Apple M2 (8 performance cores, 4 efficiency cores), 3.49 GHz
+    \item \textbf{RAM}: 16 GB LPDDR5
+    \item \textbf{OS}: macOS 14 (Darwin), Python 3.10
+    \item \textbf{Storage}: NVMe SSD (read $\sim$5 GB/s)
+\end{itemize}
+
+\textbf{Latency decomposition.} Profiling the E6 pipeline reveals the following breakdown per 1,000 events:
+
+\begin{table}[htbp]
+\centering
+\caption{Latency decomposition for IBM AML HI-Small import pipeline (per 1,000 events).}
+\label{tab:latency-decomp}
+\begin{tabular}{@{}lrl@{}}
+\toprule
+\textbf{Stage} & \textbf{Time (ms)} & \textbf{Fraction} \\
+\midrule
+CSV parsing (Python \texttt{csv} module) & 4.2 & 13.1\% \\
+Event materialization (Pydantic validation) & 18.7 & 58.4\% \\
+SHA-256 hashing (Python \texttt{hashlib}) & 5.1 & 15.9\% \\
+Chain verification ($\text{VerifyIntegrity}$) & 3.2 & 10.0\% \\
+Memory allocation and GC & 0.8 & 2.5\% \\
+\midrule
+\textbf{Total} & \textbf{32.0} & \textbf{100\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The bottleneck is event materialization (Pydantic model construction and validation at 58.4\%), not cryptographic operations (SHA-256 hashing at 15.9\%). This confirms that the EventChain architecture imposes minimal cryptographic overhead relative to data ingestion costs. The chain verification cost scales linearly with chain length ($O(n)$), consistent with the formal analysis in Section~\ref{subsec:formal-semantics}.
+
+\textbf{Baseline comparison.} For a throughput baseline, the same 9,300-event CSV parsed without EventChain construction (raw CSV read + field counting) completes in 98 ms (94,900 records/s). The EventChain construction adds approximately $2.9\times$ overhead ($299$ ms vs. $98$ ms), which is dominated by Pydantic validation, SHA-256 hashing, and deterministic chain verification. This overhead is the cost of verifiable provenance and is acceptable for batch ingestion scenarios where audit completeness is valued over raw ingestion speed.

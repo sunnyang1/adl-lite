@@ -240,10 +240,56 @@ This completes the proof. In fact, we have established the stronger result that 
 \end{proof}
 
 %-------------------------------------------------------------------------------
+\subsection{Theorem~7: CRDT Convergence of EventChain Merge}
+%-------------------------------------------------------------------------------
+
+The EventChain model supports an optional LWW-Set merge semantics for reconciling concurrent branches. This theorem establishes that the merge operation satisfies CRDT convergence properties.
+
+\begin{theorem}[CRDT Convergence]\label{thm:crdt-convergence}
+For any well-formed concurrent branches $B_1, B_2$ derived from the same genesis event (same $\text{concept\_id}$ and genesis hash), the LWW-Set merge operation $\text{Merge}(B_1, B_2) = B_1 \cup B_2$ (deduplicated by $\text{event\_id}$) satisfies:
+\begin{align}
+    \text{Merge}(B_1, B_2) &= \text{Merge}(B_2, B_1) \quad \text{(commutativity)} \\
+    \text{Merge}(\text{Merge}(B_1, B_2), B_3) &= \text{Merge}(B_1, \text{Merge}(B_2, B_3)) \quad \text{(associativity)} \\
+    \text{Merge}(B_1, B_1) &= B_1 \quad \text{(idempotence)}
+\end{align}
+Furthermore, after merge, $\delta(\text{Merge}(B_1, B_2))$ is uniquely determined.
+\end{theorem}
+
+\begin{proof}[Proof of Theorem~7]
+We prove each CRDT property individually.
+
+\textbf{Commutativity.} $\text{Merge}(B_1, B_2) = B_1 \cup B_2 = B_2 \cup B_1 = \text{Merge}(B_2, B_1)$ by commutativity of set union. Deduplication by $\text{event\_id}$ preserves this property because the deduplication function is symmetric: events with the same $\text{event\_id}$ appearing in both branches are included exactly once, regardless of which branch is the first argument.
+
+\textbf{Associativity.} $\text{Merge}(\text{Merge}(B_1, B_2), B_3) = (B_1 \cup B_2) \cup B_3 = B_1 \cup (B_2 \cup B_3) = \text{Merge}(B_1, \text{Merge}(B_2, B_3))$ by associativity of set union. The deduplication step is idempotent: applying it to $(B_1 \cup B_2) \cup B_3$ yields the same result as applying it to $B_1 \cup (B_2 \cup B_3)$ because the set of distinct $\text{event\_id}$ values is the same in both cases.
+
+\textbf{Idempotence.} $\text{Merge}(B_1, B_1) = B_1 \cup B_1 = B_1$ because each event in $B_1$ appears exactly once after deduplication by $\text{event\_id}$, which is already satisfied within $B_1$ (Condition~(5) of $\Phi$ ensures pairwise distinct $\text{event\_id}$ values).
+
+\textbf{Determinism of $\delta$ after merge.} The merged set $B_1 \cup B_2$ may have a non-trivial lifecycle subsequence where events from both branches interleave. However, for equal-timestamp ties, $\text{event\_id}$ provides a total order (UUIDs are lexicographically comparable), making the last lifecycle event unique. By Theorem~\ref{thm:determinism}, $\delta$ is therefore uniquely determined.
+
+\textbf{Assumptions used:} (A1) Both $B_1$ and $B_2$ satisfy $\Phi$ (well-formedness); (A2) $\text{event\_id}$ values are pairwise distinct across all events in $B_1 \cup B_2$ except for shared ancestry events (which are deduplicated); (A3) UUID lexicographic ordering provides a total order for tie-breaking.
+\end{proof}
+
+%-------------------------------------------------------------------------------
+\subsection{Corollary: Event-Level CRDT (G-Set)}
+%-------------------------------------------------------------------------------
+
+\begin{corollary}[Event-Level G-Set CRDT]\label{cor:gset-crdt}
+Each ADL Lite event $e$ is a trivial CRDT: it is immutable (no update operation), so trivially convergent under any merge strategy that treats events as set elements. The EventChain $C$ as an append-only log is a grow-only set (G-Set) CRDT \cite{crdts}: events can only be added, never removed, and the merge of two chains is the union of their event sets.
+\end{corollary}
+
+\begin{proof}[Proof of Corollary~\ref{cor:gset-crdt}]
+An event $e$ is immutable by construction: the hash $e.h$ is computed over all event fields (including $\text{event\_id}$ and payload), and any modification would change the hash, breaking the cryptographic linkage. Therefore, events have no update operation---they are write-once. A G-Set with write-once elements is trivially a CRDT because there are no concurrent updates to resolve: all concurrent operations are disjoint additions to the set, and the merge is simply set union.
+
+The EventChain $C$ by design supports only the $\text{append}$ operation ($C \oplus [e]$), not $\text{remove}$ or $\text{update}$. Therefore, $C$ satisfies the G-Set CRDT semantics: $\text{append}$ is monotonic (the event set only grows), and $\text{Merge}$ is union. The cryptographic hash linkage ensures that the order of events is preserved within each branch even after merge, though the interleaving of events from different branches is not deterministic without external arbitration (see Theorem~7 for tie-breaking via $\text{event\_id}$ ordering).
+
+\textbf{Assumptions used:} (A1) Events are immutable (hash-locked); (A2) $\text{append}$ is the only chain mutation operation; (A3) Set union with $\text{event\_id}$ deduplication is the merge operation.
+\end{proof}
+
+%-------------------------------------------------------------------------------
 \subsection{Summary of Proof Dependencies}
 %-------------------------------------------------------------------------------
 
-The six theorems form a structured dependency graph:
+The seven theorems and one corollary form a structured dependency graph:
 
 \begin{itemize}
     \item Theorem~\ref{thm:determinism} (Determinism) is foundational; no other theorem is used in its proof.
@@ -252,6 +298,8 @@ The six theorems form a structured dependency graph:
     \item Theorem~\ref{thm:boundedness} (Boundedness) is independent of the others but shares assumptions with Theorem~\ref{thm:monotonicity-confidence}.
     \item Theorem~\ref{thm:monotonicity-confidence} (Confidence Monotonicity) depends on Theorem~\ref{thm:boundedness} for the cap argument and on the $\operatorname{argmax}$ semantics for duplicate validators.
     \item Theorem~\ref{thm:consistency} (Consistency) depends on Theorem~\ref{thm:boundedness} (for the cap not interfering) and on the $\textsc{Validate}$ precondition system.
+    \item Theorem~\ref{thm:crdt-convergence} (CRDT Convergence) depends on Theorem~\ref{thm:determinism} (for determinism of $\delta$ after merge) and on the well-formedness predicate $\Phi$ (for pairwise distinct $\text{event\_id}$ values).
+    \item Corollary~\ref{cor:gset-crdt} (G-Set CRDT) follows from the immutability of events and the append-only semantics of EventChains.
 \end{itemize}
 
-All six proofs together establish that ADL Lite's derivation semantics is deterministic, confluent under fork, transition-monotonic, bounded, confidence-monotonic, and internally consistent. These properties provide the formal foundation for the system's operational correctness.
+All seven proofs together establish that ADL Lite's derivation semantics is deterministic, confluent under fork, transition-monotonic, bounded, confidence-monotonic, internally consistent, and CRDT-convergent under LWW-Set merge. These properties provide the formal foundation for the system's operational correctness.
