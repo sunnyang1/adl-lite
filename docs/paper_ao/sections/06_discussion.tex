@@ -28,7 +28,7 @@ The results must be interpreted in light of ten specific limitations, each addre
 
 \textbf{L3. Un-calibrated confidence aggregation.} The confidence value in a \texttt{VALIDATE} event is self-reported by the actor. Cognitive-science and LLM-evaluation literature demonstrate overconfidence: agents frequently report $\mathit{confidence} = 0.99$ when actual accuracy is materially lower. ADL Lite currently has no calibration mechanism, and Theorem~\ref{thm:boundedness} relies on these uncorrected values. (See~\S\ref{subsec:future-work}~FW3.)
 
-\textbf{L4. Absence of cryptographic authentication.} Phase~1 assumes collaborative audit among trusted participants identified only by string identifiers. There are no Linked Data Proofs, no decentralized identifiers (DIDs), and no non-repudiation: a malicious agent could replay another agent's events or forge validator identities without detection. Byzantine fault tolerance is not addressed. (See~\S\ref{subsec:future-work}~FW4.)
+\textbf{L4. Absence of cryptographic authentication.} Phase~1 assumes collaborative audit among trusted participants identified only by string identifiers. There are no Linked Data Proofs, no decentralized identifiers (DIDs), and no tamper-evident: a malicious agent could replay another agent's events or forge validator identities without detection. Byzantine fault tolerance is not addressed. (See~\S\ref{subsec:future-work}~FW4.)
 
 \textbf{L5. Synthetic calibration without expert ground truth.} The AML evaluation (E1--E4) mixes real transaction data with synthetically injected suspicious patterns. The detection logic has not been calibrated against expert labels, and no human annotators rated derived concepts against independent quality criteria. Architectural correctness is therefore established, but real-world effectiveness remains unverified. (See~\S\ref{subsec:future-work}~FW5.)
 
@@ -40,7 +40,7 @@ The results must be interpreted in light of ten specific limitations, each addre
 
 \textbf{L9. No incentive-compatible validation mechanism.} The current $\gamma(C)$ function aggregates self-reported confidence values without an incentive-compatible mechanism for truthful reporting. Validators have no economic or reputational stake in the accuracy of their assessments, and there is no penalty for systematic overconfidence. (See~\S\ref{subsec:future-work}~FW9.)
 
-\textbf{L10. Informal theorem proofs.} The six theorems in Section~\ref{subsec:formal-semantics} are proved informally (rigorous natural-language arguments, not machine-checked derivations). While the proofs are complete and referenced in the text, they have not been verified in a proof assistant such as Coq or TLA+, leaving open the possibility of subtle gaps. (See~\S\ref{subsec:future-work}~FW10.)
+\textbf{L10. Informal theorem proofs.} The seven theorems in Section~\ref{subsec:formal-semantics} are proved informally (rigorous natural-language arguments, not machine-checked derivations). While the proofs are complete and referenced in the text, they have not been verified in a proof assistant such as Coq or TLA+, leaving open the possibility of subtle gaps. (See~\S\ref{subsec:future-work}~FW10.)
 
 \subsection{Comparison with Foundational Ontologies}\label{subsec:comparison-foundational}
 
