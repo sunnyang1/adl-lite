@@ -53,12 +53,12 @@ class AuthService:
         db.add(user)
         try:
             await db.flush()
+            await db.refresh(user)
         except IntegrityError as err:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="A user with this email already exists.",
             ) from err
-        await db.refresh(user)
         return UserRead.model_validate(user)
 
     @staticmethod
