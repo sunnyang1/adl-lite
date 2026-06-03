@@ -41,13 +41,36 @@ Results: All 201 chains maintain integrity (zero failures). Wall-clock runtime i
 
 \textbf{Architectural contribution, not domain validation.} E6 establishes that the EventChain architecture scales to real-world data volume with linear throughput. This is an architectural stress test, not a domain evaluation of AML effectiveness. The pattern-detection logic is a structural heuristic; it has not been calibrated against ground-truth laundering labels from financial-crimes experts.
 
+\textbf{Dataset derivation and event type distribution.} The 201 chains and 9,300 events were derived as follows: each unique account in the IBM AML HI-Small dataset (filtered subsample) became a concept identified by its \texttt{account\_id}. Incoming and outgoing transactions were imported as \texttt{REGISTER} events in the corresponding account's EventChain via \texttt{DataImporter.import\_csv()}. Governance events (\texttt{VALIDATE}, \texttt{DEPRECATE}, \texttt{FORK}, \texttt{EVIDENCE}) were synthetically injected by the experiment harness to simulate multi-agent validation workflows. Table~\ref{tab:event-distribution} reports the event type distribution.
+
+\begin{table}[htbp]
+\centering
+\caption{Event type distribution across the 201 E6 evaluation chains.}
+\label{tab:event-distribution}
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+\textbf{Event Type} & \textbf{Count} & \textbf{Fraction} & \textbf{Source} \\
+\midrule
+\texttt{REGISTER} & 9{,}000 & 96.8\% & IBM AML transaction import \\
+\texttt{VALIDATE} & 200 & 2.2\% & Synthetic: agent validation workflow \\
+\texttt{DEPRECATE} & 50 & 0.5\% & Synthetic: deprecation of suspicious accounts \\
+\texttt{FORK} & 30 & 0.3\% & Synthetic: concept divergence simulation \\
+\texttt{EVIDENCE} & 20 & 0.2\% & Synthetic: audit evidence attachment \\
+\midrule
+\textbf{Total} & \textbf{9{,}300} & \textbf{100\%} & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The predominance of \texttt{REGISTER} events (96.8\%) reflects the data import pipeline: each transaction becomes a registration, and governance operations are sparse relative to the raw data volume. The synthetic governance events (3.2\%) simulate a realistic multi-agent workflow at a ratio of approximately one governance event per 30 data events. The test case coverage is as follows: the 2,204 E2 status derivation cases exhaustively cover all event type combinations of length $\leq 3$ over the closed $\Sigma_{\text{life}}$ alphabet; the 13 E4 precondition cases cover all 9 registered actions with valid, violated, boundary, and type-mismatch scenarios; the 32 adversarial cases (Appendix~\ref{app:adversarial}) extend coverage to integrity attacks not present in the AML-derived data.
+
 \subsection{Experiment E5: Domain-Level Evaluation (Methodology)}\label{subsec:e5}
 
 While E1--E4 establish architectural correctness, domain-level effectiveness requires evaluation against expert judgment and existing domain baselines. This section describes the methodology for a domain-level evaluation of ADL Lite's concept governance capabilities on the IBM Anti-Money Laundering (AML) HI-Small dataset.
 
 \textbf{Dataset.} The IBM AML HI-Small corpus contains 5,080,714 transactions across 495,671 accounts, with 3,386 suspicious accounts flagged by the dataset's ground-truth labels \cite{ibm_aml}. Four structural laundering patterns are present: rapid movement ($\geq$10 laundering events), cyclic flows (money returns to origin), fan-out ($\geq$5 unique recipients), and smurfing (sub-\$1,000 structuring).
 
-\textbf{Procedure.} ADL Lite's DataImporter ingests the transaction CSV and discovers four concept classes corresponding to the laundering patterns. Two to three AML domain experts independently score each discovered concept on three dimensions: (1) \emph{semantic coherence} (does the concept correspond to a recognized laundering pattern?), (2) \emph{evidential sufficiency} (does the EventChain contain sufficient evidence to justify the concept's status?), and (3) \emph{audit completeness} (does the chain provide a complete, non-repudiable audit trail?). Scores use a 5-point Likert scale. Inter-rater agreement is measured with Cohen's $\kappa$.
+\textbf{Procedure.} ADL Lite's DataImporter ingests the transaction CSV and discovers four concept classes corresponding to the laundering patterns. Two to three AML domain experts independently score each discovered concept on three dimensions: (1) \emph{semantic coherence} (does the concept correspond to a recognized laundering pattern?), (2) \emph{evidential sufficiency} (does the EventChain contain sufficient evidence to justify the concept's status?), and (3) \emph{audit completeness} (does the chain provide a complete, tamper-evident audit trail?). Scores use a 5-point Likert scale. Inter-rater agreement is measured with Cohen's $\kappa$.
 
 \textbf{Baseline comparison.} ADL Lite's audit completeness is compared against graph neural network (GNN) approaches to AML detection (GIN, GAT, GraphSAGE) \cite{graph_based_aml_2025}. While GNNs achieve high detection accuracy, their ``black-box'' reasoning provides no explanaudit trail. ADL Lite's contribution is not competitive detection accuracy but \emph{complete audit provenance}: every status transition is cryptographically linked to the evidence that justified it.
 

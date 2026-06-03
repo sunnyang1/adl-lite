@@ -32,7 +32,7 @@ ADL Lite's L3 relation blocks support three lifecycle operations: \emph{establis
 
 \textbf{Modification.} A relation's confidence or mapping type can be modified by a subsequent \texttt{RELATE} event with the same \texttt{source}, \texttt{relation}, and \texttt{target} but different \texttt{confidence} or \texttt{mapping\_type}. The new event \emph{supersedes} the previous one: derived queries return the most recent value. Both events remain in the chain for audit purposes. This is analogous to SQL UPDATE with full audit logging.
 
-\textbf{Revocation.} A relation is revoked by a \texttt{RELATE} event with the same \texttt{source}, \texttt{relation}, \texttt{target} but \texttt{confidence = 0.0} or a special \texttt{revoked: true} flag. The relation is excluded from derived state. The revocation itself is cryptographically linked to the original establishment event via the chain, providing non-repudiable revocation provenance.
+\textbf{Revocation.} A relation is revoked by a \texttt{RELATE} event with the same \texttt{source}, \texttt{relation}, \texttt{target} but \texttt{confidence = 0.0} or a special \texttt{revoked: true} flag. The relation is excluded from derived state. The revocation itself is cryptographically linked to the original establishment event via the chain, providing tamper-evident revocation provenance.
 
 \textbf{Truth maintenance under forks.} When a concept forks, all active relations from the parent chain are \emph{inherited} by the child chain at the fork point. Subsequent modifications in either lineage do not affect the other---each fork maintains its own relation state. This is consistent with the fork semantics: a fork is a competing interpretation, and competing interpretations may have different relational assertions about the same entities.
 
@@ -231,7 +231,20 @@ ADL Lite's derivation functions can be analyzed in terms of Description Logic (D
 
 The derivation functions $\delta$ and $\gamma$ are computable in polynomial time ($O(n)$ in the chain length). They do not require the full expressive power of OWL-DL (which is NExpTime-complete for satisfiability). In fact, $\delta$ and $\gamma$ can be expressed in the DL-lite family of lightweight description logics, which support efficient query answering over large datasets \cite{dl_lite}.
 
-Specifically, $\delta$ corresponds to a \emph{path query} over the event chain: ``find the last event in the chain whose type is in $\Sigma_{\text{life}}$, and return the corresponding status.'' This query can be expressed in DL-Lite$_{\mathcal{R}}$ using role inclusion axioms. The confidence aggregation $\gamma$ involves aggregation (mean, max) over sets of events, which goes beyond standard DL query answering but can be handled by DL extensions with aggregation operators \cite{dl_lite}.
+Specifically, $\delta$ corresponds to a \emph{path query} over the event chain: ``find the last event in the chain whose type is in $\Sigma_{\text{life}}$, and return the corresponding status.'' This query can be expressed in DL-Lite$_{\mathcal{R}}$ using role inclusion axioms:
+\begin{equation}
+    \exists \text{hasLastLifecycleEvent}^-.\{\tau\} \sqsubseteq \text{hasStatus}.\{f(\tau)\}
+\end{equation}
+for each $\tau \in \Sigma_{\text{life}}$, where $f(\tau)$ maps event types to statuses. The confidence aggregation $\gamma$ involves aggregation (mean, max) over sets of events, which goes beyond standard DL query answering but can be handled by DL extensions with aggregation operators \cite{dl_lite}.
+
+\textbf{Expressiveness bounds.} ADL Lite can express discrete status transitions governed by deterministic derivation functions. It cannot express: (i) continuous change (e.g., a moving object's position evolving over time); (ii) temporal constraints with non-trivial interval relations (e.g., ``event A must occur before event B'' independent of chain order); (iii) existential quantification over event types not in the closed $\Sigma_{\text{life}}$ alphabet; (iv) disjunctive or conditional derivation rules beyond the fixed $f$ mapping. These limitations are by design: the target domain (concept lifecycle governance) requires only discrete, deterministic transitions. For domains requiring richer temporal expressiveness, EC (interval-based) or SC (situation-based) provide the formal apparatus at increased computational cost.
+
+\textbf{EC correspondence.} In Event Calculus terms, $\delta(C)$ computes the fluent $\text{Status}(c, t)$ at time $t$ by evaluating:
+\begin{align}
+    \text{HoldsAt}(\text{Status}(c, s), t) &\iff \exists e \in C_{\text{life}}.\; \text{Happens}(e, t_e) \land t_e \leq t \; \land \\
+    &\qquad \neg \exists e' \in C_{\text{life}}.\; \text{Happens}(e', t_{e'}) \land t_e < t_{e'} \leq t
+\end{align}
+where $s = f(e.\tau)$. The key difference is temporal representation: EC uses interval-based reasoning (fluents hold over intervals); ADL Lite uses chain-based reasoning (scan to the last lifecycle event). Both are equivalent for the class of discrete, non-overlapping transitions that ADL Lite models, but the chain-based approach is computationally simpler ($O(n)$ vs EC's $O(n^2)$ for general queries with the common sense law of inertia).
 
 The practical implication is that ADL Lite's derivation semantics are \emph{tractable}: they do not require OWL reasoners or complex inference engines. This aligns with the design goal of lightweight deployment: the ontology can be processed by a simple Python script operating over Markdown files, without requiring a triple store or DL reasoner.
 
@@ -245,7 +258,7 @@ ADL Lite's current phase (v0.2) assumes the following trust boundaries:
 
 \begin{enumerate}[label=(\arabic*)]
     \item \textbf{Trusted storage.} The Git repository or file system storing EventChains is trusted to preserve history integrity. Force-pushes or rebases can rewrite history, but (a) signed Git commits provide tamper-evidence via GPG signatures, and (b) ADL Lite's chain verification detects any modification because the hash chain would break at the point of alteration. The authoritative chain is determined by agent quorum, not Git HEAD.
-    \item \textbf{Trusted authoring environment.} Agents are assumed not to be compromised. A compromised agent can inject arbitrary events, but those events are recorded—the chain provides \emph{non-repudiable evidence} of what occurred, even if what occurred was malicious.
+    \item \textbf{Trusted authoring environment.} Agents are assumed not to be compromised. A compromised agent can inject arbitrary events, but those events are recorded—the chain provides \emph{tamper-evident records} of what occurred, even if what occurred was malicious.
     \item \textbf{Clock skew tolerance.} Event ordering is determined by cryptographic linkage (\texttt{previous\_event\_id}), not by timestamps. Clock skew between agents does not affect chain validity. Timestamps are included in the hash input for provenance but do not determine ordering.
 \end{enumerate}
 
@@ -280,3 +293,19 @@ Byzantine majority & $\times$ & Planned: optional BFT transport layer \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\subsubsection{Fault Detection and Recovery}
+
+ADL Lite employs a multi-layer recovery strategy for chain corruption scenarios.
+
+\textbf{Detection.} $\text{VerifyIntegrity}(C)$ identifies the exact point of failure in $O(n)$ time: it returns the index $i$ of the first event where $e_i.h \neq \text{SHA-256}(\text{Canon}(e_i))$ or $e_i.h_{\text{prev}} \neq e_{i-1}.h$. Corruption is classified as: (a) \emph{content tampering} (hash mismatch at a single event); (b) \emph{linkage break} (prev\_hash mismatch between consecutive events); or (c) \emph{truncation} (chain ends before expected length).
+
+\textbf{Recovery strategies.}
+\begin{enumerate}[label=(\arabic*)]
+    \item \textbf{Git reflog recovery.} Each chain version is preserved in Git's history. \texttt{git reflog} can restore any prior state. If the corrupted chain is the current HEAD, the last known valid version can be checked out.
+    \item \textbf{Distributed peer recovery.} In multi-agent deployments, each agent maintains a local copy. The authoritative chain is selected by agent quorum: the longest valid chain (verified by $\text{VerifyIntegrity}$) from the set of peer copies is adopted.
+    \item \textbf{Partial repair.} If only tail events are corrupted, the chain can be truncated to the last valid prefix $C[1..k]$. The truncation is recorded as an \texttt{EVIDENCE} event noting ``integrity violation detected at event $k+1$; chain truncated.'' Truncated events remain in Git history.
+    \item \textbf{Rollback governance.} Any recovery action produces a governance event under the same precondition rules as normal operations, ensuring auditable recovery.
+\end{enumerate}
+
+\textbf{Limitations.} Phase~1 assumes at least one valid copy exists. Total data loss causes Concept cessation (§\ref{subsec:ontological-dependence}). Automated reconciliation of conflicting valid copies is deferred to Phase~3 (CRDT merge, Theorem~7). Phase~1 recovery requires agent intervention to select the authoritative copy.
