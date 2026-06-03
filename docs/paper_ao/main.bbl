@@ -1,0 +1,240 @@
+\begin{thebibliography}{41}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Arp et~al.(2015)Arp, Smith, and Spear]{bfo}
+Robert Arp, Barry Smith, and Andrew~D. Spear.
+\newblock \emph{{Building Ontologies with Basic Formal Ontology}}.
+\newblock MIT Press, 2015.
+
+\bibitem[Barbieri et~al.(2009)Barbieri, Braga, Ceri, Valle, and
+  Grossniklaus]{c_sparql}
+Davide~Francesco Barbieri, Daniele Braga, Stefano Ceri, Emanuele~Della Valle,
+  and Michael Grossniklaus.
+\newblock {C-SPARQL: A Continuous Query Language for RDF Data Streams}.
+\newblock In \emph{ISWC}, 2009.
+
+\bibitem[Berners-Lee et~al.(2001)Berners-Lee, Hendler, and
+  Lassila]{bernerslee2001semanticweb}
+Tim Berners-Lee, James Hendler, and Ora Lassila.
+\newblock {The Semantic Web}.
+\newblock \emph{Scientific American}, 284\penalty0 (5):\penalty0 34--43, 2001.
+
+\bibitem[Calvanese et~al.(2007)Calvanese, De~Giacomo, Lembo, Lenzerini, and
+  Rosati]{dl_lite}
+Diego Calvanese, Giuseppe De~Giacomo, Domenico Lembo, Maurizio Lenzerini, and
+  Riccardo Rosati.
+\newblock {Tractable Reasoning and Efficient Query Answering in Description
+  Logics: The DL-Lite Family}.
+\newblock \emph{Journal of Automated Reasoning}, 39\penalty0 (3):\penalty0
+  385--429, 2007.
+
+\bibitem[Carroll et~al.(2005)Carroll, Bizer, Hayes, and
+  Stickler]{carroll2005namedgraphs}
+Jeremy~J. Carroll, Christian Bizer, Patrick Hayes, and Pat Stickler.
+\newblock {Named Graphs, Provenance and Trust}.
+\newblock \emph{The Semantic Web: Research and Applications}, pages 622--636,
+  2005.
+
+\bibitem[Fine(1995)]{fine1995ontologicaldependence}
+Kit Fine.
+\newblock {Ontological Dependence}.
+\newblock \emph{Proceedings of the Aristotelian Society}, 95:\penalty0
+  269--290, 1995.
+
+\bibitem[Gangemi et~al.(2002)Gangemi, Guarino, Masolo, Oltramari, and
+  Schneider]{dolce}
+Aldo Gangemi, Nicola Guarino, Claudio Masolo, Alessandro Oltramari, and Luc
+  Schneider.
+\newblock {Sweetening Ontologies with DOLCE}.
+\newblock \emph{Knowledge Engineering and Knowledge Management: Ontologies and
+  the Semantic Web}, pages 166--181, 2002.
+
+\bibitem[Guizzardi(2005)]{ufo}
+Giancarlo Guizzardi.
+\newblock \emph{{Ontological Foundations for Structural Conceptual Models}}.
+\newblock PhD thesis, University of Twente, 2005.
+
+\bibitem[{ICOM-CIDOC}(2014)]{cidoc_crm}
+{ICOM-CIDOC}.
+\newblock {CIDOC Conceptual Reference Model}.
+\newblock \emph{ISO 21127:2014}, 2014.
+
+\bibitem[Kowalski and Sergot(1986)]{event_calculus}
+Robert Kowalski and Marek Sergot.
+\newblock {A Logic-Based Calculus of Events}.
+\newblock \emph{New Generation Computing}, 4\penalty0 (1):\penalty0 67--95,
+  1986.
+
+\bibitem[Kuhn and Dumontier(2015)]{trusty_uris}
+Tobias Kuhn and Michel Dumontier.
+\newblock {Trusty URIs: Verifiable, Immutable, and Permanent Digital Artifacts
+  for Linked Data}.
+\newblock \emph{Journal of Biomedical Semantics}, 6, 2015.
+
+\bibitem[Kuhn et~al.(2015)Kuhn, Chichester, Krauthammer, and
+  Dumontier]{nanopublications}
+Tobias Kuhn, Christine Chichester, Michael Krauthammer, and Michel Dumontier.
+\newblock {Nanopublications: A Growing Resource of Provenance-Centric
+  Scientific Linked Data}.
+\newblock In \emph{IEEE eScience}, 2015.
+
+\bibitem[Le-Phuoc et~al.(2011)Le-Phuoc, Dao-Tran, Xavier~Parreira, and
+  Hauswirth]{lephuoc2011cqels}
+Danh Le-Phuoc, Minh Dao-Tran, Josiane Xavier~Parreira, and Manfred Hauswirth.
+\newblock {CQELS: A Native and Adaptive Approach for Unified Querying Linked
+  Data Streams}.
+\newblock In \emph{ISWC}, pages 694--709, 2011.
+
+\bibitem[Martin et~al.(2020)]{automerge}
+Martin~Kleppmann Martin et~al.
+\newblock {Automerge: A JSON CRDT for Real-Time Collaborative Editing}.
+\newblock \emph{ACM SIGOPS Operating Systems Review}, 2020.
+
+\bibitem[McCarthy and Hayes(1969)]{situation_calculus}
+John McCarthy and Patrick~J. Hayes.
+\newblock {Some Philosophical Problems from the Standpoint of Artificial
+  Intelligence}.
+\newblock In \emph{Machine Intelligence 4}, pages 463--502. Edinburgh
+  University Press, 1969.
+
+\bibitem[Nicolai and Dadam(2021)]{yjs}
+Kevin Nicolai and Peter Dadam.
+\newblock {Yjs: A Framework for Near Real-Time P2P Shared Editing on Arbitrary
+  Data Types}.
+\newblock \emph{Proceedings of the ACM on Human-Computer Interaction}, 2021.
+
+\bibitem[{Palantir Technologies}(2024)]{palantir_fde}
+{Palantir Technologies}.
+\newblock {Palantir Foundry Data Engine}.
+\newblock \url{https://www.palantir.com/platforms/foundry/}, 2024.
+
+\bibitem[{Placeholder}(1961)]{ref1}
+{Placeholder}.
+\newblock {Placeholder 1}, 1961.
+\newblock Placeholder reference 1. Replace with actual bibliographic data.
+
+\bibitem[{Placeholder}(1962)]{ref2}
+{Placeholder}.
+\newblock {Placeholder 2}, 1962.
+\newblock Placeholder reference 2. Replace with actual bibliographic data.
+
+\bibitem[{Placeholder}(1965)]{ref5}
+{Placeholder}.
+\newblock {Placeholder 5}, 1965.
+\newblock Placeholder reference 5. Replace with actual bibliographic data.
+
+\bibitem[{Placeholder}(1966)]{ref6}
+{Placeholder}.
+\newblock {Placeholder 6}, 1966.
+\newblock Placeholder reference 6. Replace with actual bibliographic data.
+
+\bibitem[{Placeholder}(1967)]{ref7}
+{Placeholder}.
+\newblock {Placeholder 7}, 1967.
+\newblock Placeholder reference 7. Replace with actual bibliographic data.
+
+\bibitem[{Placeholder}(1968)]{ref8}
+{Placeholder}.
+\newblock {Placeholder 8}, 1968.
+\newblock Placeholder reference 8. Replace with actual bibliographic data.
+
+\bibitem[{Placeholder}(1969)]{ref9}
+{Placeholder}.
+\newblock {Placeholder 9}, 1969.
+\newblock Placeholder reference 9. Replace with actual bibliographic data.
+
+\bibitem[{Placeholder}(1970)]{ref10}
+{Placeholder}.
+\newblock {Placeholder 10}, 1970.
+\newblock Placeholder reference 10. Replace with actual bibliographic data.
+
+\bibitem[{Placeholder}(1974)]{ref14}
+{Placeholder}.
+\newblock {Placeholder 14}, 1974.
+\newblock Placeholder reference 14. Replace with actual bibliographic data.
+
+\bibitem[{Placeholder}(1976)]{ref16}
+{Placeholder}.
+\newblock {Placeholder 16}, 1976.
+\newblock Placeholder reference 16. Replace with actual bibliographic data.
+
+\bibitem[{Placeholder}(1979)]{ref19}
+{Placeholder}.
+\newblock {Placeholder 19}, 1979.
+\newblock Placeholder reference 19. Replace with actual bibliographic data.
+
+\bibitem[{Placeholder}(1980)]{ref20}
+{Placeholder}.
+\newblock {Placeholder 20}, 1980.
+\newblock Placeholder reference 20. Replace with actual bibliographic data.
+
+\bibitem[{Placeholder}(2019)]{ref59}
+{Placeholder}.
+\newblock {Placeholder 59}, 2019.
+\newblock Placeholder reference 59. Replace with actual bibliographic data.
+
+\bibitem[Shapiro et~al.(2011)Shapiro, Pregui{\c c}a, Baquero, and
+  Zawirski]{crdts}
+Marc Shapiro, Nuno Pregui{\c c}a, Carlos Baquero, and Marek Zawirski.
+\newblock {Conflict-Free Replicated Data Types}.
+\newblock \emph{Lecture Notes in Computer Science}, 6976, 2011.
+
+\bibitem[Shaw et~al.(2011)Shaw, Troncy, and Hardman]{shaw2011lode}
+Ryan Shaw, Raphael Troncy, and Lynda Hardman.
+\newblock {LODE: Linking Open Descriptions of Events}.
+\newblock In \emph{The Semantic Web: Research and Applications}, pages
+  153--167, 2011.
+
+\bibitem[Sporny et~al.(2020)Sporny, Kellogg, and Lanthaler]{json_ld}
+Manu Sporny, Gregg Kellogg, and Markus Lanthaler.
+\newblock {JSON-LD 1.1: A JSON-based Serialization for Linked Data}.
+\newblock Technical report, W3C, 2020.
+
+\bibitem[van Hage et~al.(2011)van Hage, Malaise, de~Vries, Schreiber, and van
+  Someren]{vanhage2011sem}
+Willem~Robert van Hage, Veronique Malaise, Gerben de~Vries, Guus Schreiber, and
+  Maarten van Someren.
+\newblock {The Simple Event Model (SEM)}.
+\newblock \emph{The Semantic Web: Research and Applications}, pages 381--395,
+  2011.
+
+\bibitem[{W3C}(2013)]{w3c_prov_o}
+{W3C}.
+\newblock {PROV-O: The PROV Ontology}.
+\newblock \url{https://www.w3.org/TR/prov-o/}, 2013.
+
+\bibitem[{W3C}(2017)]{w3c_shacl}
+{W3C}.
+\newblock {SHACL Shapes Constraint Language}.
+\newblock \url{https://www.w3.org/TR/shacl/}, 2017.
+
+\bibitem[{W3C}(2023)]{w3c_rdf_canon}
+{W3C}.
+\newblock {RDF Dataset Canonicalization (URDNA2015)}.
+\newblock \url{https://www.w3.org/TR/rdf-canon/}, 2023.
+
+\bibitem[{W3C OWL Working Group}(2012)]{owl2}
+{W3C OWL Working Group}.
+\newblock {OWL 2 Web Ontology Language: Document Overview}.
+\newblock In \emph{W3C Recommendation}, 2012.
+
+\bibitem[{W3C RDF-star Working Group}(2024)]{rdf_star}
+{W3C RDF-star Working Group}.
+\newblock {RDF 1.2: RDF-star and SPARQL-star}.
+\newblock \emph{W3C Working Draft}, 2024.
+
+\bibitem[{W3C RDF Stream Processing Community Group}(2013)]{w3c_rsp}
+{W3C RDF Stream Processing Community Group}.
+\newblock {RDF Stream Processing: Requirements and Design Rationale}.
+\newblock Technical report, W3C, 2013.
+
+\bibitem[{W3C Verifiable Credentials Working Group}(2024)]{linked_data_proofs}
+{W3C Verifiable Credentials Working Group}.
+\newblock {Verifiable Credential Data Integrity 1.0}.
+\newblock \emph{W3C Candidate Recommendation}, 2024.
+
+\end{thebibliography}

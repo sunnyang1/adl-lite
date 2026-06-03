@@ -749,3 +749,175 @@
   pages = {269--290},
   year = {1995}
 }
+% =============================================================================
+% NEW REFERENCES TO REPLACE PLACEHOLDERS IN 02_related_work.tex
+% =============================================================================
+%
+% Instructions for integration:
+% 1. Replace the placeholder entries (ref6, ref7, ref8, ref14, ref16, ref59)
+%    in references.bib with the entries below.
+% 2. In 02_related_work.tex, update the citation keys as noted for each entry.
+% 3. The old placeholder keys are noted in comments for traceability.
+%
+% Verified: 2025-01-15
+% =============================================================================
+
+% -----------------------------------------------------------------------------
+% REPLACES: ref6
+% Context: "Reasoners such as HermiT and Pellet support automated classification
+%   and consistency checking, albeit with computational costs that scale poorly
+%   for large or rapidly evolving knowledge bases \cite{ref6}."
+% Action: Replace \cite{ref6} with \cite{glimm2014hermit} in 02_related_work.tex
+% Note: This entry covers HermiT. Pellet is cited separately (sirin2007pellet).
+%   The text mentions both reasoners; both entries are provided.
+% -----------------------------------------------------------------------------
+@article{glimm2014hermit,
+  title     = {{HermiT: An OWL 2 Reasoner}},
+  author    = {Glimm, Birte and Horrocks, Ian and Motik, Boris and Stoilos, Giorgos and Wang, Zhe},
+  journal   = {Journal of Automated Reasoning},
+  volume    = {53},
+  number    = {3},
+  pages     = {245--269},
+  year      = {2014},
+  publisher = {Springer},
+  doi       = {10.1007/s10817-014-9305-1},
+  issn      = {0168-7433}
+}
+
+% Supplementary entry for Pellet (also part of ref6 context)
+@article{sirin2007pellet,
+  title     = {{Pellet: A Practical {OWL-DL} Reasoner}},
+  author    = {Sirin, Evren and Parsia, Bijan and Grau, Bernardo Cuenca and Kalyanpur, Aditya and Katz, Yarden},
+  journal   = {Journal of Web Semantics},
+  volume    = {5},
+  number    = {2},
+  pages     = {51--53},
+  year      = {2007},
+  publisher = {Elsevier},
+  doi       = {10.1016/j.websem.2007.03.004},
+  issn      = {1570-8268},
+  note      = {Software Engineering and the Semantic Web}
+}
+
+% -----------------------------------------------------------------------------
+% REPLACES: ref7
+% Context: "the deployment cost of full OWL-based pipelines remains prohibitive
+%   for many operational contexts [...] expertise required for ontology
+%   engineering creates a bottleneck distinct from application development
+%   \cite{ref7}."
+% Action: Replace \cite{ref7} with \cite{hogan2021knowledge} in 02_related_work.tex
+% Note: This Synthesis Lectures book provides a comprehensive survey of
+%   Knowledge Graph construction challenges, including infrastructure costs,
+%   reasoner limitations, and the expertise bottleneck (Chapter 2).
+% -----------------------------------------------------------------------------
+@book{hogan2021knowledge,
+  title     = {{Knowledge Graphs}},
+  author    = {Hogan, Aidan and Blomqvist, Eva and Cochez, Michael and d'Amato, Claudia and de Melo, Gerard and Guti{\'e}rrez, Claudio and Kirrane, Sabrina and Labra Gayo, Jos{\'e} Emilio and Navigli, Roberto and Neumaier, Sebastian and Ngonga Ngomo, Axel-Cyrille and Polleres, Axel and Rashid, Sabbir M. and Rula, Anisa and Schmelzeisen, Lukas and Sequeda, Juan F. and Staab, Steffen and Zimmermann, Antoine},
+  series    = {Synthesis Lectures on Data, Semantics, and Knowledge},
+  number    = {22},
+  publisher = {Springer},
+  year      = {2021},
+  doi       = {10.2200/S01125ED1V01Y202109DSK022},
+  isbn      = {9783031007903},
+  numpages  = {237}
+}
+
+% -----------------------------------------------------------------------------
+% REPLACES: ref8
+% Context: "Schema.org provides a pragmatic, property-centric vocabulary adopted
+%   on over 40\% of web pages \cite{ref8}."
+% Action: Replace \cite{ref8} with \cite{guha2016schemaorg} in 02_related_work.tex
+% NOTE: The paper reports 31.3\% adoption in a sample of 10B pages. The
+%   "over 40\%" figure in the related work text is an overstatement.
+%   Authors should revise the text to "over 30\%" or "approximately one-third".
+% -----------------------------------------------------------------------------
+@article{guha2016schemaorg,
+  title     = {{Schema.org: Evolution of Structured Data on the Web}},
+  author    = {Guha, Ramanathan V. and Brickley, Dan and Macbeth, Steve},
+  journal   = {Communications of the ACM},
+  volume    = {59},
+  number    = {2},
+  pages     = {44--51},
+  year      = {2016},
+  publisher = {ACM},
+  doi       = {10.1145/2844544},
+  issn      = {0001-0782}
+}
+
+% -----------------------------------------------------------------------------
+% REPLACES: ref14
+% Context: "Dendron introduces hierarchical note schemas with refactoring
+%   capabilities that preserve link integrity during structural changes
+%   \cite{ref14}."
+% Action: Replace \cite{ref14} with \cite{dendron2020} in 02_related_work.tex
+% Note: Dendron is an open-source tool, not a peer-reviewed publication.
+% -----------------------------------------------------------------------------
+@misc{dendron2020,
+  title        = {{Dendron: A Hierarchical Tool for Thought}},
+  author       = {Lin, Kevin},
+  howpublished = {\url{https://wiki.dendron.so/}},
+  year         = {2020},
+  note         = {Open-source knowledge management tool for VSCode. Accessed: 2025-01-15}
+}
+
+% -----------------------------------------------------------------------------
+% REPLACES: ref16
+% Context: "Foam, Obsidian, and Dendron extend plain-text Markdown with
+%   wiki-style links, backlinks, and graph visualization [...]
+%   \cite{ref16}."
+% Action: Replace \cite{ref16} with \cite{foam2020} in 02_related_work.tex
+% Note: Foam is an open-source VSCode extension. Obsidian is a commercial
+%   tool (https://obsidian.md/); no canonical academic citation exists.
+% -----------------------------------------------------------------------------
+@misc{foam2020,
+  title        = {{Foam: A Personal Knowledge Management and Sharing System for {VSCode}}},
+  author       = {{Foam Contributors}},
+  howpublished = {\url{https://github.com/foambubble/foam}},
+  year         = {2020},
+  note         = {Open-source VSCode extension for personal knowledge graphs. Accessed: 2025-01-15}
+}
+
+% -----------------------------------------------------------------------------
+% REPLACES: ref59
+% Context: "Recent research has explored applying {CRDT}s to knowledge graph
+%   editing \cite{ref59}."
+% Action: Replace \cite{ref59} with \cite{hemid2024ontoeditor} in 02_related_work.tex
+% IMPORTANT: This paper discusses real-time collaborative ontology editing
+%   using Operational Transformation (OT), NOT CRDTs. The related work text
+%   should be revised to: "Recent research has explored real-time
+%   collaborative ontology editing using distributed version control
+%   techniques [\cite{hemid2024ontoeditor}]" or a paper specifically about
+%   CRDTs for knowledge graphs should be found to replace it.
+%   Marked for author verification.
+% -----------------------------------------------------------------------------
+@inproceedings{hemid2024ontoeditor,
+  title     = {{OntoEditor: Real-Time Collaboration via Distributed Version Control for Ontology Development}},
+  author    = {Hemid, Ahmad and Shabbir, Waleed and Khiat, Abderrahmane and Lange-Bever, Christoph and Quix, Christoph and Decker, Stefan},
+  booktitle = {The Semantic Web: {ESWC} 2024 Satellite Events},
+  pages     = {326--341},
+  year      = {2024},
+  publisher = {Springer},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {14664},
+  doi       = {10.1007/978-3-031-60626-7_18},
+  note      = {IMPORTANT: This paper uses Operational Transformation (OT), not CRDTs. The related work text should be revised to match.}
+}
+
+% =============================================================================
+% ADDITIONAL RECOMMENDED REFERENCES
+% =============================================================================
+% These supplement the related work and may strengthen the discussion.
+
+% Alternative for ref7 context: ACM CACM article on industry-scale KGs
+@article{noy2019industrykg,
+  title     = {{Industry-Scale Knowledge Graphs: Lessons and Challenges}},
+  author    = {Noy, Natasha Fridman and Gao, Yuqing and Jain, Anshu and Narayanan, Anant and Patterson, Alan and Taylor, Jamie},
+  journal   = {Communications of the ACM},
+  volume    = {62},
+  number    = {8},
+  pages     = {36--43},
+  year      = {2019},
+  publisher = {ACM},
+  doi       = {10.1145/3331166},
+  issn      = {0001-0782}
+}

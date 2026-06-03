@@ -24,6 +24,20 @@ The L2 layer consists of the Markdown body: human- and LLM-readable prose. The S
 
 The L3 layer introduces typed semantic assertions through fenced code blocks: \texttt{adl:relation} for typed edges between concepts (supporting predicates such as \texttt{isomorphic-to} and \texttt{specialisation-of}), \texttt{adl:evidence} for evidentiary support, and \texttt{adl:seal} for formal assertions. These blocks are machine-parseable RDF-like triples that remain editable in ordinary text editors.
 
+\subsubsection{L3 Relation Lifecycle Operations}\label{subsubsec:l3-lifecycle}
+
+ADL Lite's L3 relation blocks support three lifecycle operations: \emph{establishment}, \emph{modification}, and \emph{revocation}. Each operation is recorded as an event in the concept's EventChain, enabling full provenance tracking for relational assertions.
+
+\textbf{Establishment.} A relation is established by a \texttt{RELATE} event with fields: \texttt{source}, \texttt{relation} (predicate from closed registry), \texttt{target}, optional \texttt{confidence}, and optional \texttt{mapping\_type}. The relation becomes part of the concept's derived state. Precondition: the \texttt{relation} predicate must be registered in \texttt{adl\_core\_ontology.yaml} (strict mode) or will be accepted with a warning (relaxed mode).
+
+\textbf{Modification.} A relation's confidence or mapping type can be modified by a subsequent \texttt{RELATE} event with the same \texttt{source}, \texttt{relation}, and \texttt{target} but different \texttt{confidence} or \texttt{mapping\_type}. The new event \emph{supersedes} the previous one: derived queries return the most recent value. Both events remain in the chain for audit purposes. This is analogous to SQL UPDATE with full audit logging.
+
+\textbf{Revocation.} A relation is revoked by a \texttt{RELATE} event with the same \texttt{source}, \texttt{relation}, \texttt{target} but \texttt{confidence = 0.0} or a special \texttt{revoked: true} flag. The relation is excluded from derived state. The revocation itself is cryptographically linked to the original establishment event via the chain, providing non-repudiable revocation provenance.
+
+\textbf{Truth maintenance under forks.} When a concept forks, all active relations from the parent chain are \emph{inherited} by the child chain at the fork point. Subsequent modifications in either lineage do not affect the other---each fork maintains its own relation state. This is consistent with the fork semantics: a fork is a competing interpretation, and competing interpretations may have different relational assertions about the same entities.
+
+\textbf{Conflicting relation assertions.} If two agents assert contradictory relations (e.g., A says ``X isomorphic-to Y'' with confidence 0.9, B says ``X unrelated-to Y'' with confidence 0.8), both events are appended to the chain. The derived state includes both assertions (they are not mutually exclusive at the event level), and downstream consumers must apply their own resolution logic. ADL Lite provides the \emph{provenance infrastructure} for conflict detection but does not prescribe a single resolution strategy---this is a deliberate design choice to accommodate diverse domain requirements.
+
 The L4 layer introduces \texttt{adl:action} blocks: typed actions with structured precondition rules that govern lifecycle transitions and trigger side effects. The four-layer design enables a single Markdown file to serve simultaneously as human-readable documentation, LLM authoring surface, machine-parseable semantic assertion container, and auditable action log.
 
 \subsection{EventChain: Core Data Structure}\label{subsec:eventchain}

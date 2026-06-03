@@ -110,6 +110,18 @@ Two chains are the same if they have the same \texttt{concept\_id} and the same 
 
 Ontological dependence concerns which entities depend on which others for their existence. ADL Lite exhibits three forms of dependence:
 
+\subsubsection{Identity and Dependence Conditions}\label{subsubsec:identity-dependence}
+
+The treatment of Concept as a generically dependent continuant (GDC) that depends on an EventChain raises questions about cross-category dependence that merit precise formulation.
+
+\textbf{What does the Concept depend on?} A Concept in ADL Lite depends on the \emph{information artifact} (the serialized EventChain record) rather than on the occurrent (the process of events occurring). This is consistent with BFO's GDC criteria: a GDC depends on some continuant bearer but is not identical to any particular bearer. The EventChain is the bearer---a structured information entity that encodes the history of occurrents. The Concept (as GDC) is the \emph{interpretation} of that history: the rules that project status, confidence, and validators from the event sequence.
+
+\textbf{Why not depend on the occurrent directly?} In BFO, GDCs cannot depend on occurrents because occurrents lack the stability required for generic dependence. ADL Lite respects this constraint by making the Concept depend on the \emph{record} of events (an information content entity, which is a continuant), not on the events themselves (occurrents). The EventChain is a generically dependent continuant in its own right: it exists in virtue of being encoded in some physical medium (file, database), but not in virtue of any \emph{specific} medium.
+
+\textbf{Identity conditions.} A Concept's identity is determined by its genesis event---the \texttt{REGISTER} event that first introduces the \texttt{concept\_id}. This aligns with BFO's identity criteria for GDCs: identity is conferred by the process of creation (the genesis event), not by the current state of the bearer. Two EventChains with the same \texttt{concept\_id} and genesis event hash represent the same Concept, even if their subsequent events diverge (in which case they are \emph{forks} of the same Concept, each carrying the original identity into a distinct lineage).
+
+\textbf{Dependence on genesis event.} The dependence relation is not merely historical but \emph{constitutive}: without the genesis event, there is no Concept, because there is no \texttt{concept\_id} to serve as the rigid designator. This is analogous to how a novel depends on its first publication: subsequent editions may vary, but the identity of the work is fixed by the original publication event.
+
 \subsubsection{Historical Dependence of Concept on EventChain}
 
 A concept $c$ \emph{historically depends} on its EventChain $C$: $c$ would not exist if $C$ had not been created. This is a form of \emph{rigid existential dependence} \cite{fine1995ontologicaldependence}: the concept cannot exist without the chain. The dependence is historical because the concept's identity is determined by the genesis event in the chain.

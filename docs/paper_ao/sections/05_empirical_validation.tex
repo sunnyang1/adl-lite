@@ -41,6 +41,36 @@ Results: All 201 chains maintain integrity (zero failures). Wall-clock runtime i
 
 \textbf{Architectural contribution, not domain validation.} E6 establishes that the EventChain architecture scales to real-world data volume with linear throughput. This is an architectural stress test, not a domain evaluation of AML effectiveness. The pattern-detection logic is a structural heuristic; it has not been calibrated against ground-truth laundering labels from financial-crimes experts.
 
+\subsection{Experiment E5: Domain-Level Evaluation (Methodology)}\label{subsec:e5}
+
+While E1--E4 establish architectural correctness, domain-level effectiveness requires evaluation against expert judgment and existing domain baselines. This section describes the methodology for a domain-level evaluation of ADL Lite's concept governance capabilities on the IBM Anti-Money Laundering (AML) HI-Small dataset.
+
+\textbf{Dataset.} The IBM AML HI-Small corpus contains 5,080,714 transactions across 495,671 accounts, with 3,386 suspicious accounts flagged by the dataset's ground-truth labels \cite{ibm_aml}. Four structural laundering patterns are present: rapid movement ($\geq$10 laundering events), cyclic flows (money returns to origin), fan-out ($\geq$5 unique recipients), and smurfing (sub-\$1,000 structuring).
+
+\textbf{Procedure.} ADL Lite's DataImporter ingests the transaction CSV and discovers four concept classes corresponding to the laundering patterns. Two to three AML domain experts independently score each discovered concept on three dimensions: (1) \emph{semantic coherence} (does the concept correspond to a recognized laundering pattern?), (2) \emph{evidential sufficiency} (does the EventChain contain sufficient evidence to justify the concept's status?), and (3) \emph{audit completeness} (does the chain provide a complete, non-repudiable audit trail?). Scores use a 5-point Likert scale. Inter-rater agreement is measured with Cohen's $\kappa$.
+
+\textbf{Baseline comparison.} ADL Lite's audit completeness is compared against graph neural network (GNN) approaches to AML detection (GIN, GAT, GraphSAGE) \cite{graph_based_aml_2025}. While GNNs achieve high detection accuracy, their ``black-box'' reasoning provides no explanaudit trail. ADL Lite's contribution is not competitive detection accuracy but \emph{complete audit provenance}: every status transition is cryptographically linked to the evidence that justified it.
+
+\textbf{Expected outcomes.} We expect high scores on audit completeness ($\geq$4.5/5.0) and semantic coherence ($\geq$3.5/5.0), with the primary variance coming from evidential sufficiency (which depends on DataImporter's heuristic pattern detection). This experiment is ongoing; results will be reported in a future publication.
+
+\subsection{Experiment E6: Multi-Agent Coordination Efficiency (Methodology)}\label{subsec:e6-multiagent}
+
+The 5-agent harness (Section~\ref{subsec:e4-multiagent}) demonstrates basic auditability but does not measure how coordination efficiency varies with agent count or validation strategy. This section describes the methodology for a systematic evaluation.
+
+\textbf{Design.} A parameterized harness simulates $k \in \{1, 3, 5, 10\}$ agents collaboratively governing a shared concept pool of size $n = 50$. Each agent proposes concepts, validates peers' proposals, and challenges disputed concepts according to a configurable strategy profile.
+
+\textbf{Metrics.}
+\begin{enumerate}[label=(\arabic*)]
+    \item \emph{Time-to-consensus}: number of review cycles until a concept reaches \texttt{validated} or \texttt{deprecated}.
+    \item \emph{Conflict rate}: fraction of concepts that trigger at least one \textsc{FORK} event.
+    \item \emph{Provenance completeness}: fraction of status transitions captured in the EventChain (should be 1.0 by design).
+    \item \emph{Reviewer overhead}: total number of \textsc{VALIDATE} and \textsc{DEPRECATE} events per accepted concept.
+\end{enumerate}
+
+\textbf{Conditions.} Two validation strategies are compared: (a) \emph{random selection} (validators chosen uniformly at random) and (b) $\gamma(C)$-\emph{guided selection} (validators chosen based on their historical calibration scores, with higher-calibration validators preferred). Strategy (b) tests whether ADL Lite's confidence aggregation improves coordination efficiency beyond naive random assignment.
+
+\textbf{Expected outcomes.} We expect $\gamma(C)$-guided selection to reduce time-to-consensus by 20--40\% compared to random selection, with the magnitude increasing with agent count (more agents $\rightarrow$ more benefit from informed selection). This experiment is ongoing; results will be reported in a future publication.
+
 \subsection{Summary of Results}\label{subsec:results-summary}
 
 Table~\ref{tab:results} summarizes the empirical validation. All four experiments achieve perfect scores, providing strong evidence for the three ontological hypotheses. The experiments validate that the event-first architecture is computationally feasible and empirically correct; they do not, by themselves, demonstrate the novelty of the event-first ontological stance. That novelty is established through the ontological analysis (Section~\ref{sec:ontological-analysis}) and formal semantics (Section~\ref{subsec:formal-semantics}).
@@ -60,3 +90,40 @@ E6 & Scalability & Integrity & 0 failures & 201 chains, 9,300 events \\
 \bottomrule
 \end{tabular}
 \end{table}
+% =============================================================================
+% Human-in-the-Loop Evaluation Methodology
+% Subsection for domain-level evaluation with human subjects
+%
+% This file should be included in the main evaluation section of the paper
+% (e.g., \input{sections/evaluation_methodology} or pasted into the
+% relevant .tex file).
+%
+% Prerequisites: \usepackage{enumitem} for custom enumerate labels
+% =============================================================================
+
+\subsection{Human-in-the-Loop Evaluation: Methodology}\label{subsec:human-eval}
+
+To complement the architectural correctness evaluation (E1--E4), we propose a human-in-the-loop study measuring ADL~Lite's practical utility for ontology curation.
+
+\textbf{Study design.} A between-subjects experiment with two conditions:
+\begin{itemize}
+    \item \textbf{Control}: Curators use standard Markdown + Git for collaborative concept governance.
+    \item \textbf{Treatment}: Curators use ADL~Lite with EventChain validation, precondition enforcement, and automated provenance tracking.
+\end{itemize}
+
+\textbf{Participants.} 10--15 ontology curators per condition, recruited from the OBO Foundry community and biomedical ontology mailing lists. Participants have at least 2 years of ontology curation experience.
+
+\textbf{Task.} Participants collaborate on curating a set of 20 AML-related concepts over a 2-week period. Concepts include known laundering patterns (smurfing, rapid movement, layering) and novel patterns discovered during the study.
+
+\textbf{Metrics.}
+\begin{enumerate}[label=(\arabic*)]
+    \item \emph{Curator agreement}: Inter-rater reliability (Cohen's $\kappa$) on concept validation decisions.
+    \item \emph{Time-to-resolution}: Median time from concept proposal to final status (validated/deprecated).
+    \item \emph{Conflict rate}: Number of \textsc{Fork} events per concept.
+    \item \emph{Audit completeness}: Fraction of status transitions with complete evidence chains.
+    \item \emph{Perceived utility}: Post-study questionnaire (5-point Likert) on perceived auditability, trust, and collaboration quality.
+\end{enumerate}
+
+\textbf{Expected outcomes.} We expect the Treatment condition to show: (a) higher curator agreement due to structured precondition enforcement; (b) faster time-to-resolution due to automated status derivation; (c) lower conflict rate due to deterministic fork semantics; (d) higher audit completeness by design; (e) higher perceived utility scores, particularly for auditability.
+
+\textbf{Ethics.} The study will be approved by the institutional ethics committee. All participants provide informed consent. Data is anonymized and stored in compliance with GDPR.

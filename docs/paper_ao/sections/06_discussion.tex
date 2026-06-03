@@ -20,25 +20,27 @@ ADL Lite contributes to conceptual modeling practice in three ways.
 
 \subsection{Limitations}\label{subsec:limitations}
 
-The results must be interpreted in light of nine specific limitations.
+The results must be interpreted in light of ten specific limitations, each addressed by a corresponding Future Work item in Section~\ref{subsec:future-work}.
 
-\textbf{Confidence calibration.} The confidence value in a \texttt{VALIDATE} event is self-reported by the actor. Cognitive-science and LLM-evaluation literature demonstrate overconfidence: agents frequently report $\mathit{confidence} = 0.99$ when actual accuracy is lower. ADL Lite currently has no calibration mechanism.
+\textbf{L1. Informal foundational alignment.} The ontological analysis in Section~\ref{sec:ontological-analysis} is conceptual and narrative; it is not formalized as OWL~2~DL axioms, nor has it been validated with automated alignment tools. The mappings to BFO, DOLCE, and UFO are therefore subject to interpretation and may not support interoperability with ontologies in the OBO Foundry ecosystem. (See~\S\ref{subsec:future-work}~FW1.)
 
-\textbf{Unstructured agent communication.} L2 Markdown body imposes no structure on agent reasoning. Fixed reasoning templates would provide stronger guarantees than lexical restrictions, but no template mechanism is implemented in Phase~1.
+\textbf{L2. Append-only accumulation.} The append-only design treats every event as a permanent fact, creating three problems: junk accumulation from low-quality events, concept redundancy when multiple agents register semantically equivalent concepts, and preference drift as deprecated definitions remain permanently visible. Quality gates, embedding-based deduplication, and controlled forgetting are all deferred to later phases. (See~\S\ref{subsec:future-work}~FW2.)
 
-\textbf{Append-only accumulation.} The append-only design treats every event as a permanent fact, creating three problems: junk accumulation, concept redundancy, and preference drift. Phase~2 directions include quality gates, embedding-based deduplication, and controlled forgetting.
+\textbf{L3. Un-calibrated confidence aggregation.} The confidence value in a \texttt{VALIDATE} event is self-reported by the actor. Cognitive-science and LLM-evaluation literature demonstrate overconfidence: agents frequently report $\mathit{confidence} = 0.99$ when actual accuracy is materially lower. ADL Lite currently has no calibration mechanism, and Theorem~\ref{thm:boundedness} relies on these uncorrected values. (See~\S\ref{subsec:future-work}~FW3.)
 
-\textbf{Side-effect stubs.} Only the Lark backend has a concrete implementation; post-condition effects are unverified in production conditions.
+\textbf{L4. Absence of cryptographic authentication.} Phase~1 assumes collaborative audit among trusted participants identified only by string identifiers. There are no Linked Data Proofs, no decentralized identifiers (DIDs), and no non-repudiation: a malicious agent could replay another agent's events or forge validator identities without detection. Byzantine fault tolerance is not addressed. (See~\S\ref{subsec:future-work}~FW4.)
 
-\textbf{Simple ontology discovery.} \texttt{DataImporter.discover\_classes()} uses \texttt{\_id} suffix matching; statistical clustering or LLM-based suggestion would improve quality.
+\textbf{L5. Synthetic calibration without expert ground truth.} The AML evaluation (E1--E4) mixes real transaction data with synthetically injected suspicious patterns. The detection logic has not been calibrated against expert labels, and no human annotators rated derived concepts against independent quality criteria. Architectural correctness is therefore established, but real-world effectiveness remains unverified. (See~\S\ref{subsec:future-work}~FW5.)
 
-\textbf{Synthetic pattern calibration.} The AML evaluation mixes real data with synthetically injected patterns; the detection logic has not been calibrated against expert labels.
+\textbf{L6. Unstructured agent communication.} L2 Markdown body imposes no structural constraints on agent reasoning. Fixed reasoning templates (e.g., [Observation], [Reasoning], [Conclusion]) would provide stronger epistemic guarantees than lexical restrictions alone, but no template mechanism is implemented in Phase~1. (See~\S\ref{subsec:future-work}~FW6.)
 
-\textbf{Absence of human inter-rater validation.} E4 and E5 rely on programmatic oracles; no human annotators rated derived concepts against independent quality criteria.
+\textbf{L7. Brittle ontology discovery.} \texttt{DataImporter.discover\_classes()} relies solely on \texttt{\_id} suffix matching for class discovery. This heuristic is brittle (it misses classes without \texttt{\_id} suffixes), coverage-limited (it cannot discover relationships or attributes), and domain-dependent. Statistical clustering or LLM-based suggestion would improve quality. (See~\S\ref{subsec:future-work}~FW7.)
 
-\textbf{Schema governance.} The closed predicate set prevents vocabulary drift but does not provide cross-property constraints or datatype patterns. SHACL shapes are planned for Phase~3.
+\textbf{L8. No Semantic Web interoperability.} ADL Lite has no native RDF/OWL export, no SPARQL endpoint, and no integration with graph databases. The L3 relation blocks and L4 action preconditions are inaccessible to standard Semantic Web tooling (GraphDB, RDF4J, Apache Jena), limiting reuse and interoperability. (See~\S\ref{subsec:future-work}~FW8.)
 
-\textbf{Trust model.} Phase~1 assumes collaborative audit among trusted participants. Cryptographic authentication, non-repudiation, and replay prevention require Phase~3 extensions (Linked Data Proofs, PKI).
+\textbf{L9. No incentive-compatible validation mechanism.} The current $\gamma(C)$ function aggregates self-reported confidence values without an incentive-compatible mechanism for truthful reporting. Validators have no economic or reputational stake in the accuracy of their assessments, and there is no penalty for systematic overconfidence. (See~\S\ref{subsec:future-work}~FW9.)
+
+\textbf{L10. Informal theorem proofs.} The six theorems in Section~\ref{subsec:formal-semantics} are proved informally (rigorous natural-language arguments, not machine-checked derivations). While the proofs are complete and referenced in the text, they have not been verified in a proof assistant such as Coq or TLA+, leaving open the possibility of subtle gaps. (See~\S\ref{subsec:future-work}~FW10.)
 
 \subsection{Comparison with Foundational Ontologies}\label{subsec:comparison-foundational}
 

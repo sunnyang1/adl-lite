@@ -1,0 +1,73 @@
+\section{RDF-star Interoperability Demonstration}\label{app:rdf-star}
+
+This appendix demonstrates the concrete interoperability path from ADL Lite EventChains to RDF-star, including export, query, and reversible mapping.
+
+\subsection{EventChain to PROV-O Export}
+
+Consider the EventChain for concept \texttt{disc-capital-trap} with two events: REGISTER (by \texttt{discoverer}) and VALIDATE (by \texttt{reviewer}, confidence 0.85). The PROV-O export is:
+
+\begin{lstlisting}[language=bash]
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix adl: <https://adl-lite.org/ns/> .
+
+adl:evt-001 a prov:Activity ;
+    prov:wasAssociatedWith adl:actor-discoverer ;
+    adl:eventType "REGISTER" ;
+    adl:previousEvent "genesis" ;
+    adl:hash "sha256:abc123..." .
+
+adl:evt-002 a prov:Activity ;
+    prov:wasAssociatedWith adl:actor-reviewer ;
+    prov:wasInformedBy adl:evt-001 ;
+    adl:eventType "VALIDATE" ;
+    adl:payloadConfidence 0.85 ;
+    adl:hash "sha256:def456..." .
+\end{lstlisting}
+
+\subsection{PROV-O to RDF-star Conversion}
+
+RDF-star enables statement-level annotation, which is natural for ADL Lite events (each event annotates a statement about the concept's lifecycle). The conversion:
+
+\begin{lstlisting}[language=bash]
+# The concept's validation as an RDF-star triple
+<< adl:disc-capital-trap adl:status "validated" >>
+    adl:validator adl:actor-reviewer ;
+    adl:confidence 0.85 ;
+    adl:eventHash "sha256:def456..." ;
+    adl:timestamp "2024-01-15T14:30:00Z" .
+
+# A relation as RDF-star
+<< adl:capital-trap adl:isomorphic-to adl:gradient-explosion >>
+    adl:confidence 0.92 ;
+    adl:mappingType "topological" ;
+    adl:validator adl:actor-reviewer .
+\end{lstlisting}
+
+\subsection{SPARQL-star Query}
+
+\begin{lstlisting}[language=bash]
+SELECT ?concept ?status ?validator ?confidence
+WHERE {
+    << ?concept adl:status ?status >>
+        adl:validator ?validator ;
+        adl:confidence ?confidence .
+    FILTER (?confidence > 0.8)
+}
+\end{lstlisting}
+
+This query retrieves all concepts with validated status and confidence $> 0.8$, including the validator identity and confidence value---information that requires reification in standard RDF but is first-class in RDF-star.
+
+\subsection{Reversible Mapping}
+
+The mapping ADL Lite $\rightarrow$ RDF-star is \emph{lossy} in one direction: RDF-star discards the cryptographic hash chain (it captures the \emph{semantics} of events but not their \emph{integrity evidence}). However, a \emph{reversible} mapping is possible by extending the RDF-star representation with provenance metadata:
+
+\begin{lstlisting}[language=bash]
+<< adl:disc-capital-trap adl:status "validated" >>
+    adl:provenance adl:evt-002 .
+
+adl:evt-002 a adl:Event ;
+    adl:hash "sha256:def456..." ;
+    adl:previousEventHash "sha256:abc123..." .
+\end{lstlisting}
+
+With this extension, an ADL Lite system can: (1) export to RDF-star for SPARQL querying and Semantic Web interoperability, (2) import from RDF-star by reconstructing the EventChain from \texttt{adl:provenance} links, and (3) verify integrity by checking that the reconstructed chain's hashes match the stored \texttt{adl:hash} values.

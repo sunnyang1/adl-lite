@@ -6,6 +6,9 @@ The object-first paradigm has proven effective in domains where the entity types
 
 A second limitation of the object-first paradigm concerns the treatment of \emph{state}. In conventional ontology platforms, a concept's status (e.g., \texttt{proposed}, \texttt{validated}, \texttt{deprecated}) is stored as a mutable field. This field can diverge from the concept's actual history when updates occur outside the governed action pathway---through race conditions between concurrent agents, manual overrides, or bugs in external systems. The resulting inconsistency is not merely a software bug; it is an ontological problem: the stored state no longer accurately represents the entity's true ontological status, which is constituted by the history of events that have affected it.
 
+\paragraph{Ontological novelty of the event-first stance.}
+We emphasize that ADL Lite's contribution is not merely adopting ``event'' as an ontological category---a position already well-established by BFO's \emph{occurrent}, DOLCE's \emph{perdurant}, and UFO-B's \emph{event} \cite{bfo,dolce,ufo}. Rather, ADL Lite advances a \emph{paradigm-level reduction}: events are not merely one category among others (alongside continuants, endurants, and qualities), but the \emph{sole primitive} from which all other ontological categories are derived. Concepts, relations, statuses, and confidence values are all projections of event patterns, not independent entities with intrinsic properties. This is analogous to the reduction of chemistry to physics: atoms are not eliminated, but understood as composites of more fundamental entities. In ADL Lite, a ``concept'' has no ontological standing independent of its EventChain; its identity, status, and confidence are constituted entirely by the events that have occurred in its lifecycle. This reduction distinguishes ADL Lite from foundational ontologies that treat events and continuants as co-equal top-level categories, and it motivates the architectural design choices---append-only chains, hash-linked integrity, and deterministic derivation---that constitute the technical contribution of this work.
+
 \subsection{Research Gap: Concept Lifecycle Governance as Ontological Analysis}\label{subsec:research-gap}
 
 The specific research gap addressed in this paper can be formulated as follows: \emph{How can an operational ontology achieve lifecycle traceability and multi-agent governance without requiring object-first mutable state, expert curation, or heavyweight tooling?} This gap has both an engineering dimension and an ontological dimension.
@@ -38,14 +41,14 @@ The contributions of this paper are organized around three axes: ontological ana
     \item An analysis of expressive power in relation to Event Calculus and Description Logic.
 \end{itemize}
 
-\textbf{Contribution 3: Empirical validation of ontological consistency.} We evaluate ADL Lite on 201 EventChains derived from the IBM Anti-Money Laundering (AML) HI-Small dataset (9,300 events). The evaluation confirms:
+\textbf{Contribution 3: Empirical validation of formal semantics and ontological consistency.} We evaluate ADL Lite on 201 EventChains derived from the IBM Anti-Money Laundering (AML) HI-Small dataset (9,300 events), empirically validating the formal semantics with six proved theorems from Contribution~2. The evaluation confirms:
 \begin{itemize}[leftmargin=2em]
     \item Zero integrity failures across all chains, including the longest chain (300 events).
     \item 100\% accuracy on 2,204 exhaustive status derivation test cases.
     \item Perfect precision and recall (P = R = F1 = 1.0) on 13 precondition enforcement test cases.
     \item Linear scalability: 31,100 events per second on modest hardware.
 \end{itemize}
-These results do not constitute domain-level evaluation of AML effectiveness; they validate that the event-first ontological architecture is computationally feasible, cryptographically sound, and empirically correct.
+These results do not constitute domain-level evaluation of AML effectiveness; they validate that the event-first ontological architecture---including the deterministic derivation semantics, hash-linked integrity guarantees, and six formally proved properties---is computationally feasible, cryptographically sound, and empirically correct.
 
 \subsection{Paper Organization}\label{subsec:organization}
 
