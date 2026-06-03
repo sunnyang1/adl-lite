@@ -26,6 +26,7 @@ from . import (
     e9_git_baseline,  # noqa: F401
     e10_fde_pipeline,  # noqa: F401
     e11_sideeffect_stress,  # noqa: F401
+    e12_benchmark_comparison,  # noqa: F401
 )
 from .base import ExperimentResult
 from .registry import instantiate, list_all

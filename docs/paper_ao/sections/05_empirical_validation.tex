@@ -110,6 +110,7 @@ E1 & Integrity & P / R / F1 & 1.0 / 1.0 / 1.0 & 60 chains \\
 E2 & Derivation & Accuracy & 1.0 (2,204/2,204) & Exhaustive to length 3 \\
 E4 & Precondition & P / R / F1 & 1.0 / 1.0 / 1.0 & 13 test cases \\
 E6 & Scalability & Integrity & 0 failures & 201 chains, 9,300 events \\
+E12 & Governance benchmark & Throughput / latency & 135k evt/s; 69ms all chains & See Table~\ref{tab:comparative-benchmark} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -151,7 +152,7 @@ To complement the architectural correctness evaluation (E1--E4), we propose a hu
 
 \textbf{Ethics.} The study will be approved by the institutional ethics committee. All participants provide informed consent. Data is anonymized and stored in compliance with GDPR.
 
-\subsection{Comparative Governance Evaluation}\label{subsec:comparative-eval}
+\subsection{Comparative Governance Evaluation (E12)}\label{subsec:comparative-eval}
 
 To position ADL Lite relative to established provenance solutions, we present a structured comparison against nanopublications with Trusty URIs and a PROV-O pipeline on a governance task suite. This comparison is methodological rather than experimental---we report operational characteristics rather than benchmark timings, acknowledging that a full empirical comparison requires the authentication layer planned for Phase~3.
 
@@ -168,9 +169,11 @@ We define four governance tasks representative of multi-agent concept lifecycle 
 
 \subsubsection{Comparison Results}
 
+Table~\ref{tab:comparative-eval} presents the qualitative governance task comparison. Table~\ref{tab:comparative-benchmark} supplements this with quantitative benchmarks measured on identical hardware (Apple M2, macOS 14, Python 3.10) via the E12 experiment.\label{subsec:e12}
+
 \begin{table}[htbp]
 \centering
-\caption{Comparative evaluation across four governance tasks. $\checkmark$ = supported; $\circ$ = partially supported via external tooling; $\times$ = not supported.}
+\caption{Governance task comparison. $\checkmark$ = supported; $\circ$ = partially supported; $\times$ = not supported.}
 \label{tab:comparative-eval}
 \begin{tabular}{@{}p{3.0cm}p{3.5cm}p{3.5cm}p{3.5cm}@{}}
 \toprule
@@ -178,9 +181,9 @@ We define four governance tasks representative of multi-agent concept lifecycle 
 \midrule
 Acceptance workflow & $\circ$ (manual versioning) & $\circ$ (requires external workflow engine) & $\checkmark$ (deterministic $\delta(C)$) \\
 Retraction/deprecation & $\checkmark$ (new nanopub with retraction) & $\checkmark$ (prov:wasInvalidatedBy) & $\checkmark$ (\textsc{DEPRECATE} + precondition) \\
-Audit query (status at time $t$) & $\checkmark$ ($O(1)$ per nanopub) & $\checkmark$ (SPARQL query) & $\circ$ ($O(n)$ per chain; linear scan of events) \\
+Audit query & $\checkmark$ ($O(1)$ per nanopub) & $\checkmark$ (SPARQL query) & $\circ$ ($O(n)$ linear scan) \\
 Consensus threshold & $\times$ (no built-in aggregation) & $\times$ (no built-in aggregation) & $\checkmark$ ($\gamma(C)$ with quorum rules) \\
-Multi-event lifecycle view & $\circ$ (chained nanopubs) & $\checkmark$ (activity sequences) & $\checkmark$ (native EventChain) \\
+Multi-event lifecycle & $\circ$ (chained nanopubs) & $\checkmark$ (activity sequences) & $\checkmark$ (native EventChain) \\
 Verification cost & $O(1)$ per nanopub & $\sim O(|\text{activities}|)$ & $O(n)$ per chain \\
 Authentication & $\checkmark$ (RSA signatures) & $\circ$ (planned: LD-Proofs) & $\times$ (planned: Phase~3) \\
 Infrastructure & RDF triplestore + nanopub server & RDF triplestore + PROV tooling & Git + \texttt{pip install adl-lite} \\
@@ -188,9 +191,30 @@ Infrastructure & RDF triplestore + nanopub server & RDF triplestore + PROV tooli
 \end{tabular}
 \end{table}
 
-\textbf{Interpretation.} Nanopublications with Trusty URIs provide superior $O(1)$ per-claim verification with built-in RSA signatures---an authentication capability that ADL Lite currently lacks. However, nanopubs are atomic (single-claim) units without built-in lifecycle state machines or consensus thresholds. PROV-O pipelines offer rich workflow descriptions but require external execution engines for governance enforcement. ADL Lite uniquely combines deterministic lifecycle derivation ($\delta$), configurable confidence aggregation ($\gamma$), and precondition-governed actions within a single package, at the cost of $O(n)$ audit query time and the absence of actor authentication in the current version.
+\begin{table}[htbp]
+\centering
+\caption{Empirical benchmark comparison (E12). ADL Lite measurements on Apple M2, macOS 14, Python 3.10. Nanopub and PROV-O figures from published literature.}
+\label{tab:comparative-benchmark}
+\begin{tabular}{@{}p{3.5cm}lll@{}}
+\toprule
+\textbf{Metric} & \textbf{ADL Lite (measured)} & \textbf{Nanopubs (published)} & \textbf{PROV-O (published)} \\
+\midrule
+Per-assertion verify & 0.59 $\mu$s (SHA-256) & $O(1)$ hash comparison \cite{trusty_uris} & O($n\log n$) RDF canon. \cite{w3c_rdf_canon} \\
+Chain verify (300 events) & 2.13 ms & N/A (atomic claims) & N/A \\
+Audit query (300 events) & 0.022 ms & $\sim$SPARQL lookup ms \cite{nanopublications} & $\sim$SPARQL lookup ms \\
+Storage per event & 603 bytes & 31--86\% non-assertion triples \cite{nanopublications} & $\sim$RDF triple overhead \\
+Hash/storage overhead & 10.6\% (64 bytes/event) & Content-addressed URI overhead & Canon. + signature overhead \\
+Throughput & 135k events/s (verify) & Per-claim only & Per-document batch \\
+All 201 chains verify & 69 ms (total) & N/A (no chain concept) & N/A \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-\textbf{Authentication gap.} The most significant difference is authentication: nanopubs provide RSA-signed assertions with key verification, while ADL Lite v0.2 uses self-declared string identifiers. This gap is acknowledged and scoped to Phase~3 (Section~\ref{subsec:trust-model}). When authentication is added, ADL Lite will combine signed assertions with its existing lifecycle governance, closing the gap while retaining unique advantages in derivation semantics and precondition enforcement.
+\textbf{Interpretation.} Nanopublications with Trusty URIs provide $O(1)$ per-claim hash verification with built-in RSA signatures---an authentication capability ADL Lite currently lacks. However, nanopubs are atomic units without built-in lifecycle state machines, consensus thresholds, or multi-event provenance chains. PROV-O pipelines offer rich workflow descriptions but require external execution engines and incur RDF canonicalization overhead.
+
+ADL Lite uniquely combines deterministic lifecycle derivation ($\delta$, $\gamma$) with cryptographic chain integrity in a single lightweight package. The measured overhead is modest: 10.6\% storage increase per event (from the 64-byte SHA-256 hash) and 0.59 $\mu$s per-event hash computation. Audit queries complete in 0.005--0.022 ms for chains of 28--300 events, and full chain verification (201 chains, 9,300 events) completes in 69 ms. The throughput of 135,000 verified events per second confirms that the cryptographic chain imposes no practical performance barrier.
+
+The most significant gap remains authentication: without Ed25519 signatures (Phase~3), ADL Lite cannot match nanopubs' actor identity verification. This gap is scoped to Section~\ref{subsec:trust-model}. When authentication is added, ADL Lite will combine signed assertions with its existing lifecycle governance, closing the gap while retaining unique advantages in derivation semantics and precondition enforcement.
 
 \subsection{E6: Hardware Environment and Latency Decomposition}\label{subsec:e6-hardware}
 
