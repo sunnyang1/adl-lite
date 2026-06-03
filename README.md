@@ -3,20 +3,20 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![ESWC + ISWC 2027 Target](https://img.shields.io/badge/Target-ESWC%20%2B%20ISWC%202027-blue.svg)](https://eswc-conferences.org/)
-[![Applied Ontology Target](https://img.shields.io/badge/Target%20Journal-Applied%20Ontology-blue.svg)](https://www.iospress.nl/journal/applied-ontology/)
-[![Experiments: 6/6 PASS](https://img.shields.io/badge/experiments-6%2F6%20PASS-brightgreen.svg)]()
-[![IBM AML: 495K chains 100% integrity](https://img.shields.io/badge/IBM%20AML-495K%20chains%20100%25%20OK-blue.svg)]()
+[![Applied Ontology: under revision](https://img.shields.io/badge/Journal-Applied%20Ontology-orange.svg)](https://www.iospress.nl/journal/applied-ontology/)
+[![Tests: 387 PASS](https://img.shields.io/badge/tests-387%20PASS-brightgreen.svg)]()
+[![Paper: 52pp, 30 refs](https://img.shields.io/badge/paper-52pp%2C%2030%20refs-blue.svg)]()
 
-> **"世界是事件的总和，而非事物的总和" — Wittgenstein, Tractatus Logico-Philosophicus §1.1**
+> **"The world is the totality of facts, not of things." — Wittgenstein, Tractatus Logico-Philosophicus §1.1**
 
-ADL Lite 是 **事件优先 (event-first)** 的 Markdown-native 操作 ontology。每个概念是一个 **追加式、密码学哈希化的 EventChain**。Status/confidence/validators 从不存储为可变字段——全部从事件链计算。
+ADL Lite is an **event-first, Markdown-native operational ontology** for concept lifecycle governance in multi-agent and LLM-intensive settings. Each concept is an **append-only, cryptographically hash-linked EventChain**. Status, confidence, and validators are **never stored as mutable fields** — all derived deterministically from the event history.
 
-参考 Palantir Foundry Data Engine 的 Ontology 层 (Object Type / Property Type / Link Type / Action Type)，但以 Markdown-native、Git-backed、pip-installable 的形式实现。
+Referencing Palantir Foundry Data Engine's ontology layer (Object Type / Property Type / Link Type / Action Type), but implemented as Markdown-native, Git-backed, pip-installable toolkit.
 
-## 架构
+## Architecture
 
 ```
-Markdown 概念文件 (L1/L2/L3/L4)
+Markdown concept file (L1/L2/L3/L4)
         ↓
 ADLParser → ADLDocument + EventChain
         ↓
@@ -29,84 +29,107 @@ ConsensusEngine (append-only transition chain)
 ADLMemory (Hot skeleton / Warm SQLite+NetworkX / Cold archive)
 ```
 
-### 四层文档模型
+### Four-Layer Document Model
 
-| Layer | 语法 | 角色 | 事件类型 |
-|-------|------|------|----------|
-| L1 | YAML front matter | 身份元数据 (派生快照) | SNAPSHOT |
-| L2 | Markdown body | 人/LLM 叙事 | — |
-| L3 | `adl:relation/evidence/seal` | 语义断言 | RELATE, EVIDENCE, SEAL |
-| L4 | `adl:action` | 类型化动作 + 前置条件 | REGISTER, VALIDATE, ... |
+| Layer | Syntax | Role | Event Type |
+|-------|--------|------|-------------|
+| L1 | YAML front matter | Identity metadata (derived snapshot) | SNAPSHOT |
+| L2 | Markdown body | Human/LLM narrative | — |
+| L3 | `adl:relation/evidence/seal` | Typed semantic assertions | RELATE, EVIDENCE, SEAL |
+| L4 | `adl:action` | Typed actions with preconditions | REGISTER, VALIDATE, ... |
 
-### 事件优先设计
+### Event-First Design
 
 ```python
 from adl_lite import Event, EventChain, EventType
 
-chain = EventChain(concept_id="claim-2026-0042")
+chain = EventChain(concept_id="disc-capital-trap")
 
-chain.append(Event(concept_id="claim-2026-0042",
-                   event_type=EventType.SUBMIT,
-                   actor="claimant",
-                   payload={"amount": 420}))
+chain.append(Event(concept_id="disc-capital-trap",
+                   event_type=EventType.REGISTER,
+                   actor="discoverer"))
 
-chain.append(Event(concept_id="claim-2026-0042",
+chain.append(Event(concept_id="disc-capital-trap",
                    event_type=EventType.VALIDATE,
-                   actor="approver_05",
+                   actor="reviewer",
                    payload={"confidence": 0.85}))
 
-# status 是链计算的，不是存储的
+# Status derived from chain, NOT stored
 assert chain.status == DiscoveryStatus.VALIDATED
 assert chain.confidence == 0.85
-assert chain.validators == ["approver_05"]
-assert chain.verify_integrity()  # SHA-256 哈希验证
+assert chain.verify_integrity()  # SHA-256 hash verification
 ```
 
-## 实验结果 (6/6 PASS)
+## Paper Status
 
-| # | 实验 | 关键指标 |
-|---|------|---------|
-| E1 | 事件链完整性 | 50 条有效链 100% pass; 10 条损坏链 100% 检出 |
-| E2 | 状态推导准确性 | 2,204 个事件组合 100% 正确推导 |
-| E3 | 快照往返一致性 | 38 个概念文件 100% status 匹配 |
-| E4 | 前置条件精度 | P=1.0, R=1.0, F1=1.0 (13 个测试用例) |
-| E5 | 5-agent 可审计性 | 5/5 链完整性通过 |
-| E6 | **IBM AML 真数据管道** | **495,671 条链, 508 万事件, 100% 完整性** |
+| Item | Status |
+|------|--------|
+| **paper_ao/** | Applied Ontology journal — under revision (52 pp, 30 refs, 0 placeholders) |
+| **paper_v3/** | ESWC/ISWC 2027 LNCS format — 11 experiments, 3 appendices |
+| Reviewer feedback | Addressed (P0+P1+P2, 12 items, 2026-06-03) |
+| Revision plan | [`docs/REVIEW_RESPONSE_PLAN.md`](docs/REVIEW_RESPONSE_PLAN.md) |
 
-详见: [`docs/paper/EVENT_FIRST_DRAFT.md`](docs/paper/EVENT_FIRST_DRAFT.md)
+**Key properties (formaised in paper_ao Section 4.6):**
 
-## 快速开始
+| Theorem | Property |
+|---------|----------|
+| T1 | Determinism of $\delta(C)$ |
+| T2 | Confluence under fork |
+| T3 | Status transition monotonicity |
+| T4 | Confidence boundedness $\gamma(C) \in [0,1]$ |
+| T5 | Confidence monotonicity under independent validation |
+| T6 | Status–confidence consistency ($\delta = $ validated $\implies \gamma \geq 0.5$) |
+| T7 | CRDT convergence under LWW-Set merge |
+| Corollary | Event-level G-Set CRDT |
+
+## Experiments
+
+**paper_ao** (6 experiments, foundational correctness):
+| # | Experiment | Key Metric |
+|---|-----------|-----------|
+| E1 | Chain integrity | 60 chains: P=R=F1=1.0 |
+| E2 | Status derivation | 2,204 cases: 100% correct |
+| E4 | Precondition enforcement | 13 cases: P=R=F1=1.0 |
+| E6 | IBM AML pipeline | 201 chains, 9,300 events, 100% integrity |
+
+**paper_v3** (11 experiments, extended scale):
+E1–E6 + E7 (Realtime pattern detection), E8 (Edge offline sync), E9 (Git-only baseline), E10 (Full FDE pipeline), E11 (Side-effect stress test)
+
+## Quick Start
 
 ```bash
 git clone https://github.com/sunnyang1/adl-lite.git
 cd adl-lite
 pip install -e ".[dev]"
 
-# 跑所有实验
+# Run all experiments
 python -m experiments.runner all
 
-# 列出实验
+# List experiments
 python -m experiments.runner list
 
-# 跑单个
+# Run single
 python -m experiments.runner E2
+
+# Run tests (387 passed)
+pytest tests/ -q
 ```
 
 ### CLI
 
 ```bash
-# 验证
+# Validate
 adl-lite validate examples/*.md
 adl-lite validate --strict examples/*.md
 
-# 解析
+# Parse
 adl-lite parse examples/capital_reflux_trap.md
 
-# 共识
+# Consensus
 adl-lite consensus register examples/capital_reflux_trap.md
 adl-lite consensus transition disc-capital-trap --to validated --actor agent_1
 
-# Ontology 查询
+# Ontology query
 adl-lite ontology query --json
 ```
 
@@ -117,75 +140,84 @@ from adl_lite import parse_file, Event, EventChain, EventType
 from adl_lite.action_executor import ActionExecutor
 from adl_lite.ontology import OntologyManager
 
-# 事件链
+# Event chain
 doc = parse_file("examples/capital_reflux_trap.md")
 chain = doc.event_chain
-print(chain.status)           # 从链计算
-print(chain.history())         # 完整审计日志
+print(chain.status)           # Derived from chain
+print(chain.history())        # Full audit log
 
-# Action 执行
+# Action execution
 mgr = OntologyManager()
 executor = ActionExecutor(mgr)
 errors = executor.validate_action(doc, action_block)
 
-# 数据导入 (IBM AML)
+# Data import (IBM AML)
 from adl_lite.data_importer import DataImporter
 chains = DataImporter().import_csv("HI-Small_Trans.csv",
     event_type=EventType.REGISTER, concept_id_field="Account")
 ```
 
-## 项目结构
+## Project Structure
 
 ```
 adl-lite/
 ├── adl_lite/
-│   ├── models.py            # Event, EventChain, ADLActionBlock, PreconditionRule
-│   ├── parser.py            # L1/L2/L3/L4 解析器
-│   ├── validator.py         # SSA 验证 + scope ACL
-│   ├── consensus.py         # 共识链 + 分叉
-│   ├── action_executor.py   # Action 执行 + 前置条件校验
-│   ├── data_importer.py     # CSV/JSON → Event 导入
-│   ├── ontology.py          # OntologyManager (predicates/actions/transitions)
-│   ├── memory.py            # Hot/Warm/Cold 索引
-│   ├── tools.py             # Agent 工具集
-│   ├── lark/                # 飞书 bridge
-│   └── adl_core_ontology.yaml  # v0.2: classes + predicates + actions
+│   ├── models.py              # Event, EventChain, ADLActionBlock, PreconditionRule
+│   ├── parser.py              # L1/L2/L3/L4 parser
+│   ├── validator.py           # SSA validation + scope ACL
+│   ├── consensus.py           # Consensus chain + fork
+│   ├── action_executor.py     # Action execution + precondition checking
+│   ├── data_importer.py       # CSV/JSON → Event import
+│   ├── ontology.py            # OntologyManager (predicates/actions/transitions)
+│   ├── memory.py              # Hot/Warm/Cold index
+│   ├── tools.py               # Agent tool wrappers
+│   ├── crdt.py                # CRDT merge semantics
+│   ├── lark/                  # Feishu bridge
+│   └── adl_core_ontology.yaml # v0.2: classes + predicates + actions
 ├── experiments/
-│   ├── base.py              # BaseExperiment + ExperimentResult
-│   ├── registry.py          # @register("E1") 装饰器
-│   ├── runner.py            # python -m experiments.runner all
-│   ├── e1_chain_integrity.py    # 事件链完整性
-│   ├── e2_status_derivation.py  # 状态推导准确性
-│   ├── e3_snapshot_roundtrip.py # 快照往返
-│   ├── e4_precondition.py       # 前置条件
-│   ├── e5_agent_audit.py        # 5-agent 审计
-│   └── e6_aml_pipeline.py       # IBM AML 全管道
+│   ├── base.py                # BaseExperiment + ExperimentResult
+│   ├── registry.py            # @register("E1") decorator
+│   ├── runner.py              # python -m experiments.runner all
+│   ├── harness.py             # 5-agent simulation harness
+│   ├── e1_chain_integrity.py  # Chain integrity
+│   ├── e2_status_derivation.py # Status derivation
+│   ├── e3_snapshot_roundtrip.py # Snapshot round-trip
+│   ├── e4_precondition.py     # Precondition enforcement
+│   ├── e5_agent_audit.py      # Multi-agent audit
+│   └── e6_aml_pipeline.py     # IBM AML pipeline
 ├── docs/
-│   ├── paper/EVENT_FIRST_DRAFT.md  # 论文
-│   ├── experiments/                # 实验结果
-│   ├── SPEC.md                     # 规范
-│   ├── PRD.md                      # 产品需求
-│   └── proposals/                  # 设计提案
-├── archive/                    # 过期文件归档
-├── examples/                   # 概念文件示例
-├── tests/                      # pytest (111 tests)
-└── data/aml/                   # AML 概念 + 查询
+│   ├── paper_ao/              # Applied Ontology journal submission (52pp)
+│   │   ├── main.tex/PDF       # 7 sections + 6 appendices
+│   │   ├── sections/          # 01_intro ... 07_conclusion + appendices A–F
+│   │   └── references.bib     # 30 real references
+│   ├── paper_v3/              # ESWC/ISWC 2027 LNCS version (11 experiments)
+│   ├── REVIEW_RESPONSE_PLAN.md # AO reviewer revision plan (2026-06-03)
+│   ├── SPEC.md                # Specification
+│   └── proposals/             # Design proposals
+├── archive/                   # Deprecated files
+├── examples/                  # Concept file examples
+├── tests/                     # pytest (387 tests)
+├── data/aml/                  # AML concepts + queries
+└── scripts/                   # Build / reproduce / CI scripts
 ```
 
-## 核心概念
+## Core Concepts
 
-| 术语 | 定义 |
-|------|------|
-| **EventChain** | 追加式、密码学哈希化的事件序列。概念即链。 |
-| **Event** | 原子事件：event_type, actor, payload, hash, previous_event_id |
-| **Event-first** | Status/confidence/validators 从链计算，不存可变字段 |
-| **Action Type** | L4 块：声明式动作 + Comparator 前置条件 (无 eval()) |
-| **Digital Twin** | 概念的事件链 = 概念的完整数字孪生 (参考 Palantir FDE) |
+| Term | Definition |
+|------|-----------|
+| **EventChain** | Append-only, cryptographically hash-linked event sequence. Concept = chain. |
+| **Event** | Atomic event: event_type, actor, payload, hash, previous_event_id |
+| **Event-first** | Status/confidence/validators derived from chain, no mutable fields stored |
+| **$\delta(C)$** | Deterministic status derivation function |
+| **$\gamma(C)$** | Confidence aggregation with per-validator maxima and quorum bonuses |
+| **Action Type** | L4 blocks: declarative actions + Comparator preconditions (no eval()) |
+| **Trust Model** | Hash chain integrity + planned Ed25519/DIDs (Phase 3) |
 
-## 共识状态
+## Consensus States
 
-| 🟡 provisional | 🟢 validated | 🔴 deprecated | 🔵 forked | ⚪ archived |
+| provisional | validated | deprecated | forked | archived |
+|:---:|:---:|:---:|:---:|:---:|
 
-## 许可
+## License
 
-MIT License — 详见 [LICENSE](LICENSE)
+MIT License — see [LICENSE](LICENSE)

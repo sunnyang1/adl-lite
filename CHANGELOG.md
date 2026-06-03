@@ -4,6 +4,31 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased] — 2026-06-03: AO Reviewer Revision
+
+### Added
+
+- **Trust model & security boundaries** (`docs/paper_ao/sections/04_architecture.tex` §4.8): explicit threat model table (8 threats), trust assumptions, planned Phase 3 mitigations (Ed25519/Linked Data Proofs/DIDs)
+- **CRDT convergence semantics**: Theorem 7 (LWW-Set merge) + Corollary (G-Set CRDT) in §4.6, with full proof sketches in Appendix E
+- **Comparative evaluation** (§5.7): 4-task governance suite vs nanopublications + PROV-O, 8-metric comparison table
+- **Adversarial test suite** (Appendix C): 8 attack classes, 32 test cases, results table
+- **SHACL coverage analysis** (Appendix B): 5 constraint definitions, Core vs SPARQL expressivity table
+- **Hardware environment + latency decomposition** (§5.6): Apple M2 specs, per-stage latency breakdown (CSV 13%, Pydantic 58%, SHA-256 16%, ChainVerify 10%)
+- **Related work expansions** (§2): OBO Foundry change management, RO-Crate/FAIR Digital Objects, blockchain provenance, Git signed-commit workflows, PLUGMEM integration
+- **Formal notation table** (§4.6): $\Sigma$, $\text{WF}$, $\delta$, $\gamma$, $\text{Fork}$ symbol reference
+- **TLA$^{+}$ mechanised proof footnote** (§4.6)
+- **PLUGMEM integration discussion** (§6.5)
+
+### Changed
+
+- **BFO GDC category fix** (§3.2.2, §3.4.1, Table 1): Concept depends on EventChain as ICE (Information Content Entity) bearer, not as occurrent. Added formal dependency diagram.
+- **References**: 61 placeholder entries removed; 13 cited placeholders replaced with real citations. Now 30 real references (100%).
+- **Paper page count**: 45 → 52 pages
+
+### Fixed
+
+- Theorem 6 proof relocation (was orphaned during CRDT theorem insertion, now correctly positioned before Theorem 7)
+
 ## [0.2.0] - 2026-05-23
 
 ### Added
