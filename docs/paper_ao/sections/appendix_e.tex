@@ -147,7 +147,7 @@ If $e_{\text{new}}.\textit{actor} \in \textit{actors}(V)$ (duplicate validator),
 Confidence never decreases when a $\textsc{Validate}$ event is appended. This monotonicity property ensures that the concept governance process is cumulative: additional validation can only increase (or preserve) confidence.
 
 \begin{theorem}[Monotonicity of Confidence]\label{thm:monotonicity-confidence}
-Let $C$ be a well-formed chain and let $e_{\text{new}}$ be a $\textsc{Validate}$ event from an actor $a$ with confidence $c \in [0, 1]$. Let $C' = C \oplus [e_{\text{new}}]$. Then:
+Let $C$ be a well-formed chain and let $e_{\text{new}}$ be a $\textsc{Validate}$ event from an actor $a$ with confidence $c \geq c_{\text{base}}$, where $c_{\text{base}}$ is the current base confidence of $C$. Let $C' = C \oplus [e_{\text{new}}]$. Then:
 \begin{equation}
     \gamma(C') \geq \gamma(C).
 \end{equation}
@@ -155,32 +155,23 @@ Moreover, if $\gamma(C) < 1.0$ and $a$ is a new validator, then $\gamma(C') > \g
 \end{theorem}
 
 \begin{proof}[Proof of Theorem~\ref{thm:monotonicity-confidence}]
-Let $\gamma(C)$ be computed from $V$ with $N_{\text{vals}} = |\textit{actors}(V)|$ and base confidence $c_{\text{base}}$. We consider two cases.
+Let $\gamma(C)$ be computed from $V$ with $N_{\text{vals}} = |\textit{actors}(V)|$ and base confidence $c_{\text{base}} = \max(0.5, c_{\text{base}}^{\text{raw}})$ where $c_{\text{base}}^{\text{raw}} = \operatorname{mean}_{a \in \textit{actors}(V)} \phi(a, V)$. We consider two cases.
 
 \textbf{Case 1:} $a \notin \textit{actors}(V)$ (new validator). Then $N'_{\text{vals}} = N_{\text{vals}} + 1$ and:
 \begin{equation}
     \gamma(C') = \min\!\left(1.0,\; c'_{\text{base}} + 0.05 \times N_{\text{vals}}\right)
 \end{equation}
-where $c'_{\text{base}}$ is the mean of $N_{\text{vals}} + 1$ per-actor maxima. The new base confidence is:
+where $c'_{\text{base}}$ is the mean of $N_{\text{vals}} + 1$ per-actor maxima. Because $c \geq c_{\text{base}} \geq c_{\text{base}}^{\text{raw}}$, the weighted mean satisfies:
 \begin{equation}
-    c'_{\text{base}} = \max\!\left(0.5,\; \frac{N_{\text{vals}} \cdot c_{\text{base}}^{\text{raw}} + c}{N_{\text{vals}} + 1}\right)
+    c'_{\text{base}} = \frac{N_{\text{vals}} \cdot c_{\text{base}}^{\text{raw}} + c}{N_{\text{vals}} + 1} \geq \frac{N_{\text{vals}} \cdot c_{\text{base}}^{\text{raw}} + c_{\text{base}}^{\text{raw}}}{N_{\text{vals}} + 1} = c_{\text{base}}^{\text{raw}}.
 \end{equation}
-where $c_{\text{base}}^{\text{raw}} = \operatorname{mean}_{a \in \textit{actors}(V)} \phi(a, V)$. Even in the worst case where $c = 0$ (the minimum allowed by precondition is $c \geq 0.5$, but we prove the general case), the weighted mean satisfies:
+Therefore $c'_{\text{base}} = \max(0.5, c'_{\text{base}}) \geq \max(0.5, c_{\text{base}}^{\text{raw}}) = c_{\text{base}}$. The bonus term increases from $0.05 \times (N_{\text{vals}} - 1)$ to $0.05 \times N_{\text{vals}}$, adding exactly $0.05$. Hence:
 \begin{equation}
-    \frac{N_{\text{vals}} \cdot c_{\text{base}}^{\text{raw}} + c}{N_{\text{vals}} + 1} \geq \frac{N_{\text{vals}} \cdot c_{\text{base}}^{\text{raw}}}{N_{\text{vals}} + 1}.
+    \gamma(C') = \min(1.0, c'_{\text{base}} + 0.05 \times N_{\text{vals}}) \geq \min(1.0, c_{\text{base}} + 0.05 \times (N_{\text{vals}} - 1) + 0.05) \geq \gamma(C).
 \end{equation}
+If $\gamma(C) < 1.0$, the $\min(1.0, \cdot)$ cap is not binding for $\gamma(C)$, and the $+0.05$ bonus yields strict inequality.
 
-The bonus term increases from $0.05 \times (N_{\text{vals}} - 1)$ to $0.05 \times N_{\text{vals}}$, adding exactly $0.05$. This increment dominates any possible decrease in the base confidence term because the base confidence is bounded below by $0.5$ and the weighted mean of values in $[0, 1]$ cannot decrease by more than $1/(N_{\text{vals}} + 1) < 0.05$ for $N_{\text{vals}} \geq 1$.
-
-Formally, let $\Delta = \gamma(C') - \gamma(C)$. If the $\min(1.0, \cdot)$ is not binding:
-\begin{equation}
-    \Delta = \left(c'_{\text{base}} - c_{\text{base}}\right) + 0.05.
-\end{equation}
-Since $c'_{\text{base}} \geq 0.5$ and $c_{\text{base}} \leq 1.0$, we have $c'_{\text{base}} - c_{\text{base}} \geq -0.5$, so $\Delta \geq -0.5 + 0.05 = -0.45$. But a tighter bound follows from the convexity of the mean: the decrease in base confidence is at most:
-\begin{equation}
-    c_{\text{base}} - c'_{\text{base}} \leq \frac{c_{\text{base}} - c}{N_{\text{vals}} + 1} \leq \frac{1}{N_{\text{vals}} + 1} \leq 0.5 \quad \text{(for } N_{\text{vals}} \geq 1\text{)}.
-\end{equation}
-For $N_{\text{vals}} = 0$ (first validator), $\gamma(C) = 0$ and $\gamma(C') = \min(1.0, \max(0.5, c)) \geq 0.5 > 0 = \gamma(C)$. For $N_{\text{vals}} \geq 1$, the $+0.05$ bonus strictly dominates any possible decrease, so $\Delta > 0$ unless $\gamma(C) = 1.0$ (in which case $\gamma(C') = 1.0 = \gamma(C)$ by the $\min$ cap).
+For $N_{\text{vals}} = 0$ (first validator), $\gamma(C) = 0$ and $\gamma(C') = \min(1.0, \max(0.5, c)) \geq 0.5 > 0 = \gamma(C)$.
 
 \textbf{Case 2:} $a \in \textit{actors}(V)$ (duplicate validator). Then $N'_{\text{vals}} = N_{\text{vals}}$ and the bonus term is unchanged. The base confidence uses $\operatorname{argmax}$:
 \begin{equation}
@@ -188,7 +179,7 @@ For $N_{\text{vals}} = 0$ (first validator), $\gamma(C) = 0$ and $\gamma(C') = \
 \end{equation}
 Therefore $c'_{\text{base}} \geq c_{\text{base}}$, and since the bonus term is unchanged, $\gamma(C') \geq \gamma(C)$.
 
-\textbf{Assumptions used:} (A1) Same actor's multiple $\textsc{Validate}$s use $\operatorname{argmax}$ (highest confidence retained); (A2) The bonus term $0.05$ per additional distinct validator is positive; (A3) Individual confidence values are non-negative.
+\textbf{Assumptions used:} (A1)~Same actor's multiple $\textsc{Validate}$s use $\operatorname{argmax}$ (highest confidence retained); (A2)~The bonus term $0.05$ per additional distinct validator is positive; (A3)~The new actor's confidence is at least the current base confidence $c_{\text{base}}$.
 \end{proof}
 
 %-------------------------------------------------------------------------------
@@ -214,7 +205,7 @@ Since $V \neq \emptyset$, $\gamma(C)$ is computed by the second branch of its de
     \gamma(C) = \min\!\left(1.0,\; c_{\text{base}} + 0.05 \times (N_{\text{vals}} - 1)\right).
 \end{equation}
 
-By the $\textsc{Validate}$ precondition (system invariant), every $\textsc{Validate}$ event carries confidence $e.\textit{payload}.\textit{confidence} \geq 0.5$. Therefore, for every actor $a \in \textit{actors}(V)$:
+By the system invariant that every $\textsc{Validate}$ event carries confidence $e.\textit{payload}.\textit{confidence} \geq 0.5$, for every actor $a \in \textit{actors}(V)$:
 \begin{equation}
     \phi(a, V) = \max\{e.\textit{payload}.\textit{confidence} \mid e \in V \land e.a = a\} \geq 0.5.
 \end{equation}
@@ -236,7 +227,7 @@ Therefore:
 
 This completes the proof. In fact, we have established the stronger result that $\gamma(C) \geq 0.5$ whenever $\delta(C) = \textit{validated}$.
 
-\textbf{Assumptions used:} (A1) The $\textsc{Validate}$ precondition requires confidence $\geq 0.5$; (A2) $\delta(C) = \textit{validated}$ implies at least one $\textsc{Validate}$ event in $C$; (A3) The $\min(1.0, \cdot)$ cap does not bind below $0.5$.
+\textbf{Assumptions used:} (A1) The system invariant requires confidence $\geq 0.5$ for every $\textsc{Validate}$ event; (A2) $\delta(C) = \textit{validated}$ implies at least one $\textsc{Validate}$ event in $C$; (A3) The $\min(1.0, \cdot)$ cap does not bind below $0.5$.
 \end{proof}
 
 %-------------------------------------------------------------------------------
@@ -245,7 +236,7 @@ This completes the proof. In fact, we have established the stronger result that 
 
 The EventChain model supports an optional LWW-Set merge semantics for reconciling concurrent branches. This theorem establishes that the merge operation satisfies CRDT convergence properties.
 
-\begin{theorem}[CRDT Convergence]\label{thm:crdt-convergence}
+\begin{theorem}[CRDT Convergence]\label{thm:crdt-convergence-appendix}
 For any well-formed concurrent branches $B_1, B_2$ derived from the same genesis event (same $\text{concept\_id}$ and genesis hash), the LWW-Set merge operation $\text{Merge}(B_1, B_2) = B_1 \cup B_2$ (deduplicated by $\text{event\_id}$) satisfies:
 \begin{align}
     \text{Merge}(B_1, B_2) &= \text{Merge}(B_2, B_1) \quad \text{(commutativity)} \\
@@ -298,8 +289,32 @@ The seven theorems and one corollary form a structured dependency graph:
     \item Theorem~\ref{thm:boundedness} (Boundedness) is independent of the others but shares assumptions with Theorem~\ref{thm:monotonicity-confidence}.
     \item Theorem~\ref{thm:monotonicity-confidence} (Confidence Monotonicity) depends on Theorem~\ref{thm:boundedness} for the cap argument and on the $\operatorname{argmax}$ semantics for duplicate validators.
     \item Theorem~\ref{thm:consistency} (Consistency) depends on Theorem~\ref{thm:boundedness} (for the cap not interfering) and on the $\textsc{Validate}$ precondition system.
-    \item Theorem~\ref{thm:crdt-convergence} (CRDT Convergence) depends on Theorem~\ref{thm:determinism} (for determinism of $\delta$ after merge) and on the well-formedness predicate $\Phi$ (for pairwise distinct $\text{event\_id}$ values).
+    \item Theorem~\ref{thm:crdt-convergence-appendix} (CRDT Convergence) depends on Theorem~\ref{thm:determinism} (for determinism of $\delta$ after merge) and on the well-formedness predicate $\Phi$ (for pairwise distinct $\text{event\_id}$ values).
     \item Corollary~\ref{cor:gset-crdt} (G-Set CRDT) follows from the immutability of events and the append-only semantics of EventChains.
 \end{itemize}
 
 All seven proofs together establish that ADL Lite's derivation semantics is deterministic, confluent under fork, transition-monotonic, bounded, confidence-monotonic, internally consistent, and CRDT-convergent under LWW-Set merge. These properties provide the formal foundation for the system's operational correctness.
+
+%-------------------------------------------------------------------------------
+\subsection{Sensitivity Analysis: Confidence Aggregation Parameters}
+%-------------------------------------------------------------------------------
+
+Table~\ref{tab:sensitivity} reports $\gamma(C)$ under three $(\beta, c_{\min})$ parameter combinations for four validator-confidence scenarios (three validators each). The base confidence $c_{\text{base}} = \max(c_{\min}, \text{mean}(\phi))$ and $\gamma(C) = \min(1.0, c_{\text{base}} + \beta \times (N_{\text{vals}} - 1))$.
+
+\begin{table}[htbp]
+\centering
+\caption{Sensitivity of $\gamma(C)$ to bonus $\beta$ and floor $c_{\min}$ (three validators).}
+\label{tab:sensitivity}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Validator confidences} & $\beta=0.03, c_{\min}=0.3$ & $\beta=0.05, c_{\min}=0.5$ & $\beta=0.08, c_{\min}=0.7$ \\
+\midrule
+$[0.6, 0.6, 0.6]$ (low)    & 0.66 & 0.70 & 0.86 \\
+$[0.7, 0.7, 0.7]$ (medium)  & 0.76 & 0.80 & 0.86 \\
+$[0.9, 0.9, 0.9]$ (high)    & 0.96 & 1.00 & 1.00 \\
+$[0.5, 0.7, 0.9]$ (mixed)   & 0.76 & 0.80 & 0.86 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Theorems~\ref{thm:boundedness}--\ref{thm:consistency} hold for all entries because: (i)~$\gamma(C) \in [0,1]$ by the $\min(1.0, \cdot)$ cap; (ii)~confidence monotonicity holds because $\beta > 0$; (iii)~status--confidence consistency holds because $c_{\min} \geq 0.3$ and any validated concept has $c_{\text{base}} \geq c_{\min}$. With the precondition $c \geq c_{\text{base}}$, strict monotonicity is preserved for all $\beta > 0$; the $\beta \leq c_{\min}/10$ bound required by the earlier formulation (which used $c \geq 0.5$) is no longer necessary.

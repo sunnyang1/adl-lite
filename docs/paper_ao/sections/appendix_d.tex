@@ -1,4 +1,4 @@
-This appendix describes the experiment runner and reproducibility infrastructure. All experiments reported in this paper are executable through a unified runner: \texttt{python -m experiments.runner all}. The runner discovers experiments via the \texttt{@register} decorator in \texttt{experiments/registry.py}, executes each experiment, and generates a JSON summary.
+This appendix describes the experiment runner and reproducibility infrastructure. All experiments reported in this paper are executable via a unified runner: \texttt{python -m experiments.runner all}. The runner discovers experiments via the \texttt{@register} decorator in \texttt{experiments/registry.py}, executes each experiment, and generates a JSON summary.
 
 Individual reproduction scripts are provided in \texttt{scripts/reproduce/}:
 \begin{itemize}[leftmargin=2em]
@@ -8,7 +8,7 @@ Individual reproduction scripts are provided in \texttt{scripts/reproduce/}:
     \item \texttt{reproduce\_sign.sh}: Verifies Ed25519 LD-Proof generation and verification.
     \item \texttt{reproduce\_rdfstar.sh}: Exports RDF-star quoted triples for all concepts.
     \item \texttt{reproduce\_adversarial.sh}: Runs adversarial integrity stress tests.
-    \item \texttt{reproduce\_all.sh}: Master orchestrator that runs all sub-scripts and prints unified PASS/FAIL summary.
+    \item \texttt{reproduce\_all.sh}: Master orchestrator that runs all sub-scripts and prints a unified PASS/FAIL summary.
 \end{itemize}
 
-The hardware specification for all reported timings is documented in \texttt{docs/experiments/HARDWARE\_SPECS.md}: Apple M3 Pro, 36 GB RAM, Python 3.12.12, macOS 14.5.
+The hardware specification for all reported timings is documented in \texttt{docs/experiments/HARDWARE\_SPECS.md}: Apple M2 (8P+4E cores), 16~GB RAM, Python 3.10, macOS 14.

@@ -6,7 +6,7 @@ ADL Lite L3 relations are validated against a SHACL shape graph with the followi
 
 \begin{enumerate}[label=\textbf{S\arabic*}, leftmargin=3em]
     \item \textbf{Source and target concept existence.} The \texttt{source} and \texttt{target} fields must reference valid \texttt{concept\_id} values that exist in the ADL corpus. Implemented as \texttt{sh:pattern} constraints requiring valid identifiers.
-    \item \textbf{Closed predicate set.} The \texttt{relation} field must be one of the registered predicates in \texttt{adl\_core\_ontology.yaml}: \texttt{isomorphic-to}, \texttt{specialisation-of}, \texttt{co-occurs-with}, \texttt{related-to}, \texttt{analogical-to}, \texttt{antithetical-to}, \texttt{derives-from}, \texttt{compatible-with}.
+    \item \textbf{Closed predicate set.} The \texttt{relation} field must be one of the registered predicates in \texttt{adl\_core\_ontology.yaml}: \texttt{isomorphic-to}, \texttt{specialisation-of}, \texttt{co-occurs-with}, \texttt{related-to}, \texttt{analogical-to}, \texttt{analogical-transfer}, \texttt{dual-of}, \texttt{fork-of}, \texttt{mitigated-by}, \texttt{indexed-phrase}.
     \item \textbf{Confidence bounds.} The optional \texttt{confidence} field, if present, must satisfy $0.0 \leq \texttt{confidence} \leq 1.0$.
     \item \textbf{Mandatory directionality.} Every relation must have both \texttt{source} and \texttt{target} fields; self-referential relations (\texttt{source} = \texttt{target}) are permitted only for symmetric predicates (\texttt{co-occurs-with}, \texttt{compatible-with}).
     \item \textbf{Mapping type constraint.} The optional \texttt{mapping\_type} field, if present, must be one of \{\texttt{exact}, \texttt{close}, \texttt{broad}, \texttt{narrow}, \texttt{related}\}.
@@ -14,7 +14,7 @@ ADL Lite L3 relations are validated against a SHACL shape graph with the followi
 
 \subsection{SHACL Expressivity Coverage}
 
-Table~\ref{tab:shacl-coverage} maps each L3 relation constraint to the SHACL feature used and indicates whether it requires SHACL Core (standard) or SHACL-SPARQL (extended) expressivity.
+Table~\ref{tab:shacl-coverage} maps each L3 relation constraint to the SHACL feature employed and indicates whether it requires SHACL Core (standard) or SHACL-SPARQL (extended) expressivity.
 
 \begin{table}[htbp]
 \centering
@@ -36,7 +36,7 @@ Timestamp ordering & EventChain linkage & Not expressible in SHACL & N/A \\
 \end{tabular}
 \end{table}
 
-\textbf{Coverage summary.} Five of eight constraints are expressible in SHACL Core, providing standardisable validation that any SHACL engine can execute without SPARQL support. Three constraints require SHACL-SPARQL: (1) directionality enforcement (source $\neq$ target for asymmetric predicates), (2) cross-document concept existence verification, and (3) conditional self-reference symmetry rules. The EventChain temporal ordering constraint is not expressible in SHACL at all---it requires sequential hash verification, which is a computational rather than structural constraint. This coverage profile is consistent with SHACL's design intent: structural constraints are declarative (SHACL Core), while cross-document and conditional constraints require the expressivity of SPARQL queries.
+\textbf{Coverage summary.} Five of the eight constraints are expressible in SHACL Core, providing standardisable validation that any SHACL engine can execute without SPARQL support. Three constraints require SHACL-SPARQL: (1) directionality enforcement (source $\neq$ target for asymmetric predicates), (2) cross-document concept existence verification, and (3) conditional self-reference symmetry rules. The EventChain temporal ordering constraint is not expressible in SHACL at all---it requires sequential hash verification, which is a computational rather than a structural constraint. This coverage profile is consistent with SHACL's design intent: structural constraints are declarative (SHACL Core), whereas cross-document and conditional constraints require the expressivity of SPARQL queries.
 
 \subsection{Validation Pipeline}
 
@@ -53,4 +53,4 @@ The SHACL shape graph is defined in Turtle format at \texttt{adl\_lite/shacl\_sh
     \item \textbf{ADLCoreRelationShape:} Validates individual L3 relation blocks against constraints S1--S5.
     \item \textbf{ADLChainIntegrityShape:} Validates that exported PROV-O activity sequences preserve the original EventChain temporal ordering (structural check only; cryptographic verification is performed outside SHACL).
 \end{itemize}
-The shape graph is compatible with standard SHACL engines including PySHACL, Apache Jena SHACL, and GraphDB SHACL validation.
+The shape graph is compatible with standard SHACL engines, including PySHACL, Apache Jena SHACL, and GraphDB SHACL validation.

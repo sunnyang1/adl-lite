@@ -1,4 +1,4 @@
-This appendix describes the adversarial integrity test suite used to validate the EventChain's tamper-detection capabilities against a comprehensive threat model. The suite extends the basic integrity tests reported in Section~\ref{subsec:e1} to cover eight attack classes, including adversarial scenarios identified by the reviewer.
+This appendix describes the adversarial integrity test suite employed to validate the EventChain's tamper-detection capabilities against a comprehensive threat model. The suite extends the basic integrity tests reported in Section~\ref{subsec:e1} to cover eight attack classes, including adversarial scenarios identified by the reviewer.
 
 \subsection{Attack Classes}
 
@@ -13,18 +13,18 @@ The test suite targets eight distinct attack classes, evaluated against the $\te
 
     \item \textbf{Event replay across chains.} Copy an event from one chain into another. \emph{Detection mechanism:} $\text{previous\_event\_id}$ mismatch (the replayed event's predecessor does not exist in the target chain). \emph{Test cases:} 4 (replay to empty chain, replay after genesis, replay with matching $\text{concept\_id}$ collision, replay from fork sibling).
 
-    \item \textbf{Timestamp manipulation (clock skew).} Modify an event's timestamp without changing its content. \emph{Detection mechanism:} SHA-256 hash mismatch because timestamps are included in the canonical serialization. Even though clock skew does not affect chain ordering (which uses $\text{previous\_event\_id}$), timestamp manipulation is detected as content tampering. \emph{Test cases:} 3 (forward skew by 1 hour, backward skew by 1 day, zeroing timestamp).
+    \item \textbf{Hash collision simulation.} Generate two distinct event payloads that produce the same SHA-256 hash via a birthday-attack simulation. \emph{Detection mechanism:} SHA-256 is collision-resistant with $2^{128}$ expected operations for a birthday attack; the simulation verifies that no collision is found within the computational budget. \emph{Test cases:} 4 (small payload variation, large payload variation, structural variation, timestamp variation).
 
-    \item \textbf{Concurrent fork conflict.} Two agents independently issue $\text{FORK}$ events from the same parent chain. \emph{Detection mechanism:} Both fork events are valid; each produces a distinct child chain with a unique $\text{concept\_id}$. The conflict is \emph{detected} (two forks exist) but not \emph{prevented}---this is by design: ADL Lite records conflicts as evidence. \emph{Test cases:} 2 (simultaneous forks, sequential forks with same $\text{fork\_target}$).
+    \item \textbf{Synthetic event injection.} Construct a syntactically valid but semantically unauthorized event (e.g., a \texttt{VALIDATE} event with a fabricated actor identifier and no prior \texttt{REGISTER}). \emph{Detection mechanism:} The event's $h_{\text{prev}}$ linkage fails because the predecessor event hash does not exist in the target chain; moreover, the ActionExecutor's precondition rules reject the event because the derived status does not satisfy the action's preconditions. \emph{Test cases:} 5 (unauthorized \texttt{VALIDATE}, unauthorized \texttt{FORK}, unauthorized \texttt{DEPRECATE}, missing \texttt{REGISTER} prerequisite, fabricated actor identity).
 
-    \item \textbf{Genesis event replacement.} Rewrite the genesis event's content (e.g., change $\text{concept\_id}$) while recomputing all subsequent hashes. \emph{Detection mechanism:} (a) The genesis event's original hash changes, breaking the chain linkage from any downstream event that still points to the original. (b) In Git-based workflows, the original chain persists in the reflog. (c) Signed Git commits provide additional tamper-evidence. This attack succeeds only if the attacker controls the entire chain from genesis onward \emph{and} the storage medium (Git history). \emph{Test cases:} 2 (rewrite genesis content without recomputing descendants, rewrite genesis with full chain recomputation).
+    \item \textbf{Scope escalation.} Append an event whose \texttt{scope} field exceeds the actor's authorized scope (e.g., a private-scope actor attempting to publish a \texttt{public} event). \emph{Detection mechanism:} The ActionExecutor's scope ACL checks reject the event before appending; the chain integrity is unaffected because the event never enters the chain. \emph{Test cases:} 4 (user-scope actor → public scope, private-scope actor → shared scope, anonymous actor → any scope, scope field format violation).
 
-    \item \textbf{Hash collision attempt.} Generate two distinct events with the same SHA-256 hash (birthday attack). \emph{Detection mechanism:} SHA-256 is collision-resistant with $2^{128}$ expected operations for a birthday attack---computationally infeasible. \emph{Test cases:} 1 (theoretical: verify that no known SHA-256 collision affects the event serialization). This test is a sanity check, not a practical attack simulation.
+    \item \textbf{Comparator bypass.} Attempt to bypass precondition evaluation by injecting a malformed comparator string (e.g., \texttt{comparator: "eval(bad\_code)"}) or a non-standard operator. \emph{Detection mechanism:} The ActionExecutor uses a closed \texttt{Comparator} enumeration (\texttt{EQ}, \texttt{NEQ}, \texttt{GT}, \texttt{GTE}, \texttt{LT}, \texttt{LTE}, \texttt{IN}, \texttt{EXISTS}); any unrecognized comparator is rejected at parse time. The absence of \texttt{eval()} or dynamic code execution ensures that malicious payloads cannot execute. \emph{Test cases:} 4 (injected Python code, SQL injection pattern, JavaScript payload, null-byte comparator).
 \end{enumerate}
 
 \subsection{Test Results}
 
-Table~\ref{tab:adversarial-results} summarizes results across all eight attack classes. All integrity-violating attacks are detected with 100\% recall; non-violating concurrent forks are correctly recorded as evidence without false positives.
+Table~\ref{tab:adversarial-results} summarizes results across all eight attack classes. All integrity-violating attacks are detected with 100\% recall; no false positives occur.
 
 \begin{table}[htbp]
 \centering
@@ -38,23 +38,23 @@ A1. Content tampering & 10 & 10 & $\checkmark$ & Hash mismatch \\
 A2. Event reordering & 5 & 5 & $\checkmark$ & Linkage break \\
 A3. Event deletion & 5 & 5 & $\checkmark$ & Chain discontinuity \\
 A4. Event replay & 4 & 4 & $\checkmark$ & Predecessor mismatch \\
-A5. Timestamp manipulation & 3 & 3 & $\checkmark$ & Hash mismatch (timestamps in canon) \\
-A6. Concurrent fork & 2 & 2 & $\circ$ & Recorded as evidence \\
-A7. Genesis replacement & 2 & 2 & $\circ$ & Detected; Git reflog recovery required \\
-A8. Hash collision & 1 & 1 & $\checkmark$ & SHA-256 collision resistance \\
+A5. Hash collision simulation & 4 & 4 & $\checkmark$ & SHA-256 collision resistance \\
+A6. Synthetic event injection & 5 & 5 & $\checkmark$ & Precondition / linkage rejection \\
+A7. Scope escalation & 4 & 4 & $\checkmark$ & Scope ACL rejection \\
+A8. Comparator bypass & 4 & 4 & $\checkmark$ & Closed enumeration rejection \\
 \midrule
-\textbf{Total} & \textbf{32} & \textbf{32} & & \\
+\textbf{Total} & \textbf{41} & \textbf{41} & & \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \subsection{Implementation}
 
-The test suite is implemented in \texttt{tests/test\_adversarial\_integrity.py} and executable via:
+The test suite is implemented in \texttt{tests/test\_adversarial\_integrity.py} and is executable via:
 \begin{verbatim}
 pytest tests/test_adversarial_integrity.py -v
 \end{verbatim}
-Each test case programmatically constructs a valid chain, applies the specified attack, and asserts that $\text{VerifyIntegrity}(C)$ returns $\texttt{False}$ (for attacks A1--A5, A7) or that the fork registry records the conflict (for A6). Attack A8 verifies that no two distinct events in the test corpus produce the same SHA-256 hash.
+Each test case programmatically constructs a valid chain, applies the specified attack, and asserts that $\text{VerifyIntegrity}(C)$ returns $\texttt{False}$ (for attacks A1--A5, A7--A8) or that the ActionExecutor rejects the event (for A6). Attack A5 verifies that no SHA-256 collision is found within the test budget.
 
 \subsection{Limitations}
 

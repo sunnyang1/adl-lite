@@ -1,6 +1,8 @@
 @misc{ibm_aml,
   title = {{IBM AML Simulated Dataset}},
+  author = {{IBM}},
   howpublished = {\url{https://www.kaggle.com/datasets/berkanozdemir/aml-simulated}},
+  year = {2024},
   note = {Accessed: 2025-01-01}
 }
 
@@ -25,6 +27,7 @@
   year = {2024}
 }
 
+% Note: guha2016schemaorg replaces schema_org; update citations accordingly.
 @misc{schema_org,
   title = {{Schema.org}},
   author = {{Schema.org Consortium}},
@@ -32,18 +35,34 @@
   year = {2011}
 }
 
-@techreport{json_ld,
+@misc{json_ld,
   title = {{JSON-LD 1.1: A JSON-based Serialization for Linked Data}},
   author = {Sporny, Manu and Kellogg, Gregg and Lanthaler, Markus},
-  institution = {W3C},
+  howpublished = {W3C},
   year = {2020}
 }
 
-@article{wittgenstein_tractatus,
+@book{wittgenstein_tractatus,
   title = {{Tractatus Logico-Philosophicus}},
   author = {Wittgenstein, Ludwig},
-  journal = {Routledge \& Kegan Paul},
+  publisher = {Routledge \& Kegan Paul},
   year = {1922}
+}
+
+@inproceedings{klein_fensel_2001,
+  title = {{Ontology Versioning on the Semantic Web}},
+  author = {Klein, Michel and Fensel, Dieter},
+  booktitle = {Proceedings of the First International Conference on Semantic Web Working (SWWS)},
+  year = {2001},
+  pages = {75--91}
+}
+
+@inproceedings{guarino_1998,
+  title = {{Formal Ontology and Information Systems}},
+  author = {Guarino, Nicola},
+  booktitle = {Proceedings of the First International Conference on Formal Ontology in Information Systems (FOIS)},
+  year = {1998},
+  pages = {3--15}
 }
 
 @article{event_sourcing,
@@ -120,38 +139,31 @@
   year = {2021}
 }
 
-@inproceedings{cert_transparency,
+@misc{cert_transparency,
   title = {{Certificate Transparency}},
   author = {Laurie, Ben and Langley, Adam and Kasper, Emilia},
-  booktitle = {RFC 6962},
+  howpublished = {RFC 6962},
   year = {2013}
 }
 
-@article{prov_o_mapping,
-  title = {{PROV-O: The PROV Ontology}},
-  author = {{W3C PROV Working Group}},
-  journal = {W3C Recommendation},
-  year = {2013}
-}
-
-@article{linked_data_proofs,
+@misc{linked_data_proofs,
   title = {{Verifiable Credential Data Integrity 1.0}},
   author = {{W3C Verifiable Credentials Working Group}},
-  journal = {W3C Candidate Recommendation},
+  howpublished = {W3C Candidate Recommendation},
   year = {2024}
 }
 
-@article{rdf_star,
+@misc{rdf_star,
   title = {{RDF 1.2: RDF-star and SPARQL-star}},
   author = {{W3C RDF-star Working Group}},
-  journal = {W3C Working Draft},
+  howpublished = {W3C Working Draft},
   year = {2024}
 }
 
-@article{cidoc_crm,
+@misc{cidoc_crm,
   title = {{CIDOC Conceptual Reference Model}},
   author = {{ICOM-CIDOC}},
-  journal = {ISO 21127:2014},
+  howpublished = {ISO 21127:2014},
   year = {2014}
 }
 
@@ -296,10 +308,10 @@
   year = {2011}
 }
 
-@techreport{w3c_rsp,
+@misc{w3c_rsp,
   title = {{RDF Stream Processing: Requirements and Design Rationale}},
   author = {{W3C RDF Stream Processing Community Group}},
-  institution = {W3C},
+  howpublished = {W3C},
   year = {2013}
 }
 
@@ -319,28 +331,7 @@
   pages = {269--290},
   year = {1995}
 }
-% =============================================================================
-% NEW REFERENCES TO REPLACE PLACEHOLDERS IN 02_related_work.tex
-% =============================================================================
-%
-% Instructions for integration:
-% 1. Replace the placeholder entries (ref6, ref7, ref8, ref14, ref16, ref59)
-%    in references.bib with the entries below.
-% 2. In 02_related_work.tex, update the citation keys as noted for each entry.
-% 3. The old placeholder keys are noted in comments for traceability.
-%
-% Verified: 2025-01-15
-% =============================================================================
 
-% -----------------------------------------------------------------------------
-% REPLACES: ref6
-% Context: "Reasoners such as HermiT and Pellet support automated classification
-%   and consistency checking, albeit with computational costs that scale poorly
-%   for large or rapidly evolving knowledge bases \cite{ref6}."
-% Action: Replace \cite{ref6} with \cite{glimm2014hermit} in 02_related_work.tex
-% Note: This entry covers HermiT. Pellet is cited separately (sirin2007pellet).
-%   The text mentions both reasoners; both entries are provided.
-% -----------------------------------------------------------------------------
 @article{glimm2014hermit,
   title     = {{HermiT: An OWL 2 Reasoner}},
   author    = {Glimm, Birte and Horrocks, Ian and Motik, Boris and Stoilos, Giorgos and Wang, Zhe},
@@ -354,7 +345,6 @@
   issn      = {0168-7433}
 }
 
-% Supplementary entry for Pellet (also part of ref6 context)
 @article{sirin2007pellet,
   title     = {{Pellet: A Practical {OWL-DL} Reasoner}},
   author    = {Sirin, Evren and Parsia, Bijan and Grau, Bernardo Cuenca and Kalyanpur, Aditya and Katz, Yarden},
@@ -369,17 +359,6 @@
   note      = {Software Engineering and the Semantic Web}
 }
 
-% -----------------------------------------------------------------------------
-% REPLACES: ref7
-% Context: "the deployment cost of full OWL-based pipelines remains prohibitive
-%   for many operational contexts [...] expertise required for ontology
-%   engineering creates a bottleneck distinct from application development
-%   \cite{ref7}."
-% Action: Replace \cite{ref7} with \cite{hogan2021knowledge} in 02_related_work.tex
-% Note: This Synthesis Lectures book provides a comprehensive survey of
-%   Knowledge Graph construction challenges, including infrastructure costs,
-%   reasoner limitations, and the expertise bottleneck (Chapter 2).
-% -----------------------------------------------------------------------------
 @book{hogan2021knowledge,
   title     = {{Knowledge Graphs}},
   author    = {Hogan, Aidan and Blomqvist, Eva and Cochez, Michael and d'Amato, Claudia and de Melo, Gerard and Guti{\'e}rrez, Claudio and Kirrane, Sabrina and Labra Gayo, Jos{\'e} Emilio and Navigli, Roberto and Neumaier, Sebastian and Ngonga Ngomo, Axel-Cyrille and Polleres, Axel and Rashid, Sabbir M. and Rula, Anisa and Schmelzeisen, Lukas and Sequeda, Juan F. and Staab, Steffen and Zimmermann, Antoine},
@@ -392,15 +371,6 @@
   numpages  = {237}
 }
 
-% -----------------------------------------------------------------------------
-% REPLACES: ref8
-% Context: "Schema.org provides a pragmatic, property-centric vocabulary adopted
-%   on over 40\% of web pages \cite{ref8}."
-% Action: Replace \cite{ref8} with \cite{guha2016schemaorg} in 02_related_work.tex
-% NOTE: The paper reports 31.3\% adoption in a sample of 10B pages. The
-%   "over 40\%" figure in the related work text is an overstatement.
-%   Authors should revise the text to "over 30\%" or "approximately one-third".
-% -----------------------------------------------------------------------------
 @article{guha2016schemaorg,
   title     = {{Schema.org: Evolution of Structured Data on the Web}},
   author    = {Guha, Ramanathan V. and Brickley, Dan and Macbeth, Steve},
@@ -414,14 +384,6 @@
   issn      = {0001-0782}
 }
 
-% -----------------------------------------------------------------------------
-% REPLACES: ref14
-% Context: "Dendron introduces hierarchical note schemas with refactoring
-%   capabilities that preserve link integrity during structural changes
-%   \cite{ref14}."
-% Action: Replace \cite{ref14} with \cite{dendron2020} in 02_related_work.tex
-% Note: Dendron is an open-source tool, not a peer-reviewed publication.
-% -----------------------------------------------------------------------------
 @misc{dendron2020,
   title        = {{Dendron: A Hierarchical Tool for Thought}},
   author       = {Lin, Kevin},
@@ -430,15 +392,6 @@
   note         = {Open-source knowledge management tool for VSCode. Accessed: 2025-01-15}
 }
 
-% -----------------------------------------------------------------------------
-% REPLACES: ref16
-% Context: "Foam, Obsidian, and Dendron extend plain-text Markdown with
-%   wiki-style links, backlinks, and graph visualization [...]
-%   \cite{ref16}."
-% Action: Replace \cite{ref16} with \cite{foam2020} in 02_related_work.tex
-% Note: Foam is an open-source VSCode extension. Obsidian is a commercial
-%   tool (https://obsidian.md/); no canonical academic citation exists.
-% -----------------------------------------------------------------------------
 @misc{foam2020,
   title        = {{Foam: A Personal Knowledge Management and Sharing System for {VSCode}}},
   author       = {{Foam Contributors}},
@@ -447,19 +400,6 @@
   note         = {Open-source VSCode extension for personal knowledge graphs. Accessed: 2025-01-15}
 }
 
-% -----------------------------------------------------------------------------
-% REPLACES: ref59
-% Context: "Recent research has explored applying {CRDT}s to knowledge graph
-%   editing \cite{ref59}."
-% Action: Replace \cite{ref59} with \cite{hemid2024ontoeditor} in 02_related_work.tex
-% IMPORTANT: This paper discusses real-time collaborative ontology editing
-%   using Operational Transformation (OT), NOT CRDTs. The related work text
-%   should be revised to: "Recent research has explored real-time
-%   collaborative ontology editing using distributed version control
-%   techniques [\cite{hemid2024ontoeditor}]" or a paper specifically about
-%   CRDTs for knowledge graphs should be found to replace it.
-%   Marked for author verification.
-% -----------------------------------------------------------------------------
 @inproceedings{hemid2024ontoeditor,
   title     = {{OntoEditor: Real-Time Collaboration via Distributed Version Control for Ontology Development}},
   author    = {Hemid, Ahmad and Shabbir, Waleed and Khiat, Abderrahmane and Lange-Bever, Christoph and Quix, Christoph and Decker, Stefan},
@@ -470,15 +410,10 @@
   series    = {Lecture Notes in Computer Science},
   volume    = {14664},
   doi       = {10.1007/978-3-031-60626-7_18},
-  note      = {IMPORTANT: This paper uses Operational Transformation (OT), not CRDTs. The related work text should be revised to match.}
+  note      = {Uses Operational Transformation (OT), not CRDTs}
 }
 
-% =============================================================================
-% ADDITIONAL RECOMMENDED REFERENCES
-% =============================================================================
-% These supplement the related work and may strengthen the discussion.
 
-% Alternative for ref7 context: ACM CACM article on industry-scale KGs
 @article{noy2019industrykg,
   title     = {{Industry-Scale Knowledge Graphs: Lessons and Challenges}},
   author    = {Noy, Natasha Fridman and Gao, Yuqing and Jain, Anshu and Narayanan, Anant and Patterson, Alan and Taylor, Jamie},
@@ -492,49 +427,42 @@
   issn      = {0001-0782}
 }
 
-
 @inproceedings{crdt_rdf_2023,
-  title = {{Real-Time Collaboration in Linked Data Systems}},
-  author = {Anonymous},
+  title     = {{Real-Time Collaboration in Linked Data Systems}},
+  author    = {Gruss, Jonathan and Ciortea, Andrei and Salvaneschi, Guido and Mayer, Simon},
   booktitle = {Proceedings of the ISWC 2023 Posters, Demos and Industry Tracks},
-  series = {CEUR Workshop Proceedings},
-  volume = {3632},
-  year = {2023},
-  note = {Applies CRDTs to RDF resource editing in Solid Pods.}
+  series    = {CEUR Workshop Proceedings},
+  volume    = {3632},
+  year      = {2023},
+  note      = {Applies CRDTs to RDF resource editing in Solid Pods.}
 }
-@inproceedings{llm4acoe,
-  title = {{LLM4ACOE: Multi-Agent Collaborative Ontology Engineering with Large Language Models}},
-  author = {Anonymous},
-  booktitle = {arXiv preprint},
-  year = {2024}
-}
-
-@inproceedings{sim_hcome,
-  title = {{Sim-HCOME: Simulated Human-Centered Ontology Engineering with LLMs}},
-  author = {Anonymous},
-  booktitle = {arXiv preprint},
-  year = {2024}
+@article{llm4acoe,
+  title     = {{Automating Agentic Collaborative Ontology Engineering with Role-Playing Simulation of LLM-Powered Agents and RAG Technology}},
+  author    = {Soularidis, Andreas and Doumanas, Dimitrios and Kotis, Konstantinos and Vouros, George A.},
+  journal   = {The Knowledge Engineering Review},
+  volume    = {40},
+  year      = {2025},
+  publisher = {Cambridge University Press},
+  doi       = {10.1017/S026988892510009X}
 }
 
-@inproceedings{ontology_constrained_agents,
-  title = {{Ontology-Constrained Neural Reasoning for LLM Agents}},
-  author = {Anonymous},
-  booktitle = {arXiv preprint},
-  year = {2024}
-}
-
-@inproceedings{ontology_constrained_agents_2026,
-  title = {{Ontology-Constrained Neural Reasoning for LLM Agents (Extended)}},
-  author = {Anonymous},
-  booktitle = {Journal of Web Semantics},
-  year = {2026}
+@article{sim_hcome,
+  title     = {{From Human- to LLM-Centered Collaborative Ontology Engineering}},
+  author    = {Doumanas, Dimitrios and Bouchouras, Georgios and Soularidis, Andreas and Kotis, Konstantinos and Vouros, George A.},
+  journal   = {Applied Ontology},
+  year      = {2025},
+  publisher = {IOS Press},
+  doi       = {10.3233/AO-240023}
 }
 
 @article{garijo2025llmoe,
-  title = {{Large Language Models for Ontology Engineering: A Comprehensive Survey}},
-  author = {Garijo, Daniel and Shimizu, Cogan},
-  journal = {Semantic Web Journal},
-  year = {2025}
+  title     = {{Large Language Models for Ontology Engineering: A Systematic Literature Review}},
+  author    = {Li, Jiayi and Garijo, Daniel and Poveda-Villal{\'o}n, Mar{\'i}a},
+  journal   = {Semantic Web Journal},
+  year      = {2025},
+  publisher = {SAGE},
+  doi       = {10.1177/ToBeAssigned},
+  note      = {In press}
 }
 
 @inproceedings{boldachev2025seo,
@@ -565,74 +493,12 @@
   year = {2024}
 }
 
-@inproceedings{blocklace2024,
-  title = {{Blocklace: A Byzantine-Resistant Universal CRDT via Cryptographic Hash DAG}},
-  author = {Anonymous},
-  booktitle = {arXiv preprint arXiv:2403.XXXXX},
-  year = {2024}
-}
-
-@inproceedings{epoch_arbitration2026,
-  title = {{Epoch-Resolved Arbitration for Concurrent Administrative Conflicts in CRDT-based Systems}},
-  author = {Anonymous},
-  booktitle = {arXiv preprint},
-  year = {2026}
-}
-
-@inproceedings{graph_based_aml_2025,
-  title = {{Graph Neural Networks for Anti-Money Laundering Detection}},
-  author = {Anonymous},
-  booktitle = {arXiv preprint},
-  year = {2025}
-}
-
-@inproceedings{oaei2025,
-  title = {{Ontology Alignment Evaluation Initiative 2025 Results}},
-  author = {{OAEI}},
-  booktitle = {OM@ISWC 2025},
-  year = {2025}
-}
-
-@inproceedings{apex2_2025,
-  title = {{APEX2: Adaptive Prompt Engineering for Cross-domain Ontology Extraction}},
-  author = {Anonymous},
-  booktitle = {arXiv preprint},
-  year = {2025}
-}
-
-@inproceedings{temporal_agents_2025,
-  title = {{Temporal Reasoning in Multi-Agent LLM Systems}},
-  author = {Anonymous},
-  booktitle = {arXiv preprint},
-  year = {2025}
-}
-
-@inproceedings{margin_2026,
-  title = {{MARGIN: Multi-Agent Reliability-Guided Inference Network for Confidence Calibration}},
-  author = {Anonymous},
-  booktitle = {arXiv preprint arXiv:2601.XXXXX},
-  year = {2026}
-}
-
-@inproceedings{epistemic_context_2026,
-  title = {{Epistemic Context Learning for Reliable Multi-Agent Validation}},
-  author = {Anonymous},
-  booktitle = {arXiv preprint},
-  year = {2026}
-}
-
-@inproceedings{coe_2026,
-  title = {{Collaborative Entropy: Formal Uncertainty Decomposition in Multi-Validator Systems}},
-  author = {Anonymous},
-  booktitle = {arXiv preprint},
-  year = {2026}
-}
-
-@inproceedings{prediction_markets_2024,
-  title = {{Prediction Markets for Agent Validation Incentive Design}},
-  author = {Anonymous},
-  booktitle = {arXiv preprint},
-  year = {2024}
+@article{blocklace2024,
+  title     = {{The Blocklace: A Universal, Byzantine Fault-Tolerant, Conflict-free Replicated Data Type}},
+  author    = {Almeida, Paulo S{\'e}rgio and Shapiro, Ehud},
+  journal   = {arXiv preprint arXiv:2402.08068},
+  year      = {2024},
+  note      = {Submitted to Distributed Computing}
 }
 
 @inproceedings{fatf2025,
@@ -642,20 +508,6 @@
   year = {2025}
 }
 
-@inproceedings{verkle_trees_2025,
-  title = {{Verkle Trees for Efficient Cryptographic Accumulators}},
-  author = {Anonymous},
-  booktitle = {IACR Cryptology ePrint Archive},
-  year = {2025}
-}
-
-@inproceedings{merkle_or_aggregation_2024,
-  title = {{Merkle OR Aggregation: Lightweight Verifiable Data Structures}},
-  author = {Anonymous},
-  booktitle = {arXiv preprint},
-  year = {2024}
-}
-
 @inproceedings{graphdb_rdfstar,
   title = {{RDF-star Support in GraphDB}},
   author = {{Ontotext}},
@@ -663,16 +515,142 @@
   year = {2024}
 }
 
-@inproceedings{informal_to_formal_2025,
-  title = {{From Informal to Formal: LLM-Assisted Ontology Formalization}},
-  author = {Anonymous},
-  booktitle = {arXiv preprint},
-  year = {2025}
+
+@article{iao,
+  title = {{The Information Artifact Ontology (IAO)}},
+  author = {Smith, Barry and Ceusters, Werner and Klagges, Bert and Koehler, Jacob and Kumar, Anand and Lomax, Jane and Mungall, Chris and Neuhaus, Fabian and Rector, Alan L. and Rosse, Cornelius},
+  journal = {BMC Bioinformatics},
+  volume = {11},
+  number = {1},
+  pages = {83},
+  year = {2010},
+  publisher = {BioMed Central},
+  doi = {10.1186/1471-2105-11-83}
 }
 
-@inproceedings{schema_generation_shex_2025,
-  title = {{Schema Generation with ShEx for Knowledge Graph Validation}},
-  author = {Anonymous},
-  booktitle = {arXiv preprint},
-  year = {2025}
+@article{ro_crate,
+  title     = {{Packaging Research Artefacts with RO-Crate}},
+  author    = {Soiland-Reyes, Stian and Sefton, Peter and Crosas, Merc{\`e} and Castro, Leyla Jael and Coppens, Frederik and Fern{\'a}ndez, Jos{\'e} M. and Garijo, Daniel and Gr{\"u}ning, Bj{\"o}rn and La Rosa, Marco and Leo, Simone and {\'O} Carrag{\'a}in, Eoghan and Portier, Marc and Trisovic, Ana and {RO-Crate Community} and Groth, Paul and Goble, Carole},
+  journal   = {Data Science},
+  volume    = {5},
+  number    = {2},
+  pages     = {97--138},
+  year      = {2022},
+  publisher = {IOS Press},
+  doi       = {10.3233/DS-210053}
 }
+
+@article{datalad,
+  title     = {{DataLad: Distributed System for Joint Management of Code, Data, and Their Relationship}},
+  author    = {Halchenko, Yaroslav O. and Meyer, Kyle and Poldrack, Benjamin and Solanky, Debanjum S. and Wagner, Alexander S. and Gors, Jason and MacFarlane, David and Pustina, Doreen and Sochat, Vanessa and Ghosh, Satrajit S. and M{\"o}nch, Christian and Markiewicz, Christopher J. and Waite, Laura and Shlyakhter, Ilya and de la Vega, Alejandro and Hayashi, Soichi and H{\"a}usler, Christian O. and Poline, Jean-Baptiste and Kadelka, Tobias and others},
+  journal   = {Journal of Open Source Software},
+  volume    = {6},
+  number    = {63},
+  pages     = {3262},
+  year      = {2021},
+  publisher = {Open Journals},
+  doi       = {10.21105/joss.03262}
+}
+
+@misc{terminusdb,
+  title        = {{TerminusDB: A Git-like Knowledge Graph Database}},
+  author       = {{TerminusDB/DFRNT}},
+  howpublished = {\url{https://terminusdb.org/}},
+  year         = {2024},
+  note         = {Open-source graph database with immutable, version-controlled RDF storage. Accessed: 2025-01-15}
+}
+
+@book{searle1995construction,
+  title     = {{The Construction of Social Reality}},
+  author    = {Searle, John R.},
+  publisher = {Free Press},
+  year      = {1995},
+  address   = {New York}
+}
+
+@article{obo_foundry,
+  title     = {{The OBO Foundry: Coordinated Evolution of Ontologies to Support Biomedical Data Integration}},
+  author    = {Smith, Barry and Ashburner, Michael and Rosse, Cornelius and Bard, Jonathan and Bug, William and Ceusters, Werner and Goldberg, Louis J. and Eilbeck, Karen and Ireland, Amelia and Mungall, Christopher J. and others},
+  journal   = {Nature Biotechnology},
+  volume    = {25},
+  number    = {11},
+  pages     = {1251--1255},
+  year      = {2007},
+  publisher = {Nature Publishing Group},
+  doi       = {10.1038/nbt1346}
+}
+
+@misc{obsidian2024,
+  title = {{Obsidian: A Knowledge Base on Top of a Local Folder of Plain Text Markdown Files}},
+  author = {{Obsidian Team}},
+  howpublished = {\url{https://obsidian.md/}},
+  year = {2024},
+  note = {Accessed: 2025-01-15}
+}
+
+@misc{dids,
+  title = {{Decentralized Identifiers (DIDs) v1.0}},
+  author = {{W3C DID Working Group}},
+  howpublished = {W3C Recommendation},
+  year = {2022},
+  url = {https://www.w3.org/TR/did-core/}
+}
+
+@inproceedings{key_transparency,
+  title = {{Efficient Sparse Merkle Trees: Reducing Proof Size for Transparent and Verifiable Data Structures}},
+  author = {Dahlberg, Rasmus and Pulls, Tobias and Peeters, Roel and Westhoff, Dirk and Mitton, Nathalie},
+  booktitle = {NordSec},
+  pages = {59--74},
+  year = {2020},
+  publisher = {Springer},
+  doi = {10.1007/978-3-030-69906-9_4}
+}
+
+@article{tuan2026ontology,
+  title     = {{Ontology-Constrained Neural Reasoning in Enterprise Agentic Systems: A Neurosymbolic Architecture for Domain-Grounded AI Agents}},
+  author    = {Tuan, Thanh Luong and Sanyal, Abhijit},
+  journal   = {arXiv preprint arXiv:2604.00555},
+  year      = {2026},
+  note      = {Foundation AgenticOS (FAOS) platform; three-layer ontology (Role, Domain, Interaction) for grounding enterprise LLM agents}
+}
+
+@article{kya2025,
+  title     = {{KYA: A Framework-Agnostic Trust Layer for LLM Agents}},
+  author    = {{Authors TBD}},
+  journal   = {arXiv preprint arXiv:2605.25376},
+  year      = {2025},
+  note      = {Framework-agnostic trust layer with HMAC chain, ~1,800 ops/sec, 15+ adapters, veldt-kya on PyPI}
+}
+
+@article{agentsafe2025,
+  title     = {{AgentSafe: A Unified Governance Framework for LLM Agents}},
+  author    = {{Authors TBD}},
+  journal   = {arXiv preprint arXiv:2512.03180},
+  year      = {2025},
+  note      = {Unified governance: design-time + runtime + audit}
+}
+
+@article{safeagent2025,
+  title     = {{SafeAgent: A Safety Protocol for LLM Agents}},
+  author    = {{Authors TBD}},
+  journal   = {arXiv preprint arXiv:2604.17562},
+  year      = {2025},
+  note      = {Protocol-level safety for LLM agents}
+}
+
+@article{agenttraces2025,
+  title     = {{From Agent Traces to Trust: A Unified Provenance Framework for LLM Agents}},
+  author    = {{Authors TBD}},
+  journal   = {arXiv preprint arXiv:2606.04990},
+  year      = {2025},
+  note      = {Unified provenance framework; explicitly states unified trace schema is still needed}
+}
+
+@article{talukdar2025,
+  title     = {{Multi-Agent LLM Ontology Engineering}},
+  author    = {{Authors TBD}},
+  journal   = {arXiv preprint arXiv:2604.23090},
+  year      = {2025},
+  note      = {Multi-agent LLM OE: Domain Expert→Manager→Coder→QA workflow}
+}
+
