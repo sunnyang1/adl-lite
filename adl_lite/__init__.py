@@ -1,8 +1,14 @@
 """
-ADL Lite — Agent Discovery Language (Lite Edition)
+ADL Lite — An Event-First Capability-Lifecycle Registry for LLM Agent Ecosystems
 
-A Markdown-native language for multi-agent systems to record, validate,
-and reach consensus on conceptual discoveries.
+A Markdown-native registry for multi-agent systems to record, validate,
+and govern the lifecycle of agent capabilities.
+
+Every capability is an append-only, cryptographically linked EventChain.
+Status, confidence, and validators are derived exclusively from event history.
+
+Philosophy (Wittgenstein, Tractatus §1.1): "The world is the totality of facts, not of things."
+→ Action is primary. Capabilities exist only as participants in events.
 
 Layers:
     L1  YAML Front Matter    — identity, type, status, evidence refs, scope
@@ -24,7 +30,26 @@ __version__ = "0.2.0"
 
 from .action_executor import ActionExecutor
 from .consensus import ConsensusEngine, ForkManager, ForkResolution
+from .exceptions import (
+    ADLConfigError,
+    ADLConsensusError,
+    ADLError,
+    ADLMemoryError,
+    ADLOntologyError,
+    ADLParseError,
+    ADLValidationError,
+)
+from .logging_config import get_logger
 from .memory import ADLMemory, HotIndex, WarmIndex
+
+# FDE Platform extensions (optional — imports are safe even if modules don't exist yet)
+try:
+    from .fde import agent_runner, pipeline_engine, tenant_manager  # noqa: F401
+except ImportError:
+    tenant_manager = None  # type: ignore[assignment]
+    pipeline_engine = None  # type: ignore[assignment]
+    agent_runner = None  # type: ignore[assignment]
+
 from .models import (
     ActionDef,
     ActionExecStatus,
@@ -47,7 +72,7 @@ from .models import (
     PreconditionRule,
 )
 from .ontology import OntologyManager
-from .parser import ADLParseError, ADLParser, extract_wiki_links, parse_file, parse_text
+from .parser import ADLParser, extract_wiki_links, parse_file, parse_text
 from .validator import ADLValidator
 
 __all__ = [
@@ -93,4 +118,14 @@ __all__ = [
     "ADLMemory",
     "HotIndex",
     "WarmIndex",
+    # Logging
+    "get_logger",
+    # Exceptions
+    "ADLError",
+    "ADLParseError",
+    "ADLValidationError",
+    "ADLOntologyError",
+    "ADLConsensusError",
+    "ADLMemoryError",
+    "ADLConfigError",
 ]

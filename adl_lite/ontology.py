@@ -1,5 +1,5 @@
 """
-ADL Lite — Core ontology registry (Path A, Milestone 2a).
+ADL Lite — Core ontology registry for the capability-lifecycle model (Path A, Milestone 2a).
 
 Loads adl_core_ontology.yaml and exposes predicate / transition / scope queries
 for validator integration and future agent introspection (2c).
@@ -13,11 +13,13 @@ from typing import Any
 
 import yaml
 
+from .exceptions import ADLOntologyError
+
 _DEFAULT_ONTOLOGY_PATH = Path(__file__).resolve().parent / "adl_core_ontology.yaml"
 
 
 class OntologyManager:
-    """Load and query the ADL core ontology YAML registry."""
+    """Load and query the ADL core ontology YAML registry for capability-lifecycle operations."""
 
     def __init__(self, path: str | Path | None = None) -> None:
         self._path = Path(path) if path else _DEFAULT_ONTOLOGY_PATH
@@ -26,11 +28,11 @@ class OntologyManager:
     @staticmethod
     def _load(path: Path) -> dict[str, Any]:
         if not path.is_file():
-            raise FileNotFoundError(f"Core ontology not found: {path}")
+            raise ADLOntologyError(f"Core ontology not found: {path}")
         with path.open(encoding="utf-8") as fh:
             data = yaml.safe_load(fh)
         if not isinstance(data, dict):
-            raise ValueError(f"Invalid ontology YAML (expected mapping): {path}")
+            raise ADLOntologyError(f"Invalid ontology YAML (expected mapping): {path}")
         return data
 
     @property
@@ -90,7 +92,7 @@ class OntologyManager:
 
     def get_action_def(self, name: str) -> dict[str, Any] | None:
         """Raw action definition dict from the ontology."""
-        actions = self._data.get("actions", {})
+        actions: dict[str, Any] = self._data.get("actions", {})
         return actions.get(name)
 
     def allowed_actions_for_class(self, adl_class: str) -> list[str]:

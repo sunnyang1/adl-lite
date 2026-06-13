@@ -1,4 +1,4 @@
-"""ADL Lite — Realtime Event Watcher
+"""ADL Lite — Realtime Event Watcher for Capability Registry
 
 Triggers pattern detection on every newly appended event.
 Connects to EventChain.append() to fire alerts without batch processing.
@@ -33,7 +33,7 @@ class AlertHandler:
         self.detail = detail or {}
 
     def __repr__(self) -> str:
-        return f"Alert({self.alert_type}, concept={self.concept_id}, " f"actor={self.event.actor})"
+        return f"Alert({self.alert_type}, concept={self.concept_id}, actor={self.event.actor})"
 
 
 class RealtimeWatcher:

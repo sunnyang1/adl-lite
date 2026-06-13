@@ -1,4 +1,4 @@
-# ADL Core Ontology — schema registry for L3 predicates, L4 actions, status graph, scopes.
+# ADL Core Ontology — capability-lifecycle schema registry for L3 predicates, L4 actions, status graph, scopes.
 # Single source of truth for Milestone 2a (Path A: OntologyManager, no OWL runtime).
 # Inventory: examples/*.md, data/aml/concepts/, adl_lite/models.py, consensus.py
 #
@@ -75,7 +75,7 @@ scopes:
   prefixes: [public, private, user, shared]
 
 # L4 action registry (closed core set, Milestone 2d)
-# Each action is a declared operation on ADL concepts with optional
+# Each action is a declared operation on ADL capabilities with optional
 # preconditions (validated at parse time) and side effects (dispatched
 # by ActionExecutor at runtime).
 actions:
@@ -99,7 +99,7 @@ actions:
       - field: status
         comparator: eq
         value: provisional
-    side_effects: [lark_dashboard]
+    side_effects: []
 
   fork:
     description: Fork a concept as competing interpretation
@@ -110,7 +110,7 @@ actions:
       - field: status
         comparator: eq
         value: provisional
-    side_effects: [lark_announce]
+    side_effects: []
 
   deprecate:
     description: Mark concept as deprecated
@@ -121,7 +121,7 @@ actions:
       - field: status
         comparator: eq
         value: validated
-    side_effects: [lark_announce, lark_dashboard]
+    side_effects: []
 
   archive:
     description: Archive a deprecated or obsolete concept
@@ -132,7 +132,7 @@ actions:
       - field: status
         comparator: eq
         value: deprecated
-    side_effects: [lark_dashboard]
+    side_effects: []
 
   announce:
     description: Broadcast concept to a chat room
@@ -140,7 +140,7 @@ actions:
     triggers_transition: null
     required_params: [chat_id]
     preconditions: []
-    side_effects: [lark_announce]
+    side_effects: []
 
   publish:
     description: Publish concept to Feishu knowledge base
@@ -148,7 +148,7 @@ actions:
     triggers_transition: null
     required_params: [wiki_space]
     preconditions: []
-    side_effects: [lark_publish]
+    side_effects: []
 
   sync_dashboard:
     description: Sync concept status to dashboard
@@ -156,7 +156,7 @@ actions:
     triggers_transition: null
     required_params: [sheet_id]
     preconditions: []
-    side_effects: [lark_dashboard]
+    side_effects: []
 
   listen:
     description: Ingest external feedback as a concept action
@@ -164,4 +164,4 @@ actions:
     triggers_transition: null
     required_params: [feedback_file]
     preconditions: []
-    side_effects: [consensus_update]
+    side_effects: []

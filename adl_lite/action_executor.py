@@ -1,5 +1,5 @@
 """
-ADL Lite — Action Executor (Milestone 2d)
+ADL Lite — Action Executor for Capability-Lifecycle Registry (Milestone 2d)
 
 Loads action definitions from the core ontology, validates L4 action blocks
 against preconditions, and dispatches declared side_effects to registered
@@ -57,102 +57,6 @@ class SideEffect(Protocol):
 
 
 # ---------------------------------------------------------------------------
-# Built-in side effects — dispatched to Lark bridge
-# ---------------------------------------------------------------------------
-
-
-class LarkAnnounceEffect(SideEffect):
-    """Broadcast concept to an IM chat room via lark-cli."""
-
-    name = "lark_announce"
-
-    def execute(self, doc, action, params):
-        chat_id = params.get("chat_id", "")
-        if not chat_id:
-            return SideEffectResult(False, "Missing chat_id for lark_announce")
-        try:
-            from .lark.announce import announce
-
-            announce(
-                concept_id=doc.adl_id,
-                chat_id=chat_id,
-                template=params.get("template", "discovery_broadcast"),
-                title=doc.concept_name,
-            )
-            return SideEffectResult(True, f"Announced {doc.adl_id} to {chat_id}")
-        except Exception as exc:
-            return SideEffectResult(False, f"lark_announce failed: {exc}")
-
-
-class LarkPublishEffect(SideEffect):
-    """Publish concept document to Feishu knowledge base via lark-cli."""
-
-    name = "lark_publish"
-
-    def execute(self, doc, action, params):
-        wiki_space = params.get("wiki_space", "")
-        if not wiki_space:
-            return SideEffectResult(False, "Missing wiki_space for lark_publish")
-        source_path = doc.source_path
-        if not source_path:
-            return SideEffectResult(False, "No source_path on document, cannot publish")
-        try:
-            from .lark.publish import publish_file
-
-            publish_file(
-                source_path,
-                wiki_space=wiki_space,
-            )
-            return SideEffectResult(True, f"Published {doc.adl_id} to {wiki_space}")
-        except Exception as exc:
-            return SideEffectResult(False, f"lark_publish failed: {exc}")
-
-
-class LarkDashboardEffect(SideEffect):
-    """Sync concept status to a Feishu dashboard sheet via lark-cli."""
-
-    name = "lark_dashboard"
-
-    def execute(self, doc, action, params):
-        sheet_id = params.get("sheet_id", "")
-        if not sheet_id:
-            return SideEffectResult(False, "Missing sheet_id for lark_dashboard")
-        try:
-            from .lark.dashboard import sync_dashboard_row
-
-            sync_dashboard_row(
-                adl_id=doc.adl_id,
-                status=doc.front_matter.status.value,
-                confidence=doc.front_matter.confidence,
-                sheet_id=sheet_id,
-            )
-            return SideEffectResult(True, f"Synced {doc.adl_id} to dashboard {sheet_id}")
-        except Exception as exc:
-            return SideEffectResult(False, f"lark_dashboard failed: {exc}")
-
-
-class ConsensusUpdateEffect(SideEffect):
-    """Apply consensus update from external feedback (listen ingest)."""
-
-    name = "consensus_update"
-
-    def execute(self, doc, action, params):
-        feedback_file = params.get("feedback_file", "")
-        if not feedback_file:
-            return SideEffectResult(False, "Missing feedback_file for consensus_update")
-        try:
-            from .lark.listen import listen
-
-            listen(
-                feedback_file=feedback_file,
-                adl_id=doc.adl_id,
-            )
-            return SideEffectResult(True, f"Processed feedback from {feedback_file}")
-        except Exception as exc:
-            return SideEffectResult(False, f"consensus_update failed: {exc}")
-
-
-# ---------------------------------------------------------------------------
 # ActionDef loading
 # ---------------------------------------------------------------------------
 
@@ -206,7 +110,6 @@ class ActionExecutor:
         self._action_defs: dict[str, ActionDef] = {}
         self._side_effects: dict[str, SideEffect] = {}
         self._load_registry()
-        self._register_default_effects()
 
     # ------------------------------------------------------------------
     # Registry
@@ -216,16 +119,6 @@ class ActionExecutor:
         raw_actions = self._om._data.get("actions", {})
         for name, raw in raw_actions.items():
             self._action_defs[name] = load_action_def(name, raw)
-
-    def _register_default_effects(self) -> None:
-        for cls in [
-            LarkAnnounceEffect,
-            LarkPublishEffect,
-            LarkDashboardEffect,
-            ConsensusUpdateEffect,
-        ]:
-            instance = cls()
-            self._side_effects[instance.name] = instance
 
     def register_effect(self, effect: SideEffect) -> None:
         """Plug in a custom side-effect handler."""
@@ -338,7 +231,7 @@ class ActionExecutor:
         return log
 
     def _apply_transition(self, doc: ADLDocument, action_def: ActionDef) -> None:
-        """Append a lifecycle Event to the concept's EventChain (NOT mutate front_matter)."""
+        """Append a lifecycle Event to the capability's EventChain (NOT mutate front_matter)."""
         transition = action_def.triggers_transition
         if not transition or transition == "null":
             return
@@ -408,6 +301,6 @@ class ActionExecutor:
         for rule in action_def.preconditions:
             if not rule.check(doc.front_matter):
                 errors.append(
-                    f"Precondition failed: {rule.field} " f"{rule.comparator.value} {rule.value}"
+                    f"Precondition failed: {rule.field} {rule.comparator.value} {rule.value}"
                 )
         return errors

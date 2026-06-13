@@ -1,7 +1,7 @@
 """
-ADL Lite — Concept Consensus Chain & Fork Management
+ADL Lite — Capability Lifecycle Consensus Chain & Fork Management
 
-Manages the lifecycle of concepts:
+Manages the lifecycle of capabilities:
     provisional → validated → deprecated (or archived)
                     ↓
                   forked ──→ merged / parallel / pruned
@@ -12,7 +12,7 @@ Philosophy (event-first):
     ConceptChain and ConsensusEntry are removed in v0.3.
 
 References:
-    - ADL Lite Spec §6.3: Concept Consensus Chain
+    - ADL Lite Spec §6.3: Capability Lifecycle Consensus Chain
     - ADL Lite Spec §6.4: Fork management (merge/parallel/prune)
 """
 
@@ -22,6 +22,7 @@ import threading
 from datetime import datetime, timezone
 from enum import Enum
 
+from .exceptions import ADLConsensusError
 from .models import ADLDocument, DiscoveryStatus, Event, EventChain, EventType
 from .ontology import OntologyManager, default_ontology
 
@@ -62,7 +63,7 @@ def _status_to_event_type(status: DiscoveryStatus) -> EventType:
 
 class ForkManager:
     """
-    Manages concept forks: divergence of interpretations for the same phenomenon.
+    Manages capability forks: divergence of interpretations for the same phenomenon.
 
     Strategies:
         MERGE   : relation graphs >90% isomorphic
@@ -76,9 +77,9 @@ class ForkManager:
     PRUNE_MIN_ENTRIES = 3
 
     def __init__(self) -> None:
-        # concept_id → list of forked concept_ids
+        # capability_id → list of forked capability_ids
         self.forks: dict[str, list[str]] = {}
-        # concept_id → creation timestamp
+        # capability_id → creation timestamp
         self.creation_times: dict[str, str] = {}
 
     def register_fork(
@@ -87,7 +88,7 @@ class ForkManager:
         fork_id: str,
         reason: str = "",
     ) -> None:
-        """Register a new fork from an original concept."""
+        """Register a new fork from an original capability."""
         if original_id not in self.forks:
             self.forks[original_id] = []
         self.forks[original_id].append(fork_id)
@@ -95,11 +96,11 @@ class ForkManager:
 
     def attempt_merge(self, concept_a: str, concept_b: str, similarity: float) -> ForkResolution:
         """
-        Attempt to merge two forked concepts.
+        Attempt to merge two forked capabilities.
 
         Args:
-            concept_a: first concept ID
-            concept_b: second concept ID
+            concept_a: first capability ID
+            concept_b: second capability ID
             similarity: structural similarity score [0, 1]
 
         Returns:
@@ -111,10 +112,10 @@ class ForkManager:
 
     def should_prune(self, concept_id: str, last_accessed: str | None = None) -> bool:
         """
-        Check if a concept should be pruned (archived).
+        Check if a capability should be pruned (archived).
 
         Args:
-            concept_id: concept to check
+            concept_id: capability to check
             last_accessed: ISO timestamp of last access
         """
         if concept_id not in self.creation_times:
@@ -133,7 +134,7 @@ class ForkManager:
         return age_days > self.PRUNE_MIN_ENTRIES and idle_days > self.PRUNE_AGE_DAYS
 
     def get_fork_tree(self, concept_id: str) -> dict:
-        """Return the fork tree rooted at concept_id."""
+        """Return the fork tree rooted at the given capability."""
         return {
             "root": concept_id,
             "forks": self.forks.get(concept_id, []),
@@ -148,7 +149,7 @@ class ForkManager:
 
 class ConsensusEngine:
     """
-    Central engine managing consensus chains for all concepts.
+    Central engine managing consensus chains for all capabilities.
 
     v0.3: Now uses EventChain as the sole chain representation.
     Status is computed from the chain, not stored.
@@ -169,7 +170,7 @@ class ConsensusEngine:
     # -- Chain lifecycle --
 
     def register(self, doc: ADLDocument) -> EventChain:
-        """Register a new concept document, starting its EventChain. Thread-safe."""
+        """Register a new capability document, starting its EventChain. Thread-safe."""
         cid = doc.adl_id
         with self._lock:
             if cid not in self.chains:
@@ -196,18 +197,18 @@ class ConsensusEngine:
         payload: dict | None = None,
     ) -> Event | None:
         """
-        Transition a concept to a new status by appending a lifecycle Event.
+        Transition a capability to a new status by appending a lifecycle Event.
         Thread-safe.
         """
         with self._lock:
             if adl_id not in self.chains:
-                raise KeyError(f"Concept '{adl_id}' not registered")
+                raise ADLConsensusError(f"Capability '{adl_id}' not registered")
 
             chain = self.chains[adl_id]
             current = chain.status  # computed from chain
 
             if not self._is_valid_transition(current, to_status, self._ontology):
-                raise ValueError(f"Invalid transition: {current.value} → {to_status.value}")
+                raise ADLConsensusError(f"Invalid transition: {current.value} → {to_status.value}")
 
             event_type = _status_to_event_type(to_status)
             event = Event(
@@ -227,9 +228,9 @@ class ConsensusEngine:
         actor: str,
         reason: str = "",
     ) -> EventChain:
-        """Create a fork of an existing concept. Idempotent: skips transition if already forked."""
+        """Create a fork of an existing capability. Idempotent: skips transition if already forked."""
         if original_id not in self.chains:
-            raise KeyError(f"Original concept '{original_id}' not found")
+            raise KeyError(f"Original capability '{original_id}' not found")
 
         with self._lock:
             # Only transition if not already forked
@@ -261,7 +262,7 @@ class ConsensusEngine:
             return self.chains[adl_id].history()
 
     def get_status(self, adl_id: str) -> DiscoveryStatus:
-        """Get current concept status. Thread-safe."""
+        """Get current capability status. Thread-safe."""
         with self._lock:
             if adl_id not in self.chains:
                 return DiscoveryStatus.PROVISIONAL

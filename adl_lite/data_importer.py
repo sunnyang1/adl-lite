@@ -1,6 +1,5 @@
-"""ADL Lite — Data Importer (Milestone 2e)
+"""ADL Lite — Data Importer (Milestone 2e). Ingests structured data (CSV, JSON, SQL) as ADL Event objects for capability registry.
 
-Ingests structured data (CSV, JSON, SQL) as ADL Event objects.
 Each row becomes an Event. Ontology is derived from event payloads,
 not pre-defined.
 
@@ -21,7 +20,7 @@ from .models import Event, EventChain, EventType
 
 
 class DataImporter:
-    """Ingest raw structured data as ADL Events."""
+    """Ingest raw structured data as ADL Events for capability registry."""
 
     def import_csv(
         self,

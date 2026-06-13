@@ -1,5 +1,5 @@
 """
-ADL Lite — Parser
+ADL Lite — Parser for Capability Registry Documents
 
 Three standard tools:
     - PyYAML  → Front Matter (L1)
@@ -265,9 +265,7 @@ class ADLParser:
 # ---------------------------------------------------------------------------
 
 
-class ADLParseError(Exception):
-    """Raised when an ADL Lite document cannot be parsed."""
-
+from .exceptions import ADLParseError  # noqa: E402, F811 — re-export for backward compat
 
 # ---------------------------------------------------------------------------
 # Convenience

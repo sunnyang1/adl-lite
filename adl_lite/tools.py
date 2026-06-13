@@ -1,5 +1,5 @@
 """
-ADL Lite — agent-facing tool wrappers matching CLI semantics.
+ADL Lite — agent-facing tool wrappers for capability-lifecycle registry operations.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from .validator import ADLValidator
 def adl_parse(path: str | Path) -> dict[str, Any]:
     """Parse an ADL file; returns summary dict (matches `adl-lite parse -o json` shape)."""
     doc = parse_file(path)
-    data = json.loads(doc.model_dump_json())
+    data: dict[str, Any] = json.loads(doc.model_dump_json())
     data["_summary"] = {
         "adl_id": doc.adl_id,
         "concept_name": doc.concept_name,
@@ -56,7 +56,7 @@ def adl_query_related(
     db: str | Path,
     depth: int = 1,
 ) -> list[dict[str, Any]]:
-    """Graph neighbors for adl_id."""
+    """Graph neighbors for a capability adl_id."""
     mem = ADLMemory(db_path=str(db))
     related = mem.find_related(adl_id, depth=depth)
     mem.close()
@@ -71,7 +71,7 @@ def adl_consensus_register(
     adl_id: str | None = None,
     state: str | Path | None = None,
 ) -> dict[str, Any]:
-    """Register concept in consensus engine."""
+    """Register capability in consensus engine."""
     state_path = Path(state) if state else _default_state_path(None)
     engine = _load_engine(state_path)
 
@@ -107,7 +107,7 @@ def adl_consensus_transition(
     reason: str = "",
     state: str | Path | None = None,
 ) -> dict[str, Any]:
-    """Transition concept status via consensus engine."""
+    """Transition capability status via consensus engine."""
     state_path = Path(state) if state else _default_state_path(None)
     engine = _load_engine(state_path)
     target = DiscoveryStatus(to_status) if isinstance(to_status, str) else to_status

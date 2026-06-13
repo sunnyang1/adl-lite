@@ -1,5 +1,5 @@
 """
-CRDT Lattice for ADL Lite derived states.
+CRDT Lattice for ADL Lite Capability Registry derived states.
 
 Addresses reviewer: "Derived-state computation (e.g., confidence = last writer)
 undermines consensus; no principled aggregation or trust model is provided.
@@ -55,7 +55,7 @@ _VALID_TRANSITIONS: dict[StatusOrder, set[StatusOrder]] = {
 @dataclass(frozen=True)
 class CRDTState:
     """
-    CRDT-correct derived state for an ADL concept.
+    CRDT-correct derived state for an ADL capability.
 
     All fields are monotonic with respect to event appends:
       - status: LUB over the partial order (most-progressed lifecycle stage)
@@ -167,7 +167,7 @@ def prove_associativity() -> None:
                 left = a.merge(b).merge(c)
                 right = a.merge(b.merge(c))
                 assert left == right, (
-                    f"merge not associative for {a} {b} {c}: " f"left={left} right={right}"
+                    f"merge not associative for {a} {b} {c}: left={left} right={right}"
                 )
 
 

@@ -1,5 +1,5 @@
 """
-ADL Lite — Semantic Validator
+ADL Lite — Semantic Validator for Capability Registry Documents
 
 Validates ADL documents against SSA (Structured Semantic Anchoring) constraints:
     1. Pronoun prohibition — fuzzy referents break cross-agent consensus
@@ -106,7 +106,7 @@ def find_pronoun_violations(body: str) -> list[str]:
     for m in _CJK_PRONOUN.finditer(body):
         errors.append(
             f"Forbidden pronoun detected: '{m.group(0)}'. "
-            "Use explicit concept names or URIs instead."
+            "Use explicit capability names or URIs instead."
         )
 
     for pat, _label in (
@@ -118,20 +118,20 @@ def find_pronoun_violations(body: str) -> list[str]:
             token = m.group(1) if m.lastindex else m.group(0).split()[-1]
             errors.append(
                 f"Forbidden pronoun detected: '{token.lower()}'. "
-                "Use explicit concept names or URIs instead."
+                "Use explicit capability names or URIs instead."
             )
 
     for m in re.finditer(r"\bthat\b", body, re.IGNORECASE):
         if not _is_allowed_that(body, m):
             errors.append(
-                "Forbidden pronoun detected: 'that'. " "Use explicit concept names or URIs instead."
+                "Forbidden pronoun detected: 'that'. Use explicit capability names or URIs instead."
             )
 
     for pronoun in ("this", "these", "those"):
         if re.search(r"\b" + pronoun + r"\b", body, re.IGNORECASE):
             errors.append(
                 f"Forbidden pronoun detected: '{pronoun}'. "
-                "Use explicit concept names or URIs instead."
+                "Use explicit capability names or URIs instead."
             )
 
     for m in re.finditer(r"\b(it)\b", body, re.IGNORECASE):
@@ -139,7 +139,7 @@ def find_pronoun_violations(body: str) -> list[str]:
         prefix = body[max(0, start - 30) : start]
         if re.search(r"\b(because|when|where|if|while|although|since)\s+$", prefix, re.IGNORECASE):
             errors.append(
-                "Forbidden pronoun detected: 'it'. " "Use explicit concept names or URIs instead."
+                "Forbidden pronoun detected: 'it'. Use explicit capability names or URIs instead."
             )
             continue
         if re.search(r"(?:^|[\n.!?]\s+)It\b", body[: start + 2]):
@@ -147,7 +147,7 @@ def find_pronoun_violations(body: str) -> list[str]:
         # other standalone 'it' — flag
         if not re.search(r"[\w-]+\s+$", prefix.rstrip()):  # skip "word it" object?
             errors.append(
-                "Forbidden pronoun detected: 'it'. " "Use explicit concept names or URIs instead."
+                "Forbidden pronoun detected: 'it'. Use explicit capability names or URIs instead."
             )
 
     seen: set[str] = set()
@@ -282,8 +282,7 @@ class ADLValidator:
             if mgr is not None and not mgr.validate_predicate(block.relation):
                 allowed = ", ".join(mgr.list_predicates())
                 errors.append(
-                    f"Unknown relation predicate: '{block.relation}'. "
-                    f"Allowed predicates: {allowed}"
+                    f"Unknown relation predicate: '{block.relation}'. Allowed predicates: {allowed}"
                 )
             if mgr is not None and block.relation == "isomorphic-to":
                 if not block.mapping_type:

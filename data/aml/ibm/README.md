@@ -4,7 +4,7 @@ The [IBM AML dataset on Kaggle](https://www.kaggle.com/datasets/ealaxi/ibm-aml-t
 synthetic transaction graphs labeled with motifs such as fan-in, fan-out, scatter-gather, and cycle.
 
 ADL Lite **does not** ship these files. Use them optionally to enrich evidence or future experiments;
-the committed corpus maps motifs to ADL concepts under `data/aml/concepts/`.
+the committed corpus maps motifs to ADL capabilities under `data/aml/concepts/`.
 
 ## Prerequisites
 
@@ -26,10 +26,10 @@ Expected artifacts (names may vary by Kaggle revision):
 
 Keep large CSVs **gitignored** (add `data/aml/ibm/raw/` to local ignore if needed).
 
-## Mapping to ADL concepts
+## Mapping to ADL capabilities
 
-| IBM motif (informal) | ADL concept id |
-|----------------------|----------------|
+| IBM motif (informal) | ADL capability id |
+|----------------------|-------------------|
 | Fan-in | `aml-fan-in-pattern` |
 | Fan-out | `aml-fan-out-pattern` |
 | Gather-scatter | `aml-gather-scatter` |

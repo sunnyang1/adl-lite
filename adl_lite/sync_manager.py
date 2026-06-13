@@ -1,11 +1,11 @@
-"""ADL Lite — Edge Sync Manager
+"""ADL Lite — Edge Sync Manager for Capability Registry
 
 Handles offline-first operation and eventual consistency across
 edge nodes and a central EventChain database.
 
 Architecture:
   - Edge nodes operate fully offline: chain.append(event) is local
-  - SideEffectQueue: buffers effects that need network (Lark bridge)
+  - SideEffectQueue: buffers effects that need network
   - SyncManager.merge(): resolves diverged chains by timestamp ordering
   - append-only = no merge conflicts = natural CRDT
 
@@ -305,32 +305,10 @@ class EdgeNode:
     def _try_effect(effect_name: str, concept_id: str, params: dict) -> bool:
         """
         Attempt a single side effect. Returns True if executed.
-        Lark effects silently fail if lark-cli is not available.
+        Side effects that require external services silently fail if not available.
         """
-        try:
-            if effect_name == "lark_announce":
-                from .lark.announce import announce
-
-                chat_id = params.get("chat_id", "")
-                if chat_id:
-                    announce(concept_id=concept_id, chat_id=chat_id)
-                    return True
-            elif effect_name == "lark_dashboard":
-                from .lark.dashboard import sync_dashboard_row
-
-                sheet_id = params.get("sheet_id", "")
-                if sheet_id:
-                    sync_dashboard_row(adl_id=concept_id, sheet_id=sheet_id)
-                    return True
-            elif effect_name == "lark_publish":
-                from .lark.publish import publish_file
-
-                wiki_space = params.get("wiki_space", "")
-                if wiki_space:
-                    publish_file(params.get("source_path", ""), wiki_space=wiki_space)
-                    return True
-        except Exception:
-            pass
+        # No built-in side effects registered by default.
+        # Custom side effects can be registered via ActionExecutor.register_effect().
         return False
 
     # ------------------------------------------------------------------

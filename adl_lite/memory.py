@@ -1,5 +1,5 @@
 """
-ADL Lite — Hybrid Memory Index
+ADL Lite — Hybrid Memory Index for Capability Registry
 
 Three-tier storage architecture:
     Hot  : in-memory HashMap  (< 1 ms)  — ConceptSkeleton only
@@ -7,11 +7,11 @@ Three-tier storage architecture:
     Cold : file-backed archive (50-500 ms) — historical / large objects
 
 Implements cascade filtering:
-    100M concepts → status bitmap → 10M → type inverted index → 100K
+    100M capabilities → status bitmap → 10M → type inverted index → 100K
     → namespace trie → 10K → vector ANN → 100 → graph traversal → result
 
 References:
-    - ADL Lite Spec §8.2: Concept Skeleton
+    - ADL Lite Spec §8.2: Capability Skeleton
     - ADL Lite Spec §8.3: Cascade Filtering
 """
 
@@ -21,7 +21,15 @@ import json
 import sqlite3
 import threading
 
-from .models import ADLDocument, ADLRelationBlock, ConceptSkeleton, DiscoveryStatus
+from .models import (
+    ADLDocument,
+    ADLRelationBlock,
+    ConceptSkeleton,
+    DiscoveryStatus,
+    Event,
+    EventChain,
+    EventType,
+)
 
 # Optional NetworkX — gracefully degrade if absent
 try:
@@ -39,7 +47,7 @@ except ImportError:  # pragma: no cover
 
 class HotIndex:
     """
-    O(1) lookup for concept skeletons.
+    O(1) lookup for capability skeletons.
     Thread-safe via RLock.
     """
 
@@ -127,11 +135,27 @@ class WarmIndex:
         UNIQUE(source, predicate, target)
     );
 
+    CREATE TABLE IF NOT EXISTS events (
+        event_id         TEXT PRIMARY KEY,
+        concept_id       TEXT NOT NULL,
+        event_type       TEXT NOT NULL,
+        actor            TEXT,
+        reasoning        TEXT,
+        timestamp        TEXT,
+        previous_event_id TEXT,
+        prev_hash        TEXT,
+        hash             TEXT,
+        payload_json     TEXT,
+        synthetic        INTEGER DEFAULT 0
+    );
+
     CREATE INDEX IF NOT EXISTS idx_doc_status ON documents(status);
     CREATE INDEX IF NOT EXISTS idx_doc_scope  ON documents(scope);
     CREATE INDEX IF NOT EXISTS idx_doc_domain ON documents(domain);
     CREATE INDEX IF NOT EXISTS idx_rel_src    ON relations(source);
     CREATE INDEX IF NOT EXISTS idx_rel_tgt    ON relations(target);
+    CREATE INDEX IF NOT EXISTS idx_events_concept ON events(concept_id);
+    CREATE INDEX IF NOT EXISTS idx_events_concept_seq ON events(concept_id, timestamp);
     """
 
     def __init__(self, db_path: str = ":memory:") -> None:
@@ -191,11 +215,127 @@ class WarmIndex:
             self.conn.execute(
                 "DELETE FROM relations WHERE source = ? OR target = ?", (adl_id, adl_id)
             )
+            self.conn.execute("DELETE FROM events WHERE concept_id = ?", (adl_id,))
             self.conn.commit()
 
             if self.graph and HAS_NETWORKX:
                 if adl_id in self.graph:
                     self.graph.remove_node(adl_id)
+
+    # ------------------------------------------------------------------
+    # Event storage (append-only audit log)
+    # ------------------------------------------------------------------
+
+    def _store_events(self, chain: EventChain) -> None:
+        """Persist every event in an EventChain. Thread-safe."""
+        with self._lock:
+            for event in chain.events:
+                self.conn.execute(
+                    """
+                    INSERT OR REPLACE INTO events
+                    (event_id, concept_id, event_type, actor, reasoning,
+                     timestamp, previous_event_id, prev_hash, hash,
+                     payload_json, synthetic)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        event.event_id,
+                        event.concept_id,
+                        event.event_type.value,
+                        event.actor,
+                        event.reasoning,
+                        event.timestamp,
+                        event.previous_event_id,
+                        event._prev_hash,
+                        event.hash,
+                        json.dumps(event.payload, default=str),
+                        1 if event.payload.get("synthetic", False) else 0,
+                    ),
+                )
+            self.conn.commit()
+
+    def load_event_chain(self, concept_id: str) -> EventChain | None:
+        """Reconstruct an EventChain from the events table. Thread-safe."""
+        with self._lock:
+            rows = self.conn.execute(
+                """
+                SELECT event_id, event_type, actor, reasoning, timestamp,
+                       previous_event_id, prev_hash, hash, payload_json, synthetic
+                FROM events
+                WHERE concept_id = ?
+                ORDER BY timestamp ASC
+                """,
+                (concept_id,),
+            ).fetchall()
+
+        if not rows:
+            return None
+
+        chain = EventChain(concept_id=concept_id)
+        for row in rows:
+            event = Event(
+                event_id=row["event_id"],
+                concept_id=concept_id,
+                event_type=EventType(row["event_type"]),
+                actor=row["actor"] or "system",
+                reasoning=row["reasoning"] or "",
+                timestamp=row["timestamp"],
+                previous_event_id=row["previous_event_id"],
+                hash=row["hash"] or "",
+                payload=json.loads(row["payload_json"]) if row["payload_json"] else {},
+            )
+            # Restore prev_hash (PrivateAttr) manually
+            object.__setattr__(event, "_prev_hash", row["prev_hash"] or "")
+            chain.append(event)
+
+        return chain
+
+    def get_history(self, concept_id: str) -> list[dict]:
+        """Return full event history as plain dicts. Thread-safe."""
+        chain = self.load_event_chain(concept_id)
+        if chain is None:
+            return []
+        return chain.history()
+
+    def get_version_at(self, concept_id: str, timestamp: str) -> ADLDocument | None:
+        """
+        Reconstruct the document state as it existed *at or before* the
+        given ISO timestamp by replaying events up to that point.
+        """
+        chain = self.load_event_chain(concept_id)
+        if chain is None:
+            return None
+
+        # Filter events up to the cutoff timestamp
+        cutoff_events = [e for e in chain.events if e.timestamp <= timestamp]
+        if not cutoff_events:
+            return None
+
+        replay = EventChain(concept_id=concept_id)
+        for e in cutoff_events:
+            replay.append(e)
+
+        # Derive front matter from replayed chain
+        from .models import ADLFrontMatter, ADLType
+
+        # We need identity fields to rebuild front matter; fall back to
+        # the latest stored document snapshot for identity constants.
+        latest_doc = self.get_document(concept_id)
+        identity = (
+            latest_doc.front_matter.identity_dict()
+            if latest_doc
+            else {"scope": "public", "domain": ""}
+        )
+
+        # Determine adl_type from first snapshot event or default to CONCEPT
+        adl_type = ADLType.CONCEPT
+        for e in replay.events:
+            if e.event_type == EventType.SNAPSHOT and "adl_type" in e.payload:
+                adl_type = ADLType(e.payload["adl_type"])
+                break
+
+        fm = ADLFrontMatter.from_chain(replay, adl_type, identity)
+        return ADLDocument(front_matter=fm)
 
     # Relation graph
 
@@ -217,7 +357,7 @@ class WarmIndex:
     def get_related(self, concept_id: str, depth: int = 1) -> list[tuple[str, str, float]]:
         """
         BFS traversal of the relation graph. Thread-safe.
-        Returns list of (related_concept, relation, confidence).
+        Returns list of (related_capability, relation, confidence).
         """
         with self._lock:
             if self.graph and HAS_NETWORKX:
@@ -341,16 +481,41 @@ class ADLMemory:
         related = mem.warm.get_related("disc-7f3a9b", depth=2)
     """
 
-    def __init__(self, db_path: str = ":memory:") -> None:
+    def __init__(self, db_path: str = ":memory:", tenant_id: str | None = None) -> None:
         self.hot = HotIndex()
         self.warm = WarmIndex(db_path)
+        self.tenant_id = tenant_id
 
     def store(self, doc: ADLDocument) -> None:
         """Store a document in all tiers."""
+        # Attach tenant_id if set
+        if self.tenant_id is not None and not hasattr(doc, "_tenant_id"):
+            object.__setattr__(doc, "_tenant_id", self.tenant_id)
         # Hot: skeleton only
         self.hot.put(doc.to_skeleton())
         # Warm: full document + relations
         self.warm.insert_document(doc)
+
+    def store_with_events(self, doc: ADLDocument) -> None:
+        """Store document snapshot *and* its full event chain for audit."""
+        if self.tenant_id is not None and not hasattr(doc, "_tenant_id"):
+            object.__setattr__(doc, "_tenant_id", self.tenant_id)
+        self.hot.put(doc.to_skeleton())
+        self.warm.insert_document(doc)
+        chain = doc.event_chain
+        self.warm._store_events(chain)
+
+    def retrieve_chain(self, adl_id: str) -> EventChain | None:
+        """Retrieve the full event chain from Warm layer."""
+        return self.warm.load_event_chain(adl_id)
+
+    def history(self, adl_id: str) -> list[dict]:
+        """Return full event history for a capability."""
+        return self.warm.get_history(adl_id)
+
+    def version_at(self, adl_id: str, timestamp: str) -> ADLDocument | None:
+        """Reconstruct document state at a specific point in time."""
+        return self.warm.get_version_at(adl_id, timestamp)
 
     def retrieve(self, adl_id: str) -> ADLDocument | None:
         """Retrieve full document from Warm layer."""
@@ -362,7 +527,7 @@ class ADLMemory:
         self.warm.delete_document(adl_id)
 
     def find_related(self, adl_id: str, depth: int = 1) -> list[tuple[str, str, float]]:
-        """Graph traversal for related concepts."""
+        """Graph traversal for related capabilities."""
         return self.warm.get_related(adl_id, depth)
 
     def prefilter(
@@ -370,13 +535,23 @@ class ADLMemory:
         status: DiscoveryStatus | None = None,
         domain: str | None = None,
         scope_prefix: str | None = None,
+        tenant_id: str | None = None,
     ) -> list[ConceptSkeleton]:
         """
         Fast pre-filter using Hot layer.
         Falls back to Warm layer if Hot miss.
+
+        When `tenant_id` is provided (or set on the ADLMemory instance),
+        results are filtered to only include documents belonging to that tenant.
         """
+        effective_tenant = tenant_id or self.tenant_id
+
         hot_results = self.hot.filter(status, domain, scope_prefix)
         if hot_results:
+            if effective_tenant is not None:
+                hot_results = [
+                    s for s in hot_results if getattr(s, "tenant_id", None) == effective_tenant
+                ]
             return hot_results
 
         # Fallback: warm cascade
@@ -385,6 +560,11 @@ class ADLMemory:
         for i in ids:
             sk = self.hot.get(i)
             if sk is not None:
+                if (
+                    effective_tenant is not None
+                    and getattr(sk, "tenant_id", None) != effective_tenant
+                ):
+                    continue
                 results.append(sk)
         return results
 

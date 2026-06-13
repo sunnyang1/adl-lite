@@ -1,14 +1,13 @@
 """
-ADL Lite - Semantic Type Models (Pydantic)
+ADL Lite - Capability-Lifecycle Registry Core Models (Pydantic)
 
 Structured Semantic Anchoring (SSA) core data models.
-Every ADL document decomposes into typed slots that constrain
-the interpretive space of natural language.
+Every capability is represented as an append-only EventChain.
 
 Philosophy (Wittgenstein, Tractatus §1.1):
     "The world is the totality of facts, not of things."
     → Action is primary. Objects exist only as participants in events.
-    → EventChain IS the concept. FrontMatter is a derived snapshot.
+    → EventChain IS the capability. FrontMatter is a derived snapshot.
 
 References:
     - ADL Lite Spec §7.2: Three-layer syntax (L1/L2/L3)
@@ -23,7 +22,7 @@ import json
 import threading
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Literal
+from typing import Any, Literal, Union
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
@@ -55,7 +54,7 @@ def _round_floats(obj: Any, ndigits: int = 6) -> Any:
 
 
 class DiscoveryStatus(str, Enum):
-    """Concept lifecycle status (emoji badges)."""
+    """Capability lifecycle status (emoji badges)."""
 
     PROVISIONAL = "provisional"  # 🟡
     VALIDATED = "validated"  # 🟢
@@ -65,7 +64,7 @@ class DiscoveryStatus(str, Enum):
 
 
 class ADLType(str, Enum):
-    """Top-level semantic types for ADL documents."""
+    """Top-level semantic types for ADL registry entries."""
 
     DISCOVERY = "discovery"
     CONCEPT = "concept"
@@ -95,7 +94,7 @@ class EvidenceType(str, Enum):
 
 
 class EventType(str, Enum):
-    """Every event type in ADL Lite. Events ARE the ontology."""
+    """Every event type in ADL Lite. Events ARE the capability lifecycle."""
 
     # Lifecycle events
     REGISTER = "register"
@@ -123,22 +122,22 @@ class EventType(str, Enum):
 
 class Event(BaseModel):
     """
-    An Event is an atomic occurrence in a concept's life.
+    An Event is an atomic occurrence in a capability's lifecycle.
 
     Every event:
-    - belongs to exactly one concept (concept_id)
+    - belongs to exactly one capability (concept_id)
     - links to the previous event (previous_event_id → forms the chain)
     - carries a typed payload (L3 block, L4 action params, etc.)
     - is cryptographically hashed (chain integrity)
 
-    This IS the ontology. Objects don't have events — events ARE the world.
+    This IS the capability lifecycle. Objects don't have events — events ARE the world.
     """
 
     event_id: str = Field(
         default_factory=lambda: uuid4().hex,
         description="Unique event identifier (full 128-bit UUID)",
     )
-    concept_id: str = Field(..., description="adl_id of the concept this event belongs to")
+    concept_id: str = Field(..., description="adl_id of the capability this event belongs to")
     event_type: EventType = Field(..., description="What happened")
     actor: str = Field(default="system", description="Who caused this event")
     reasoning: str = Field(default="", description="Why this event happened")
@@ -196,11 +195,11 @@ class EventChain:
     """
     An append-only, cryptographically linked chain of events.
 
-    THIS IS THE CONCEPT. The concept does not "have" status or confidence.
+    THIS IS THE CAPABILITY. The capability does not "have" status or confidence.
     Status and confidence are computed from the chain.
 
     The chain is the digital twin — not a static model, but the live
-    accumulation of all facts about a concept.
+    accumulation of all facts about a capability.
     """
 
     def __init__(
@@ -272,7 +271,7 @@ class EventChain:
 
     @property
     def status(self) -> DiscoveryStatus:
-        """Status computed from the chain — the latest lifecycle event."""
+        """Status computed from the chain — the latest lifecycle event for this capability."""
         with self._lock:
             for event in reversed(self._events):
                 if event.event_type in (
@@ -314,7 +313,7 @@ class EventChain:
 
     @property
     def created_at(self) -> str:
-        """Concept creation time = first event timestamp."""
+        """Capability creation time = first event timestamp."""
         with self._lock:
             if self._events:
                 return self._events[0].timestamp
@@ -514,7 +513,7 @@ class ProvisionalNames(BaseModel):
 
 class ADLFrontMatter(BaseModel):
     """
-    L1 Header — derived snapshot of a concept's current state.
+    L1 Header — derived snapshot of a capability's current state.
 
     IMPORTANT (event-first ontology): FrontMatter is a SNAPSHOT derived from
     the EventChain, NOT the source of truth. Status, confidence, and validators
@@ -601,14 +600,14 @@ class ADLFrontMatter(BaseModel):
 
 class ADLRelationBlock(BaseModel):
     """
-    L3 Relation Block — typed edge between concepts.
+    L3 Relation Block — typed edge between capabilities.
     Syntax: ```adl:relation ... ```
     """
 
     block_type: Literal["relation"] = "relation"
-    source: str = Field(..., description="Source concept name or URI")
+    source: str = Field(..., description="Source capability name or URI")
     relation: str = Field(..., description="Relation predicate, e.g. 'isomorphic-to'")
-    target: str = Field(..., description="Target concept URI or name")
+    target: str = Field(..., description="Target capability URI or name")
     mapping_type: str | None = None
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
@@ -651,7 +650,7 @@ class ADLFormalSealBlock(BaseModel):
 
 
 # Union type for all L3 blocks
-ADLBlock = ADLRelationBlock | ADLEvidenceBlock | ADLFormalSealBlock
+ADLBlock = Union[ADLRelationBlock, ADLEvidenceBlock, ADLFormalSealBlock]
 
 
 # ---------------------------------------------------------------------------
@@ -706,12 +705,12 @@ class PreconditionRule(BaseModel):
             return False
 
         _ops = {
-            Comparator.EQ: lambda a, v: a == v,
-            Comparator.NEQ: lambda a, v: a != v,
-            Comparator.GT: lambda a, v: a > v,
-            Comparator.GTE: lambda a, v: a >= v,
-            Comparator.LT: lambda a, v: a < v,
-            Comparator.LTE: lambda a, v: a <= v,
+            Comparator.EQ: lambda a, v: bool(a == v),
+            Comparator.NEQ: lambda a, v: bool(a != v),
+            Comparator.GT: lambda a, v: bool(a > v),
+            Comparator.GTE: lambda a, v: bool(a >= v),
+            Comparator.LT: lambda a, v: bool(a < v),
+            Comparator.LTE: lambda a, v: bool(a <= v),
         }
         return _ops[self.comparator](actual, self.value)
 
@@ -731,7 +730,7 @@ class ActionDef(BaseModel):
 class ExecutionEntry(BaseModel):
     """A single execution log entry for an action block."""
 
-    timestamp: datetime = Field(default_factory=lambda: datetime.utcnow())
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     executor: str = "system"
     side_effect: str
     result: str = "success"  # success | failure
@@ -765,7 +764,7 @@ class ADLActionBlock(BaseModel):
 
 
 # Union type for all blocks (L3 + L4)
-AllBlocks = ADLRelationBlock | ADLEvidenceBlock | ADLFormalSealBlock | ADLActionBlock
+AllBlocks = Union[ADLRelationBlock, ADLEvidenceBlock, ADLFormalSealBlock, ADLActionBlock]
 
 
 # ---------------------------------------------------------------------------
@@ -813,7 +812,7 @@ class ADLDocument(BaseModel):
 
     L1 (front_matter) + L2 (markdown_body) + L3 (adl_blocks) + L4 (action_blocks).
 
-    Philosophy: The EventChain IS the concept. FrontMatter is a derived snapshot.
+    Philosophy: The EventChain IS the capability. FrontMatter is a derived snapshot.
     Status/confidence are computed from the chain, not stored as mutable fields.
     """
 
