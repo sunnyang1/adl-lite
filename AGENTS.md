@@ -1,6 +1,6 @@
 # ADL Lite — Agent Guide
 
-Markdown-native **event-first operational ontology** for agentic KG authoring and multi-agent concept consensus (primary: ESWC + ISWC 2027; backup: AAMAS 2027).
+Markdown-native **event-first operational ontology** for agentic KG authoring and multi-agent concept consensus (primary: Applied Ontology journal; backup: ESWC/ISWC 2027).
 
 Philosophy: Wittgenstein Tractatus §1.1 — "The world is the totality of facts, not of things." → Action-first. Concepts are event chains.
 
@@ -8,7 +8,7 @@ Philosophy: Wittgenstein Tractatus §1.1 — "The world is the totality of facts
 
 ADL Lite is a Python 3.10+ package that implements a four-layer document model for concept representation and multi-agent consensus. Every concept is an append-only, cryptographically hashed `EventChain`. Status, confidence, and validators are **derived from the chain**, never stored as mutable fields.
 
-- **Version**: 0.2.0
+- **Version**: 0.2.0 (code-paper aligned, 590 tests)
 - **License**: MIT
 - **Build backend**: hatchling
 - **Entry point**: `adl-lite` CLI (`adl_lite.cli:main`)
@@ -28,7 +28,7 @@ ADL Lite is a Python 3.10+ package that implements a four-layer document model f
 
 Optional experiment dependencies:
 - `openai>=1.0`, `anthropic>=0.25` (experiments)
-- `sentence-transformers>=2.2` (experiments-embeddings)
+- `sentence-transformers>=2.2` (experiments-embeddings, near-duplicate detection)
 
 ## Build, Install, and Test Commands
 
@@ -94,11 +94,16 @@ pre-commit run --all-files
 | `adl_lite/ontology.py` | `OntologyManager` — predicates, actions, transitions from YAML registry |
 | `adl_lite/memory.py` | Hot/Warm/Cold hybrid index (`ADLMemory`) |
 | `adl_lite/tools.py` | Agent-facing Python wrappers matching CLI semantics |
-| `adl_lite/cli.py` | `adl-lite` CLI entry point (argparse) |
+| `adl_lite/calibration.py` | `MARGINCalibrator` + `aggregated_confidence()` + `calibrated_confidence()` |
+| `adl_lite/crdt.py` | CRDT merge semantics + `merge_event_chains()` (LWW-Set, Theorem 9) |
+| `adl_lite/owl_export.py` | OWL 2 DL export (RDF/XML + Turtle) |
+| `adl_lite/jsonld_export.py` | JSON-LD export for semantic-web APIs |
+| `adl_lite/near_duplicate.py` | Near-duplicate detection (Jaccard / Levenshtein / embeddings) |
 | `adl_lite/realtime.py` | Real-time event watcher and stream ingestion |
 | `adl_lite/sync_manager.py` | Edge-to-core sync coordination |
-| `adl_lite/crdt.py` | CRDT merge semantics for distributed consensus |
-| `adl_lite/lark/` | Feishu/Lark bridge: publish, announce, listen, dashboard, namespace, registry |
+| `adl_lite/l2_template.py` | L2 template schema + validation |
+| `adl_lite/key_registry.py` | Key registry + transparency anchor |
+| `adl_lite/cold_storage.py` | Cold storage + archive |
 | `experiments/base.py` | `BaseExperiment` + `ExperimentResult` |
 | `experiments/registry.py` | `@register("E1")` decorator for experiment discovery |
 | `experiments/runner.py` | `python -m experiments.runner` CLI |
@@ -115,6 +120,11 @@ from adl_lite import (
     ADLValidator, OntologyManager, ActionExecutor,
     ConsensusEngine, ForkManager, ForkResolution,
     ADLMemory, HotIndex, WarmIndex,
+    # New in code-paper alignment
+    CalibrationProfile, MARGINCalibrator, aggregated_confidence, calibrated_confidence,
+    CRDTState, StatusOrder, merge_event_chains,
+    export_owl, export_jsonld,
+    check_near_duplicate, suggest_merge,
 )
 ```
 
@@ -161,11 +171,6 @@ adl-lite ontology validate
 adl-lite ontology validate --examples --aml
 adl-lite ontology query --json
 adl-lite ontology query --predicate isomorphic-to
-
-# Lark bridge
-adl-lite lark doctor
-adl-lite lark publish examples/capital_reflux_trap.md --registry .adl_lark_registry.json
-adl-lite lark init-dashboard --sheet "ADL Board" --db /tmp/adl.db
 ```
 
 ## Agent Tools (Python)
@@ -189,6 +194,16 @@ chain.history()
 # Data import
 from adl_lite.data_importer import DataImporter
 chains = DataImporter().import_csv("data.csv", event_type=EventType.REGISTER, concept_id_field="id")
+
+# OWL / JSON-LD export
+from adl_lite import export_owl, export_jsonld
+owl_ttl = export_owl(doc, format="turtle")
+jsonld = export_jsonld(doc)
+
+# Near-duplicate detection
+from adl_lite import check_near_duplicate, suggest_merge
+matches = check_near_duplicate(doc, existing_chains, threshold=0.85)
+merge_suggestion = suggest_merge(doc, existing_chains)
 ```
 
 ## ADL Document Shape (L1/L2/L3/L4)
@@ -216,21 +231,23 @@ Closed sets:
 - **predicates**: `isomorphic-to`, `specialisation-of`, `co-occurs-with`, `related-to`, `analogical-to`, `analogical-transfer`, `dual-of`, `fork-of`, `mitigated-by`, `indexed-phrase`
 - **actions**: `register`, `validate`, `fork`, `deprecate`, `archive`, `announce`, `publish`, `sync_dashboard`, `listen`
 - **status_transitions**: `provisional` → `validated`/`deprecated`/`forked`/`archived`, `validated` → `deprecated`/`forked`/`archived`, ...
+- **collusion_resistance**: `min_distinct_validators: 1` (configurable)
 
 ## Testing Strategy
 
 - **Framework**: pytest with `pytest-cov`
-- **Test count**: ~26 test files under `tests/`
+- **Test count**: ~45 test files under `tests/`, 590 tests total
 - **Coverage target**: Run with `--cov=adl_lite --cov-report=term-missing`
 - **Fixtures**: Shared fixtures in `tests/fixtures/` and `tests/conftest.py`
 - **Experiment tests**: `tests/test_experiments.py` validates experiment infrastructure
+- **Theorem tests**: `tests/test_theorems.py` covers T4, T5, T7, T8, T9
 - **Before claiming work complete**, run:
   ```bash
   pytest tests/ -v
   python -m experiments.runner all
   ```
 
-## Experiments (11 registered)
+## Experiments (13+ registered)
 
 ```bash
 python -m experiments.runner all
@@ -249,6 +266,13 @@ python -m experiments.runner all
 | E9 | Git baseline | parser + consensus |
 | E10 | FDE pipeline | OntologyManager + ActionExecutor |
 | E11 | Side-effect stress | ActionExecutor + side effects |
+| E13 | Long-chain stress | EventChain |
+| E14 | Collusion vulnerability | Calibration |
+| E16 | Contention simulation | ConsensusEngine |
+| E20 | Template effectiveness | L2Template |
+| E20b | Calibration baseline | Calibration |
+| E21 | 100k event stress | EventChain + cold storage |
+| E23 | Contention stress | SyncManager + concurrent agents |
 
 ## CI / CD Pipeline
 
@@ -269,42 +293,50 @@ Pre-commit hooks (`.pre-commit-config.yaml`):
 - **Status flow**: `provisional` → `validated` / `deprecated` / `forked` / `archived`
 - **Scopes**: `public`, `private/<org>`, `user/<id>`, `shared/<collab>`
 - **Precondition rules**: `Comparator` enum (`EQ`/`NEQ`/`GT`/`GTE`/`LT`/`LTE`/`IN`/`EXISTS`). **NO `eval()`**.
-- **Cryptographic chaining**: Each `Event` stores a SHA-256 hash that includes its predecessor's hash. `EventChain.verify_integrity()` validates the full chain.
+- **Cryptographic chaining**: Each `Event` stores a SHA-256 hash that includes its predecessor's hash and `canon_version`. `EventChain.verify_integrity()` validates the full chain (12 axioms).
 - **Thread safety**: `EventChain` uses `threading.Lock` around mutations and reads.
 - **Synthetic events**: Events reconstructed from YAML front matter during parsing are tagged `synthetic=True` in their payload to distinguish them from agent-authored actions.
 - **Front matter is a snapshot**: `ADLFrontMatter` is a derived view of the chain, not the source of truth. Mutate the chain, then call `refresh_snapshot()`.
+- **Confidence boundedness**: `chain.confidence` clamps to [0,1] (Theorem 4). `chain.aggregated_confidence()` returns bonus-formula aggregate. `chain.calibrated_confidence()` returns accuracy-weighted calibrated confidence.
+- **Well-formedness**: `verify_integrity()` checks 12 axioms (Definition 5 in paper §4.6).
 
 ## Security Considerations
 
 - **No `eval()` or `exec()`**: Precondition evaluation uses a closed `Comparator` enum with explicit operator dispatch. Never use dynamic evaluation on user input.
-- **Hash integrity**: Event hashes include the previous event's hash, forming a tamper-evident chain. Any modification breaks `verify_integrity()`.
+- **Hash integrity**: Event hashes include the previous event's hash and `canon_version`, forming a tamper-evident chain. Any modification breaks `verify_integrity()`.
 - **Scope ACL**: `ADLValidator` enforces scope prefix rules (`public`, `private/`, `user/`, `shared/`).
-- **Lark CLI bridge**: The `lark/` subpackage shells out to `lark-cli`. Do not pass unsanitized user input directly to subprocess arguments; the CLI layer uses `Path` validation and argparse sanitization.
 - **CSV/JSON import**: `DataImporter` reads tabular data and maps rows to events. Validate `concept_id_field` and payload shapes before appending to chains in production scenarios.
+- **Collusion resistance**: `validate` action requires `validator_count >= N_min` (default 1, configurable via ontology YAML). The bonus-formula `γ_agg` and accuracy-weighted `γ_cal` both mitigate collusion by low-accuracy validators.
 
 ## Project Structure Summary
 
 ```
 adl-lite/
 ├── adl_lite/              # Main package
-│   ├── lark/              # Feishu/Lark bridge
 │   ├── adl_core_ontology.yaml
 │   ├── __init__.py
 │   ├── action_executor.py
+│   ├── calibration.py
 │   ├── cli.py
 │   ├── consensus.py
 │   ├── crdt.py
+│   ├── cold_storage.py
 │   ├── data_importer.py
+│   ├── jsonld_export.py
+│   ├── key_registry.py
+│   ├── l2_template.py
 │   ├── memory.py
 │   ├── models.py
+│   ├── near_duplicate.py
 │   ├── ontology.py
+│   ├── owl_export.py
 │   ├── parser.py
 │   ├── realtime.py
 │   ├── sync_manager.py
 │   ├── tools.py
 │   └── validator.py
-├── tests/                 # pytest suite (~26 files)
-├── experiments/           # 11 scripted experiments
+├── tests/                 # pytest suite (590 tests)
+├── experiments/           # 13+ scripted experiments
 ├── examples/              # Sample ADL Markdown files
 ├── data/aml/              # AML dataset + concepts
 ├── docs/                  # Paper, specs, proposals, reports

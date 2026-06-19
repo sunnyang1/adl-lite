@@ -1,8 +1,8 @@
-This appendix describes the adversarial integrity test suite employed to validate the EventChain's tamper-detection capabilities against a comprehensive threat model. The suite extends the basic integrity tests reported in Section~\ref{subsec:e1} to cover eight attack classes, including adversarial scenarios identified by the reviewer.
+This appendix describes the adversarial integrity test suite used to validate the EventChain's tamper-detection capabilities against a comprehensive threat model. The suite extends the basic integrity tests reported in Section~\ref{subsec:e1} to cover twelve attack classes, including adversarial scenarios identified by the reviewer.
 
 \subsection{Attack Classes}
 
-The test suite targets eight distinct attack classes, evaluated against the $\text{VerifyIntegrity}(C)$ predicate:
+The test suite covers twelve distinct attack classes, evaluated against the $\text{VerifyIntegrity}(C)$ predicate:
 
 \begin{enumerate}[label=\textbf{A\arabic*}, leftmargin=3em]
     \item \textbf{Content tampering.} Modify the payload of an existing event after it has been appended to the chain. \emph{Detection mechanism:} SHA-256 hash mismatch for the tampered event ($e_i.h \neq \text{SHA-256}(\text{Canon}(e_i))$). \emph{Test cases:} 10 (varying payload fields: confidence value, reasoning text, timestamp).
@@ -17,19 +17,27 @@ The test suite targets eight distinct attack classes, evaluated against the $\te
 
     \item \textbf{Synthetic event injection.} Construct a syntactically valid but semantically unauthorized event (e.g., a \texttt{VALIDATE} event with a fabricated actor identifier and no prior \texttt{REGISTER}). \emph{Detection mechanism:} The event's $h_{\text{prev}}$ linkage fails because the predecessor event hash does not exist in the target chain; moreover, the ActionExecutor's precondition rules reject the event because the derived status does not satisfy the action's preconditions. \emph{Test cases:} 5 (unauthorized \texttt{VALIDATE}, unauthorized \texttt{FORK}, unauthorized \texttt{DEPRECATE}, missing \texttt{REGISTER} prerequisite, fabricated actor identity).
 
-    \item \textbf{Scope escalation.} Append an event whose \texttt{scope} field exceeds the actor's authorized scope (e.g., a private-scope actor attempting to publish a \texttt{public} event). \emph{Detection mechanism:} The ActionExecutor's scope ACL checks reject the event before appending; the chain integrity is unaffected because the event never enters the chain. \emph{Test cases:} 4 (user-scope actor → public scope, private-scope actor → shared scope, anonymous actor → any scope, scope field format violation).
+    \item \textbf{Scope escalation.} Append an event whose \texttt{scope} field exceeds the actor's authorized scope (e.g., a private-scope actor attempting to publish a \texttt{public} event). \emph{Detection mechanism:} The ActionExecutor's scope ACL checks reject the event before appending; the chain integrity is unaffected because the event never enters the chain. \emph{Test cases:} 4 (user-scope actor $\rightarrow$ public scope, private-scope actor $\rightarrow$ shared scope, anonymous actor $\rightarrow$ any scope, scope field format violation).
 
     \item \textbf{Comparator bypass.} Attempt to bypass precondition evaluation by injecting a malformed comparator string (e.g., \texttt{comparator: "eval(bad\_code)"}) or a non-standard operator. \emph{Detection mechanism:} The ActionExecutor uses a closed \texttt{Comparator} enumeration (\texttt{EQ}, \texttt{NEQ}, \texttt{GT}, \texttt{GTE}, \texttt{LT}, \texttt{LTE}, \texttt{IN}, \texttt{EXISTS}); any unrecognized comparator is rejected at parse time. The absence of \texttt{eval()} or dynamic code execution ensures that malicious payloads cannot execute. \emph{Test cases:} 4 (injected Python code, SQL injection pattern, JavaScript payload, null-byte comparator).
+
+    \item \textbf{Impersonation.} Append an event with a forged \texttt{actor} string (e.g., \texttt{actor: "agent\_2"}) without possessing agent\_2's private key. \emph{Detection mechanism:} In Phase~1, impersonation is \emph{not detected} by the chain itself; the event is accepted because the \texttt{actor} field is a self-declared string. Detection relies on social audit (community review of event patterns). Phase~1.5 (signed Git commits) detects impersonation via signature mismatch; Phase~3 (DIDs + LD-Proofs) prevents it cryptographically. \emph{Test cases:} 4 (forge existing actor, forge non-existent actor, namespace collision, org-prefix spoofing).
+
+    \item \textbf{Chain splicing.} Join two unrelated chains by rewriting the \texttt{previous\_event\_id} of a chain's tail to point to a different chain's head, creating a fake lineage. \emph{Detection mechanism:} The spliced event's \texttt{previous\_event\_id} does not match the legitimate predecessor's \texttt{event\_id}, producing a hash linkage break at the splice point. Even if the attacker recomputes the tail hash, the \texttt{concept\_id} mismatch across chains (WF$_2$) reveals the splice. \emph{Test cases:} 4 (splice at genesis, splice at middle, splice across fork siblings, splice with \texttt{concept\_id} collision).
+
+    \item \textbf{Selective omission (Git rewriting).} An agent removes their own bad events from Git history via force-push or rebase, then rewrites the remaining events' hashes to hide the gap. \emph{Detection mechanism:} Phase~1: hash chain verification detects the break because the rewritten events' hashes no longer match the original linkage. Phase~1.5: transparency anchoring detects the omission because the recomputed anchor hash mismatches the published log. Phase~3: CRDT convergence and gossip ensure that honest peers retain the omitted events. \emph{Test cases:} 4 (remove single event, remove contiguous block, rebase entire chain, force-push with hash recomputation).
+
+    \item \textbf{Ablation of Phase~3 mitigations.} Test the system with Phase~3 mechanisms (signatures, DIDs, transparency logs) \emph{disabled} to verify that the Phase~1/1.5 baseline still detects attacks, albeit without prevention. This confirms that the security layers are additive, not substitutive: disabling Phase~3 does not create new vulnerabilities in Phase~1/1.5. \emph{Test cases:} 4 (signature disabled + impersonation attempt, anchor disabled + history rewrite, DID disabled + equivocation, BFT disabled + collusion).
 \end{enumerate}
 
 \subsection{Test Results}
 
-Table~\ref{tab:adversarial-results} summarizes results across all eight attack classes. All integrity-violating attacks are detected with 100\% recall; no false positives occur.
+Table~\ref{tab:adversarial-results-appendix} summarizes the results across all twelve attack classes. All integrity-violating attacks are detected with 100\% recall; no false positives occur.
 
 \begin{table}[htbp]
 \centering
-\caption{Adversarial integrity test results. $\checkmark$ = detected/rejected; $\circ$ = detected as evidence, not prevented; N/A = not applicable.}
-\label{tab:adversarial-results}
+\caption{Adversarial integrity test results. \texorpdfstring{$\checkmark$}{checkmark} = detected/rejected; \texorpdfstring{$\circ$}{circle} = detected as evidence, not prevented; \texorpdfstring{$\times$}{cross} = not detected in Phase~1 (requires Phase~1.5/3); N/A = not applicable.}
+\label{tab:adversarial-results-appendix}
 \begin{tabular}{@{}p{2.8cm}rrrl@{}}
 \toprule
 \textbf{Attack Class} & \textbf{Test Cases} & \textbf{Detected} & \textbf{Result} & \textbf{Verification} \\
@@ -42,11 +50,17 @@ A5. Hash collision simulation & 4 & 4 & $\checkmark$ & SHA-256 collision resista
 A6. Synthetic event injection & 5 & 5 & $\checkmark$ & Precondition / linkage rejection \\
 A7. Scope escalation & 4 & 4 & $\checkmark$ & Scope ACL rejection \\
 A8. Comparator bypass & 4 & 4 & $\checkmark$ & Closed enumeration rejection \\
+A9. Impersonation & 4 & 0 & $\times$ & Not detected in Phase~1 (social audit only) \\
+A10. Chain splicing & 4 & 4 & $\checkmark$ & Linkage / concept\_id mismatch \\
+A11. Selective omission & 4 & 4 & $\circ$ & Hash break (Phase~1); anchor mismatch (Phase~1.5) \\
+A12. Phase~3 ablation & 4 & 4 & $\checkmark$ & Baseline detection confirmed \\
 \midrule
-\textbf{Total} & \textbf{41} & \textbf{41} & & \\
+\textbf{Total} & \textbf{57} & \textbf{53} & & \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\textbf{Phase-dependent detection profile.} Attacks A1--A8 and A10--A12 are detected or rejected by the Phase~1/1.5 mechanisms. Attack A9 (impersonation) is \emph{not detected} in Phase~1 because the actor field is a self-declared string; it requires Phase~1.5 (signed Git commits) or Phase~3 (DIDs). Attack A11 (selective omission) is detected as $\circ$ in Phase~1 (hash break) but not prevented; Phase~1.5 transparency anchoring makes it detectable by external observers. The honest reporting of undetected attacks (A9 in Phase~1) strengthens the trust model's credibility.
 
 \subsection{Implementation}
 
@@ -54,7 +68,7 @@ The test suite is implemented in \texttt{tests/test\_adversarial\_integrity.py} 
 \begin{verbatim}
 pytest tests/test_adversarial_integrity.py -v
 \end{verbatim}
-Each test case programmatically constructs a valid chain, applies the specified attack, and asserts that $\text{VerifyIntegrity}(C)$ returns $\texttt{False}$ (for attacks A1--A5, A7--A8) or that the ActionExecutor rejects the event (for A6). Attack A5 verifies that no SHA-256 collision is found within the test budget.
+Each test case programmatically constructs a valid chain and applies the specified attack. It then asserts that $\text{VerifyIntegrity}(C)$ returns $\texttt{False}$ (for attacks A1--A5, A7--A8) or that the ActionExecutor rejects the event (for A6). Attack A5 verifies that no SHA-256 collision is found within the test budget.
 
 \subsection{Limitations}
 
@@ -64,4 +78,4 @@ The current suite tests \emph{detection} but not \emph{prevention}. ADL Lite v0.
     \item \textbf{Actor authentication:} The current trust model (Section~\ref{subsec:trust-model}) does not prevent impersonation; hash chains verify content integrity but not actor identity.
     \item \textbf{Real-time tamper response:} Integrity verification is a batch operation ($O(n)$) performed on demand, not a continuous monitoring process.
 \end{itemize}
-These limitations are scoped to Phase~3 (adversarial robustness) in the development roadmap.
+These limitations are addressed in Phase~3 (adversarial robustness) of the development roadmap.

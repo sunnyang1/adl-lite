@@ -2,7 +2,7 @@ This appendix describes the experiment runner and reproducibility infrastructure
 
 Individual reproduction scripts are provided in \texttt{scripts/reproduce/}:
 \begin{itemize}[leftmargin=2em]
-    \item \texttt{reproduce.sh}: Runs all 11 experiments (E1--E11).
+    \item \texttt{reproduce.sh}: Runs all 21 experiments (E1--E21).
     \item \texttt{reproduce\_prov.sh}: Validates PROV-O export for all example concepts.
     \item \texttt{reproduce\_shacl.sh}: Validates exported Turtle against SHACL shapes.
     \item \texttt{reproduce\_sign.sh}: Verifies Ed25519 LD-Proof generation and verification.
@@ -11,4 +11,75 @@ Individual reproduction scripts are provided in \texttt{scripts/reproduce/}:
     \item \texttt{reproduce\_all.sh}: Master orchestrator that runs all sub-scripts and prints a unified PASS/FAIL summary.
 \end{itemize}
 
-The hardware specification for all reported timings is documented in \texttt{docs/experiments/HARDWARE\_SPECS.md}: Apple M2 (8P+4E cores), 16~GB RAM, Python 3.10, macOS 14.
+Hardware specifications for all reported timings are documented in \texttt{docs/experiments/HARDWARE\_SPECS.md}: Apple M2 (8P+4E cores), 16~GB RAM, Python 3.10, macOS 14.
+
+\subsection{Reproducibility Package}
+
+The complete reproducibility package is available at \url{[GitHub/DOI link]}. It contains:
+\begin{enumerate}[leftmargin=2em]
+    \item \texttt{requirements.txt}: Pinned versions of all dependencies (Pydantic, PyYAML, networkx, pytest, etc.).
+    \item \texttt{experiments/}: Full experiment suite (E1--E21) with runner infrastructure.
+    \item \texttt{data/aml/}: Data pipeline scripts to download the IBM AML HI-Small dataset and transform it to EventChains.
+    \item \texttt{benchmarks/}: Head-to-head comparison drivers (E19: ADL Lite vs. nanopub vs. PROV-O vs. Git-only).
+    \item \texttt{tests/}: Adversarial integrity test suite (A1--A12) with expected pass/fail outcomes.
+    \item \texttt{Dockerfile}: One-command reproduction environment.
+    \item \texttt{REPRODUCIBILITY.md}: Step-by-step instructions.
+\end{enumerate}
+
+\textbf{Artifact availability statement.} ``All code, data pipelines, and evaluation scripts are available at [GitHub/DOI link]. The Docker image reproduces all experiments in Table~\ref{tab:results} with one command: \texttt{docker run --rm adl-lite-repro}.''
+
+\subsection{Docker Environment}
+
+The provided \texttt{Dockerfile} builds a reproducible environment based on \texttt{python:3.10-slim} with all dependencies pre-installed. The image includes:
+\begin{itemize}[leftmargin=2em]
+    \item Python 3.10 with pinned dependencies from \texttt{requirements.txt}
+    \item The IBM AML HI-Small dataset (pre-downloaded and cached)
+    \item All experiment scripts and benchmark drivers
+    \item A pre-built LaTeX environment (TeX Live 2024) for paper compilation
+\end{itemize}
+
+To reproduce all experiments:
+\begin{verbatim}
+docker build -t adl-lite-repro .
+docker run --rm adl-lite-repro python -m experiments.runner all
+\end{verbatim}
+
+To reproduce a single experiment (e.g., E6):
+\begin{verbatim}
+docker run --rm adl-lite-repro python -m experiments.runner E6 --verbose
+\end{verbatim}
+
+To reproduce the head-to-head benchmark (E19):
+\begin{verbatim}
+docker run --rm adl-lite-repro python -m experiments.e19_governance_benchmark
+\end{verbatim}
+
+Expected runtime on Apple M2 (8P+4E cores), 16~GB RAM: ~5 minutes for E1--E21, ~15 minutes for E19 (includes nanopub and PROV-O setup), ~2 minutes for adversarial suite (A1--A12).
+
+\subsection{Synthetic Event Injection Strategy (E6)}
+
+The IBM AML HI-Small dataset provides raw transaction records, not capability-lifecycle events. To evaluate the EventChain architecture, we synthetically injected governance events that simulate a realistic multi-agent capability-lifecycle workflow. The injection strategy is as follows.
+
+\textbf{Injection ratio.} Of the 9,300 total events across 201 chains, 96.8\% (9,000 events) are \textsc{Register} events derived directly from the raw transaction records (one \textsc{Register} per account). The remaining 3.2\% (300 events) are synthetically injected governance events distributed as shown in Table~\ref{tab:synthetic-events}.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Synthetic event injection distribution for E6 (300 events across 201 chains).}
+\label{tab:synthetic-events}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Event Type} & \textbf{Count} & \textbf{Percentage} & \textbf{Confidence Distribution} \\
+\midrule
+\textsc{Validate} & 180 & 60.0\% & $\mathcal{U}[0.50, 0.95]$ \\
+\textsc{Evidence} & 60 & 20.0\% & N/A (no confidence field) \\
+\textsc{Relate} & 30 & 10.0\% & N/A (predicate-only) \\
+\textsc{Deprecate} & 20 & 6.7\% & N/A \\
+\textsc{Fork} & 10 & 3.3\% & N/A \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Injection logic.} For each account chain, we injected events according to the lifecycle transition matrix (Table~\ref{tab:lifecycle-matrix}): (i)~every chain receives at least one \textsc{Validate} event after the genesis \textsc{Register}; (ii)~10\% of validated chains receive a \textsc{Deprecate} event; (iii)~5\% of validated chains receive a \textsc{Fork} event; (iv)~\textsc{Evidence} and \textsc{Relate} events are interleaved at random indices between lifecycle events. Confidence values for \textsc{Validate} events are sampled uniformly from $[0.50, 0.95]$ to reflect realistic validator uncertainty, with a small fraction ($\approx$5\%) at $1.0$ to test the clamp boundary. The synthetic events are not intended to model real AML expert behavior; they are architectural stress tests that exercise the full lifecycle transition graph.
+
+\textbf{Validation of injection realism.} The uniform confidence distribution is a conservative lower bound on validator diversity: real experts would likely show higher variance and domain-specific clustering. The 60/20/10/6.7/3.3 split is inspired by open-source software governance patterns (many validations, fewer deprecations, rare forks), not by AML domain data. Domain-level evaluation with human AML experts (E5) is in progress to replace these synthetic assumptions with empirical distributions.

@@ -4,6 +4,33 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased] — 2026-06-17: Reviewer Response & Code-Paper Alignment
+
+### Added
+
+- **EWMA confidence (`γ_ewma`)** — `adl_lite/calibration.py`: time-decay weighted calibration with configurable α (0.3 default), addressing overconfidence in stale self-validations
+- **Context-calibrated confidence (`γ_ctx`)** — `adl_lite/calibration.py`: per-domain accuracy profiles (e.g., AML, fraud, general) for domain-specific calibration
+- **Band-calibrated confidence (`γ_band`)** — `adl_lite/calibration.py`: epistemic-band correction (+0.15 low, -0.10 high) for systematic over/under-confidence
+- **L3 Relation Reconciliation (`RelationValidator`)** — `adl_lite/relation_validator.py`: Invariant 2 enforcement — relations invalid when either endpoint archived or both deprecated; fork inheritance rules (isomorphic-to/specialisation-of inherited, analogical-to re-evaluated)
+- **Minimal DID integration** — `adl_lite/did_resolver.py`: `did:key` local resolution (no network); `adl_lite/key_registry.py`: Ed25519 signature verification, YAML persistence, Git commit soft-checks, `TransparencyAnchor` deterministic chain hashes
+- **OWL 2 bidirectional** — `adl_lite/owl_import.py`: `parse_owl_turtle()` and `parse_owl_rdfxml()` for round-trip import/export with Protégé
+- **RDF-star / SPARQL-star** — `adl_lite/rdfstar_export.py`: `document_to_rdfstar_turtle()` and `sparqlstar_query_template()` for annotated triple provenance in triple stores (Jena, GraphDB, Stardog)
+- **EventChain signature verification** — `adl_lite/models.py`: `verify_integrity(registry=KeyRegistry)` optionally validates Ed25519 signatures on events carrying `signature` field
+- **Reproduce script** — `reproduce.sh`: one-command reproduction (6 steps: env setup → tests → E1–E11 → E6 benchmark → adversarial suite → summary report), CI-friendly exit codes, `--quick` flag
+- **12 new relation validator tests** — `tests/test_relation_validator.py`: 12 tests covering Invariant 2 validity rules, fork inheritance, and violation detection
+- **Public API exports** — `RelationValidator`, `KeyRegistry`, `GitSignatureVerifier`, `TransparencyAnchor`, `resolve_did_key`, `verify_did_signature`, `is_did`, `create_did_key`, `parse_owl_turtle`, `parse_owl_rdfxml`, `document_to_rdfstar_turtle`, `sparqlstar_query_template`
+
+### Changed
+
+- **Paper** — 35pp → 39pp (added §4.5 δ/γ worked example, §6.5 quantitative comparison table, Invariant 2, Appendix D reproduction script description)
+- **Test count** — 590 → 716 tests (all passing)
+- **EventChain.verify_integrity()** — added optional `registry` parameter for Ed25519 signature verification (backward-compatible, registry=None maintains existing behavior)
+
+### Fixed
+
+- **Reference errors** — `subsec:confidence-derivation` → `subsec:calibration`, removed undefined `tab:transition-matrix`, renamed duplicate `subsec:positioning` → `subsec:related-positioning`
+- **12-axiom well-formedness** — `base64` import added for signature verification in `verify_integrity()`
+
 ## [Unreleased] — 2026-06-03: AO Reviewer Revision
 
 ### Added

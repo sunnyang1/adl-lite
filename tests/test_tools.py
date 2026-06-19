@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pytest
 
+from adl_lite.exceptions import ADLConsensusError
 from adl_lite.parser import ADLParseError
 from adl_lite.tools import (
     adl_consensus_register,
@@ -219,7 +220,7 @@ class TestAdlConsensusTransition:
 
     def test_transition_unregistered(self, tmp_path: Path):
         state_path = tmp_path / "trans2.json"
-        with pytest.raises(KeyError):
+        with pytest.raises(ADLConsensusError):
             adl_consensus_transition(
                 "nonexistent",
                 "validated",

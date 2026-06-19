@@ -27,10 +27,10 @@ from adl_lite.sync_manager import (
 
 class TestQueuedEffect:
     def test_create(self):
-        qe = QueuedEffect("lark_announce", "c1", {"chat_id": "oc_123"})
-        assert qe.effect_name == "lark_announce"
+        qe = QueuedEffect("test_effect", "c1", {"key": "value"})
+        assert qe.effect_name == "test_effect"
         assert qe.concept_id == "c1"
-        assert qe.params == {"chat_id": "oc_123"}
+        assert qe.params == {"key": "value"}
         assert qe.created_at is not None
 
     def test_explicit_timestamp(self):
@@ -49,15 +49,15 @@ class TestSideEffectQueue:
         return SideEffectQueue()
 
     def test_enqueue(self, queue: SideEffectQueue):
-        qe = QueuedEffect("lark_announce", "c1", {"chat_id": "oc_1"})
+        qe = QueuedEffect("test_effect", "c1", {"key": "val"})
         queue.enqueue(qe)
         assert queue.pending == 1
         assert len(queue.queued) == 1
 
     def test_enqueue_action(self, queue: SideEffectQueue):
-        queue.enqueue_action("lark_dashboard", "c2", {"sheet_id": "s1"})
+        queue.enqueue_action("test_effect", "c2", {"key": "val"})
         assert queue.pending == 1
-        assert queue.queued[0].effect_name == "lark_dashboard"
+        assert queue.queued[0].effect_name == "test_effect"
         assert queue.queued[0].concept_id == "c2"
 
     def test_pending_zero_initially(self, queue: SideEffectQueue):
@@ -354,11 +354,11 @@ class TestEdgeNode:
         assert node.chain.length == 1
 
     def test_record_event_online_with_side_effects(self, node: EdgeNode):
-        # Side effects try to execute but fail silently (no lark-cli)
+        # Side effects try to execute but fail silently (no registered effects)
         event = node.record_event(
             EventType.REGISTER,
-            payload={"chat_id": "oc_test"},
-            side_effects=["lark_announce"],
+            payload={"key": "val"},
+            side_effects=["unknown_effect"],
         )
         assert event is not None
         assert node.chain.length == 1
@@ -374,11 +374,11 @@ class TestEdgeNode:
         node.record_event(
             EventType.REGISTER,
             payload={"amount": 100},
-            side_effects=["lark_announce"],
+            side_effects=["test_effect"],
         )
         # Effect should be queued
         assert node.queue.pending == 1
-        assert node.queue.queued[0].effect_name == "lark_announce"
+        assert node.queue.queued[0].effect_name == "test_effect"
 
     def test_go_online_without_center(self, node: EdgeNode):
         node.go_offline()
@@ -391,17 +391,17 @@ class TestEdgeNode:
         node.go_offline()
         node.record_event(EventType.REGISTER, payload={"amount": 100})
 
-        # Build a center chain that's ahead
+        # Build a center chain that's ahead (with a future timestamp to maintain monotonicity)
         center = EventChain(concept_id="edge-concept")
 
-        from datetime import datetime, timezone
+        from datetime import datetime, timezone, timedelta
 
         center.append(
             Event(
                 concept_id="edge-concept",
                 event_type=EventType.VALIDATE,
                 actor="center_agent",
-                timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc).isoformat(),
+                timestamp=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
             )
         )
 
@@ -413,16 +413,4 @@ class TestEdgeNode:
     def test_try_effect_unknown(self):
         """Unknown effect name should return False."""
         result = EdgeNode._try_effect("unknown_effect", "c1", {})
-        assert result is False
-
-    def test_try_effect_lark_announce_no_chat_id(self):
-        result = EdgeNode._try_effect("lark_announce", "c1", {})
-        assert result is False
-
-    def test_try_effect_lark_dashboard_no_sheet(self):
-        result = EdgeNode._try_effect("lark_dashboard", "c1", {})
-        assert result is False
-
-    def test_try_effect_lark_publish_no_wiki(self):
-        result = EdgeNode._try_effect("lark_publish", "c1", {})
         assert result is False

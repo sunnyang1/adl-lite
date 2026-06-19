@@ -25,3 +25,7 @@ experiments/outputs/*
 .vscode/
 .idea/
 data/aml/ibm_data/
+.benchmarks/
+.hypothesis/
+package-lock.json
+.lark_*.log

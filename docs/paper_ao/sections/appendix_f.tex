@@ -26,7 +26,7 @@ adl:evt-002 a prov:Activity ;
 
 \subsection{PROV-O to RDF-star Conversion}
 
-RDF-star enables statement-level annotation, which is natural for ADL Lite events (each event annotates a statement about the concept's lifecycle). The conversion:
+RDF-star enables statement-level annotation, which is natural for ADL Lite events, as each event annotates a statement about the concept's lifecycle. The conversion proceeds as follows:
 
 \begin{lstlisting}[language=bash]
 # The concept's validation as an RDF-star triple
@@ -55,11 +55,11 @@ WHERE {
 }
 \end{lstlisting}
 
-This query retrieves all concepts with validated status and confidence $> 0.8$, including the validator identity and confidence value---information that requires reification in standard RDF but is first-class in RDF-star.
+This query retrieves all concepts with validated status and confidence $> 0.8$. It includes the validator identity and confidence value---information that requires reification in standard RDF but is first-class in RDF-star.
 
 \subsection{Reversible Mapping}
 
-The mapping ADL Lite $\rightarrow$ RDF-star is \emph{lossy} in one direction: RDF-star discards the cryptographic hash chain (it captures the \emph{semantics} of events but not their \emph{integrity evidence}). However, a \emph{reversible} mapping is possible by extending the RDF-star representation with provenance metadata:
+The mapping from ADL Lite to RDF-star is \emph{lossy} in one direction: RDF-star discards the cryptographic hash chain (it captures the \emph{semantics} of events but not their \emph{integrity evidence}). A \emph{reversible} mapping is nevertheless possible by extending the RDF-star representation with provenance metadata:
 
 \begin{lstlisting}[language=bash]
 << adl:disc-capital-trap adl:status "validated" >>
@@ -70,4 +70,4 @@ adl:evt-002 a adl:Event ;
     adl:previousEventHash "sha256:abc123..." .
 \end{lstlisting}
 
-With this extension, an ADL Lite system can: (1) export to RDF-star for SPARQL querying and Semantic Web interoperability, (2) import from RDF-star by reconstructing the EventChain from \texttt{adl:provenance} links, and (3) verify integrity by checking that the reconstructed chain's hashes match the stored \texttt{adl:hash} values.
+With this extension, an ADL Lite system can (1) export to RDF-star for SPARQL querying and Semantic Web interoperability, (2) import from RDF-star by reconstructing the EventChain from \texttt{adl:provenance} links, and (3) verify integrity by checking that the reconstructed chain's hashes match the stored \texttt{adl:hash} values.

@@ -20,10 +20,6 @@ import pytest
 
 from adl_lite.action_executor import (
     ActionExecutor,
-    ConsensusUpdateEffect,
-    LarkAnnounceEffect,
-    LarkDashboardEffect,
-    LarkPublishEffect,
     SideEffect,
     SideEffectResult,
     _parse_comparator,
@@ -167,7 +163,7 @@ class TestLoadActionDef:
             "preconditions": [
                 {"field": "confidence", "comparator": "gte", "value": 0.5},
             ],
-            "side_effects": ["lark_dashboard"],
+            "side_effects": [],
         }
         ad = load_action_def("validate", raw)
         assert ad.name == "validate"
@@ -177,7 +173,7 @@ class TestLoadActionDef:
         assert len(ad.preconditions) == 1
         assert ad.preconditions[0].field == "confidence"
         assert ad.preconditions[0].comparator == Comparator.GTE
-        assert ad.side_effects == ["lark_dashboard"]
+        assert ad.side_effects == []
 
     def test_loads_minimal_definition(self):
         raw = {}
@@ -228,10 +224,7 @@ class TestActionExecutorInit:
 
     def test_registers_default_effects(self, executor: ActionExecutor):
         effects = executor.list_side_effects()
-        assert "lark_announce" in effects
-        assert "lark_publish" in effects
-        assert "lark_dashboard" in effects
-        assert "consensus_update" in effects
+        assert effects == []
 
 
 # ---------------------------------------------------------------------------
@@ -310,10 +303,9 @@ class TestExecuteOneRequiredParams:
         log = executor.execute_one(minimal_doc, action)
 
         # fork has precondition: status == provisional (which it is)
-        # but the side effect lark_announce will fail because no chat_id
-        assert action.exec_status == ActionExecStatus.FAILED
-        # Should have passed validation and param check, failed at side effect
-        assert any(e.side_effect == "lark_announce" for e in log)
+        # no side effects registered by default
+        assert action.exec_status == ActionExecStatus.EXECUTED
+        assert all(e.side_effect != "_validate" for e in log)
 
 
 # ---------------------------------------------------------------------------
@@ -346,12 +338,10 @@ class TestExecuteOnePreconditions:
     ):
         """deprecate requires status == validated and reason param."""
         action = _make_action(action="deprecate", params={"reason": "obsolete"})
-        log = executor.execute_one(validated_doc, action)
+        executor.execute_one(validated_doc, action)
 
-        # deprecate has lark_announce and lark_dashboard side effects
-        # both will fail because chat_id/sheet_id not in params
-        assert action.exec_status == ActionExecStatus.FAILED
-        assert any(e.side_effect == "lark_announce" for e in log)
+        # no side effects registered by default, so it should execute cleanly
+        assert action.exec_status == ActionExecStatus.EXECUTED
 
 
 # ---------------------------------------------------------------------------
@@ -412,8 +402,8 @@ class TestValidateAction:
     def test_precondition_fail(self, executor: ActionExecutor, minimal_doc: ADLDocument):
         action = _make_action(action="validate")
         errors = executor.validate_action(minimal_doc, action)
-        assert len(errors) == 1
-        assert "Precondition failed" in errors[0]
+        assert len(errors) >= 1
+        assert any("Precondition failed" in e for e in errors)
 
     def test_all_pass(self, executor: ActionExecutor, minimal_doc: ADLDocument):
         action = _make_action(action="register")
@@ -421,7 +411,7 @@ class TestValidateAction:
         assert errors == []
 
     def test_multiple_errors(self, executor: ActionExecutor, minimal_doc: ADLDocument):
-        """validate on minimal_doc: precondition (confidence) fails, status check fails."""
+        """validate on minimal_doc: precondition (confidence) fails, status check fails, validator_count fails."""
         # Create a custom action that requires params AND fails preconditions
         action = _make_action(action="fork")  # requires fork_id, rationale
         errors = executor.validate_action(minimal_doc, action)
@@ -440,8 +430,7 @@ class TestApplyTransition:
         original_status = minimal_doc.front_matter.status
         action = _make_action(action="announce", params={"chat_id": "oc_test"})
 
-        # The announce action will fail at side effect (lark_announce tries real Lark),
-        # but _apply_transition should be skipped because transition is null.
+        # no side effects registered by default, so it should execute cleanly
         executor.execute_one(minimal_doc, action)
         assert minimal_doc.front_matter.status == original_status
 
@@ -521,68 +510,15 @@ class TestRegisterEffect:
     def test_overrides_existing(self, executor: ActionExecutor):
         """Registering a new effect with an existing name should override it."""
 
-        class MockAnnounce(SideEffect):
-            name = "lark_announce"
+        class MockEffect(SideEffect):
+            name = "mock_effect"
 
             def execute(self, doc, action, params):
-                return SideEffectResult(True, "mocked announce")
+                return SideEffectResult(True, "mocked")
 
-        executor.register_effect(MockAnnounce())
+        executor.register_effect(MockEffect())
         effects = executor.list_side_effects()
-        assert "lark_announce" in effects
-
-
-# ---------------------------------------------------------------------------
-# SideEffect Protocol Conformance
-# ---------------------------------------------------------------------------
-
-
-class TestSideEffectProtocol:
-    def test_lark_announce_missing_chat_id(
-        self, executor: ActionExecutor, minimal_doc: ADLDocument
-    ):
-        effect = LarkAnnounceEffect()
-        action = _make_action(params={})
-        result = effect.execute(minimal_doc, action, {})
-        assert result.success is False
-        assert "Missing chat_id" in result.detail
-
-    def test_lark_publish_missing_wiki_space(
-        self, executor: ActionExecutor, minimal_doc: ADLDocument
-    ):
-        effect = LarkPublishEffect()
-        action = _make_action(params={})
-        # doc has no source_path, so it should fail on source_path first
-        result = effect.execute(minimal_doc, action, {"wiki_space": "test_space"})
-        assert result.success is False
-
-    def test_lark_publish_missing_source_path(
-        self, executor: ActionExecutor, minimal_doc: ADLDocument
-    ):
-        effect = LarkPublishEffect()
-        action = _make_action(params={})
-        minimal_doc.source_path = None
-        result = effect.execute(minimal_doc, action, {"wiki_space": "test_space"})
-        assert result.success is False
-        assert "source_path" in result.detail
-
-    def test_lark_dashboard_missing_sheet_id(
-        self, executor: ActionExecutor, minimal_doc: ADLDocument
-    ):
-        effect = LarkDashboardEffect()
-        action = _make_action(params={})
-        result = effect.execute(minimal_doc, action, {})
-        assert result.success is False
-        assert "Missing sheet_id" in result.detail
-
-    def test_consensus_update_missing_feedback_file(
-        self, executor: ActionExecutor, minimal_doc: ADLDocument
-    ):
-        effect = ConsensusUpdateEffect()
-        action = _make_action(params={})
-        result = effect.execute(minimal_doc, action, {})
-        assert result.success is False
-        assert "Missing feedback_file" in result.detail
+        assert "mock_effect" in effects
 
 
 # ---------------------------------------------------------------------------

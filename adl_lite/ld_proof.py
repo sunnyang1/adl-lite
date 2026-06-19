@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import base64
 import json
+from typing import Any
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric import ed25519
@@ -60,7 +61,7 @@ def generate_keypair() -> ed25519.Ed25519PrivateKey:
     return ed25519.Ed25519PrivateKey.generate()
 
 
-def sign_event(event: Event, private_key: ed25519.Ed25519PrivateKey) -> dict[str, str]:
+def sign_event(event: Event, private_key: ed25519.Ed25519PrivateKey) -> dict[str, Any]:
     """
     Sign an event's canonical JSON with Ed25519.
 
@@ -108,7 +109,7 @@ def sign_event(event: Event, private_key: ed25519.Ed25519PrivateKey) -> dict[str
 
 
 def verify_event_signature(
-    signed_event: dict[str, str],
+    signed_event: dict[str, Any],
     public_key: ed25519.Ed25519PublicKey | None = None,
 ) -> bool:
     """

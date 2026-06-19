@@ -32,7 +32,6 @@ def test_help():
     assert "validate" in proc.stdout
     assert "consensus" in proc.stdout
     assert "ontology" in proc.stdout
-    assert "lark" in proc.stdout
 
 
 def test_parse_text_output():

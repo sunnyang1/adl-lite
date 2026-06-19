@@ -99,6 +99,10 @@ actions:
       - field: status
         comparator: eq
         value: provisional
+      - field: validator_count
+        comparator: gte
+        value: 1
+        description: At least 1 distinct validator required (N_min ≥ 1; configurable)
     side_effects: []
 
   fork:
@@ -130,8 +134,8 @@ actions:
     required_params: []
     preconditions:
       - field: status
-        comparator: eq
-        value: deprecated
+        comparator: in
+        value: [provisional, validated, forked, deprecated]
     side_effects: []
 
   announce:
@@ -165,3 +169,10 @@ actions:
     required_params: [feedback_file]
     preconditions: []
     side_effects: []
+
+# Collusion resistance: minimum distinct validators required for VALIDATE
+# Paper §5.2.3: N_min ≥ 2 recommended for production deployments
+# Current default: 1 (development / single-agent mode)
+collusion_resistance:
+  min_distinct_validators: 1
+  description: Minimum distinct validators for VALIDATE transition

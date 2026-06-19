@@ -21,12 +21,23 @@ from . import (
     e4_precondition,  # noqa: F401
     e5_agent_audit,  # noqa: F401
     e6_aml_pipeline,  # noqa: F401
+    e6_multiagent_coordination,  # noqa: F401
     e7_realtime_watcher,  # noqa: F401
     e8_edge_sync,  # noqa: F401
     e9_git_baseline,  # noqa: F401
     e10_fde_pipeline,  # noqa: F401
     e11_sideeffect_stress,  # noqa: F401
     e12_benchmark_comparison,  # noqa: F401
+    e13_longchain_stress,  # noqa: F401
+    e14_colluding_validators,  # noqa: F401
+    e15_precondition_boundary,  # noqa: F401
+    e16_multiagent_contention,  # noqa: F401
+    e19_governance_benchmark,  # noqa: F401
+    e20_template_effectiveness,  # noqa: F401
+    e20b_calibration_baseline,  # noqa: F401
+    e21_100k_stress,  # noqa: F401
+    E23_contention_stress,  # noqa: F401
+    proof_trace_checker,  # noqa: F401
 )
 from .base import ExperimentResult
 from .registry import instantiate, list_all

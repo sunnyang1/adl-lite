@@ -1,35 +1,27 @@
 \subsection{Philosophical Foundation: Event-First as Ontological Commitment}\label{subsec:philosophical-foundation}
 
-The architectural design of ADL Lite is grounded in an ontological inversion of conventional ontology engineering. Traditional operational ontologies---including OWL-based knowledge graphs, Palantir Foundry, and enterprise metadata platforms---adopt an \emph{object-first} stance: an Object Type defines what objects exist, a Property Type describes their attributes, a Link Type connects them, and an Action Type is appended as an operational afterthought to model operations on the previously defined object structures \cite{palantir_fde,dendron2020}. This ordering reflects a metaphysical commitment to the \emph{primacy of continuants}: entities are conceived as self-subsistent bearers of properties that persist through changes in their attributes.
-
-ADL Lite inverts this hierarchy. Drawing on Wittgenstein's \emph{Tractatus Logico-Philosophicus} \S1.1---\emph{``Die Welt ist die Gesamtheit der Tatsachen, nicht der Dinge''} (``The world is the totality of facts, not of things'')---the system treats the occurrent as the fundamental ontological primitive \cite{wittgenstein_tractatus,event_sourcing}. On this view, an object has no ontological standing independent of the facts in which it appears. A concept's status (\texttt{validated}, \texttt{deprecated}, \texttt{forked}) is not an intrinsic property of the concept but a relational property constituted by the history of events that have occurred in its lifecycle.
-
-This philosophical commitment translates into three governing ontological principles:
-
-\begin{enumerate}[label=(\arabic*),leftmargin=2em]
-    \item \textbf{No implicit state changes.} Every mutation of ontological state is captured as an explicit event. There are no implicit updates, no assignments with side effects, and no mutable fields that can diverge from their event histories.
-    \item \textbf{Events are occurrents.} An event is a temporal occurrent that happens; it does not endure through time. An event has no spatial extent and no existence outside the interval during which it occurs. This aligns with the BFO category of \emph{occurrent} \cite{bfo} and DOLCE's category of \emph{perdurant} \cite{dolce}.
-    \item \textbf{All derived properties are historical.} Status, confidence, and validator identity are computed by deterministic functions over the event sequence. They are not stored; they are re-derived on demand. This eliminates an entire class of consistency bugs in which stored state diverges from logical history.
-\end{enumerate}
+ADL Lite inverts the object-first stance of conventional operational ontologies \cite{palantir_fde,dendron2020}. Drawing on Wittgenstein's \emph{Tractatus} \S1.1---\emph{``Die Welt ist die Gesamtheit der Tatsachen, nicht der Dinge''} \cite{wittgenstein_tractatus,event_sourcing}---the system treats the occurrent as a fundamental primitive. This yields three governing principles: (1)~\textbf{No implicit state changes.} Every mutation is an explicit event. (2)~\textbf{Events are occurrents.} They happen, but do not endure \cite{bfo,dolce}. (3)~\textbf{All derived properties are historical.} Status, confidence, and validators are computed by deterministic functions over the event sequence and are never stored.
 
 \subsection{Categories and Taxonomy}\label{subsec:categories}
 
-ADL Lite's category system can be analyzed through the lens of three influential upper ontologies: Basic Formal Ontology (BFO) \cite{bfo}, Descriptive Ontology for Linguistic and Cognitive Engineering (DOLCE) \cite{dolce}, and the Unified Foundational Ontology (UFO) \cite{ufo}. Table~\ref{tab:upper-ontology-mapping} presents the cross-mapping. The following subsections discuss each category in detail and justify alignment choices.
+ADL Lite's categories are analyzed with reference to BFO \cite{bfo}, DOLCE \cite{dolce}, and UFO \cite{ufo}. Table~\ref{tab:upper-ontology-mapping} presents the cross-mapping.
 
 \begin{table}[htbp]
 \centering
-\caption{Cross-mapping of ADL Lite categories to upper ontologies. Entries marked ``---'' indicate intentional non-alignment; entries marked ``$\approx$'' indicate approximate correspondence.}
+\small
+\caption{Cross-mapping of ADL Lite categories to upper ontologies. Entries marked ``---'' indicate intentional non-alignment; those marked ``\texorpdfstring{$\approx$}{~}'' denote approximate correspondence.}
 \label{tab:upper-ontology-mapping}
-\begin{tabular}{@{}lllll@{}}
+\begin{tabular}{@{}p{1.6cm}p{2.4cm}p{2.2cm}p{2.0cm}p{3.6cm}@{}}
 \toprule
 \textbf{ADL Lite} & \textbf{BFO 2.0} & \textbf{DOLCE} & \textbf{UFO} & \textbf{Note} \\
 \midrule
 Event & \texttt{occurrent} & \texttt{perdurant} & \texttt{Event} & Temporal entity; happens; no endurance \\
-EventChain & \texttt{process} & \texttt{accomplishment}$\approx$ & \texttt{Complex Event} & Ordered event sequence; unfolds over time \\
-Concept & \texttt{generically dependent continuant} & \texttt{non-physical object}$\approx$ & \texttt{Conceptual Entity} & Depends on EventChain as ICE bearer (not occurrent) \\
+EventChain & \texttt{process} & \texttt{accomplishment}$\approx$ & \texttt{Complex Event} & Ordered event sequence; \emph{process} layer (see record layer below) \\
+EventChain-record & \texttt{information content entity} & \texttt{information object} & \texttt{Information Entity} & Serialized ICE; \emph{two-level account} in \S\ref{subsec:two-level-account} \\
+Concept & \texttt{generically dependent continuant} & \texttt{non-physical object}$\approx$ & \texttt{Conceptual Entity} & Depends on EventChain-record as ICE bearer (not occurrent) \\
 Relation (L3) & \texttt{relational quality} & \texttt{quality} & \texttt{Relator} & Mediates between concepts \\
 Action (L4) & \texttt{planned process} & \texttt{action} & \texttt{Action} & Intentional occurrent with preconditions \\
-Actor & \texttt{agent} & \texttt{physical agent} & \texttt{Agent} & Can be human or software agent \\
+Actor & \texttt{agent} & \texttt{physical agent}$\approx$ & \texttt{Agent} & Can be human or software agent; ``physical'' is approximate for LLMs \\
 Payload & \texttt{information content entity} & \texttt{information object} & \texttt{Information Entity} & Structured data carried by event \\
 Hash & \texttt{generically dependent continuant} & --- & --- & Cryptographic identifier; no physical bearer \\
 \bottomrule
@@ -38,215 +30,135 @@ Hash & \texttt{generically dependent continuant} & --- & --- & Cryptographic ide
 
 \subsubsection{Event as Occurrent/Perdurant}
 
-In BFO, an \emph{occurrent} is an entity that unfolds in time. Occurrents include processes (e.g., a cell division), and they are ontologically distinct from \emph{continuants} (e.g., a cell), which exist in full at every moment of their existence \cite{bfo}. In DOLCE, the corresponding category is \emph{perdurant}: an entity that is only partially present at any time, in the sense that some of its temporal parts may be absent \cite{dolce}.
-
-ADL Lite's \texttt{Event} is a perdurant in the DOLCE sense and an occurrent in the BFO sense. It is a temporal entity with a definite beginning and end (recorded by its timestamp). It has no spatial location (unless the payload carries one, which is domain-specific). It does not endure: once a \texttt{VALIDATE} event has occurred, it is complete; it does not continue to exist as a present entity. What endures is the \emph{record} of the event (the serialized JSON/YAML in the Markdown file), but this record is an \emph{information content entity}, not the event itself.
-
-In UFO, events are also treated as temporal occurrences, but UFO additionally distinguishes \emph{events} (changes in the world) from \emph{actions} (intentional events performed by agents) \cite{ufo}. ADL Lite's event type system captures this distinction: \texttt{REGISTER}, \texttt{VALIDATE}, \texttt{DEPRECATE}, \texttt{FORK}, \texttt{ARCHIVE} are actions (intentional, performed by an actor), while \texttt{RELATE}, \texttt{EVIDENCE}, \texttt{SEAL} are events (assertions that change the relational structure of the concept graph).
+In BFO, an \emph{occurrent} unfolds in time and is ontologically distinct from \emph{continuants} \cite{bfo}; in DOLCE, the corresponding category is \emph{perdurant} \cite{dolce}. ADL Lite's \texttt{Event} is both: a temporal entity with a definite beginning and end, no spatial location, and no endurance. The serialized record is an information content entity (ICE), not the event itself. In UFO, \texttt{REGISTER} and \texttt{VALIDATE} are \emph{actions} (intentional), whereas \texttt{RELATE}, \texttt{EVIDENCE}, and \texttt{SEAL} are \emph{events} (structural changes) \cite{ufo}.
 
 \subsubsection{Concept as Generically Dependent Continuant}
 
-The ontological status of a ``concept'' in ADL Lite is subtle. A concept is not a physical continuant (it has no mass, no spatial location). Nor is it a mental entity (it exists outside any individual mind, in the shared Markdown file). It is not a universal (it is not instantiated by particulars). We argue that an ADL Lite concept is best understood as a \emph{generically dependent continuant} in BFO terms \cite{bfo}: an entity that depends on some continuant or other for its existence, but not on any \emph{specific} continuant.
-
-A concept depends generically on its EventChain \emph{as an information content entity (ICE)}---a continuant that encodes the event history---rather than on the occurrent process of events happening. In BFO 2020 and the Information Artifact Ontology (IAO) \cite{iao}, an ICE is a GDC borne by some material continuant (the Markdown file on disk). The events themselves are occurrents; the serialized chain record is the continuant ICE that bears the concept's identity. This resolves the apparent category mismatch: a GDC cannot depend on an occurrent, but it can depend on the ICE that documents that occurrent.\footnote{In BFO, the full dependence chain is therefore: Concept $\xrightarrow{\text{GDC}}$ ICE(EventChain\_record) $\xrightarrow{\text{concretized\_by}}$ Markdown\_file. The occurrent process of events happening produces the record, but does not bear it. This constraint---that a GDC cannot depend on an occurrent---is standard in BFO \cite{bfo}; some philosophers allow rigid existential dependence on processes \cite{fine1995ontologicaldependence}, but ADL Lite respects the BFO constraint by making the Concept depend on the \emph{record} of events (a continuant), not on the events themselves (occurrents).} If the chain record were destroyed, the concept would cease to exist. But the concept does not depend on any specific event within the chain---events can be added and the concept persists. The concept's identity is determined by the \emph{genesis event} (the first event in the chain, with its \texttt{concept\_id}), not by the totality of events. This is analogous to how a BFO \emph{generically dependent continuant} such as a poem depends on some physical copy for its existence, but not on any specific copy.
-
-In DOLCE, the closest category is \emph{non-physical object} (NPO), which includes social objects, information objects, and cognitive objects \cite{dolce}. ADL Lite concepts are information objects that carry social/institutional weight (their status determines whether they are accepted by the community). In UFO, concepts are \emph{conceptual entities} or \emph{types} in the conceptual space of the community \cite{ufo}.
+An ADL Lite concept is a \emph{generically dependent continuant} (GDC) in BFO terms \cite{bfo}: it depends on some continuant for its existence, but not on any \emph{specific} one. It depends on its EventChain \emph{as an ICE}---the serialized chain record borne by the Markdown file---rather than on the occurrent process itself.\footnote{In BFO and IAO \cite{iao}, the dependence chain is: Concept $\xrightarrow{\text{GDC}}$ ICE(EventChain\_record) $\xrightarrow{\text{concretized\_by}}$ Markdown\_file. A GDC cannot depend on an occurrent, but can depend on the ICE that documents it \cite{bfo,fine1995ontologicaldependence}.} The concept's identity is determined by the \emph{genesis event} (the first event in the chain), not by the totality of events---analogous to a poem, which depends on some physical copy for its existence but not on any specific one. In DOLCE, the closest category is \emph{non-physical object} \cite{dolce}; in UFO, concepts are \emph{conceptual entities} \cite{ufo}.
 
 \subsubsection{EventChain as Process}
 
-An EventChain is a sequence of events. In BFO, it is best understood as a \emph{process}: a complex occurrent that has temporal parts (the individual events) and unfolds over time \cite{bfo}. The chain is not a continuant because it does not exist in full at any single moment of time---at time $t$, only the events up to $t$ have occurred.
+An EventChain is a \emph{process} in BFO: a complex occurrent with temporal parts (the individual events) that unfolds over time \cite{bfo}. It is not a continuant because it does not exist in full at any moment. It is individuated by the ordered sequence of events and their cryptographic linkage (see Section~\ref{subsec:two-level-account} for the full two-level account, which distinguishes the process from its record).
 
-This has implications for identity conditions. In BFO, a process is individuated by its constituent processes and their temporal relations. An EventChain is individuated by the ordered sequence of its events and their cryptographic linkage. Two chains with the same events in the same order are the same chain (modulo the \texttt{concept\_id}, which anchors the chain to a specific concept). See Section~\ref{subsec:two-level-account} for the full two-level account that disambiguates the EventChain-process (the occurrent) from the EventChain-record (the ICE).
+\subsubsection{Actor as Agent}
+
+ADL Lite's \texttt{Actor} is mapped to BFO \texttt{agent} and UFO \texttt{Agent}. The DOLCE mapping to \texttt{physical agent} is approximate: DOLCE lacks a dedicated ``software agent'' category, whereas UFO's \texttt{Agent} subsumes both human and software agents (including LLMs). Future work (FW1) may define a DOLCE extension for non-physical agents.
 
 \subsubsection{Relation as Relational Quality / Relator}\label{subsec:relation-relator}
 
-ADL Lite's L3 relation blocks (\texttt{adl:relation}) assert typed edges between concepts: \texttt{source --relation--> target}. In BFO, this is best analyzed as a \emph{relational quality}: a quality that inheres in one continuant and relates it to another \cite{bfo}. For example, the relation ``isomorphic-to'' between two concepts is a relational quality that inheres in the source concept and points to the target concept.
-
-In UFO, the corresponding category is \emph{relator}: an entity that mediates the relationship between two or more relata \cite{ufo}. A relator exists because the related entities exist, and it is destroyed when the relationship ceases to hold. In ADL Lite, a relation is established by a \texttt{RELATE} event and can be revoked by a subsequent \texttt{RELATE} event with \texttt{confidence=0.0} or an explicit \texttt{revoked=true} flag. This event-based lifecycle aligns with the UFO notion that relators are brought into existence and destroyed by events.
-
-\paragraph{Formal semantics for relation lifecycle.}
-We formalize the lifecycle of a relator $r$ between concepts $c_1$ and $c_2$ with predicate $p$ as follows.
+ADL Lite's L3 relation blocks assert typed edges between concepts. In BFO, these are \emph{relational qualities}: qualities that inhere in one entity and bear a relation to another \cite{bfo}. ADL Lite's L3 relation block is inscribed in the source concept's Markdown file (the bearer), while the relation mediates between two concepts. This reading is consistent with BFO relational qualities, which need not be symmetric. In UFO, the same relations are \emph{relators}: entities that mediate between relata and are brought into existence and destroyed by events \cite{ufo}. The dual reading---BFO relational quality for the record, UFO relator for the mediation---reflects the two-level account of Section~\ref{subsec:two-level-account}.
 
 \textbf{Creation.} A \texttt{RELATE} event $e$ establishes a relator $r$ at time $t = e.\text{timestamp}$:
-\begin{equation}\label{eq:relation-creation}
-    \text{HoldsAt}\bigl(\text{Relation}(c_1, c_2, p), t\bigr) \iff \exists e \in C.\; e.\text{type} = \text{RELATE} \land e.\text{timestamp} \leq t \land \neg\text{Revoked}(c_1, c_2, p, t)
-\end{equation}
-where $\text{Revoked}(c_1, c_2, p, t)$ holds iff there exists a revocation event $e'$ with $e'.\text{timestamp} \leq t$.
+\begin{multline}\label{eq:relation-creation}
+    \text{HoldsAt}\bigl(\text{Relation}(c_1, c_2, p), t\bigr) \iff \exists e \in C.\; e.\text{type} = \text{RELATE} \land e.\text{timestamp} \leq t \\
+    \land \neg\text{Revoked}(c_1, c_2, p, t)
+\end{multline}
+where $\text{Revoked}(c_1, c_2, p, t)$ holds if and only if there exists a revocation event $e'$ with $e'.\text{timestamp} \leq t$.
 
 \textbf{Revocation.} A relator is terminated by a revocation event $e_{\text{rev}}$:
-\begin{equation}\label{eq:relation-revocation}
-    \text{Revoked}(c_1, c_2, p, t) \iff \exists e_{\text{rev}} \in C.\; e_{\text{rev}}.\text{type} = \text{RELATE} \land e_{\text{rev}}.\text{timestamp} \leq t \land \bigl(e_{\text{rev}}.\text{payload}.\text{confidence} = 0.0 \lor e_{\text{rev}}.\text{payload}.\text{revoked} = \text{true}\bigr)
-\end{equation}
-Once revoked, the relator ceases to hold for all $t' > e_{\text{rev}}.\text{timestamp}$.
+\begin{multline}\label{eq:relation-revocation}
+    \text{Revoked}(c_1, c_2, p, t) \iff \exists e_{\text{rev}} \in C.\; e_{\text{rev}}.\text{type} = \text{RELATE} \land e_{\text{rev}}.\text{timestamp} \leq t \land \\
+    \bigl(e_{\text{rev}}.\text{payload}.\text{confidence} = 0.0 \lor e_{\text{rev}}.\text{payload}.\text{revoked} = \text{true}\bigr)
+\end{multline}
 
-\textbf{Role constraints.} For a relator to hold, both relata must exist and must not be in a terminal status:
-\begin{equation}\label{eq:relation-role-constraints}
-    \text{HoldsAt}\bigl(\text{Relation}(c_1, c_2, p), t\bigr) \rightarrow \text{Exists}(c_1, t) \land \text{Exists}(c_2, t) \land \neg\text{Deprecated}(c_1, t) \land \neg\text{Deprecated}(c_2, t) \land \neg\text{Archived}(c_1, t) \land \neg\text{Archived}(c_2, t)
-\end{equation}
+\textbf{Note on revocation semantics.} We deliberately overload the \texttt{RELATE} event for revocation rather than introducing a dedicated \texttt{REVOKE} event type. This is an \emph{epistemic weakening} design: a relation with \texttt{confidence}=0 is not ``deleted'' from the chain (it remains auditable as an ICE); it is ``weakened to zero belief.'' The relator continues to exist as an ICE (the L3 block remains in the Markdown file), but its mediation function is suspended. This differs from \emph{cessation semantics} (a \texttt{REVOKE} event would explicitly terminate the relator). We choose epistemic weakening because: (i)~it preserves complete audit trails (no event types are removed), (ii)~it aligns with the event-first principle that all state changes are new events, not deletions, and (iii)~it allows graded revocation (\texttt{confidence}=0.3 means ``partially weakened'' rather than ``terminated''). Importantly, \emph{HoldsAt does not depend on confidence}: it checks only whether a Revoked event exists. Confidence is epistemic strength, not an existence condition. Introducing a dedicated \texttt{REVOKE} event type would not change Theorems~1--6, because \texttt{REVOKE} would be a communication event (not in $\Sigma_{\text{life}}$), so it would not affect $\delta(C)$. Full cessation semantics via a dedicated \texttt{REVOKE} event type is planned as a future extension (FW12).
+
+\textbf{Role constraints.} For a relator to hold, both relata must exist and must not be in terminal status:
+\begin{multline}\label{eq:relation-role-constraints}
+    \text{HoldsAt}\bigl(\text{Relation}(c_1, c_2, p), t\bigr) \rightarrow \text{Exists}(c_1, t) \land \text{Exists}(c_2, t) \land \neg\text{Deprecated}(c_1, t) \land \\
+    \neg\text{Deprecated}(c_2, t) \land \neg\text{Archived}(c_1, t) \land \neg\text{Archived}(c_2, t)
+\end{multline}
 where $\text{Deprecated}(c, t)$ and $\text{Archived}(c, t)$ are derived from the event chain of $c$ at time $t$.
 
-\textbf{Temporal scoping.} Every relator has a temporal extent $[t_{\text{create}}, t_{\text{revoke}})$. If no revocation event exists, $t_{\text{revoke}} = \infty$. The relator is a continuant that exists only during the interval $[t_{\text{create}}, t_{\text{revoke}})$. It does not endure outside this interval. What endures beyond the interval is the record of the relator (the L3 block in the Markdown file), which is an ICE documenting that the relator held during that interval.
+\textbf{Temporal scoping.} Every relator has a temporal extent $[t_{\text{create}}, t_{\text{revoke}})$. The relator is a continuant that exists only during this interval; what endures beyond it is the record (the L3 block), an ICE documenting that the relation held.
 
-\textbf{UFO instantiation.} This treatment exemplifies UFO's relator theory \cite{ufo} in four respects:
-\begin{enumerate}[label=(\roman*),leftmargin=2em]
-    \item \textbf{Existential dependence.} The relator depends on the existence of both relata (mutual dependence). If either concept is archived or deprecated, the relator ceases to hold.
-    \item \textbf{Event-based creation.} The relator is brought into existence by a \texttt{RELATE} event, not by a static assertion.
-    \item \textbf{Event-based destruction.} The relator is destroyed by a revocation event, not by simple deletion of a tuple.
-    \item \textbf{Mediation.} The relator mediates the relationship: it is not a property of $c_1$ alone, nor of $c_2$ alone, but an entity that exists \emph{between} them.
-\end{enumerate}
-
-DOLCE's category of \emph{quality} is broader and includes both intrinsic qualities (e.g., color) and relational qualities (e.g., being taller than) \cite{dolce}. ADL Lite relations are relational qualities in the DOLCE sense.
+\textbf{UFO instantiation.} This exemplifies UFO's relator theory \cite{ufo}: (i)~existential dependence on both relata, (ii)~event-based creation, (iii)~event-based destruction, and (iv)~mediation between entities rather than a property of either relatum alone. DOLCE's \emph{quality} category includes both intrinsic and relational qualities \cite{dolce}; ADL Lite relations are relational qualities in this sense.
 
 \subsubsection{Two-Level Ontological Account: Occurrents versus Records}\label{subsec:two-level-account}
 
-The preceding subsections have used the term ``EventChain'' in two different senses: as a process (the ordered sequence of events unfolding in time) and as an information content entity (the serialized, hash-linked record stored in a Markdown file). This ambiguity is resolved in the formal ontology: these are two distinct entities with distinct identity conditions. We now present a clean two-level account that removes any ambiguity.
+The term ``EventChain'' is ambiguous between a process (events unfolding in time) and an ICE (the serialized record). These are distinct entities with distinct identity conditions.
 
 \paragraph{Level 1: Occurrents (What Happens).}
-At Level 1, we find the entities that happen in time:
-\begin{itemize}[leftmargin=2em]
-    \item \textbf{Event} ($e$): an individual occurrent (BFO) or perdurant (DOLCE) with a definite timestamp.
-    \item \textbf{EventChain-process} ($P$): the complex occurrent consisting of the ordered sequence of events unfolding in time. It is a process with temporal parts (the individual events).
-    \item \textbf{Action} ($a$): an intentional occurrent performed by an agent, realizing a plan.
-\end{itemize}
-Level 1 entities do not endure. At time $t$, only the events up to $t$ have occurred; the future events of the chain do not yet exist.
+Event ($e$): an individual occurrent/perdurant with a determinate timestamp. EventChain-process ($P$): the complex occurrent comprising the ordered event sequence. Action ($a$): an intentional occurrent. Level 1 entities do not endure; at time $t$, only events up to $t$ have occurred.
 
 \paragraph{Level 2: Information Content Entities (What Is Recorded).}
-At Level 2, we find the entities that encode information about Level 1:
-\begin{itemize}[leftmargin=2em]
-    \item \textbf{EventChain-record} ($R$): the serialized, hash-linked JSON/YAML representation stored in Markdown files. It is an information content entity (ICE), a continuant that exists in full at every moment it is stored.
-    \item \textbf{Concept} ($c$): the generically dependent continuant (GDC) that depends on the EventChain-record (not on the occurrent process). The concept is the interpretation of the record: the rules that project status, confidence, and validators from the event sequence.
-    \item \textbf{Relation} ($r$): the record of a relational quality or relator in L3 blocks. It is an ICE that documents a relationship that held between concepts during a specific temporal interval.
-\end{itemize}
-Level 2 entities are continuants. The EventChain-record exists in full on disk at every moment it is stored; the Concept depends on that record for its existence.
+EventChain-record ($R$): the serialized, hash-linked JSON/YAML representation---an ICE, a continuant existing in full when stored. Concept ($c$): the GDC depending on the record; it interprets the event sequence to project status, confidence, and validators. Relation ($r$): the record of a relational quality in L3 blocks, an ICE documenting a relationship that held during a specific interval.
 
 \paragraph{Explicit identity axioms.}
-We state the identity conditions for each entity formally:
 \begin{enumerate}[label=Axiom I\arabic*:,leftmargin=3em]
-    \item \textbf{Event identity.} An event is individuated by its UUID:
-    \begin{equation}\label{eq:event-identity}
-        e = e' \iff e.\text{event\_id} = e'.\text{event\_id}
-    \end{equation}
-    Two events with the same content but different \texttt{event\_id}s are distinct occurrents.
-    \item \textbf{Concept identity.} A concept is content-addressed by its genesis event:
-    \begin{equation}\label{eq:concept-identity}
-        c = c' \iff c.\text{genesis\_hash} = c'.\text{genesis\_hash}
-    \end{equation}
-    The \texttt{concept\_id} is a human-readable alias, not the primary identity criterion.
-    \item \textbf{EventChain-record identity.} Two records are identical iff they have the same concept and the same events:
-    \begin{equation}\label{eq:chain-record-identity}
-        R = R' \iff R.\text{concept\_id} = R'.\text{concept\_id} \land \text{events}(R) = \text{events}(R')
-    \end{equation}
-    The record is a structural entity: same content, same identity.
-    \item \textbf{EventChain-process identity.} Two processes are identical iff they have exactly the same events in the same order with the same timestamps:
-    \begin{equation}\label{eq:chain-process-identity}
-        P = P' \iff \text{events}(P) = \text{events}(P') \land \text{order}(P) = \text{order}(P') \land \text{timestamps}(P) = \text{timestamps}(P')
-    \end{equation}
-    The process is extensionally individuated: same temporal parts, same process.
+    \item \textbf{Event identity.} An event is individuated by its UUID: $e = e' \iff e.\text{event\_id} = e'.\text{event\_id}$.
+    \item \textbf{Concept identity.} A concept is content-addressed by its genesis event: $c = c' \iff c.\text{genesis\_hash} = c'.\text{genesis\_hash}$. The \texttt{concept\_id} is a human-readable alias.
+    \item \textbf{EventChain-record identity.} Two records are identical iff they have the same concept and the same events: $R = R' \iff R.\text{concept\_id} = R'.\text{concept\_id} \land \text{events}(R) = \text{events}(R')$.
+    \item \textbf{EventChain-process identity.} Two processes are identical iff they have the same events in the same order with the same timestamps: $P = P' \iff \text{events}(P) = \text{events}(P') \land \text{order}(P) = \text{order}(P') \land \text{timestamps}(P) = \text{timestamps}(P')$.
 \end{enumerate}
 
 \paragraph{Dependence axioms.}
-The two levels are linked by dependence relations:
 \begin{enumerate}[label=Axiom D\arabic*:,leftmargin=3em]
-    \item \textbf{Historical dependence (D1).} A concept historically depends on its genesis event: $c$ would not exist if the \texttt{REGISTER} event that created it had not occurred.
-    \item \textbf{Generic dependence (D2).} A concept generically depends on the EventChain-record: $c$ depends on some ICE bearer, but not on any specific physical copy.
-    \item \textbf{Concretization (D3).} The EventChain-record is concretized by the Markdown file: $R$ is a GDC that is concretized by some material bearer (file on disk, database row, agent cache).
-    \item \textbf{Process-to-record (D4).} The EventChain-process produces the EventChain-record: $P$ causally (not constitutively) brings about $R$. The process is the cause; the record is the effect. The record is not a temporal part of the process, nor is the process a part of the record.
-    \item \textbf{No cross-level identity (D5).} No occurrent is identical to any ICE. This is a BFO constraint: processes and information content entities belong to disjoint top-level categories.
+    \item \textbf{Existential dependence on the record (D1).} $c$ ontologically depends on the EventChain-record $R$: $c$ would not exist if $R$ had not been created. This is a generic dependence on an ICE bearer (D2), not a dependence on the EventChain-process.\footnote{We distinguish causal origin from ontological dependence. The \texttt{REGISTER} event is the \emph{causal origin} of $c$---it brought $c$ into existence---but $c$'s continued existence depends on the ICE record (D2), not on the occurrent process. This avoids the BFO constraint that GDCs cannot depend on occurrents (D5).}
+    \item \textbf{Generic dependence (D2).} $c$ generically depends on the EventChain-record: it depends on an ICE bearer, but not on any specific physical copy.
+    \item \textbf{Concretization (D3).} The EventChain-record is concretized by a material bearer (file, database row, agent cache).
+    \item \textbf{Process-to-record (D4).} The EventChain-process causally produces the EventChain-record.
+    \item \textbf{No cross-level identity (D5).} No occurrent is identical to any ICE (a BFO constraint). Consequently, no GDC can ontologically depend on an occurrent; a GDC may only depend on continuants (including ICEs).
 \end{enumerate}
 
 \paragraph{Resolving the apparent ambiguity.}
-The term ``EventChain'' is ambiguous only in natural language. In the formal ontology, $\text{EventChain\_process}$ and $\text{EventChain\_record}$ are distinct entities with distinct identity conditions (Axioms I3 and I4). The process produces the record (D4); the record bears the concept (D2). A GDC cannot depend on an occurrent (D5), but it can depend on the ICE that documents that occurrent (D2--D3). This two-level account removes the ontological blur identified by the reviewer: there is no category mistake because the Concept depends on the record (a continuant), not on the process (an occurrent).
-
+$\text{EventChain\_process}$ and $\text{EventChain\_record}$ are distinct (Axioms I3--I4); the process causally produces the record (D4), which bears the concept (D2). A GDC cannot ontologically depend on an occurrent (D5), but can depend on the ICE that documents it (D2--D3). The concept's causal origin is traceable to the genesis event (the \texttt{REGISTER} occurrence), but its ontological bearer is the record. This resolves the category mistake.
 \subsubsection{Action as Planned Process / Intentional Event}
 
-ADL Lite's L4 action types (\texttt{REGISTER}, \texttt{VALIDATE}, etc.) are actions in the full philosophical sense: they are intentional events performed by agents for reasons. In BFO, they are \emph{planned processes}: processes that realize a plan \cite{bfo}. In UFO, they are \emph{actions}: intentional events performed by agents to achieve a goal \cite{ufo}.
-
-The precondition system in ADL Lite captures the \emph{plan} aspect: an action can only be performed if certain conditions hold (e.g., \texttt{VALIDATE} requires that status be \texttt{provisional}). This is not merely a computational check; it is an ontological commitment to the idea that actions are governed by norms that constrain which events can occur in which states.
+ADL Lite's L4 action types are \emph{planned processes} in BFO (processes realizing a plan) \cite{bfo} and \emph{actions} in UFO (intentional events performed by agents to achieve goals) \cite{ufo}. The precondition system captures the plan aspect: an action can only be performed if certain conditions hold (e.g., \texttt{VALIDATE} requires status \texttt{provisional}), reflecting ontological norms governing which events are permissible in which states.
 
 \subsection{Identity Conditions}\label{subsec:identity-conditions}
 
-Identity conditions specify when two entities are the same. ADL Lite requires identity conditions for three categories: events, concepts, and chains.
+Identity conditions are formalized in Section~\ref{subsec:two-level-account}: events by UUID (Axiom I1), concepts by genesis hash (Axiom I2), and chains by concept plus ordered events (Axioms I3--I4). Fork creates a new concept (new genesis hash); deprecation and re-activation are status changes, not identity changes. We evaluate the concept's identity through the OntoClean lens \cite{ontoclean}.
 
-\subsubsection{Event Identity}
+\textbf{Registry-item identity versus domain-concept identity.} We distinguish two senses of ``concept'' in ADL Lite. \emph{Registry-item identity} (operational) is fixed by the genesis hash; it is the identity criterion used by the EventChain data structure. Two registry entries with the same genesis hash are the same item, regardless of their content. \emph{Domain-concept identity} (intensional) is determined by the meaning, definition, and extensional content of the capability. Two registry items (different genesis hashes) may refer to the same domain concept (e.g., ``gradient-explosion'' and ``exploding-gradients'' in Section~\ref{subsec:domain-applicability}). The genesis-hash criterion provides \emph{registry-item} identity, not \emph{domain-concept} identity. It is intentionally operational: the registry must distinguish items even when their content is identical (to handle independent discovery by different agents). Domain-level identity is mediated by L3 relations (e.g., \texttt{isomorphic-to}, \texttt{specialisation-of}). This is analogous to a library catalog, in which each entry has a unique ISBN (registry identity) but multiple entries may refer to the same intellectual work (domain identity).
 
-An event $e$ is identical to an event $e'$ if and only if:
-\begin{equation}
-    e = e' \iff e.\text{event\_id} = e'.\text{event\_id}
-\end{equation}
-The \texttt{event\_id} is a UUID generated at event creation time. It is independent of the event's content, timestamp, or chain position. This means that two events with identical content but different \texttt{event\_id}s are \emph{distinct events} (they occurred at different times or in different contexts). This aligns with the intuition that two validation events by the same actor at different times are different events, even if their payloads are identical.
+\textbf{Rigidity.} A concept's genesis hash is essential---it cannot change without the entity ceasing to exist---while its status is non-rigid. This aligns with OntoClean's recommendation to use rigid properties as identity criteria.
 
-The cryptographic hash $e.\text{hash}$ is \emph{not} an identity criterion; it is an integrity criterion. Two events with the same hash have the same content and linkage, and because the \texttt{event\_id} is in the hash input, they must have the same \texttt{event\_id}. In practice, the hash uniquely determines the event's content, but the \texttt{event\_id} is the canonical identifier.
+\textbf{Unity.} A concept is a unified whole individuated by its genesis hash; the \texttt{EventChain}, by contrast, is a mereological sum of events with no unified whole beyond sequential aggregation \cite{ontoclean}.
 
-\subsubsection{Concept Identity}
-
-A concept $c$ is identical to a concept $c'$ if and only if:
-\begin{equation}
-    c = c' \iff c.\text{genesis\_hash} = c'.\text{genesis\_hash}
-\end{equation}
-where $\text{genesis\_hash} = \text{SHA-256}(\text{Canon}(e_1))$ is the cryptographic hash of the genesis (\texttt{REGISTER}) event. The \texttt{concept\_id} (e.g., \texttt{disc-capital-trap}) is a human-readable \emph{alias} assigned at registration time for convenience; it is not the primary identity criterion. Two concepts with different \texttt{concept\_id}s but the same genesis hash are the same concept (this is precluded by construction, because the \texttt{concept\_id} is included in the genesis event's payload and therefore in its hash). Conversely, two concepts with the same \texttt{concept\_id} but different genesis hashes are \emph{different} concepts: they represent independent proposals that happen to share a human-readable label.
-
-This choice reflects an ontological commitment to \emph{content-addressed identity}: a concept is the same concept throughout its lifecycle because it has the same genesis event hash. The \texttt{concept\_id} serves as a rigid designator for human readability, analogous to how a proper name rigidly designates an individual in modal logic, but the \emph{ultimate} identity criterion is the genesis hash.
-
-A forked concept (e.g., \texttt{disc-capital-trap-v2}) is a \emph{different concept} because it has a different genesis event (a fresh \texttt{REGISTER} with a new \texttt{concept\_id} and new hash), even though it is derived from the original. This is analogous to how a biological daughter is a different organism from her mother, even though she derives from her mother's genetic material.
-
-\subsubsection{EventChain Identity}
-
-An EventChain $C$ is identical to an EventChain $C'$ if and only if:
-\begin{equation}
-    C = C' \iff C.\text{concept\_id} = C'.\text{concept\_id} \land \text{events}(C) = \text{events}(C')
-\end{equation}
-Two chains are the same if they have the same \texttt{concept\_id} and the same ordered sequence of events. The cryptographic linkage ensures that the event sequence is ordered, so two chains with the same events in different orders are different chains.
+\textbf{Dependence.} The \texttt{Concept} is generically dependent on the \texttt{EventChain} record: it depends on an ICE bearer for its existence, but not on any specific physical copy \cite{bfo,fine1995ontologicaldependence}. The genesis hash is an essential (rigid) identity criterion: it cannot change without the entity ceasing to exist. However, the existence dependence itself is generic, because the concept can be concretized in multiple copies.
 
 \subsection{Ontological Dependence}\label{subsec:ontological-dependence}
 
-Ontological dependence concerns which entities depend on which others for their existence. ADL Lite exhibits three forms of dependence:
+ADL Lite exhibits three forms of dependence.
 
 \subsubsection{Identity and Dependence Conditions}\label{subsubsec:identity-dependence}
 
-The treatment of Concept as a generically dependent continuant (GDC) that depends on an EventChain raises questions about cross-category dependence that call for precise formulation. We formalize the dependency as:
+The Concept is a GDC depending on the EventChain record:
 \vspace{0.3em}
 \begin{center}
 \textsf{Concept} $\; \xrightarrow{\text{GDC}} \;$ \textsf{ICE}(\textsf{EventChain\_record}) $\; \xrightarrow{\text{concretized\_by}} \;$ \textsf{Markdown\_file}
 \end{center}
 \vspace{0.3em}
-The Concept depends on an \emph{information content entity} (ICE)---the serialized EventChain record---which is itself a GDC concretized by the Markdown file on disk. The events occurring in the chain are occurrents; the Concept does not depend on them directly, but on the ICE that records them. This resolves the apparent category mismatch: a GDC cannot depend on an occurrent, but it can depend on the ICE that documents that occurrent.
 
-\textbf{What does the Concept depend on?} A Concept in ADL Lite depends on the \emph{information artifact} (the serialized EventChain record) rather than on the occurrent (the process of events occurring). This is consistent with BFO's GDC criteria: a GDC depends on some continuant bearer but is not identical to any particular bearer. The EventChain is the bearer---a structured information entity that encodes the history of occurrents. The Concept (as GDC) is the \emph{interpretation} of that history: the rules that project status, confidence, and validators from the event sequence.
+A Concept depends on the information artifact (the serialized EventChain record) rather than on the occurrent process of events. This is consistent with BFO's constraint that GDCs cannot depend on occurrents. Its identity is fixed by the genesis event. As a GDC, it can be concretized in multiple copies (Git repositories, local files, and agent caches) without loss of identity. If all copies are lost but later restored from backup, the Concept persists because the genesis hash is unchanged. A Concept ceases to exist only when all concretizations are irreversibly destroyed \emph{and} no agent retains information to reconstruct the chain. This high bar reflects the durability of distributed, hash-addressed systems.
 
-\textbf{Why not depend on the occurrent directly?} In BFO, GDCs cannot depend on occurrents because occurrents lack the stability required for generic dependence. ADL Lite respects this constraint by making the Concept depend on the \emph{record} of events (an information content entity, which is a continuant), not on the events themselves (occurrents). The EventChain is a generically dependent continuant in its own right: it exists in virtue of being encoded in some physical medium (file, database), but not in virtue of any \emph{specific} medium.
+\subsubsection{Causal Origin and Ontological Dependence of the Concept}
 
-\textbf{Identity conditions.} A Concept's identity is determined by its genesis event---the \texttt{REGISTER} event that first introduces the \texttt{concept\_id}. This aligns with BFO's identity criteria for GDCs: identity is conferred by the process of creation (the genesis event), not by the current state of the bearer. Two EventChains with the same \texttt{concept\_id} and genesis event hash represent the same Concept, even if their subsequent events diverge (in which case they are \emph{forks} of the same Concept, each carrying the original identity into a distinct lineage).
-
-\textbf{Dependence on genesis event.} The dependence relation is not merely historical but \emph{constitutive}: without the genesis event, there is no Concept, because there is no \texttt{concept\_id} to serve as the rigid designator. This is analogous to how a novel depends on its first publication: subsequent editions may vary, but the identity of the work is fixed by the original publication event.
-
-\textbf{Multiple concretizations.} As a GDC, a Concept can be concretized in multiple copies. An EventChain may be replicated across several Git repositories, local filesystems, and agent caches simultaneously. In BFO terms, each copy is a distinct \emph{concretization} of the same ICE, and therefore the same Concept. The identity of the Concept is determined by the \emph{information content} of the genesis event (specifically, the SHA-256 hash of the genesis event's canonical serialization), not by which specific copy is accessed. Two agents with independent copies of the same EventChain refer to the same Concept, because the genesis event hash is identical across copies. This parallels how a poem (GDC) exists in multiple printed books: each book is a different concretization, but the poem is the same work.
-
-\textbf{Identity persistence across re-materialization.} If all copies of an EventChain are lost (e.g., Git repository deleted) but later restored from a backup or reconstructed from a peer agent's copy, the Concept's identity persists. The restored copy has the same genesis event hash, and therefore the same \texttt{concept\_id}. In BFO terms, the GDC (the Concept) continues to exist because at least one concretization exists. Identity is robust to gap periods where no concretization is accessible, provided that at least one copy is recoverable. This is consistent with how a lost manuscript, if rediscovered, restores the existence of the work it instantiates.
-
-\textbf{Cessation of existence.} A Concept ceases to exist in the BFO sense when and only when: (i) all concretizations (copies of the EventChain across all repositories and agent caches) are irreversibly destroyed with no possibility of recovery; and (ii) no agent retains sufficient information to reconstruct the EventChain (i.e., the genesis event hash and the full event sequence cannot be recovered from any source). Condition (ii) is extremely restrictive in practice: a single agent's memory of the genesis event hash is sufficient to validate any subsequently recovered copy. This is a high bar for cessation---intentional rather than accidental---and reflects the durability inherent in distributed, hash-addressed information systems.
-
-\subsubsection{Historical Dependence of Concept on EventChain}
-
-A concept $c$ \emph{historically depends} on its EventChain $C$: $c$ would not exist if $C$ had not been created. This is a form of \emph{rigid existential dependence} \cite{fine1995ontologicaldependence}: the concept cannot exist without the chain. The dependence is historical because the concept's identity is determined by the genesis event in the chain.
-
-This dependence is asymmetric: the chain can exist without the concept (in the trivial sense that the chain is the concept's history). But the concept cannot exist without the chain because the concept \emph{is} its history.
+A concept $c$ \emph{causally originates from} the EventChain-process $C$ that generated it: the genesis \texttt{REGISTER} event brought $c$ into existence. However, $c$ \emph{ontologically depends} only on the EventChain-record $R$ (an ICE), not on the EventChain-process $C$ (an occurrent). This distinction is critical: the causal origin is an unrepeatable historical fact (the genesis event occurred at a specific time), whereas the ontological dependence is a repeatable bearer relationship (the concept can be concretized in multiple copies of $R$). The genesis event cannot be replaced by another without $c$ becoming a different entity \cite{fine1995ontologicaldependence}, but this is an identity criterion, not an ontological dependence on the occurrent. A GDC cannot existentially depend on an occurrent (Axiom D5), so we frame the relationship to the process as \emph{causal origin}, not as \emph{existential dependence}. The ``generic dependence'' on the EventChain-record (D2) captures the ontological bearer relationship.
 
 \subsubsection{Generic Dependence of Status on Events}
 
-A concept's status $s$ (e.g., \texttt{validated}) \emph{generically depends} on the events in its chain: $s$ depends on there being at least one \texttt{VALIDATE} event, but not on any \emph{specific} \texttt{VALIDATE} event. If a different agent had performed the validation at a different time, the status would still be \texttt{validated}. This is analogous to how a BFO generically dependent continuant depends on some bearer but not on any specific bearer.
+A concept's status $s$ (e.g., \texttt{validated}) \emph{generically depends} on the events in its chain: $s$ depends on the existence of at least one \texttt{VALIDATE} event, but not on any \emph{specific} \texttt{VALIDATE} event. If a different agent had performed the validation at a different time, the status would still be \texttt{validated}.
 
 \subsubsection{Mutual Dependence of Relations on Concepts}
 
-A relation $r$ between concepts $c_1$ and $c_2$ \emph{mutually depends} on both concepts: $r$ cannot exist if either $c_1$ or $c_2$ ceases to exist. This is a form of \emph{mutual rigid dependence} \cite{fine1995ontologicaldependence}. If \texttt{concept-A} is deprecated and removed from the corpus, the relation ``\texttt{concept-A} isomorphic-to \texttt{concept-B}'' ceases to hold, even if \texttt{concept-B} still exists.
+A relation $r$ between concepts $c_1$ and $c_2$ \emph{mutually depends} on both concepts: $r$ cannot exist if either ceases to exist. This is mutual rigid dependence \cite{fine1995ontologicaldependence}. If \texttt{concept-A} is deprecated, the relation ``\texttt{concept-A} isomorphic-to \texttt{concept-B}'' ceases to hold, even if \texttt{concept-B} still exists.\par
+We formalize these dependence patterns as an OWL~2 DL alignment fragment in the next subsection.
 
-\subsection{Comparison with Upper Ontologies: Alignment Choices and Deviations}\label{subsec:alignment-deviations}
+\subsection{Formal Alignment Fragment: OWL~2 DL Axiomatization}\label{subsec:formal-alignment}
 
-Table~\ref{tab:upper-ontology-mapping} reveals three intentional deviations from standard upper-ontology practice:
+The fragment declares \texttt{adl:Event} $\sqsubseteq$ \texttt{bfo:occurrent} and \texttt{adl:EventChain} $\sqsubseteq$ \texttt{bfo:process}, with \texttt{adl:follows} linking temporal parts. It further declares \texttt{adl:Concept} $\sqsubseteq$ \texttt{bfo:generically\_dependent\_continuant}, concretized by an \texttt{EventChain\_Record}, and \texttt{adl:hasPreviousHash} / \texttt{adl:hasSHA256Hash} as datatype properties. The complete OWL~2 DL file is provided as supplementary material (available in the repository's \texttt{supplementary/} directory), where it has been syntax-checked but not yet validated with ROBOT consistency checking. It is intended as a \emph{conceptual alignment anchor}---a starting point for interoperability with BFO-based tools. It is not a complete operational encoding of the derivation functions, which require aggregation over event sequences and exceed OWL~2 DL expressivity (NExpTime-complete). Full bidirectional import/export (Turtle and RDF/XML) is implemented (\texttt{owl\_export.py} / \texttt{owl\_import.py}); automated BFO/DOLCE/UFO alignment and ROBOT validation are deferred to future work (FW1).
 
-\textbf{Deviation 1: No distinction between continuants and occurrents at the language level.} In BFO and DOLCE, the distinction between continuants and occurrents is a \emph{metaphysical} distinction, encoded in the ontology language (OWL, FOL), which enforces that continuants cannot be subclasses of occurrents. ADL Lite does not enforce this distinction at the language level; it is a \emph{conceptual} distinction that is enforced by the event model. A Concept is fundamentally a continuant (a GDC), while its EventChain is an occurrent (a process). The same concept can be described by its persistent identity (as continuant) or by its unfolding history (as occurrent process), without requiring multiple representations.
+\subsection{Comparison with Upper Ontologies: Alignment Choices, Deviations, and Costs}\label{subsec:alignment-deviations}
 
-\textbf{Deviation 2: No explicit quality hierarchy.} BFO and DOLCE both have elaborate hierarchies of qualities (intrinsic, relational, qualitative, etc.). ADL Lite does not model qualities explicitly; instead, qualities are encoded as payload fields in events. For example, ``confidence'' is not a quality that inheres in the concept; it is a value carried by \texttt{VALIDATE} events. This simplifies the ontology but loses the ability to reason about qualities independently of events.
+Table~\ref{tab:upper-ontology-mapping} identifies three intentional deviations.
 
-\textbf{Deviation 3: Actions as first-class citizens, not subordinate to objects.} In BFO, actions are a subclass of processes. In ADL Lite, actions are \emph{co-equal} with objects at the language level: the action registry is defined before the object hierarchy. This reflects the event-first stance: actions are not operations \emph{on} continuants; they are the fundamental units of ontological reality, and continuants are projections of event patterns.
+\textbf{Deviation 1: No distinction between continuants and occurrents at the language level.} BFO and DOLCE encode the continuant--occurrent distinction in the ontology language (OWL, FOL) \cite{bfo,dolce}; ADL Lite enforces it conceptually through the event model, without requiring multiple representations. This means ADL Lite's alignment with BFO is \emph{conceptual guidance} rather than strict commitment: the system follows BFO's categorical distinctions in its design, but does not import BFO modules directly or rely on OWL reasoners for enforcement. \emph{Interoperability cost:} OWL export requires a translation layer for BFO module import.
 
-These deviations are not arbitrary simplifications; they are motivated by the target application domain (multi-agent concept governance). In a domain where agents create, validate, and deprecate concepts at high velocity, the action-centric view provides a more natural modeling framework than the object-centric view. The cost is that ADL Lite cannot directly import BFO or DOLCE modules without translation; the benefit is that the ontology is optimized for its intended use case.
+\textbf{Deviation 2: No explicit quality hierarchy.} BFO and DOLCE have elaborate quality hierarchies \cite{bfo,dolce}; ADL Lite encodes qualities as payload fields in events (e.g., ``confidence'' is a value carried by \texttt{VALIDATE} events). \emph{Interoperability cost:} DOLCE's quality taxonomy cannot be directly reused; domain-specific extensions require explicit mapping from payload fields to quality classes.
+
+\textbf{Deviation 3: Actions as first-class citizens.} In BFO, actions are a subclass of processes; in ADL Lite, they are co-equal with objects at the language level, reflecting the event-first stance. \emph{Interoperability cost:} direct reuse of UFO-B's process hierarchy is prevented, but UFO-B's ``Institutional Event'' category \cite{guizzardi2024ufob} remains compatible. ADL Lite's precondition language is a decidable, non-recursive fragment (Comparator enumeration with explicit lambda dispatch, no quantification) that sacrifices full FOL expressivity to guarantee $O(1)$ evaluation. Each precondition rule $\langle f, k, v \rangle$ is equivalent to a ground atomic comparison $k(f(x), v)$; the conjunction of rules is a variable-free conjunction of such atoms, evaluated in polynomial time. Consequently, ADL Lite preconditions constitute a \emph{tractable specialisation} of UFO-B's FOL framework.
+
+\textbf{Deviation 4: Historical vs. ontological dependence.} We distinguish the causal origin of a concept (traceable to the genesis event, an occurrent) from its ontological bearer (the EventChain-record, an ICE). The concept is a GDC that depends on the record (D2), not on the process (D5). This avoids the category mistake of making a GDC existentially depend on an occurrent. The ``historical'' or ``genetic'' relationship to the process is a causal narrative, not an ontological dependence in the Fine/BFO sense.

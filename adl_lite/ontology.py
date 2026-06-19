@@ -156,6 +156,41 @@ class OntologyManager:
         return result
 
 
+
+class UnityCriterion:
+    """OntoClean unity meta-property annotations (forward compatibility)."""
+
+    UNIFIED = "unified"
+    NON_UNIFIED = "non_unified"
+
+
+class DependenceMetaProperty:
+    """OntoClean dependence meta-property annotations (forward compatibility)."""
+
+    RIGID_EXISTENTIAL = "rigid_existential"
+    GENERIC = "generic"
+    HISTORICAL = "historical"
+
+
+class OntoCleanEvaluator:
+    """Minimal OntoClean evaluator for ADL Lite concepts (forward compatibility)."""
+
+    @staticmethod
+    def evaluate_rigidity(concept: Any) -> bool:
+        """Return True: a concept's genesis hash is rigid (essential identity)."""
+        return True
+
+    @staticmethod
+    def evaluate_unity(concept: Any) -> bool:
+        """Return True: a concept is individuated by a single genesis hash."""
+        return True
+
+    @staticmethod
+    def evaluate_dependence(concept: Any) -> bool:
+        """Return True: a concept depends on its EventChain record."""
+        return True
+
+
 @lru_cache(maxsize=1)
 def default_ontology() -> OntologyManager:
     """Shared OntologyManager for strict validation (loads once per process)."""

@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 from .consensus import ConsensusEngine
-from .exceptions import ADLConsensusError
+from .exceptions import ADLConsensusError, ADLTemplateError
 from .memory import ADLMemory
 from .models import DiscoveryStatus, Event, EventChain
 from .ontology import OntologyManager
@@ -80,8 +80,8 @@ def _save_engine(engine: ConsensusEngine, state_path: Path) -> None:
 
 def _cmd_parse(args: argparse.Namespace) -> int:
     try:
-        doc = parse_file(args.file)
-    except (ADLParseError, OSError, ValueError) as exc:
+        doc = parse_file(args.file, strict_template=getattr(args, "strict_template", False))
+    except (ADLParseError, OSError, ValueError, ADLTemplateError) as exc:
         print(f"parse error: {exc}", file=sys.stderr)
         return 1
 
@@ -107,8 +107,8 @@ def _cmd_validate(args: argparse.Namespace) -> int:
     for path_str in args.files:
         path = Path(path_str)
         try:
-            doc = parse_file(path)
-        except (ADLParseError, OSError, ValueError) as exc:
+            doc = parse_file(path, strict_template=getattr(args, "strict_template", False))
+        except (ADLParseError, OSError, ValueError, ADLTemplateError) as exc:
             print(f"{path}: parse error: {exc}", file=sys.stderr)
             any_errors = True
             continue
@@ -127,8 +127,8 @@ def _cmd_validate(args: argparse.Namespace) -> int:
 
 def _cmd_store(args: argparse.Namespace) -> int:
     try:
-        doc = parse_file(args.file)
-    except (ADLParseError, OSError, ValueError) as exc:
+        doc = parse_file(args.file, strict_template=getattr(args, "strict_template", False))
+    except (ADLParseError, OSError, ValueError, ADLTemplateError) as exc:
         print(f"store error: {exc}", file=sys.stderr)
         return 1
 
@@ -159,8 +159,8 @@ def _cmd_consensus_register(args: argparse.Namespace) -> int:
 
     if args.file:
         try:
-            doc = parse_file(args.file)
-        except (ADLParseError, OSError, ValueError) as exc:
+            doc = parse_file(args.file, strict_template=getattr(args, "strict_template", False))
+        except (ADLParseError, OSError, ValueError, ADLTemplateError) as exc:
             print(f"register error: {exc}", file=sys.stderr)
             return 1
         adl_id = doc.adl_id
@@ -298,8 +298,8 @@ def _cmd_ontology_validate(args: argparse.Namespace) -> int:
     any_errors = False
     for path in paths:
         try:
-            doc = parse_file(path)
-        except (ADLParseError, OSError, ValueError) as exc:
+            doc = parse_file(path, strict_template=getattr(args, "strict_template", False))
+        except (ADLParseError, OSError, ValueError, ADLTemplateError) as exc:
             print(f"{path}: parse error: {exc}", file=sys.stderr)
             any_errors = True
             continue
@@ -314,6 +314,47 @@ def _cmd_ontology_validate(args: argparse.Namespace) -> int:
             print(f"{path}: OK")
 
     return 1 if any_errors else 0
+
+
+def _cmd_anchor(args: argparse.Namespace) -> int:
+    from .key_registry import TransparencyAnchor
+
+    state_path = Path(args.state)
+    engine = _load_engine(state_path)
+
+    if not engine.chains:
+        print("no chains to anchor", file=sys.stderr)
+        return 1
+
+    chains = list(engine.chains.values())
+    anchor = TransparencyAnchor(args.output)
+    value = anchor.anchor(chains)
+    print(f"anchored {len(chains)} chains -> {args.output} ({value})")
+    return 0
+
+
+def _cmd_verify_anchor(args: argparse.Namespace) -> int:
+    from .key_registry import TransparencyAnchor
+
+    anchor = TransparencyAnchor(args.file)
+    if args.commit:
+        ok = anchor.verify_anchor_at_commit(args.commit)
+        if ok:
+            print(f"anchor verified at commit {args.commit}")
+            return 0
+        print(f"anchor NOT verified at commit {args.commit}", file=sys.stderr)
+        return 1
+
+    if not anchor.anchor_path.exists():
+        print("anchor file not found", file=sys.stderr)
+        return 1
+
+    ok = anchor.verify_anchor()
+    if ok:
+        print("anchor OK")
+        return 0
+    print("anchor MISMATCH", file=sys.stderr)
+    return 1
 
 
 def _cmd_consensus_verify(args: argparse.Namespace) -> int:
@@ -339,6 +380,12 @@ def _build_parser() -> argparse.ArgumentParser:
         description="ADL Lite — parse, validate, store, and manage capability lifecycle consensus",
     )
     sub = parser.add_subparsers(dest="command", required=True)
+
+    parser.add_argument(
+        "--strict-template",
+        action="store_true",
+        help="Enforce strict L2 template validation on all parsed documents",
+    )
 
     p_parse = sub.add_parser("parse", help="Parse an ADL Markdown file")
     p_parse.add_argument("file", help="Path to .md document")
@@ -458,6 +505,16 @@ def _build_parser() -> argparse.ArgumentParser:
     p_verify.add_argument("adl_id", help="Capability adl_id")
     p_verify.add_argument("--state", default=None, help="Consensus state JSON path")
     p_verify.set_defaults(func=_cmd_consensus_verify)
+
+    p_anchor = sub.add_parser("anchor", help="Compute transparency anchor over consensus chains")
+    p_anchor.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_anchor.add_argument("--output", default="ANCHOR.md", help="Anchor file path")
+    p_anchor.set_defaults(func=_cmd_anchor)
+
+    p_verify_anchor = sub.add_parser("verify-anchor", help="Verify transparency anchor")
+    p_verify_anchor.add_argument("--file", default="ANCHOR.md", help="Anchor file path")
+    p_verify_anchor.add_argument("--commit", default=None, help="Git commit hash")
+    p_verify_anchor.set_defaults(func=_cmd_verify_anchor)
 
     return parser
 

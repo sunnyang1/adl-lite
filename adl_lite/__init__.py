@@ -28,8 +28,20 @@ Quick Start:
 
 __version__ = "0.2.0"
 
+from .relation_validator import RelationValidator
+from .key_registry import KeyRegistry, GitSignatureVerifier, TransparencyAnchor
+from .did_resolver import resolve_did_key, verify_did_signature, is_did, create_did_key
+from .owl_import import parse_owl_turtle, parse_owl_rdfxml
+from .rdfstar_export import document_to_rdfstar_turtle, sparqlstar_query_template
 from .action_executor import ActionExecutor
+from .calibration import (
+    CalibrationProfile,
+    MARGINCalibrator,
+    aggregated_confidence,
+    calibrated_confidence,
+)
 from .consensus import ConsensusEngine, ForkManager, ForkResolution
+from .crdt import CRDTState, StatusOrder, merge_event_chains
 from .exceptions import (
     ADLConfigError,
     ADLConsensusError,
@@ -37,10 +49,14 @@ from .exceptions import (
     ADLMemoryError,
     ADLOntologyError,
     ADLParseError,
+    ADLTemplateError,
     ADLValidationError,
 )
+from .jsonld_export import export_jsonld
 from .logging_config import get_logger
 from .memory import ADLMemory, HotIndex, WarmIndex
+from .near_duplicate import check_near_duplicate, suggest_merge
+from .owl_export import export_owl
 
 # FDE Platform extensions (optional — imports are safe even if modules don't exist yet)
 try:
@@ -50,6 +66,7 @@ except ImportError:
     pipeline_engine = None  # type: ignore[assignment]
     agent_runner = None  # type: ignore[assignment]
 
+from .l2_template import L2Template, L2TemplateValidator
 from .models import (
     ActionDef,
     ActionExecStatus,
@@ -104,6 +121,40 @@ __all__ = [
     "ExecutionEntry",
     "MechanismType",
     "PreconditionRule",
+    # Calibration
+    "CalibrationProfile",
+    "MARGINCalibrator",
+    "aggregated_confidence",
+    "calibrated_confidence",
+    # CRDT
+    "CRDTState",
+    "StatusOrder",
+    "merge_event_chains",
+    # DID / Key Registry
+    "KeyRegistry",
+    "GitSignatureVerifier",
+    "TransparencyAnchor",
+    "resolve_did_key",
+    "verify_did_signature",
+    "is_did",
+    "create_did_key",
+    # Relation Validator
+    "RelationValidator",
+    # OWL Import
+    "parse_owl_turtle",
+    "parse_owl_rdfxml",
+    # RDF-star Export
+    "document_to_rdfstar_turtle",
+    "sparqlstar_query_template",
+    # Export
+    "export_owl",
+    "export_jsonld",
+    # Near-duplicate
+    "check_near_duplicate",
+    "suggest_merge",
+    # L2 Template
+    "L2Template",
+    "L2TemplateValidator",
     # Validator
     "ADLValidator",
     # Ontology
@@ -128,4 +179,5 @@ __all__ = [
     "ADLConsensusError",
     "ADLMemoryError",
     "ADLConfigError",
+    "ADLTemplateError",
 ]

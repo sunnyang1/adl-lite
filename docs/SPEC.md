@@ -1,5 +1,11 @@
 # ADL Lite — Normative Specification (v0.1)
 
+> **⚠️ 过时警告 (Outdated):** 本文档为 v0.1 规范，缺少 L4 动作层、校准层、CRDT、近重复检测、冷存储、DID 集成等 v0.2.0 功能。当前项目状态请参考:
+> - **权威指南:** `AGENTS.md` (v0.2.0, 代码-论文对齐, 716 测试, 9 定理)
+> - **生存路径:** `SURVIVAL_PATH.md` (最新执行追踪)
+> - **论文:** `docs/paper_ao/` (Applied Ontology 提交, 39页)
+> - **代码本体:** `adl_lite/adl_core_ontology.yaml` (操作本体, v0.2)
+
 This document is the authoritative syntax and semantics reference for **ADL Lite** (Agent Discovery Language, Lite edition). It aligns with `adl_lite/models.py` and supersedes the long design transcript for day-to-day implementation.
 
 **URI namespaces** (logical, used in relation targets and documentation):

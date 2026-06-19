@@ -9,6 +9,7 @@ from __future__ import annotations
 import pytest
 
 from adl_lite import (
+    ADLConsensusError,
     ADLDocument,
     ADLEvidenceBlock,
     ADLFormalSealBlock,
@@ -279,7 +280,7 @@ class TestConsensus:
         engine.transition(doc.adl_id, DiscoveryStatus.VALIDATED, actor="test")
 
         # validated → provisional is INVALID
-        with pytest.raises(ValueError):
+        with pytest.raises(ADLConsensusError):
             engine.transition(doc.adl_id, DiscoveryStatus.PROVISIONAL, actor="test")
 
     def test_chain_integrity(self):

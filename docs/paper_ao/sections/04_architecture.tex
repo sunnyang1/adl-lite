@@ -1,3 +1,7 @@
+% =============================================================================
+% Section 4: Architecture and Formal Semantics (RESTRUCTURED)
+% =============================================================================
+
 \subsection{Document Model: L1--L4 as Conceptual Modeling Layers}\label{subsec:document-model}
 
 ADL Lite organizes capability documents into four semantic layers, each with distinct syntax, role, and corresponding event types. The layering separates identity metadata (L1), narrative content (L2), typed assertions (L3), and executable actions (L4), enabling both human readability and machine processing within a single Markdown file. Table~\ref{tab:document-model} summarizes the document model.
@@ -18,114 +22,148 @@ L4 & \texttt{adl:action} & Typed actions with preconditions & REGISTER, VALIDATE
 \end{tabular}
 \end{table}
 
-The L1 layer comprises YAML front matter containing identity metadata: \texttt{adl\_type}, \texttt{adl\_id}, \texttt{status}, \texttt{confidence}, \texttt{novelty}, \texttt{scope}, and \texttt{provisional\_names}. Critically, the L1 fields are \emph{derived snapshots} recomputed from the EventChain, not sources of truth. A discrepancy between L1 \texttt{status} and the chain-derived status indicates an incomplete event history in the source document.
+The L1 layer comprises YAML front matter containing identity metadata; critically, these fields are \emph{derived snapshots} recomputed from the EventChain. The L2 layer consists of Markdown body prose subject to the Singular Subjectivity Assertion (SSA).
 
-The L2 layer consists of the Markdown body: human- and LLM-readable prose. The Singular Subjectivity Assertion (SSA) prohibits fuzzy referents---including pronouns such as ``this,'' ``that,'' ``it''---that would compromise cross-agent alignment \cite{foam2020}. SSA is configurable: \texttt{strict} mode enforces explicit reference for all agent-authored content, while \texttt{lax} mode permits natural pronoun use for human-authored narrative.
+\textbf{Definition (SSA).} The Singular Subjectivity Assertion is a document-level constraint stating that every L2 Markdown body is authored by a single actor at a single time. It is enforced not by the ActionExecutor (which governs L4 events), but by the parser: any L2 section containing multiple contradictory subjective claims without explicit attribution is flagged as an SSA violation. The SSA ensures that the L2 narrative layer remains traceable to a single source of subjectivity, preventing ``ghost-authored'' reasoning that cannot be traced to an event. Contradictory subjective assertions must be recorded as separate L4 events (e.g., \textsc{Evidence} or \textsc{Relate}) by different actors. Full machine-checkable enforcement of SSA is planned via SHACL shape validation (FW6).
 
-The L3 layer introduces typed semantic assertions through fenced code blocks: \texttt{adl:relation} for typed edges between capabilities (supporting predicates such as \texttt{isomorphic-to} and \texttt{specialisation-of}), \texttt{adl:evidence} for evidentiary support, and \texttt{adl:seal} for formal assertions. These blocks are machine-parseable RDF-like triples that remain editable in ordinary text editors.
+The L3 layer introduces typed semantic assertions through fenced blocks supporting predicates such as \texttt{isomorphic-to}, \texttt{specialisation-of}, and \texttt{related-to}, with lifecycle operations (establishment, modification, revocation) recorded as \texttt{RELATE} events. These predicates serve a dual purpose: they express domain relationships between concepts, and they provide a mechanism for linking near-duplicate concepts that may arise from multi-agent authoring. For example, if two agents independently register ``gradient-explosion'' and ``exploding-gradients'', the recommended workflow is to detect the near-duplicate by string similarity and link them with the strongest applicable predicate (\texttt{isomorphic-to} for structural equivalence). If one concept is strictly superior, the other is marked as \texttt{deprecated} with a \texttt{FORK} or \texttt{RELATE} event pointing to the canonical concept. Automated canonicalisation via embedding clustering is deferred to future work (FW7).
 
-\subsubsection{L3 Relation Lifecycle Operations}\label{subsubsec:l3-lifecycle}
-
-ADL Lite's L3 relation blocks support three lifecycle operations: \emph{establishment}, \emph{modification}, and \emph{revocation}. Each operation is recorded as an event in the capability's EventChain, enabling full provenance tracking for relational assertions.
-
-\textbf{Establishment.} A relation is established by a \texttt{RELATE} event with fields: \texttt{source}, \texttt{relation} (predicate from closed registry), \texttt{target}, optional \texttt{confidence}, and optional \texttt{mapping\_type}. The relation becomes part of the capability's derived state. The precondition requires that the \texttt{relation} predicate be registered in \texttt{adl\_core\_ontology.yaml} (strict mode) or be accepted with a warning (relaxed mode).
-
-\textbf{Modification.} A relation's confidence or mapping type can be modified by a subsequent \texttt{RELATE} event with the same \texttt{source}, \texttt{relation}, and \texttt{target} but different \texttt{confidence} or \texttt{mapping\_type}. The new event \emph{supersedes} the previous one: derived queries return the most recent value. Both events remain in the chain for audit purposes. This is analogous to SQL UPDATE with full audit logging.
-
-\textbf{Revocation.} A relation is revoked by a \texttt{RELATE} event with the same \texttt{source}, \texttt{relation}, and \texttt{target}, but with \texttt{confidence = 0.0} or a special \texttt{revoked: true} flag. The relation is excluded from derived state. The revocation itself is cryptographically linked to the original establishment event via the chain, providing tamper-evident revocation provenance.
-
-\textbf{Truth maintenance under forks.} When a capability forks, all active relations from the parent chain are \emph{inherited} by the child chain at the fork point. Subsequent modifications in either lineage do not affect the other---each fork maintains its own relation state. This is consistent with the fork semantics: a fork is a competing interpretation, and competing interpretations may have different relational assertions about the same entities.
-
-\textbf{Conflicting relation assertions.} If two agents assert contradictory relations (e.g., A says ``X isomorphic-to Y'' with confidence 0.9, B says ``X unrelated-to Y'' with confidence 0.8), both events are appended to the chain. The derived state includes both assertions (they are not mutually exclusive at the event level), and downstream consumers must apply their own resolution logic. ADL Lite provides the \emph{provenance infrastructure} for conflict detection but does not prescribe a single resolution strategy---this is a deliberate design choice to accommodate diverse domain requirements.
-
-Finally, the L4 layer introduces \texttt{adl:action} blocks: typed actions with structured precondition rules that govern lifecycle transitions and trigger side effects. The four-layer design enables a single Markdown file to serve simultaneously as human-readable documentation, LLM authoring surface, machine-parseable semantic assertion container, and auditable action log.
+\textbf{Invariant 2 (L3 Relation Reconciliation).} When either the source or target concept of a \texttt{RELATE} event undergoes a state transition to \texttt{deprecated} or \texttt{archived}, the relation's validity is determined by the status of both endpoint concepts. A relation is valid only if at least one endpoint is in \texttt{validated} status and neither endpoint is in \texttt{archived} or \texttt{deprecated} status. Let $r$ be a relation with predicate $p$ from concept $C_1$ to concept $C_2$, and let $S(C)$ denote the current lifecycle status of concept $C$. Then:
+\begin{align}
+    \text{valid}(r) \iff S(C_1) \notin \{\text{archived}, \text{deprecated}\} \land S(C_2) \notin \{\text{archived}, \text{deprecated}\} \land \bigl(S(C_1) = \text{validated} \lor S(C_2) = \text{validated}\bigr).
+\end{align}
+Relations with at least one endpoint in \texttt{validated} status and no endpoint in \texttt{archived} or \texttt{deprecated} status remain valid for query and traversal; relations between two \texttt{provisional} concepts, or where either endpoint is \texttt{deprecated} or \texttt{archived}, are excluded from the warm index. If a forked concept $C'$ is created via a \texttt{FORK} event from $C$, the parent concept retains all existing relations, while $C'$ inherits \texttt{isomorphic-to} and \texttt{specialisation-of} links from $C$ but not \texttt{analogical-to} links, which are re-evaluated during the forking agent's validation workflow. This invariant ensures that the relation graph remains navigable during multi-agent reorganisation and that stale or superseded edges do not pollute semantic queries.
 
 \subsection{EventChain: Core Data Structure}\label{subsec:eventchain}
 
-The EventChain is the fundamental data structure of ADL Lite. Each ontological capability is represented by exactly one EventChain: an append-only sequence of cryptographically linked events.
+The EventChain is the fundamental data structure of ADL Lite: an append-only sequence of cryptographically linked events. An event comprises ten fields: \texttt{event\_id}, \texttt{concept\_id}, \texttt{event\_type}, \texttt{actor}, \texttt{reasoning}, \texttt{timestamp}, \texttt{payload}, \texttt{previous\_event\_id}, \texttt{hash}, and an optional \texttt{signature} (for Ed25519 signature verification, \S\ref{subsec:trust-model}). The event type system is partitioned into lifecycle events $\Sigma_{\text{life}}$ and communication events $\Sigma_{\text{comm}}$:
 
-An \emph{event} $e$ is a structured record comprising nine fields. These are: \texttt{event\_id}, a UUID-derived unique identifier; \texttt{concept\_id}, the concept to which the event belongs; \texttt{event\_type}, drawn from a closed set of lifecycle, assertion, and communication types; \texttt{actor}, the entity causing the event; \texttt{reasoning}, a justification; \texttt{timestamp}, an ISO-8601 occurrence time; \texttt{payload}, event-specific key-value data; \texttt{previous\_event\_id}, a cryptographic link to the preceding event; and \texttt{hash}, a SHA-256 digest of serialized content.
-
-The event type system is partitioned into two disjoint sets:
 \begin{align}
     \Sigma_{\text{life}} &= \{\text{REGISTER},\; \text{VALIDATE},\; \text{DEPRECATE},\; \text{FORK},\; \text{ARCHIVE}\} \\
-    \Sigma_{\text{comm}} &= \{\text{RELATE},\; \text{EVIDENCE},\; \text{SEAL},\; \text{ANNOUNCE},\; \text{PUBLISH},\; \text{SNAPSHOT}\}
+    \Sigma_{\text{comm}} &= \{\text{RELATE},\; \text{EVIDENCE},\; \text{SEAL},\; \text{ANNOUNCE},\; \text{PUBLISH},\; \text{SNAPSHOT}, \nonumber \\
+    &\qquad\; \text{CALIBRATE},\; \text{SYNC\_DASHBOARD},\; \text{LISTEN}\}
 \end{align}
-Lifecycle events affect capability status; communication events do not. This partition is central to the derivation semantics (Section~\ref{subsec:formal-semantics}).
 
 \subsection{Canonical Serialization and Cryptographic Integrity}\label{subsec:crypto}
 
-Each event's hash is computed over a canonical JSON serialization with the following properties: (i) keys are sorted lexicographically; (ii) floating-point values are rounded to six decimal places; (iii) all fields including the timestamp are included in the serialization; (iv) the hash field itself is excluded to avoid circular reference.
+Each event's hash is computed from canonical JSON serialization with lexicographically sorted keys, six-decimal rounding, and the timestamp. The canonicalization policy is version-locked in the codebase: a schema version identifier (e.g., \texttt{canon-v1}) is included in the hash input, ensuring that future changes to rounding precision or key ordering do not retroactively invalidate existing hashes. If a new canonicalization version is introduced, old chains remain valid under their original version, while new chains adopt the updated policy. This prevents identity drift when serialization conventions evolve. Integrity verification $\text{VerifyIntegrity}(C)$ checks four conditions for a chain $C = [e_1, \ldots, e_n]$. These are: (1)~genesis anchoring ($e_1.\text{previous\_event\_id} = \text{null}$ unless an ARCHIVE event is present), (2)~cryptographic linkage ($e_i.\text{prev\_hash} = e_{i-1}.\text{hash}$), (3)~hash correctness ($e_i.\text{hash} = \text{SHA-256}(\text{Canon}(e_i))$), and (4)~no dangling \texttt{previous\_event\_id} on the genesis event. When $\text{full}=\text{true}$, it additionally verifies archive file hashes against stored \texttt{archive\_pointer} values.
 
-Timestamps are \emph{included} in the hash input to ensure that two otherwise-identical events created at different times produce different hashes, thereby preserving tamper-evidence and provenance. Event \emph{ordering} within a chain uses cryptographic linkage (\texttt{previous\_event\_id}) rather than timestamp comparison, so clock skew does not affect chain well-formedness.
+\subsection{Precondition Language and Action Executor}\label{subsec:precondition-executor}
 
-The integrity verification predicate $\text{VerifyIntegrity}(C)$ checks three conditions for a chain $C = [e_1, \ldots, e_n]$:
-\begin{enumerate}[label=(\arabic*)]
-    \item Genesis anchoring: $e_1.\text{previous\_event\_id} = \text{null}$ and $e_1.\text{prev\_hash} = \text{genesis}$.
-    \item Cryptographic linkage: for all $i \in \{2, \ldots, n\}$, $e_i.\text{prev\_hash} = e_{i-1}.\text{hash}$.
-    \item Hash correctness: for all $i \in \{1, \ldots, n\}$, $e_i.\text{hash} = \text{SHA-256}(\text{Canon}(e_i))$.
-\end{enumerate}
+\subsubsection{Formal Precondition Language}\label{subsubsec:precondition-language}
 
-\subsection{Formal Precondition Language}\label{subsec:precondition-language}
+The ActionExecutor validates L4 action blocks against preconditions expressed in a constrained, decidable language. A precondition rule is a triple $\langle \text{field}, \text{comparator}, \text{value} \rangle$ with comparator alphabet $\mathcal{K} = \{\text{EQ}, \text{NEQ}, \text{GT}, \text{GTE}, \text{LT}, \text{LTE}, \text{IN}, \text{EXISTS}\}$. Table~\ref{tab:comparator-semantics} gives the formal semantics.
 
-The ActionExecutor validates L4 action blocks against preconditions expressed in a constrained, decidable language. This section defines the syntax, semantics, and computational properties of that language.
+\begin{table}[htbp]
+\centering
+\caption{Comparator semantics: explicit operator mapping to ground predicates.}
+\label{tab:comparator-semantics}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Comparator} & \textbf{Predicate} & \textbf{FOL encoding} \\
+\midrule
+EQ & Equality & $x = y$ \\
+NEQ & Disequality & $\neg(x = y)$ \\
+GT & Greater than & $x > y$ \\
+GTE & Greater than or equal & $x \geq y$ \\
+LT & Less than & $x < y$ \\
+LTE & Less than or equal & $x \leq y$ \\
+IN & Set membership & $x \in Y$ (where $Y$ is a finite set) \\
+EXISTS & Non-null check & $\exists x \,:\, x \neq \text{null}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-\subsubsection{Syntax}
+\textbf{BNF grammar.} The complete syntax of the precondition language is:
+\begin{align*}
+    \text{rule} &::= \langle \text{field}, \text{comparator}, \text{value} \rangle \\
+    \text{field} &::= \text{identifier} \quad (\text{e.g., } \texttt{status}, \texttt{confidence}, \texttt{actor}) \\
+    \text{comparator} &::= \text{EQ} \mid \text{NEQ} \mid \text{GT} \mid \text{GTE} \mid \text{LT} \mid \text{LTE} \mid \text{IN} \mid \text{EXISTS} \\
+    \text{value} &::= \text{scalar} \mid \text{set} \mid \text{null} \\
+    \text{rule\_list} &::= \text{rule} \mid \text{rule\_list} \; \text{AND} \; \text{rule\_list}
+\end{align*}
 
-A precondition rule is a triple:
-\begin{equation}
-    \text{rule} ::= \langle \text{field}, \text{comparator}, \text{value} \rangle
-\end{equation}
-where $\text{field} \in \mathcal{F}$ denotes an ADLFrontMatter field name, $\text{comparator} \in \mathcal{K}$ denotes a comparator drawn from a closed enumeration of eight operators, and $\text{value} \in \mathcal{V}$ denotes a literal or set of literals. The comparator alphabet is:
-\begin{equation}
-    \mathcal{K} = \{\text{EQ}, \text{NEQ}, \text{GT}, \text{GTE}, \text{LT}, \text{LTE}, \text{IN}, \text{EXISTS}\}
-\end{equation}
+\textbf{Composition semantics.} A rule list $R = [r_1, \ldots, r_k]$ is evaluated as a conjunction: $\text{eval}(R, C) = \bigwedge_{i=1}^{k} \text{eval}(r_i, C)$. Evaluation is short-circuit: if $\text{eval}(r_j, C) = \text{false}$ for any $j < k$, the remaining rules are not evaluated. The language is a variable-free ground fragment: each rule is a single atomic comparison over a cached derived snapshot, with no quantification, no recursion, and no dynamic code execution. The conjunction of $k$ rules is a variable-free conjunction of ground atoms, evaluated in $\mathcal{O}(k)$ time (Theorem~8).
 
-\subsubsection{Semantics}
+Precondition evaluation is pure and referentially transparent: $\text{eval}(r, C)$ uses a cached derived snapshot, where $\text{lookup}(f, C) = \text{Snapshot}(C)[f]$. The comparator dispatch is implemented via explicit lambda mapping without dynamic code execution.
 
-Precondition evaluation is defined relative to an EventChain $C$. The evaluation function $\text{eval}(r, C)$ distinguishes two classes of fields:
+\textbf{Theorem~8 (Precondition Evaluation Termination and Complexity).} For any well-formed EventChain $C$ and any precondition rule $r$, $\text{eval}(r, C)$ terminates in $\mathcal{O}(1)$ time (assuming the derived snapshot is cached). For a list of $k$ rules, total time is $\mathcal{O}(k)$ and space is $\mathcal{O}(1)$. \emph{Proof Sketch:} Both field lookup and comparator dispatch are $\mathcal{O}(1)$; the language contains no recursion or quantification. See Appendix~E for the full argument.
 
-\paragraph{Status-derived fields.} For fields computed by the derivation functions $\delta$ and $\gamma$ (e.g., \texttt{status}, \texttt{confidence}), evaluation proceeds against the derived snapshot:
-\begin{equation}
-    \text{eval}(\langle f, k, v \rangle, C) = k(\delta(C)[f], v) \quad \text{if } f \in \{\text{status}, \text{confidence}, \dots\}
-\end{equation}
+Table~\ref{tab:complexity} summarizes the complexity; the decidability and complexity-class discussion (membership in \textbf{P}) is in Appendix~H.
 
-\paragraph{L1 front-matter fields.} For fields stored in the YAML front matter (e.g., \texttt{scope}, \texttt{adl\_type}), evaluation proceeds against the front-matter value:
-\begin{equation}
-    \text{eval}(\langle f, k, v \rangle, C) = k(C.\text{frontmatter}[f], v) \quad \text{otherwise}
-\end{equation}
+\begin{table}[htbp]
+\centering
+\caption{Computational complexity of precondition evaluation.}
+\label{tab:complexity}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Operation} & \textbf{Time} & \textbf{Space} & \textbf{Notes} \\
+\midrule
+Single rule $\text{eval}(r, C)$ & $\mathcal{O}(1)$ & $\mathcal{O}(1)$ & No recursion, no quantification \\
+Rule list $\text{eval}(R, C)$, $|R| = k$ & $\mathcal{O}(k)$ & $\mathcal{O}(1)$ & Short-circuit on first failure \\
+Field lookup $\text{lookup}(f, C)$ & $\mathcal{O}(1)$ & $\mathcal{O}(1)$ & Memoized snapshot or dict lookup \\
+Comparator dispatch $k(x, y)$ & $\mathcal{O}(1)$ & $\mathcal{O}(1)$ & Closed 8-case enumeration \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-The comparator dispatch $k(x, y)$ is implemented via an explicit lambda mapping: each operator in $\mathcal{K}$ maps to a fixed, total function with no dynamic code execution.
+\subsubsection{Expressivity and Limitations}\label{subsubsec:expressivity}
 
-\subsubsection{Decidability and Determinism}
+The precondition language is a ground, variable-free fragment: each rule is a single atomic comparison $\langle \text{field}, \text{comparator}, \text{value} \rangle$ over a cached derived snapshot. Table~\ref{tab:precondition-expressivity} lists common lifecycle invariants and whether they are expressible.
 
-\begin{proposition}[Precondition Evaluation Termination]
-For any well-formed EventChain $C$ and any precondition rule $r$, $\text{eval}(r, C)$ terminates in $O(1)$ time.
-\end{proposition}
+\begin{table}[htbp]
+\centering
+\small
+\caption{Precondition expressivity: invariants supported by the core language.}
+\label{tab:precondition-expressivity}
+\begin{tabular}{@{}p{5.5cm}cc@{}}
+\toprule
+\textbf{Invariant} & \textbf{Expressible?} & \textbf{Mechanism} \\
+\midrule
+Status must be \texttt{provisional} before \texttt{VALIDATE} & \checkmark & \texttt{status} EQ \texttt{provisional} \\
+Confidence must be $\geq 0.5$ for \texttt{VALIDATE} & \checkmark & \texttt{confidence} GTE $0.5$ \\
+Exactly one \texttt{REGISTER} per chain & $\times$ & Would require universal quantification over events \\
+At least $N_{\min}$ distinct validators & $\triangle$ & Partial: can count validators in snapshot, but not prove distinctness of keys (future authentication) \\
+No \texttt{VALIDATE} after \texttt{DEPRECATE} unless \texttt{REACTIVATE} & $\times$ & Would require temporal sequence constraints beyond current syntax \\
+Actor must not be in a blacklist set & \checkmark & \texttt{actor} IN blacklist (finite set) \\
+Payload field must exist (non-null) & \checkmark & \texttt{confidence} EXISTS \\
+Cross-chain concept must exist & $\times$ & Would require cross-chain lookup (future: $H$ index) \\
+Two validators must have disjoint organisations & $\times$ & Would require quantification over two actors and comparison of their org prefixes \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-\begin{proof}
-Field lookup takes $O(1)$ time. Status-derived fields are computed by $\delta(C)$ and $\gamma(C)$, which scan the chain once ($O(n)$ in chain length) but are memoized in the derived snapshot; front-matter fields are dictionary lookups. Comparator dispatch is $O(1)$ because $\mathcal{K}$ is a closed enumeration with exactly eight cases, implemented as explicit lambda dispatch. The precondition language contains no recursion, no quantification, no fixed-point operators, and no unbounded iteration. Therefore evaluation time is bounded by a constant independent of chain length.
-\end{proof}
+The design trades full first-order expressivity for guaranteed $\mathcal{O}(1)$ per-rule evaluation and prevention of runtime code injection. Domain-specific invariants that exceed the core language (e.g., temporal precedence, cross-chain existence) are deferred to the application layer or future extensions (FW12). The closed Comparator enumeration ensures that no rule introduces recursion or unbounded computation.
 
-\textbf{Determinism.} The precondition system is \textbf{not} Turing-complete. It lacks loops, recursion, unbounded quantification, and dynamic code execution. The closed $\mathcal{K}$ enumeration with explicit lambda dispatch guarantees that every precondition evaluation follows the same code path, yielding constant-time termination. This design deliberately sacrifices expressive power (no arbitrary computation over the chain) in exchange for guaranteed termination and auditability.
+\textbf{Complete lifecycle transition matrix.} Table~\ref{tab:lifecycle-matrix} lists all 25 status-event combinations, showing which transitions are permitted by the ActionExecutor. The preconditions for each action are encoded in \texttt{adl\_core\_ontology.yaml}.
 
-\subsection{Action Executor with Structured Preconditions}\label{subsec:action-executor}
+\begin{table}[htbp]
+\centering
+\small
+\caption{Lifecycle transition matrix: permitted transitions from current status (rows) by event type (columns).}
+\label{tab:lifecycle-matrix}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+\textbf{Current Status} & \textsc{Register} & \textsc{Validate} & \textsc{Deprecate} & \textsc{Fork} & \textsc{Archive} \\
+\midrule
+provisional & $\times$ (genesis only) & $\checkmark$ & $\times$ & $\times$ & $\times$ \\
+validated & $\times$ & $\times$ (re-validate) & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+deprecated & $\times$ & $\times$ & $\times$ & $\times$ & $\checkmark$ \\
+forked & $\times$ & $\times$ & $\times$ & $\times$ & $\checkmark$ \\
+archived & $\times$ & $\times$ & $\times$ & $\times$ & $\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-The ActionExecutor validates L4 action blocks against a closed action registry defined in \texttt{adl\_core\_ontology.yaml}. Each action definition specifies preconditions as a list of \texttt{PreconditionRule} objects. Each rule comprises a \texttt{field} (the ADLFrontMatter field to inspect), a \texttt{comparator} drawn from the closed alphabet $\mathcal{K}$ (Section~\ref{subsec:precondition-language}), and a \texttt{value} (the expected value or threshold).
+\textsc{Register} is permitted only as a genesis event (creating a new concept). From \texttt{validated}, \textsc{Validate} is permitted as a re-validation (updating confidence). From \texttt{deprecated}, only \textsc{Archive} is permitted; from \texttt{forked}, only \textsc{Archive} is permitted. Re-activation after deprecation requires a new \textsc{Register} (new genesis), not a \textsc{REACTIVATE} event.
 
-Precondition evaluation uses explicit lambda dispatch on the \texttt{Comparator} enumeration; there is no runtime \texttt{eval()} or code injection path (Section~\ref{subsec:precondition-language}). This closed evaluation model achieves perfect precision and recall on all registered actions (Section~\ref{subsec:e4}).
+\subsubsection{Action Executor and Consensus Engine}\label{subsubsec:action-consensus}
 
-\subsection{Consensus and Status Transitions}\label{subsec:consensus}
-
-Status transitions are governed by a transition matrix that defines which lifecycle events are permitted from each status. The matrix is total, meaning that every status has at least one permissible outgoing transition. The ConsensusEngine enforces these transitions by validating preconditions before appending events to chains.
-
-Fork semantics deserve special attention. When a capability forks, a \texttt{FORK} event is appended to the original chain, and a new chain is created with a fresh \texttt{REGISTER} event. The original capability's status becomes \texttt{forked}; the new capability's status is \texttt{provisional}. Both chains evolve independently thereafter. This preserves the historical integrity of the original capability while enabling divergent evolution.
+The ActionExecutor validates L4 action blocks against a closed action registry defined in \texttt{adl\_core\_ontology.yaml}. Each action definition specifies preconditions as a list of \texttt{PreconditionRule} objects. The ConsensusEngine governs the resulting status transitions through a total transition matrix, validating preconditions before appending events. Forking creates a new child chain with a fresh \texttt{REGISTER} event while the original chain's status becomes \texttt{forked}; both evolve independently.
 
 \subsection{Formal Derivation Semantics}\label{subsec:formal-semantics}
 
-This section provides the complete formal foundation for the derivation semantics. All definitions are self-contained; expanded proof sketches appear in Appendix~\ref{app:proofs}. We prove the seven theorems through rigorous natural-language argument rather than machine-checked proof. This choice is justified by the logical structure of the proofs: each theorem reduces to a single case analysis or structural induction on a finite event sequence, with no quantifier alternation, no fixed-point operators, and no higher-order reasoning. The formalism is therefore a decidable fragment of first-order logic for which natural-language proof is standard practice in the applied ontology literature (e.g., BFO~2.0 axioms, DOLCE postulates). Machine verification in TLA$^{+}$ or Coq is planned for future work (FW10, Section~\ref{subsec:future-work}).
-
-A TLA$^{+}$ specification of the EventChain state machine, including fork/confluence semantics and CRDT merge properties, is provided as supplementary material and has been validated with the TLC model checker for safety (no invalid transitions) and liveness (every fork produces a child chain) on chains of length $\leq$20. Table~\ref{tab:formal-notation} summarizes the key notation.
+This section provides the formal foundation for the derivation semantics. All definitions are self-contained; expanded proof sketches and sensitivity analysis appear in Appendix~E. We have drafted a TLA$^{+}$ specification of the EventChain state machine for lengths up to 20 events (FW10); extension to 100--1000 events is planned for the next revision. We establish Theorems~1--3 through rigorous natural-language argument in this paper.
 
 \begin{table}[htbp]
 \centering
@@ -137,7 +175,7 @@ A TLA$^{+}$ specification of the EventChain state machine, including fork/conflu
 \midrule
 $\Sigma = \Sigma_{\text{life}} \cup \Sigma_{\text{comm}}$ & Event alphabet (lifecycle $\cup$ communication) \\
 $C = [e_1, \ldots, e_n]$ & Well-formed EventChain \\
-$\text{WF}(C)$ & Well-formedness predicate (5 axioms) \\
+$\text{WF}(C)$ & Well-formedness predicate (12 axioms; see Appendix~E) \\
 $\delta(C) \in S$ & Status derivation function \\
 $\gamma(C) \in [0,1]$ & Confidence aggregation function \\
 $C_{\text{life}}$ & Lifecycle subsequence $\{e \in C \mid e.\tau \in \Sigma_{\text{life}}\}$ \\
@@ -148,262 +186,198 @@ $\text{Fork}(C, a)$ & Fork operation producing $(C_{\text{fork}}, C')$ \\
 \end{tabular}
 \end{table}
 
-\subsubsection{Event Alphabet and Well-Formedness}
+A chain $C = [e_1, \ldots, e_n]$ is well-formed, denoted $\text{WF}(C)$, if it satisfies 12 axioms (genesis anchoring, shared \texttt{concept\_id}, cryptographic linkage, hash correctness, distinct \texttt{event\_id}, non-empty actor, timestamp monotonicity, payload schema conformance, action preconditions, hash format, canonical fields, and valid event type). The full conjunctive formalisation is in Appendix~E.
 
-Let $\Sigma = \Sigma_{\text{life}} \cup \Sigma_{\text{comm}}$ be the event alphabet. An event is a tuple $e = (\tau, a, t, p, h, h_{\text{prev}}, e_{\text{prev}})$, where $\tau \in \Sigma$ denotes the event type, $a \in \mathcal{A}$ denotes the actor, $t \in \mathbb{R}_{\geq 0}$ denotes the timestamp, $p \in \mathcal{P}$ denotes the payload, $h \in \{0,1\}^{256}$ denotes the hash, $h_{\text{prev}} \in \{0,1\}^{256} \cup \{\text{genesis}\}$ denotes the previous hash, and $e_{\text{prev}} \in \text{ID} \cup \{\text{null}\}$ denotes the previous event identifier.
-
-A chain $C = [e_1, \ldots, e_n]$ is well-formed, denoted $\text{WF}(C)$, if:
-\begin{enumerate}[label=(\arabic*)]
-    \item $e_1.h_{\text{prev}} = \text{genesis}$ and $e_1.e_{\text{prev}} = \text{null}$.
-    \item All events in $C$ share the same $\text{concept\_id}$.
-    \item For all $i \geq 2$: $e_i.h_{\text{prev}} = e_{i-1}.h$ and $e_i.e_{\text{prev}} = e_{i-1}.\text{event\_id}$.
-    \item For all $i$: $e_i.h = \text{SHA-256}(\text{Canon}(e_i))$.
-    \item All $\text{event\_id}$ values in $C$ are pairwise distinct.
-\end{enumerate}
-
-The canonicalization function $\text{Canon}(e)$ serializes $e$ as UTF-8 JSON with sorted keys, six-decimal-place float rounding, and all fields (including the timestamp) included.
-
-\subsubsection{Status Derivation $\delta$}
-
-The status space is $S = \{\text{provisional},\; \text{validated},\; \text{deprecated},\; \text{forked},\; \text{archived}\}$. For a chain $C$, let $C_{\text{life}} = [e \in C \mid e.\tau \in \Sigma_{\text{life}}]$ denote the lifecycle subsequence. Then:
+The status space is $S = \{\text{provisional},\; \text{validated},\; \text{deprecated},\; \text{forked},\; \text{archived}\}$. For a chain $C$, let $C_{\text{life}}$ denote the lifecycle subsequence. Then:
 \begin{equation}
     \delta(C) = \begin{cases}
         \text{provisional} & \text{if } C_{\text{life}} = [] \\
         f(\tau_{\text{last}}) & \text{otherwise}
     \end{cases}
 \end{equation}
-where $\tau_{\text{last}}$ denotes the event type of the last element of $C_{\text{life}}$, and $f$ maps $\text{REGISTER} \to \text{provisional}$, $\text{VALIDATE} \to \text{validated}$, $\text{DEPRECATE} \to \text{deprecated}$, $\text{FORK} \to \text{forked}$, $\text{ARCHIVE} \to \text{archived}$.
+where $f$ maps $\text{REGISTER} \mapsto \text{provisional}$, $\text{VALIDATE} \mapsto \text{validated}$, $\text{DEPRECATE} \mapsto \text{deprecated}$, $\text{FORK} \mapsto \text{forked}$, $\text{ARCHIVE} \mapsto \text{archived}$. This is computed in $O(n)$ time by a single scan of the chain.
 
-\subsubsection{Confidence Aggregation $\gamma$}
+\textbf{Conflict resolution for $\delta$.} The lifecycle subsequence $C_{\text{life}}$ is totally ordered by the chain's append order (cryptographic linkage). The last element $\tau_{\text{last}}$ is unique. If the last lifecycle event is $\text{DEPRECATE}$ after a prior $\text{VALIDATE}$, the status becomes $\text{deprecated}$ (not $\text{validated}$). Re-activation after deprecation requires a new $\text{REGISTER}$ event (creating a new genesis hash), not a reversal of the existing chain.
 
-Let $V = [e \in C \mid e.\tau = \text{VALIDATE}]$ denote the validation subsequence. Then:
+\subsubsection{Confidence Aggregation: Three Variants}
+
+Let $V = [e \in C \mid e.\tau = \text{VALIDATE}]$ denote the validation subsequence. ADL Lite provides three confidence aggregation strategies.
+
+\textbf{Variant 1: Default (last-\texttt{VALIDATE}).} The simplest strategy, used by default, takes the confidence from the most recent \texttt{VALIDATE} event (or \texttt{SNAPSHOT} if no validation has occurred):
 \begin{equation}
-    \gamma(C) = \begin{cases}
+    \gamma_{\text{default}}(C) = \begin{cases}
         0.0 & \text{if } V = [] \\
-        \min(1.0,\; c_{\text{base}} + \beta \times (N_{\text{vals}} - 1)) & \text{otherwise}
+        \text{clamp}_{[0,1]}\bigl(e_{\text{last}}(V).\text{payload}[\text{``confidence''}]\bigr) & \text{otherwise}
     \end{cases}
 \end{equation}
-where $\text{actors}(V) = \{e.a \mid e \in V\}$ denotes the set of distinct actors, $\phi(a, V) = \max\{e.p.\text{confidence} \mid e \in V \land e.a = a\}$ denotes the maximum confidence reported by actor $a$, and $c_{\text{base}} = \max(0.5,\; \text{mean}_{a \in \text{actors}(V)} \phi(a, V))$ denotes the base confidence. We define $N_{\text{vals}} = |\text{actors}(V)|$, and $\beta = 0.05$ is the bonus increment per additional distinct validator.
+where $e_{\text{last}}(V)$ is the last event in $V$ by append order, and $\text{clamp}_{[0,1]}(x) = \max(0, \min(1, x))$. Evaluated in $O(1)$ time.
 
-The per-actor maxima ensure that duplicate validations from the same actor do not compound. The base confidence floor of 0.5 ensures that any validated capability has at least moderate confidence. The bonus of $\beta = 0.05$ per additional distinct validator rewards independent confirmation.
+\textbf{Variant 2: Bonus-formula aggregate ($\gamma_{\text{agg}}$).} This variant mitigates collusion by aggregating per-actor maxima and adding a bonus for cross-validation:
+\begin{equation}
+    \gamma_{\text{agg}}(C) = \begin{cases}
+        0.0 & \text{if } V = [] \\
+        \min\!\left(1.0,\; c_{\text{base}} + 0.05 \times (N_{\text{vals}} - 1)\right) & \text{otherwise}
+    \end{cases}
+\end{equation}
+where $N_{\text{vals}} = |\text{actors}(V)|$ is the number of distinct validators, and:
+\begin{equation}
+    c_{\text{base}} = \max\!\left(0.5,\; \frac{1}{N_{\text{vals}}} \sum_{a \in \text{actors}(V)} \phi(a, V)\right)
+\end{equation}
+with $\phi(a, V) = \max\{e.\text{payload}[\text{``confidence''}] \mid e \in V \land e.\text{actor} = a\}$ being the maximum confidence reported by actor $a$. The $\min(1.0, \cdot)$ cap ensures boundedness; the $0.05$ bonus per distinct validator rewards cross-validation. Sensitivity analysis for different $(\beta, c_{\min})$ parameters appears in Appendix~E.
 
-\textbf{Operational assumptions.} The term ``independent validation'' in Theorem~5 is an \emph{operational} assumption about distinct actors, not a claim of statistical independence, within the context of capability governance. It means that each validator is a different agent (identified by a distinct \texttt{actor} string), and the bonus term rewards the \emph{diversity} of validators rather than their \emph{statistical independence}. ADL Lite does not test for statistical independence (e.g., correlation between validators' judgments); that calibration is deferred to Phase~2 (FW3). The $\operatorname{argmax}$ semantics for duplicate validators from the same actor prevent overcounting of correlated judgments by the same source.
+\textbf{Variant 3: Calibrated confidence ($\gamma_{\text{cal}}$).} This variant weights each validator's confidence by a per-actor accuracy score:
+\begin{equation}
+    \gamma_{\text{cal}}(C) = \begin{cases}
+        0.0 & \text{if } V = [] \\
+        \text{clamp}_{[0,1]}\!\left(\frac{\sum_{a \in \text{actors}(V)} \text{accuracy}_a \cdot \phi(a, V)}{\sum_{a \in \text{actors}(V)} \text{accuracy}_a}\right) & \text{otherwise}
+    \end{cases}
+\end{equation}
+where $\text{accuracy}_a \in [0,1]$ is the accuracy score of actor $a$. This requires an external calibration profile (\texttt{.adl/calibration.yaml}).
 
-\textbf{Parameter rationale and sensitivity.} The base floor $c_{\text{base}} \geq 0.5$ is chosen to align with social-science consensus thresholds: a majority belief (more than 50\% agreement) is conventionally treated as the minimum bar for collective acceptance \cite{guha2016schemaorg}. The bonus increment of $0.05$ is calibrated so that ten independent validators yield $c_{\text{base}} + 0.05 \times 9 \approx 0.95$ (assuming $c_{\text{base}} \approx 0.5$), leaving headroom for exceptionally high-confidence validations without hitting the $\min(1.0, \cdot)$ cap prematurely. This design reflects a heuristic trade-off: larger increments (e.g., $0.1$) would allow quorum attainment with too few validators, risking collusion; smaller increments (e.g., $0.01$) would require impractically large validator pools. The parameters are therefore \emph{heuristic} rather than derived from an optimization objective. Sensitivity analysis (Appendix~\ref{app:proofs}) confirms that Theorems~4--6 hold for any bonus $\beta \in (0, 0.1]$ and any floor $c_{\text{min}} \in [0.3, 0.7]$. With the precondition $c \geq c_{\text{base}}$ in Theorem~5, strict monotonicity is preserved for all $\beta > 0$; the $\beta \leq c_{\text{min}} / 10$ bound required by the earlier formulation is no longer necessary. Future work (FW3, Section~\ref{subsec:future-work}) will replace these fixed parameters with MARGIN-calibrated, per-actor adaptive weights.
+\textbf{Disclaimer: calibration in the collaborative-audit model.} The $\text{accuracy}_a$ scores in $\gamma_{\text{cal}}$ are themselves self-reported in the Phase~1 collaborative-audit model (there is no external ground-truth source for validator accuracy). Consequently, $\gamma_{\text{cal}}$ provides a \emph{heuristic calibration} that redistributes confidence among validators, but it does \emph{not} prevent collusion: a colluding actor can report $\text{accuracy}_a = 1.0$ and drive the aggregate to any value in $[0,1]$. Full collusion resistance requires the authenticated identity and staking mechanisms planned for Phase~2/3 (FW4, FW9).
 
-\subsubsection{Fork and Confluence Semantics}
+\textbf{Conflict resolution for $\gamma$.} All three variants resolve multiple \texttt{VALIDATE} events by the chain's append order. For $\gamma_{\text{default}}$, the most recent \texttt{VALIDATE} prevails. For $\gamma_{\text{agg}}$ and $\gamma_{\text{cal}}$, per-actor maxima are computed first, then aggregated. If two validators append \texttt{VALIDATE} events with different confidence values, each contributes its own maximum.
 
-A fork operation $\text{Fork}(C, a)$, parameterized by an initiating agent $a$, transforms a concept chain $C$ into a parent-child pair:
+A fork operation $\text{Fork}(C, a)$ appends a $\textsc{Fork}$ event to the parent chain and creates a child chain with a fresh $\textsc{Register}$ event and a deterministic fork suffix appended to \texttt{concept\_id}. Child chains are independent: each child's derived state depends only on its own event sequence.
+
+\textbf{Total order $\prec$ for conflict resolution.} Within a single chain, events are totally ordered by the cryptographic linkage (each event points to its predecessor via \texttt{previous\_event\_id}). For concurrent events across branches, we define a total order $\prec$ as:
+\begin{equation}
+    e_i \prec e_j \iff e_i.\text{timestamp} < e_j.\text{timestamp} \lor (e_i.\text{timestamp} = e_j.\text{timestamp} \land e_i.\text{event\_id} <_{\text{lex}} e_j.\text{event\_id})
+\end{equation}
+where $<_{\text{lex}}$ is lexicographic comparison of UUID strings. This order is total because timestamps are comparable and \texttt{event\_id} provides a tiebreaker. The append-only property of EventChains ensures that $\prec$ is consistent with the chain's internal order: if $e_i$ precedes $e_j$ in the chain, then $e_i.\text{timestamp} \leq e_j.\text{timestamp}$ (with equality possible only for simultaneous appends, resolved by \texttt{event\_id}).
+
+\textbf{Concurrent conflict resolution.} When multiple agents append events to the same concept concurrently, the resulting events are ordered by $\prec$. For $\delta$: the last lifecycle event by $\prec$ determines the status. For $\gamma$: the last $\textsc{Validate}$ event by $\prec$ determines the confidence. When a $\textsc{Validate}$ and a $\textsc{Deprecate}$ conflict, the later event by $\prec$ prevails. If two events have the same timestamp and \texttt{event\_id}, they are identical (same event), so no conflict exists. Equivocation (the same actor appending contradictory events) is retained as auditable evidence, not resolved by the ordering.
+
+\textbf{Theorem~1 (Determinism).} For any well-formed chain $C$, $\delta(C)$ is unique and depends only on the last lifecycle event in $C$. \emph{Proof Sketch:} Let $C = [e_1, \ldots, e_n]$ be well-formed. By Well-Formedness Axiom~(3) (cryptographic linkage), $C$ is a totally ordered sequence. The lifecycle subsequence $C_{\text{life}} = \operatorname{filter}(C, \Sigma_{\text{life}})$ is therefore also totally ordered. If $C_{\text{life}} = []$, $\delta(C) = \text{provisional}$ by definition (unique). Otherwise, $C_{\text{life}}$ has a unique last element $\tau_{\text{last}}$ because it is a finite, non-empty, totally ordered sequence. The status map $f: \Sigma_{\text{life}} \to S$ is a total function on the closed alphabet, so $f(\tau_{\text{last}})$ is uniquely determined. Uniqueness holds because both the filter operation and the last-element extraction are deterministic functions of $C$. The complexity claim follows because computing $C_{\text{life}}$ requires a single scan of $C$ ($O(|C|)$), and extracting the last element is $O(1)$.
+
+\textbf{Theorem~2 (Fork Determinism).} Let $C$ fork to $(C_{\text{fork}}, C')$. Then $\delta(C_{\text{fork}}) = \text{forked}$ and $\delta(C') = \text{provisional}$. \emph{Proof Sketch:} By the fork definition, $C_{\text{fork}} = C \oplus [e_{\text{FORK}}]$ where $e_{\text{FORK}}.\tau = \text{FORK} \in \Sigma_{\text{life}}$. Therefore $e_{\text{FORK}}$ is the last element of $(C_{\text{fork}})_{\text{life}}$. By Theorem~1, $\delta(C_{\text{fork}}) = f(\text{FORK}) = \text{forked}$. The child chain $C' = [e'_{\text{REG}}]$ where $e'_{\text{REG}}.\tau = \text{REGISTER} \in \Sigma_{\text{life}}$ and $e'_{\text{REG}}.\text{previous\_event\_id} = \text{null}$. Since $C'$ contains exactly one event, $(C')_{\text{life}} = [e'_{\text{REG}}]$. By Theorem~1, $\delta(C') = f(\text{REGISTER}) = \text{provisional}$. The two derivations are independent because $C_{\text{fork}}$ and $C'$ are disjoint chains after the fork point: $C_{\text{fork}}$ appends to $C$ while $C'$ starts afresh. No subsequent event in either chain can affect the other's status derivation because status is derived per-chain (Theorem~1).
+
+\textbf{Theorem~3 (Transition Monotonicity).} For any well-formed $C$ and event $e_{\text{new}}$, the transition from $s = \delta(C)$ to $s' = \delta(C \oplus [e_{\text{new}}])$ is valid iff $e_{\text{new}}.\tau \in \Sigma_{\text{life}}$. \emph{Proof Sketch:} By structural induction on $|C|$. \textbf{Base case:} $C = [e_{\text{REG}}]$ with $\delta(C) = \text{provisional}$. (The empty chain is not well-formed; every well-formed chain has a genesis \textsc{Register} event as its first element.) For any $e_{\text{new}}$: if $e_{\text{new}}.\tau \notin \Sigma_{\text{life}}$, then $(C \oplus [e_{\text{new}}])_{\text{life}} = [e_{\text{REG}}]$, so $s' = \text{provisional} = s$ (no transition). If $e_{\text{new}}.\tau \in \Sigma_{\text{life}}$, then $s' = f(e_{\text{new}}.\tau)$, which the ActionExecutor precondition system permits only if $(\text{provisional}, f(e_{\text{new}}.\tau))$ is a valid edge in the status transition machine. \textbf{Inductive step:} Assume the theorem holds for all chains of length $n$. Let $C$ have length $n+1$ with $\delta(C) = s$. Consider $e_{\text{new}}$: if $e_{\text{new}}.\tau \notin \Sigma_{\text{life}}$, then $(C \oplus [e_{\text{new}}])_{\text{life}} = C_{\text{life}}$, so $s' = s$ (no transition). If $e_{\text{new}}.\tau \in \Sigma_{\text{life}}$, then $(C \oplus [e_{\text{new}}])_{\text{life}} = C_{\text{life}} \oplus [e_{\text{new}}]$, so $s' = f(e_{\text{new}}.\tau)$. By the ActionExecutor precondition system, $e_{\text{new}}$ can be appended only when the precondition rules are satisfied against the current snapshot derived from $C$. These preconditions encode exactly the valid transitions of the status machine, so $(s, s')$ must be a valid edge. Thus the theorem holds for chains of length $n+1$. By induction, it holds for all well-formed chains.
+
+\textbf{Theorem~4 (Confidence Boundedness).} For any well-formed $C$, $\gamma_{\text{default}}(C) \in [0, 1]$, $\gamma_{\text{agg}}(C) \in [0, 1]$, and $\gamma_{\text{cal}}(C) \in [0, 1]$. \emph{Proof Sketch:} For $\gamma_{\text{default}}$: if $V = []$, $\gamma_{\text{default}}(C) = 0.0 \in [0,1]$. Otherwise, the payload \texttt{confidence} field is clamped to $[0,1]$ by Pydantic validation at event construction time, so $\gamma_{\text{default}}(C) = \text{clamp}_{[0,1]}(c) \in [0,1]$. For $\gamma_{\text{agg}}$: if $V = []$, $\gamma_{\text{agg}}(C) = 0.0$. Otherwise, each $\textsc{Validate}$ event carries confidence $\in [0,1]$; the per-actor maxima $\phi(a, V)$ are therefore in $[0,1]$, and their mean is a convex combination in $[0,1]$. The $\max(0.5, \cdot)$ floor ensures $c_{\text{base}} \geq 0.5$, and the $\min(1.0, \cdot)$ cap ensures $\gamma_{\text{agg}}(C) \leq 1.0$. For $\gamma_{\text{cal}}$: the weighted sum of values in $[0,1]$ with non-negative weights is a convex combination in $[0,1]$, and the outer clamp preserves this bound. Thus all three variants are bounded in $[0,1]$.
+
+\textbf{Theorem~5 (Confidence Monotonicity under Non-Decreasing Validation).} Let $\gamma_{\text{default}}(C) = c$ and let $e_{\text{new}}$ be a $\textsc{Validate}$ event with payload confidence $c' \geq c$. Then $\gamma_{\text{default}}(C \oplus [e_{\text{new}}]) \geq c$, with strict inequality if $c' > c$. \emph{Proof Sketch:} $\gamma_{\text{default}}$ takes the confidence from the last $\textsc{Validate}$ event in $V$. Appending $e_{\text{new}}$ with $e_{\text{new}}.\tau = \textsc{Validate}$ makes $e_{\text{new}}$ the last event in $V' = V \oplus [e_{\text{new}}]$. Therefore $\gamma_{\text{default}}(C \oplus [e_{\text{new}}]) = \text{clamp}_{[0,1]}(c')$. If $c' \geq c$, then $\text{clamp}_{[0,1]}(c') \geq \text{clamp}_{[0,1]}(c) = c$. If $c' > c$, then $\text{clamp}_{[0,1]}(c') > c$ (unless $c = 1.0$, in which case $c' = c = 1.0$ and equality holds). For $\gamma_{\text{agg}}$: monotonicity holds because appending a new $\textsc{Validate}$ from a distinct validator increases $N_{\text{vals}}$ by 1 (adding $0.05$ to the bonus) and $c_{\text{base}}$ is a weighted mean that includes the new confidence. For duplicate validators, $\phi'(a, V') = \max(\phi(a, V), c') \geq \phi(a, V)$, so $c'_{\text{base}} \geq c_{\text{base}}$. The bonus term is unchanged, so $\gamma_{\text{agg}}(C') \geq \gamma_{\text{agg}}(C)$. (The optional $\gamma_{\text{cal}}$ aggregate does not guarantee monotonicity unless all validators' accuracy scores are non-decreasing.) Full details are in Appendix~E.
+
+\textbf{Theorem~6 (Status--Confidence Consistency).} If $\delta(C) = \text{validated}$, then $\gamma_{\text{default}}(C) \geq 0.5$, $\gamma_{\text{agg}}(C) \geq 0.5$, and $\gamma_{\text{cal}}(C) \geq 0.5$ (provided all validators have accuracy $\geq 0.5$). \emph{Proof Sketch:} $\delta(C) = \text{validated}$ implies $\operatorname{last}(C_{\text{life}}).\tau = \textsc{Validate}$, so $V \neq \emptyset$. Every \texttt{validate} action precondition requires payload confidence $\geq 0.5$ (enforced by the ActionExecutor via \texttt{adl\_core\_ontology.yaml}). For $\gamma_{\text{default}}$: the last $\textsc{Validate}$ event carries confidence $\geq 0.5$, so $\gamma_{\text{default}}(C) \geq 0.5$. For $\gamma_{\text{agg}}$: every $\phi(a, V) \geq 0.5$, so the mean $c_{\text{base}}^{\text{raw}} \geq 0.5$, and $c_{\text{base}} = \max(0.5, c_{\text{base}}^{\text{raw}}) \geq 0.5$. The bonus term is non-negative, so $\gamma_{\text{agg}}(C) \geq 0.5$. For $\gamma_{\text{cal}}$: if all $\text{accuracy}_a \geq 0.5$, the weighted mean of values $\geq 0.5$ is itself $\geq 0.5$.
+
+\textbf{Theorem~7 (Well-Formedness Preservation).} For any well-formed chain $C$ and any event $e_{\text{new}}$ satisfying the preconditions of its action type, the extended chain $C' = C \oplus [e_{\text{new}}]$ is well-formed. \emph{Proof Sketch:} Each $\text{WF}_i$ axiom is verified for $C'$: genesis remains unchanged, \texttt{concept\_id} shared, linkage preserved, hash computed, and fresh \texttt{event\_id} ensures distinctness. Full details are in Appendix~E.
+
+We provide proof sketches for all seven core theorems (Theorems 1--7) through rigorous natural-language arguments over the closed alphabet $\Sigma$; full details are in Appendix~E. Machine-checked proofs for unbounded chains are planned for future work (FW10, FW12).
+
+\subsubsection{Formal Function Signatures and a Worked Example}
+
+\textbf{Explicit function signatures.} The derivation functions are defined as:
 \begin{align}
-    \text{Fork}(C, a) &= (C_{\text{fork}}, C') \\
-    C_{\text{fork}} &= C \oplus [e_{\text{FORK}}] \\
-    C' &= [e'_{\text{REG}}]
+    \delta &: \text{EventChain} \to S \\
+    \delta(C) &= \begin{cases}
+        \text{provisional} & \text{if } C_{\text{life}} = \emptyset \\
+        f\bigl(\tau_{\text{last}}(C_{\text{life}})\bigr) & \text{otherwise}
+    \end{cases} \nonumber \\[1em]
+    \gamma &: \text{EventChain} \to [0,1] \\
+    \gamma(C) &= \begin{cases}
+        0.0 & \text{if } V = \emptyset \\
+        \text{clamp}_{[0,1]}\bigl(e_{\text{last}}(V).\text{payload}[\text{``confidence''}]\bigr) & \text{otherwise}
+    \end{cases} \nonumber
 \end{align}
-where $e_{\text{FORK}}$ carries payload $\{\text{fork\_target}: C'.\text{concept\_id}, \text{reason}: \dots\}$ and $e'_{\text{REG}}$ initializes the new concept with a fresh $\text{concept\_id}$.
+where $S$ is the status space, $\text{EventChain}$ is the set of well-formed chains, $C_{\text{life}}$ is the lifecycle subsequence, $V$ is the validation subsequence, and $f : \Sigma_{\text{life}} \to S$ is the total event-type-to-status mapping.
 
-\textbf{Fork-level confluence.} For any well-formed chain $C$ and any pair of agents $a_1, a_2$:
-$$\text{Fork}(C, a_1)_{\text{child}} \perp \text{Fork}(C, a_2)_{\text{child}}$$
-where $\perp$ denotes independence: each child chain's derived state depends only on its own event sequence, never on the sibling chain. This follows from the per-chain semantics of $\delta$ and the fact that child chains carry distinct $\text{concept\_id}$ values. The parent chain's status becomes $\text{forked}$ regardless of which agent initiated the fork, preserving determinism (Theorem~1).
+\textbf{Small-step operational semantics.} Appending an event $e_{\text{new}}$ to a chain $C$ is denoted $C \oplus [e_{\text{new}}]$. The transition is a pure function:
+\begin{equation}
+    \langle C \rangle \xrightarrow{e_{\text{new}}} \langle C \oplus [e_{\text{new}}] \rangle
+    \quad \text{where} \quad
+    \delta(C \oplus [e_{\text{new}}]) = \begin{cases}
+        \delta(C) & \text{if } e_{\text{new}}.\tau \notin \Sigma_{\text{life}} \\
+        f(e_{\text{new}}.\tau) & \text{otherwise}
+    \end{cases}
+\end{equation}
+This is deterministic: the new state depends only on the old state and the appended event, with no side effects or stored mutable fields.
 
-\textbf{Phase~1 merge rule.} When agents reconcile concurrent modifications without forking, the Phase~1 merge rule is last-write-wins by timestamp, with $\text{event\_id}$ as a tie-breaker for equal timestamps. This is a \emph{social coordination convention}, not a CRDT property. It requires agents to agree on a single authoritative branch; divergent branches that cannot be reconciled socially are resolved through fork-and-deprecate. The optional CRDT merge semantics and Phase~3 DAG design are discussed in Section~\ref{subsubsec:crdt-merge}.
-
-We first establish that status derivation is deterministic.
-
-\textbf{Theorem 1 (Determinism).} For any well-formed chain $C$, $\delta(C)$ is unique and depends only on the last lifecycle event in $C$.
-
-\begin{proof}
-By definition, $\delta$ filters $C$ to $C_{\text{life}}$ (deterministic), checks emptiness (deterministic), and applies the total function $f$ to the last element (unique for ordered sequences).
-\end{proof}
-
-Next, we show that fork operations produce well-defined status assignments for both parent and child chains.
-
-\textbf{Theorem 2 (Confluence under Fork).} Let $C$ fork to $(C_{\text{fork}}, C')$. Then $\delta(C_{\text{fork}}) = \text{forked}$ and $\delta(C') = \text{provisional}$.
-
-\begin{proof}
-Since $e_{\text{FORK}} \in \Sigma_{\text{life}}$ is the last lifecycle event in $C_{\text{fork}}$, we have $f(\text{FORK}) = \text{forked}$. As $C'$ contains only $e'_{\text{REG}}$, it follows that $f(\text{REGISTER}) = \text{provisional}$.
-\end{proof}
-
-The following theorem establishes that only lifecycle events affect status transitions.
-
-\textbf{Theorem 3 (Transition Monotonicity).} For any well-formed $C$ and event $e_{\text{new}}$, the transition from $s = \delta(C)$ to $s' = \delta(C \oplus [e_{\text{new}}])$ is valid iff $e_{\text{new}}.\tau \in \Sigma_{\text{life}}$.
-
-\begin{proof}
-If $e_{\text{new}}.\tau \notin \Sigma_{\text{life}}$, then $C_{\text{life}}$ is unchanged, so $s' = s$ (identity transition, always valid). If $e_{\text{new}}.\tau \in \Sigma_{\text{life}}$, then $s' = f(e_{\text{new}}.\tau)$, which is exactly the target state defined by the transition matrix.
-\end{proof}
-
-We now prove that confidence values remain within the unit interval.
-
-\textbf{Theorem 4 (Confidence Boundedness).} For any well-formed $C$, $\gamma(C) \in [0, 1]$.
-
-\begin{proof}
-If $V = []$, $\gamma(C) = 0.0$. Otherwise, each $\phi(a, V) \in [0, 1]$ by payload validation, so their mean is in $[0, 1]$. Thus $c_{\text{base}} \geq 0.5$. The bonus term is non-negative, and the outer $\min(1.0, \cdot)$ caps the result at 1.0.
-\end{proof}
-
-We next show that confidence is monotonic with respect to independent validation events.
-
-\textbf{Theorem 5 (Confidence Monotonicity under Non-Colluding Validation).} Let $\gamma(C) = c$ and let $e_{\text{new}}$ be a \texttt{VALIDATE} event from a new actor who is non-colluding with existing validators, with $e_{\text{new}}.p.\text{confidence} \geq c_{\text{base}}$, where $c_{\text{base}}$ is the current base confidence of $C$. Then $\gamma(C \oplus [e_{\text{new}}]) \geq c$, with strict inequality if $c < 1.0$.
-
-\begin{proof}
-Let $N'_{\text{vals}} = N_{\text{vals}} + 1$. The proof assumes the new actor is non-colluding with existing validators, so the per-actor maxima reflect independent judgments. The new base confidence $c'_{\text{base}}$ is the weighted mean of the $N_{\text{vals}}$ per-actor maxima and the new actor's confidence $c$. Because $c \geq c_{\text{base}} \geq c_{\text{base}}^{\text{raw}}$, the weighted mean satisfies $c'_{\text{base}} \geq c_{\text{base}}^{\text{raw}}$, and therefore $c'_{\text{base}} = \max(0.5, c'_{\text{base}}) \geq \max(0.5, c_{\text{base}}^{\text{raw}}) = c_{\text{base}}$. The bonus term increases by exactly $0.05$ (from $0.05 \times (N_{\text{vals}} - 1)$ to $0.05 \times N_{\text{vals}}$). Hence $\gamma(C') = \min(1.0, c'_{\text{base}} + 0.05 \times N_{\text{vals}}) \geq \min(1.0, c_{\text{base}} + 0.05 \times (N_{\text{vals}} - 1) + 0.05) \geq \gamma(C)$. If $c < 1.0$, the $\min(1.0, \cdot)$ cap is not binding for $\gamma(C)$, and the $+0.05$ bonus yields strict inequality.
-\end{proof}
-
-\textbf{Remark (Collusion vulnerability).} Theorem 5 assumes non-colluding actors. As demonstrated in the empirical boundary experiment E14 (Section~\ref{subsec:e14}), a single colluding actor can drive $\gamma(C)$ to $0.99$. This vulnerability is a known Phase~1 limitation (L9, Section~\ref{subsec:limitations}), addressed by planned MARGIN calibration and staking-based validation (FW3, FW9, Section~\ref{subsec:future-work}).
-
-Finally, we establish consistency between derived status and confidence.
-
-\textbf{Theorem 6 (Status--Confidence Consistency).} If $\delta(C) = \text{validated}$, then $\gamma(C) \geq 0.5$.
-\smallskip
-
-\begin{proof}
-$\delta(C) = \text{validated}$ implies that the last lifecycle event is \texttt{VALIDATE}, so $V \neq \emptyset$. Thus $c_{\text{base}} = \max(0.5, \text{mean}(\cdot)) \geq 0.5$. By Theorem~4, the final value is at least $c_{\text{base}} \geq 0.5$.
-\end{proof}
-
-\subsubsection{Optional CRDT Merge Semantics (Phase~3 Only)}\label{subsubsec:crdt-merge}
-
-The default EventChain is \textbf{NOT} a CRDT. It enforces total order via cryptographic linkage ($\text{previous\_event\_id}$). Concurrent appends without coordination create divergent branches that are resolved through fork-and-deprecate (social consensus), not automatic merge. Theorem~7 below applies \emph{only} to the optional LWW-Element-Set (LWW-Set) merge strategy described here, not to the default EventChain semantics. We present it in a separate subsection to prevent confusion with Theorems~1--6, which apply to all EventChains.
-
-\textbf{Optional LWW-Set merge semantics.} For concurrent modifications by different agents that subsequently reconcile, ADL Lite supports an \emph{optional} LWW-Element-Set merge. This is a specific reconciliation strategy for the confidence aggregation function, \emph{not} a general property of the EventChain data structure. When explicitly invoked, concurrent branches $B_1, B_2$ are reconciled as:
-\begin{align}
-    \text{Merge}(B_1, B_2) &= B_1 \cup B_2 \quad \text{(event union, deduplicated by event\_id)} \\
-    \text{with tie-breaking by} &\quad \text{event\_id} \text{ for equal-timestamp events}
-\end{align}
-The merge operation is commutative, associative, and idempotent, satisfying the CRDT convergence conditions: $\text{Merge}(B_1, B_2) = \text{Merge}(B_2, B_1)$ and $\text{Merge}(\text{Merge}(B_1, B_2), B_3) = \text{Merge}(B_1, \text{Merge}(B_2, B_3))$.
-
-We emphasize that CRDT merge is an \emph{optional} strategy, not the default. The primary mechanism for handling divergent interpretations is fork-and-deprecate: competing views coexist as independent chains, and the community converges through social consensus---deprecating abandoned forks, validating accepted ones. ADL Lite provides the provenance infrastructure for both approaches without prescribing one over the other.
-
-\textbf{Phase~3 CRDT design.} Phase~3 will explore a Blocklace-style hash DAG as the transport layer, with ADL Lite's $\delta/\gamma$ semantics as the application layer. The DAG provides partial-order CRDT semantics with $O(|V|+|E|)$ verification complexity while preserving the deterministic derivation functions. Events would be vertices; $\text{previous\_event\_id}$ links would be edges; and the DAG's topological sort would feed into $\delta$ and $\gamma$ unchanged. This design separates the \emph{transport} CRDT (the DAG) from the \emph{application} semantics (the derivation functions), ensuring that Theorem~7's convergence properties apply to the transport layer while Theorems~1--6 continue to hold at the application layer.
-
-\begin{theorem}[CRDT Convergence]\label{thm:crdt-convergence}
-For any well-formed concurrent branches $B_1, B_2$ derived from the same genesis event, the LWW-Set merge satisfies:
-\begin{align}
-    \text{Merge}(B_1, B_2) &= \text{Merge}(B_2, B_1) \quad \text{(commutativity)} \\
-    \text{Merge}(\text{Merge}(B_1, B_2), B_3) &= \text{Merge}(B_1, \text{Merge}(B_2, B_3)) \quad \text{(associativity)} \\
-    \text{Merge}(B_1, B_1) &= B_1 \quad \text{(idempotence)}
-\end{align}
-Furthermore, after merge, $\delta(\text{Merge}(B_1, B_2))$ is uniquely determined.
-\end{theorem}
-
-\begin{proof}
-Events are deduplicated by $\text{event\_id}$, so the union is idempotent. Union is commutative and associative by set semantics. $\delta$ depends only on the last lifecycle event in the merged set; for equal-timestamp ties, event\_id provides a total order, making $\delta$ deterministic.
-\end{proof}
-
-\textbf{Corollary (Event-Level CRDT).} Each event $e$ is a trivial CRDT: it is immutable (no update operation), so trivially convergent. The chain $C$ as an append-only log is a grow-only set (G-Set) CRDT.\footnote{A TLA$^{+}$ specification of the EventChain state machine (\texttt{EventChain.tla}, 147 lines) is provided as supplementary material. The specification defines the EventChain as a state variable with $\text{AppendEvent}$ as a TLC action, and formalizes the seven theorems as temporal properties. TLC model checking (v2.18, default configuration) verifies: (i)~safety---no invalid transitions occur for all event sequences of length $\leq$20 over the closed alphabet $\Sigma$; (ii)~liveness---every $\textsc{Fork}$ action eventually produces a child chain with distinct $\text{concept\_id}$; (iii)~determinism---$\delta(C)$ is unique for all reachable states. While the proof sketches in this section and Appendix~\ref{app:proofs} provide the formal foundation, the TLA$^{+}$ model enables mechanised verification of these properties for bounded chain lengths. Full machine-checked proofs in Coq or Isabelle/HOL are planned as future work (FW10, Section~\ref{subsec:future-work}).}
+\textbf{Worked example.} Consider a 5-event chain for the concept \texttt{disc-capital-trap}. After the genesis \textsc{Register} event (Step~1), a \textsc{Relate} event (Step~2, communication) leaves status unchanged at \textit{provisional}. A \textsc{Validate} event (Step~3) with confidence 0.70 transitions status to \textit{validated} and sets $\gamma = 0.70$. An \textsc{Evidence} event (Step~4) records audit data without changing derived state. A second \textsc{Validate} (Step~5) with confidence 0.85 updates $\gamma$ to 0.85, demonstrating Theorem~5 (Monotonicity). If agent\_2 disagrees at Step~5, they may append a \textsc{Fork} event: the parent becomes \textit{forked} and the child begins at \textit{provisional}, both independently well-formed.
 
 \subsection{Comparison with Formal Event Frameworks}\label{subsec:event-frameworks}
 
-ADL Lite's event model may be compared with three classical formal frameworks for reasoning about events and change: Event Calculus, Situation Calculus, and Description Logic.
-
-\subsubsection{Event Calculus}
-
-The Event Calculus (EC), introduced by Kowalski and Sergot \cite{event_calculus}, is a logic programming framework for reasoning about events and their effects. EC distinguishes \emph{events} (occurrences that initiate or terminate \emph{fluents}), \emph{fluents} (properties that hold over intervals of time), and \emph{axioms} that specify which events initiate or terminate which fluents.
-
-In EC, a capability's status would be modeled as a fluent: $\text{Validated}(c)$ holds over an interval $[t_1, t_2)$ if a \texttt{VALIDATE} event initiates it at $t_1$ and no subsequent \texttt{DEPRECATE} event terminates it before $t_2$. ADL Lite's $\delta(C)$ function computes exactly this fluent, but it does so by examining the entire event history rather than maintaining a set of currently holding fluents.
-
-The principal difference concerns temporal representation. EC uses \emph{interval-based} temporal reasoning: fluents hold over intervals, and events are points that initiate or terminate intervals. ADL Lite uses \emph{chain-based} temporal reasoning: the current state is computed by scanning the ordered event sequence from genesis to present. Both approaches are equivalent in expressive power for the class of properties that ADL Lite models (status transitions with no continuous change), but the chain-based approach is computationally simpler---$\delta(C)$ is $O(n)$ in the chain length---and provides built-in cryptographic integrity.
-
-EC also supports \emph{continuous change} (e.g., a moving object's position changes continuously over time). ADL Lite does not support continuous change; all state changes are discrete events. This is a deliberate limitation: the target domain (capability lifecycle governance) involves discrete state transitions (proposed $\to$ validated $\to$ deprecated), not continuous physical processes.
-
-\subsubsection{Situation Calculus}
-
-The Situation Calculus (SC), developed by McCarthy and Hayes \cite{situation_calculus}, is a first-order logical framework for reasoning about action and change. SC distinguishes \emph{situations} (snapshots of the world at a point in time) and \emph{actions} (functions that map situations to situations). The fundamental axiom of SC is the \emph{frame axiom}: an action changes only the properties it is specified to change; all other properties remain unchanged.
-
-ADL Lite's EventChain can be viewed as a sequence of situations: each event $e_i$ transforms the situation $S_{i-1}$ into $S_i$. The status derivation $\delta(C)$ computes the value of a specific fluent (status) in the final situation $S_n$. However, ADL Lite does not explicitly represent situations; it represents only the event sequence. This is analogous to the \emph{event sourcing} pattern in software engineering: the state is reconstructed by replaying events, not by storing snapshots.
-
-The frame axiom in SC is a source of the \emph{frame problem}: specifying which properties do \emph{not} change after an action requires an unbounded number of axioms. ADL Lite avoids the frame problem by construction: as there are no stored mutable fields, no properties need preservation across state transitions. All derived properties are recomputed from the event sequence, so the ``frame'' is implicit in the derivation functions.
-
-\subsubsection{Description Logic Expressivity}
-
-ADL Lite's derivation functions can be analyzed in terms of Description Logic (DL) expressivity. The status derivation $\delta(C)$ is a function from a sequence of events to a status value. In DL terms, this is a \emph{role chain} query: the status of a capability is determined by the type of the last event in the chain of events related to the capability by the \texttt{previous\_event\_id} role.
-
-The derivation functions $\delta$ and $\gamma$ are computable in polynomial time ($O(n)$ in the chain length). They do not require the full expressive power of OWL-DL (which is NExpTime-complete for satisfiability). In fact, $\delta$ and $\gamma$ can be expressed in the DL-lite family of lightweight description logics, which support efficient query answering over large datasets \cite{dl_lite}.
-
-Specifically, $\delta$ corresponds to a \emph{path query} over the event chain: ``find the last event in the chain whose type is in $\Sigma_{\text{life}}$, and return the corresponding status.'' This query can be expressed in DL-Lite$_{\mathcal{R}}$ using role inclusion axioms:
-\begin{equation}
-    \exists \text{hasLastLifecycleEvent}^-.\{\tau\} \sqsubseteq \text{hasStatus}.\{f(\tau)\}
-\end{equation}
-for each $\tau \in \Sigma_{\text{life}}$, where $f(\tau)$ maps event types to statuses. The confidence aggregation $\gamma$ involves aggregation (mean, max) over sets of events, which goes beyond standard DL query answering but can be handled by DL extensions with aggregation operators \cite{dl_lite}.
-
-\textbf{Expressiveness bounds.} ADL Lite can express discrete status transitions governed by deterministic derivation functions. It cannot express: (i) continuous change (e.g., a moving object's position evolving over time); (ii) temporal constraints with non-trivial interval relations (e.g., ``event A must occur before event B'' independent of chain order); (iii) existential quantification over event types not in the closed $\Sigma_{\text{life}}$ alphabet; (iv) disjunctive or conditional derivation rules beyond the fixed $f$ mapping. These limitations are by design: the target domain (capability lifecycle governance) requires only discrete, deterministic transitions. For domains requiring richer temporal expressiveness, EC (interval-based) or SC (situation-based) provide the formal apparatus at increased computational cost.
-
-\textbf{EC correspondence.} In Event Calculus terms, $\delta(C)$ computes the fluent $\text{Status}(c, t)$ at time $t$ by evaluating:
-\begin{align}
-    \text{HoldsAt}(\text{Status}(c, s), t) &\iff \exists e \in C_{\text{life}}.\; \text{Happens}(e, t_e) \land t_e \leq t \; \land \\
-    &\qquad \neg \exists e' \in C_{\text{life}}.\; \text{Happens}(e', t_{e'}) \land t_e < t_{e'} \leq t
-\end{align}
-where $s = f(e.\tau)$. The key difference is temporal representation: EC uses interval-based reasoning (fluents hold over intervals); ADL Lite uses chain-based reasoning (scan to the last lifecycle event). Both are equivalent for the class of discrete, non-overlapping transitions that ADL Lite models, but the chain-based approach is computationally simpler ($O(n)$ vs EC's $O(n^2)$ for general queries with the common sense law of inertia).
-
-The practical implication is that ADL Lite's derivation semantics are \emph{tractable}: they do not require OWL reasoners or complex inference engines. This aligns with the design goal of lightweight deployment: the ontology can be processed by a simple Python script operating over Markdown files, without requiring a triple store or DL reasoner.
+ADL Lite's event model may be compared to Event Calculus, Situation Calculus, and Description Logic. In Event Calculus terms, $\delta(C)$ computes the fluent $\text{Status}(c, t)$ by scanning the ordered event sequence, equivalent to EC's interval-based reasoning but computationally simpler ($O(n)$ vs.~$O(n^2)$). ADL Lite avoids the frame problem by construction: there are no stored mutable fields, so all properties are recomputed from the event sequence. The derivation functions $\delta$ and $\gamma$ are computable in linear time ($\mathcal{O}(n)$ and $\mathcal{O}(1)$, respectively). They correspond to DL-Lite$_{\mathcal{R}}$ path queries and do not require full OWL-DL expressivity (NExpTime-complete). A full discussion is in Appendix~H.
 
 \subsection{Trust Model and Security Boundaries}\label{subsec:trust-model}
 
-The cryptographic hash chain ensures \emph{content integrity}: any modification, reordering, or deletion of events breaks the chain linkage and is detected by $\text{VerifyIntegrity}(C)$. However, the scope of cryptographic assurance in Phase~1 is \emph{deliberately limited}: hash chains detect tampering but do not prevent it, and they provide no actor authentication. A malicious agent with write access to the Git repository can rewrite history (detected by hash mismatch), forge another agent's identity (not detected in Phase~1), or inject arbitrary events (recorded but not prevented). These limitations are acknowledged and scoped to Phase~3 (signatures, DIDs, BFT). This section makes the trust model explicit and identifies known boundaries.
+The cryptographic hash chain ensures content integrity: any modification breaks the chain linkage and is detected by $\text{VerifyIntegrity}(C)$. The scope of the current collaborative-audit model is deliberately limited: hash chains detect tampering but do not prevent it, and they provide no actor authentication.
 
 \subsubsection{Trust Assumptions}
 
-ADL Lite's current phase (v0.2) assumes the following trust boundaries:
+We assume (1)~trusted storage (Git or filesystem preserving history integrity, with signed commits providing tamper evidence), (2)~trusted authoring environment (compromised agents inject events, which are recorded as tamper-evident evidence), and (3)~clock skew tolerance (ordering uses cryptographic linkage, not timestamps). Actor identity in the current implementation is a self-declared string; impersonation and replay are discussed below. Future authentication details are in Appendix~K.
 
-\begin{enumerate}[label=(\arabic*)]
-    \item \textbf{Trusted storage.} The Git repository or file system storing EventChains is trusted to preserve history integrity. Force-pushes or rebases can rewrite history, but (a) signed Git commits provide tamper-evidence via GPG signatures, and (b) ADL Lite's chain verification detects any modification because the hash chain breaks at the point of alteration. The authoritative chain is determined by agent quorum, not Git HEAD.
-    \item \textbf{Trusted authoring environment.} We assume that agents are uncompromised. A compromised agent can inject arbitrary events, but those events are recorded—the chain provides \emph{tamper-evident records} of what occurred, even if what occurred was malicious.
-    \item \textbf{Clock skew tolerance.} Event ordering is determined by cryptographic linkage (\texttt{previous\_event\_id}), not by timestamps. Clock skew between agents does not affect chain validity. Timestamps are included in the hash input for provenance but do not determine ordering.
-\end{enumerate}
+\subsubsection{Current Trust Boundary: What Is and Is Not Detectable}
 
-\subsubsection{Actor Identity Management in Phase~1}
+The hash chain detects \emph{content} tampering (modification of existing events) because any change breaks the hash linkage. However, the current model cannot detect the following \emph{structural} and \emph{identity} attacks: (i)~\emph{Actor impersonation:} any agent may declare an arbitrary string identifier; there is no cryptographic binding to a real-world identity. (ii)~\emph{Replay:} an event (or an entire chain) can be copied and re-submitted under a different concept identifier. (iii)~\emph{Sybil creation:} a single agent can create multiple pseudonymous identities and self-validate using each. (iv)~\emph{Selective omission:} an agent may withhold evidence that would contradict their claim; the chain provides no mechanism to prove that a missing event \emph{should} have been present. (v)~\emph{Historical rewrite:} an actor with repository-level access (e.g., Git push access) can force-push a rebased history, replacing the chain with a new genesis. These attacks are detectable by external audit (comparing a local clone against a signed reference), but they are not \emph{prevented} by the chain itself. This characterisation explains why we describe the current model as a \emph{collaborative non-Byzantine} setting.
 
-In Phase~1, actor identity is a self-declared string carried in the \texttt{actor} field of each event. The following practical considerations apply:
+\subsubsection{Collusion Vulnerability Analysis}\label{subsubsec:collusion-analysis}
 
-\textbf{Collision.} Actor strings are namespaced by agent instance (e.g., \texttt{agent\_3} or \texttt{org/research-team-7}). Collisions between distinct agents choosing the same string are detected by event audit: two agents with identical actor strings but divergent event patterns (e.g., contradictory validations on the same capability) produce an auditable conflict record. Resolution is social---the community identifies the collision and one agent renames.
+The confidence aggregation function $\gamma(C)$ is vulnerable to collusion in the current collaborative-audit model because it lacks authentication and incentive compatibility.
 
-\textbf{Impersonation.} Phase~1 does \emph{not} cryptographically prevent impersonation. An agent can append an event with \texttt{actor: "agent\_2"} and the system records it. Detection relies on community audit of event patterns: an agent posting events inconsistent with the historical behaviour of the impersonated identity triggers manual review. This is a deliberate trade-off: cryptographic identity is deferred to Phase~3 to keep Phase~1 deployable without PKI infrastructure.
+\begin{lemma}[Collusion Vulnerability]\label{lem:collusion-vulnerability}
+In the current collaborative-audit model, $\gamma(C)$ returns the confidence of the most recent \texttt{VALIDATE} event (clamped to $[0,1]$). A single actor can therefore drive $\gamma(C)$ to any value in $[0,1]$ by appending a \texttt{VALIDATE} event with the desired confidence, achieving maximum confidence without independent validation.
+\end{lemma}
+\begin{proof}
+By definition, $\gamma(C)$ scans the chain for the last \texttt{VALIDATE} event and returns the clamped confidence value: $\text{clamp}_{[0,1]}(e_{\text{last}}.\text{payload}[\text{``confidence''}])$. A colluding actor appending an event with $\text{confidence} = 1.0$ yields $\gamma(C) = 1.0$.
+\end{proof}
 
-\textbf{Replay attacks.} A replayed event---copying an existing event and re-appending it---breaks the hash chain because the replayed event's \texttt{previous\_event\_id} differs from the current chain tail. $\text{VerifyIntegrity}(C)$ detects this as a linkage break at the point of insertion. Even if an attacker recomputes hashes, the replayed event's $\text{event\_id}$ duplicates an existing one, violating well-formedness axiom~(5) (pairwise distinct \texttt{event\_id} values).
+\begin{lemma}[Minimum Validator Threshold Mitigation]\label{lem:threshold-mitigation}
+Let $N_{\min} \geq 2$ be a minimum validator threshold enforced as a precondition for \texttt{VALIDATE}. Then a single colluding actor cannot trigger the $\text{validated}$ status; the collusion cost rises to $k \geq N_{\min}$.
+\end{lemma}
+\begin{proof}
+The precondition $\langle N_{\text{vals}}, \text{GTE}, N_{\min} \rangle$ is evaluated before appending; for $N_{\text{vals}} = 1 < N_{\min}$, the event is rejected.
+\end{proof}
 
-\textbf{Equivocation.} An agent can post contradictory events across forks (e.g., validating capability $X$ on chain $C_1$ while deprecating it on chain $C_2$). ADL Lite does not prevent this; it \emph{records} them. Equivocation becomes part of the public audit trail and can be queried by $\text{actors}(V)$ aggregation. Resolution is social: the community observes the contradiction and deprecates the inconsistent branch. Equivocation evidence is a feature, not a bug---it exposes dishonest behaviour for community judgment rather than suppressing it silently.
+\textbf{Implications.} Lemma~\ref{lem:collusion-vulnerability} proves that the current model's confidence aggregation lacks collusion resistance because a single actor controls the most recent validation. Lemma~\ref{lem:threshold-mitigation} shows that a minimum-validator threshold provides partial mitigation. Full collusion resistance requires EWMA calibration and per-band correction (implemented as described in \S\ref{subsec:calibration}) and a staking-based mechanism (FW9).
 
 \subsubsection{Known Limitations and Planned Mitigations}
 
-\textbf{Limitation 1: No actor identity verification (Phase~3).} Currently, event actors are self-declared strings. An agent can claim to be another agent when appending events. Planned Phase~3 will add W3C Linked Data Proofs~\cite{linked_data_proofs}: each event will carry an Ed25519 signature over canonicalized event JSON, verifiable against a public key published via Decentralised Identifiers (DIDs)~\cite{dids} or key transparency logs~\cite{key_transparency}. Key revocation will be published to transparency logs, and Merkle tree batch verification will provide $O(\log n)$ audit complexity for signature validation. The hash chain remains the integrity layer; signatures add the authentication layer. Integration with Git-based workflows will use Git's existing GPG commit signing as a stopgap: signed Git commits bound to signed ADL events create a two-layer attestation (Git commit signs the file; ADL event signs the content).
+The current model has four limitations: (1) no actor identity verification for legacy string identifiers (we have implemented a minimal \texttt{did:key} layer as described below; full W3C LD-Proofs and DIDs remain future work); (2) no Byzantine resilience; (3) no equivocation prevention (contradictory events are recorded as auditable evidence); (4) genesis immutability relies solely on hash-chain detection and signed Git commits.
 
-\textbf{Limitation 2: No Byzantine resilience.} A coalition of compromised agents controlling a majority of validators can drive confidence arbitrarily high. ADL Lite does not implement Byzantine fault tolerance. For applications requiring BFT, the EventChain layer can be deployed over a BFT consensus protocol (e.g., PBFT~\cite{pbft}) at the transport layer, with ADL Lite providing the semantic governance layer above.
-
-\textbf{Limitation 3: No equivocation prevention.} An agent can post contradictory events (e.g., validating and deprecating the same capability) across different chains. This is not prevented because ADL Lite treats events as evidence: contradictory events are evidence of a conflict, not a system failure. Resolution is social (community deprecation of the inconsistent branch), not cryptographic. Phase~3 signatures will make equivocation \emph{cryptographically attributable} (the same key signs both contradictory events), but will not prevent it by protocol design.
-
-\textbf{Limitation 4: Genesis event immutability.} In Git-based workflows, a force-push can rewrite the genesis event. However: (a) the hash chain from the genesis event onward would detect any change; (b) signed Git commits provide additional tamper-evidence; (c) the capability's identity is tied to the genesis event's hash---rewriting it creates a \emph{different capability} with a different identity. The original capability's chain persists in the Git reflog and in any agent's local copy.
+\textbf{Three-phase authentication roadmap.} \textbf{Phase 1 (current):} collaborative-audit model with self-declared string identifiers and SHA-256 hash-chain integrity. \textbf{Phase 1.5 (implemented, pre-release):} minimal \texttt{did:key} resolution without external dependencies; Ed25519 signatures in the \texttt{signature} field; \texttt{verify\_signature()} validates both DID-derived and registry-derived keys. This demonstrates cryptographic identity beyond self-declared strings but remains scoped to the collaborative-audit model. \textbf{Phase 2 (planned):} full Ed25519 key registry (\texttt{key\_registry.py}) with \texttt{KEY\_ROTATE} and \texttt{KEY\_REVOKE} events; DID document storage with \texttt{did:web} and \texttt{did:ethr} support; W3C Linked Data Proofs. \textbf{Phase 3 (future):} BFT transport layer; CRDT-style merge with semantic policies; Ontological Assertion Market (staking/slashing for incentive-compatible validation). Authenticated identities would change the threat model: Sybil attacks (L3a) become impossible, and collusion cost rises to economic stakes (FW9).
 
 \subsubsection{Threat Model Summary}
 
+Table~\ref{tab:threat-model} summarizes the progression from the current release to future releases. The full discussion, including per-threat attack trees, signed-commit anchoring details, and recovery procedures, is in Appendix~K.
+
 \begin{table}[htbp]
 \centering
-\caption{Threat model for ADL Lite v0.2. $\checkmark$ = mitigated; $\circ$ = detected but not prevented; $\times$ = not addressed.}
+\caption{Threat model progression across phases.}
 \label{tab:threat-model}
-\begin{tabular}{@{}lll@{}}
+\begin{tabular}{@{}lcccc@{}}
 \toprule
-\textbf{Threat} & \textbf{Status} & \textbf{Mitigation} \\
+\textbf{Threat} & \textbf{Current model} & \textbf{Signed commits} & \textbf{Phase 1.5} & \textbf{Future auth.} \\
 \midrule
-Content tampering & $\checkmark$ & Hash chain (SHA-256 linkage) \\
-Event reordering & $\checkmark$ & \texttt{previous\_event\_id} linkage \\
-Event deletion & $\checkmark$ & Hash chain break detection \\
-Actor impersonation & $\times$ & Planned: Ed25519 + DIDs (Phase~3) \\
-Equivocation & $\circ$ & Detected as conflicting events; social resolution \\
-Clock skew & $\checkmark$ & Ordering via linkage, not timestamps \\
-Genesis replacement & $\circ$ & Hash break detection; Git reflog recovery \\
-Byzantine majority & $\times$ & Planned: optional BFT transport layer \\
+Content tampering & $\checkmark$ & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+Event reordering & $\checkmark$ & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+Event deletion & $\checkmark$ & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+Actor impersonation & $\times$ & $\triangle$ & $\triangle$ & $\checkmark$ \\
+Equivocation & $\circ$ & $\circ$ & $\circ$ & $\triangle$ \\
+Clock skew & $\checkmark$ & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+Genesis replacement & $\circ$ & $\triangle$ & $\triangle$ & $\checkmark$ \\
+Byzantine majority & $\times$ & $\times$ & $\times$ & $\triangle$ \\
+Replay attack & $\circ$ & $\triangle$ & $\triangle$ & $\checkmark$ \\
+Timestamp manipulation & $\checkmark$ & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+Collusion attack & $\times$ & $\times$ & $\triangle$ & $\triangle$ \\
+Social engineering & $\times$ & $\times$ & $\times$ & $\times$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsubsection{Fault Detection and Recovery}
+\textbf{Phase 1.5} provides Ed25519 \texttt{did:key} resolution and signature verification (\S\ref{subsec:trust-model}), which mitigates impersonation, replay, and genesis replacement relative to string identifiers, but does not prevent Sybil creation (a single actor can still generate multiple \texttt{did:key}s) or collusion (no economic cost).
 
-ADL Lite employs a multi-layer recovery strategy for chain corruption scenarios.
+The CRDT merge semantics described here are \textbf{optional and experimental}. The default EventChain in the current implementation is a strictly ordered sequence with no merge support; fork resolution uses last-write-wins (LWW). Theorem~9 below describes a \emph{future capability}, not a property of the present system. We include it to demonstrate that the event-first architecture is \emph{compatible} with CRDT convergence, but we do not claim that the current implementation supports robust distributed merges.
 
-\textbf{Detection.} $\text{VerifyIntegrity}(C)$ identifies the exact point of failure in $O(n)$ time: it returns the index $i$ of the first event where $e_i.h \neq \text{SHA-256}(\text{Canon}(e_i))$ or $e_i.h_{\text{prev}} \neq e_{i-1}.h$. Corruption is classified as: (a) \emph{content tampering} (hash mismatch at a single event); (b) \emph{linkage break} (prev\_hash mismatch between consecutive events); or (c) \emph{truncation} (chain ends before expected length).
+The CRDT merge operates at the \emph{set} level (events as elements), while the hash chain operates at the \emph{sequence} level (events as ordered nodes). When two branches $B_1$ and $B_2$ are merged, the resulting event set $B_1 \cup B_2$ is re-linearised by sorting on \texttt{timestamp} (with \texttt{event\_id} tie-breaking). The hash chain is then recomputed over this merged sequence: each event's \texttt{previous\_event\_id} and \texttt{prev\_hash} are updated to point to its predecessor in the new ordering. This means the merged chain has a \emph{different} hash sequence from either parent branch, but all original event content is preserved (via its immutable \texttt{event\_id} and payload). The hash chain therefore provides \emph{post-merge integrity}, not \emph{pre-merge ancestry preservation}. For applications requiring ancestry proofs, the original branch hashes can be stored as metadata in a \textsc{MERGE} event payload.
 
-\textbf{Recovery strategies.}
-\begin{enumerate}[label=(\arabic*)]
-    \item \textbf{Git reflog recovery.} Each chain version is preserved in Git's history. \texttt{git reflog} can restore any prior state. If the corrupted chain is the current HEAD, the last known well-formed version can be checked out.
-    \item \textbf{Distributed peer recovery.} In multi-agent deployments, each agent maintains a local copy. The authoritative chain is selected by agent quorum: the longest well-formed chain (verified by $\text{VerifyIntegrity}$) from the set of peer copies is adopted.
-    \item \textbf{Partial repair.} If only tail events are corrupted, the chain can be truncated to the last well-formed prefix $C[1..k]$. The truncation is recorded as an \texttt{EVIDENCE} event noting ``integrity violation detected at event $k+1$; chain truncated.'' Truncated events remain in Git history.
-    \item \textbf{Rollback governance.} Any recovery action produces a governance event under the same precondition rules as normal operations, ensuring auditable recovery.
-\end{enumerate}
+\textbf{Handling conflicting lifecycle events.} A critical case arises when $B_1$ contains a \texttt{VALIDATE} event and $B_2$ contains a \texttt{DEPRECATE} event for the same concept. The merge operation preserves both events; the re-linearised order determines $\delta$ via the last-event-wins rule. If \texttt{DEPRECATE} has the later timestamp (by $\prec$), $\delta = \text{deprecated}$; if \texttt{VALIDATE} is later, $\delta = \text{validated}$. This is deterministic because $\prec$ is a total order (Equation~6). However, the LWW policy is semantically brittle: timestamp ordering may not reflect epistemic intent (e.g., a later \texttt{DEPRECATE} from a low-accuracy actor overriding an earlier \texttt{VALIDATE} from a high-accuracy actor). The calibration layer ($\gamma_{\text{cal}}$) can mitigate this by weighting validators by accuracy, but LWW itself does not consider semantic weight. Semantic merge policies (e.g., quorum-based resolution, accuracy-weighted ordering) are planned for Phase~3 (FW4). Equivocation---both events from the same actor---is retained as explicit auditable evidence of disagreement and is not resolved by the merge itself.
 
-\textbf{Limitations.} Phase~1 assumes at least one well-formed copy exists. Total data loss causes capability cessation (§\ref{subsec:ontological-dependence}). Automated reconciliation of conflicting well-formed copies is deferred to Phase~3 (CRDT merge, Theorem~7). Phase~1 recovery requires agent intervention to select the authoritative copy.
+\textbf{Theorem~9 (Optional CRDT Convergence, Future Release).} For any well-formed concurrent branches $B_1, B_2$ derived from the same genesis event, the LWW-Set merge satisfies commutativity, associativity, and idempotence, and $\delta(\text{Merge}(B_1, B_2))$ is uniquely determined. \emph{Proof Sketch:} (i)~\emph{Commutativity:} $B_1 \cup B_2 = B_2 \cup B_1$ by set union symmetry. (ii)~\emph{Associativity:} $(B_1 \cup B_2) \cup B_3 = B_1 \cup (B_2 \cup B_3)$ by set union associativity. (iii)~\emph{Idempotence:} $B \cup B = B$ by set idempotence; deduplication by \texttt{event\_id} ensures no duplicates. (iv)~\emph{Determinism of $\delta$:} the merged set contains all lifecycle events from both branches; sorting by timestamp (with \texttt{event\_id} tiebreaker) yields a unique last lifecycle event, so $f(\tau_{\text{last}})$ is uniquely determined. We verify Theorem~9 (Optional CRDT Convergence) only through executable assertions. Machine-checked proofs for unbounded chains are planned for future work (FW10, FW12).
+
+\subsection{Calibration Layer}\label{subsec:calibration}
+
+The calibration layer mitigates overconfidence in the default $\gamma(C)$ aggregation by offering four complementary strategies, all implemented in \texttt{calibration.py}: \textbf{linear calibration} (per-actor accuracy-weighted confidence), \textbf{EWMA time-decay} (exponentially weighted moving average with smoothing factor $\alpha = 0.3$), \textbf{epistemic context} (domain-specific accuracy scores per actor per domain), and \textbf{per-band correction} (low-confidence values $[0.0, 0.3)$ receive $+0.15$ boost; high-confidence $[0.7, 1.0]$ receive $-0.10$ dampening). These strategies operate independently and can be combined. The default EventChain uses the O(1) last-\texttt{VALIDATE} strategy; we invoke the calibration layer explicitly when cross-validation depth or collusion risk warrants more conservative aggregation.
+
+\subsection{Semantic Web Interoperability}\label{subsec:semantic-web-interop}
+
+ADL Lite implements two Semantic Web export pathways. \textbf{Bidirectional OWL~2 DL import/export} (\texttt{owl\_export.py} / \texttt{owl\_import.py}) converts \texttt{ADLDocument} to OWL~2 DL in Turtle or RDF/XML, mapping concepts to \texttt{NamedIndividual}s, status to annotation properties, and events to typed individuals. Round-trip validation preserves concept identity, status, confidence, and event count. \textbf{RDF-star / SPARQL-star} (\texttt{rdfstar\_export.py}) converts events to embedded triples, enabling provenance queries such as ``find all concepts validated by agent X with confidence $>0.8$ in the last 30 days.'' Three additional pathways remain future work (FW8): SHACL validation, PROV-O mapping, and JSON-LD serialization.

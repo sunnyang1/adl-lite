@@ -1,5 +1,5 @@
-#!/usr/bin/bash
-# Reproduce PROV-O export for all example concepts.
+#!/usr/bin/env bash
+# reproduce_prov.sh — Generate PROV-O Turtle files for all example concepts and validate with rdflib.
 # Usage: bash scripts/reproduce/reproduce_prov.sh
 
 set -euo pipefail

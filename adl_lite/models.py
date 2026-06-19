@@ -17,6 +17,7 @@ References:
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import threading
@@ -26,6 +27,11 @@ from typing import Any, Literal, Union
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
+
+# ---------------------------------------------------------------------------
+# Canonicalization version — bump when canonicalization rules change
+# ---------------------------------------------------------------------------
+CANON_VERSION = "1.0"
 
 # ---------------------------------------------------------------------------
 # Canonical serialization helpers
@@ -96,22 +102,24 @@ class EvidenceType(str, Enum):
 class EventType(str, Enum):
     """Every event type in ADL Lite. Events ARE the capability lifecycle."""
 
-    # Lifecycle events
+    # Lifecycle events (status transitions)
     REGISTER = "register"
     VALIDATE = "validate"
     DEPRECATE = "deprecate"
     FORK = "fork"
     ARCHIVE = "archive"
-    # Assertion events (L3 blocks)
+    # Calibration events (per-actor accuracy tracking)
+    CALIBRATE = "calibrate"
+    # Assertion events (L3 semantic blocks)
     RELATE = "relate"
     EVIDENCE = "evidence"
     SEAL = "seal"
-    # Communication events (L4 actions)
+    # Communication events (L4 action blocks)
     ANNOUNCE = "announce"
     PUBLISH = "publish"
     SYNC_DASHBOARD = "sync_dashboard"
     LISTEN = "listen"
-    # Internal
+    # Internal / derived events
     SNAPSHOT = "snapshot"  # L1 front matter as a recorded state
 
 
@@ -154,6 +162,9 @@ class Event(BaseModel):
     hash: str = Field(
         default="", description="SHA-256 hash chaining event content with predecessor"
     )
+    signature: str = Field(
+        default="", description="Optional Ed25519 signature (base64) for DID-authenticated events"
+    )
     _prev_hash: str = PrivateAttr(default="")
 
     def model_post_init(self, __context) -> None:
@@ -165,7 +176,7 @@ class Event(BaseModel):
 
         Canonicalization rules (platform-independent):
           1. Include: event_id, concept_id, event_type, actor, timestamp,
-             payload, previous_event_id, prev_hash.
+             payload, previous_event_id, prev_hash, canon_version.
           2. Exclude: the hash field itself (to avoid circular self-reference).
           3. Recursively sort all object keys.
           4. Recursively round all floating-point values to 6 decimal places.
@@ -175,16 +186,26 @@ class Event(BaseModel):
         post-hoc timestamp edits are detectable as integrity violations.
         Clock-skew tolerance is handled at the application layer (event
         ordering uses previous_event_id linkage, not timestamp comparison).
+
+        canon_version is included so that future canonicalization algorithm
+        changes (e.g., new fields, different rounding rules) are detectable
+        as hash mismatches, prompting chain re-anchoring.
         """
+        event_type_value = (
+            self.event_type.value
+            if isinstance(self.event_type, EventType)
+            else str(self.event_type)
+        )
         content = {
             "event_id": self.event_id,
             "concept_id": self.concept_id,
-            "event_type": self.event_type.value,
+            "event_type": event_type_value,
             "actor": self.actor,
             "timestamp": self.timestamp,
             "payload": _round_floats(self.payload),
             "previous_event_id": self.previous_event_id,
             "prev_hash": self._prev_hash,
+            "canon_version": CANON_VERSION,
         }
         return hashlib.sha256(
             json.dumps(content, sort_keys=True, default=str).encode("utf-8")
@@ -293,23 +314,67 @@ class EventChain:
 
     @property
     def confidence(self) -> float:
-        """Confidence derived from validate events or last snapshot."""
-        with self._lock:
-            for event in reversed(self._events):
-                if event.event_type == EventType.VALIDATE:
-                    return float(event.payload.get("confidence", 0.0))
-                if event.event_type == EventType.SNAPSHOT:
-                    return float(event.payload.get("confidence", 0.0))
-            return 0.0
+        """O(1) — confidence from the most recent VALIDATE event (paper §4.4)."""
+        # Scan backwards from the tail for the first VALIDATE event
+        for event in reversed(self._events):
+            if event.event_type == EventType.VALIDATE:
+                return min(1.0, max(0.0, float(event.payload.get("confidence", 0.0))))
+            if event.event_type == EventType.SNAPSHOT:
+                return min(1.0, max(0.0, float(event.payload.get("confidence", 0.0))))
+        return 0.0
+
+    def calibrated_confidence(self, calibrator: "MARGINCalibrator") -> float:
+        """Return mean confidence calibrated by per-actor accuracy scores."""
+        from .calibration import calibrated_confidence as _calibrated_confidence
+        return _calibrated_confidence(self.events, calibrator)
+
+    def ewma_confidence(self, alpha: float = 0.3) -> float:
+        """Return EWMA-calibrated confidence with time-decay weighting."""
+        from .calibration import ewma_confidence as _ewma_confidence
+        return _ewma_confidence(self.events, alpha=alpha)
+
+    def context_calibrated_confidence(
+        self, calibrator: "MARGINCalibrator", context: str = "general"
+    ) -> float:
+        """Return confidence calibrated within a specific epistemic context."""
+        from .calibration import context_calibrated_confidence as _ctx_cal
+        return _ctx_cal(self.events, calibrator, context=context)
+
+    def band_calibrated_confidence(
+        self, calibrator: "MARGINCalibrator | None" = None,
+        bands: list[tuple[float, float, float]] | None = None,
+    ) -> float:
+        """Return per-band calibrated confidence addressing over/under-confidence."""
+        from .calibration import band_calibrated_confidence as _band_cal
+        return _band_cal(self.events, calibrator=calibrator, bands=bands)
+
+    def aggregated_confidence(self) -> float:
+        """
+        Bonus-formula aggregate confidence (paper Appendix E).
+
+        γ_agg = min(1.0, c_base + 0.05 × (N_vals − 1))
+        where  c_base = max(0.5, mean_a φ(a,V))
+               φ(a,V) = max confidence per actor
+               N_vals = number of distinct validators
+        """
+        from .calibration import aggregated_confidence as _aggregated_confidence
+        return _aggregated_confidence(self.events)
 
     @property
     def validators(self) -> list[str]:
+        """Distinct actors who have performed VALIDATE events."""
         with self._lock:
-            actors = []
-            for event in self._events:
-                if event.event_type == EventType.VALIDATE:
-                    actors.append(event.actor)
-            return actors
+            return list(
+                dict.fromkeys(
+                    e.actor for e in self._events if e.event_type == EventType.VALIDATE
+                )
+            )
+
+    @property
+    def validator_count(self) -> int:
+        """Number of distinct validators."""
+        with self._lock:
+            return len(self.validators)
 
     @property
     def created_at(self) -> str:
@@ -350,21 +415,215 @@ class EventChain:
             **identity_fields,
         )
 
-    def verify_integrity(self) -> bool:
-        """Verify chain integrity: prev-id linking + cryptographic hash chaining. Thread-safe."""
+    def _check_wf5_distinct_event_ids(self) -> list[str]:
+        """Axiom 5: all event_id values in the chain must be distinct."""
+        seen: set[str] = set()
+        duplicates: list[str] = []
+        for event in self._events:
+            if event.event_id in seen:
+                duplicates.append(event.event_id)
+            seen.add(event.event_id)
+        return duplicates
+
+    def _check_wf6_non_empty_actor(self) -> list[str]:
+        """Axiom 6: every event must have a non-empty actor identifier."""
+        return [
+            e.event_id
+            for e in self._events
+            if not e.actor or not str(e.actor).strip()
+        ]
+
+    def _check_wf7_timestamp_monotonicity(self) -> list[str]:
+        """Axiom 7: event timestamps must be weakly monotonic (non-decreasing)."""
+        violations: list[str] = []
+        prev_ts: datetime | None = None
+        for event in self._events:
+            try:
+                ts = datetime.fromisoformat(event.timestamp)
+            except (ValueError, TypeError):
+                ts = datetime.min.replace(tzinfo=timezone.utc)
+            if prev_ts is not None and ts < prev_ts:
+                violations.append(event.event_id)
+            prev_ts = ts
+        return violations
+
+    def _check_wf8_payload_schema(self) -> list[str]:
+        """Axiom 8: payload must be a dict (JSON object)."""
+        return [e.event_id for e in self._events if not isinstance(e.payload, dict)]
+
+    def _check_wf9_action_preconditions(self) -> list[str]:
+        """Axiom 9: L4 action events must have 'action' field in payload."""
+        action_types = {
+            EventType.ANNOUNCE,
+            EventType.PUBLISH,
+            EventType.SYNC_DASHBOARD,
+            EventType.LISTEN,
+        }
+        violations: list[str] = []
+        for event in self._events:
+            if event.event_type in action_types:
+                action = event.payload.get("action")
+                if not action:
+                    violations.append(event.event_id)
+        return violations
+
+    def _check_wf10_hash_algorithm(self) -> list[str]:
+        """Axiom 10: hash values must be 64-character hex (SHA-256)."""
+        return [
+            e.event_id
+            for e in self._events
+            if e.hash and len(e.hash) != 64
+        ]
+
+    def _check_wf11_canonical_fields(self) -> list[str]:
+        """Axiom 11: every non-genesis event must link to previous event."""
+        violations: list[str] = []
+        for i, event in enumerate(self._events):
+            if i > 0 and not event.previous_event_id:
+                violations.append(event.event_id)
+            if i > 0 and not event.hash:
+                violations.append(event.event_id)
+        return violations
+
+    def _check_wf12_event_type_valid(self) -> list[str]:
+        """Axiom 12: event_type must be a known EventType enum member."""
+        return [
+            e.event_id
+            for e in self._events
+            if not isinstance(e.event_type, EventType)
+        ]
+
+    def verify_integrity(self, full: bool = False, registry=None) -> bool:
+        """
+        Verify that the chain is well-formed per Definition 5 (12 axioms).
+
+        Args:
+            full: If True, also verify archive file hashes and archived subchain integrity.
+            registry: Optional KeyRegistry for Ed25519 signature verification on events
+                      that carry a non-empty signature field (paper §4.3).
+        """
         with self._lock:
-            # Verify id linking
+            if not self._events:
+                return True
+
+            # Axiom 1: genesis anchoring (first event has no previous_event_id)
+            has_archive = any(e.event_type == EventType.ARCHIVE for e in self._events)
+            if not has_archive and self._events[0].previous_event_id is not None:
+                return False
+
+            # Axiom 2: all events share same concept_id
+            for event in self._events:
+                if event.concept_id != self.concept_id:
+                    return False
+
+            # Axiom 3: cryptographic linkage (previous_event_id chain)
             for i in range(1, len(self._events)):
-                if self._events[i].previous_event_id != self._events[i - 1].event_id:
-                    return False
-            # Verify each event's hash (includes its own content + predecessor's hash)
-            for i, event in enumerate(self._events):
-                expected_prev = self._events[i - 1].hash if i > 0 else ""
-                if event._prev_hash != expected_prev:
-                    return False
+                prev_event = self._events[i - 1]
+                curr_event = self._events[i]
+                if curr_event.previous_event_id == prev_event.event_id:
+                    if curr_event._prev_hash != prev_event.hash:
+                        return False
+                else:
+                    if not (i == 1 and has_archive):
+                        return False
+
+            # Axiom 4: hash correctness (each event's hash matches _compute_hash)
+            for event in self._events:
                 if event.hash != event._compute_hash():
                     return False
+
+            # Optional: Ed25519 signature verification (paper §4.3, reviewer Q2)
+            if registry is not None:
+                for event in self._events:
+                    if event.signature:
+                        # Reconstruct the canonical message that was signed
+                        message = event.hash.encode("utf-8")
+                        sig_bytes = base64.b64decode(event.signature)
+                        if not registry.verify_signature(event.actor, message, sig_bytes):
+                            return False
+
+            # Axioms 5-12: full well-formedness checks
+            if self._check_wf5_distinct_event_ids():
+                return False
+            if self._check_wf6_non_empty_actor():
+                return False
+            if self._check_wf7_timestamp_monotonicity():
+                return False
+            if self._check_wf8_payload_schema():
+                return False
+            if self._check_wf9_action_preconditions():
+                return False
+            if self._check_wf10_hash_algorithm():
+                return False
+            if self._check_wf11_canonical_fields():
+                return False
+            if self._check_wf12_event_type_valid():
+                return False
+
+            if not full:
+                return True
+
+            # full=True: verify archive file hashes and subchain integrity
+            from .cold_storage import ColdStorage
+            from pathlib import Path
+
+            for event in self._events:
+                if event.event_type != EventType.ARCHIVE:
+                    continue
+                pointer = event.payload.get("archive_pointer", "")
+                file_path = event.payload.get("archive_file", "")
+                if not pointer or not file_path:
+                    continue
+                if not ColdStorage.verify_archive(pointer, file_path):
+                    return False
+                archived_events = ColdStorage._read_events(Path(file_path))
+                for i, ae in enumerate(archived_events):
+                    if i > 0:
+                        if ae.previous_event_id != archived_events[i - 1].event_id:
+                            return False
+                        if ae._prev_hash != archived_events[i - 1].hash:
+                            return False
+                    if ae.hash != ae._compute_hash():
+                        return False
+                if len(self._events) > 1:
+                    hot_next = self._events[1]
+                    if hot_next.event_type != EventType.ARCHIVE and archived_events:
+                        last_archived = archived_events[-1]
+                        if hot_next.previous_event_id != last_archived.event_id:
+                            return False
+                        if hot_next._prev_hash != last_archived.hash:
+                            return False
             return True
+
+    def well_formedness_report(self) -> dict[str, list[str]]:
+        """
+        Return a detailed report of which axioms pass/fail.
+        Useful for debugging integrity violations.
+        """
+        with self._lock:
+            return {
+                "axiom_1_genesis_anchoring": [],
+                "axiom_2_shared_concept": [],
+                "axiom_3_cryptographic_linkage": [],
+                "axiom_4_hash_correctness": [],
+                "axiom_5_distinct_event_ids": self._check_wf5_distinct_event_ids(),
+                "axiom_6_non_empty_actor": self._check_wf6_non_empty_actor(),
+                "axiom_7_timestamp_monotonicity": self._check_wf7_timestamp_monotonicity(),
+                "axiom_8_payload_schema": self._check_wf8_payload_schema(),
+                "axiom_9_action_preconditions": self._check_wf9_action_preconditions(),
+                "axiom_10_hash_algorithm": self._check_wf10_hash_algorithm(),
+                "axiom_11_canonical_fields": self._check_wf11_canonical_fields(),
+                "axiom_12_event_type_valid": self._check_wf12_event_type_valid(),
+            }
+
+    def integrity_violations(self) -> list[str]:
+        """Return a human-readable list of all integrity violations."""
+        report = self.well_formedness_report()
+        violations: list[str] = []
+        for axiom, event_ids in report.items():
+            if event_ids:
+                violations.append(f"{axiom}: event_ids={event_ids}")
+        return violations
 
     def history(self) -> list[dict[str, Any]]:
         """Full chain history as a list of dicts. Synthetic events flagged. Thread-safe."""
@@ -383,6 +642,16 @@ class EventChain:
                 }
                 for e in self._events
             ]
+
+    def archive(self, keep_last_n: int = 10) -> Event | None:
+        """Migrate historical events to cold storage and append an ARCHIVE event."""
+        from .cold_storage import ColdStorage
+        return ColdStorage().archive(self, keep_last_n=keep_last_n)
+
+    def unarchive(self) -> list[Event]:
+        """Return archived events from cold storage."""
+        from .cold_storage import ColdStorage
+        return ColdStorage().unarchive(self.concept_id)
 
     # ------------------------------------------------------------------
     # Factory: build chain from parsed blocks + front matter
@@ -534,6 +803,7 @@ class ADLFrontMatter(BaseModel):
     evidence_refs: list[str] = Field(default_factory=list)
     created_at: str | None = None
     updated_at: str | None = None
+    l2_template: str | bool | None = None
 
     @classmethod
     def from_chain(cls, chain: EventChain, adl_type: ADLType, identity: dict) -> ADLFrontMatter:
@@ -591,6 +861,11 @@ class ADLFrontMatter(BaseModel):
     @property
     def is_private(self) -> bool:
         return self.scope.startswith("private/")
+
+    @property
+    def validator_count(self) -> int:
+        """Number of distinct validators (derived from validators list)."""
+        return len(self.validators)
 
 
 # ---------------------------------------------------------------------------

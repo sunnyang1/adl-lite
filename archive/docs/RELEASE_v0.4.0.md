@@ -1,5 +1,7 @@
 # v0.4.0 — Ontology middle layer (2a–2c)
 
+> **Status:** Superseded by v0.4.0-alpha (2026-06-17) — see [CHANGELOG.md](../../CHANGELOG.md) for code-paper alignment updates.
+
 ## Highlights
 
 - **Operational ontology registry:** `adl_lite/adl_core_ontology.yaml` with closed predicate and transition sets.
@@ -40,4 +42,4 @@ None expected. Strict ontology validation remains **opt-in** (`--strict` or `ADL
 ## Pending (post-release)
 
 - Human RQ1 inter-rater study execution (`referent_clarity` fields still null)
-- Optional Turtle export (Phase 3)
+- Optional Turtle export (Phase 3) — **now implemented in `owl_export.py`**

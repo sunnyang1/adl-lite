@@ -1,97 +1,136 @@
 """
-Tests for RDF-star export from EventChain.
+Tests for RDF-star / SPARQL-star export (FW8).
 """
 
-from __future__ import annotations
+import pytest
 
-# import pytest
-from adl_lite.models import Event, EventChain, EventType
-from adl_lite.prov_export import to_rdfstar
+from adl_lite.models import ADLDocument, ADLFrontMatter, ADLType, DiscoveryStatus, Event, EventChain, EventType
+from adl_lite.rdfstar_export import document_to_rdfstar_turtle, event_to_rdfstar_triple, sparqlstar_query_template
 
 
-class TestRDFStarExport:
-    """Validate RDF-star Turtle-star syntax and content."""
-
-    def test_empty_chain_produces_valid_turtle_star(self):
-        chain = EventChain(concept_id="rdfstar-empty")
-        ttl = to_rdfstar(chain)
-        # rdflib may not parse << >> syntax fully, but we at least check valid Turtle base
-        assert "prov:Entity" in ttl
-        assert "rdfstar-empty" in ttl
-
-    def test_chain_with_relation_payload(self):
-        chain = EventChain(concept_id="rdfstar-rel")
-        chain.append(
-            Event(
-                concept_id="rdfstar-rel",
-                event_type=EventType.REGISTER,
-                actor="a",
-                timestamp="2024-01-15T09:00:00+00:00",
-                payload={
-                    "relations": [
-                        {
-                            "source": "Concept A",
-                            "relation": "isomorphic-to",
-                            "target": "Concept B",
-                            "confidence": 0.91,
-                        }
-                    ]
-                },
-            )
+def _make_sample_doc() -> ADLDocument:
+    chain = EventChain(concept_id="disc-test")
+    chain.append(
+        Event(
+            concept_id="disc-test",
+            event_type=EventType.VALIDATE,
+            actor="agent_1",
+            payload={"confidence": 0.85},
         )
-        ttl = to_rdfstar(chain)
-        # Check for RDF-star quoted triple syntax
-        assert "<<" in ttl
-        assert ">>" in ttl
-        assert "isomorphic_to" in ttl
-        assert "0.91" in ttl
-        assert "adl:eventHash" in ttl
+    )
+    fm = ADLFrontMatter(
+        adl_type=ADLType.DISCOVERY,
+        adl_id="disc-test",
+        status=DiscoveryStatus.VALIDATED,
+        confidence=0.85,
+        validators=["agent_1"],
+        domain="aml",
+        scope="public",
+    )
+    return ADLDocument(front_matter=fm, markdown_body="", event_chain=chain)
 
-    def test_relation_provenance_event_linked(self):
-        chain = EventChain(concept_id="rdfstar-prov")
-        chain.append(
-            Event(
-                concept_id="rdfstar-prov",
-                event_type=EventType.VALIDATE,
-                actor="validator_1",
-                timestamp="2024-01-15T14:30:00+00:00",
-                payload={
-                    "relations": [
-                        {
-                            "source": "Source",
-                            "relation": "specialisation-of",
-                            "target": "Target",
-                            "confidence": 0.73,
-                        }
-                    ]
-                },
-            )
-        )
-        ttl = to_rdfstar(chain)
-        # Provenance event should be linked
-        assert "prov:wasGeneratedBy" in ttl
-        assert "validator_1" in ttl
 
-    def test_deduplicates_repeated_relations(self):
-        chain = EventChain(concept_id="rdfstar-dedup")
-        for _ in range(3):
-            chain.append(
-                Event(
-                    concept_id="rdfstar-dedup",
-                    event_type=EventType.VALIDATE,
-                    actor="a",
-                    payload={
-                        "relations": [
-                            {
-                                "source": "S",
-                                "relation": "related-to",
-                                "target": "T",
-                                "confidence": 0.5,
-                            }
-                        ]
-                    },
-                )
-            )
-        ttl = to_rdfstar(chain)
-        # Only one quoted triple for the duplicated relation
-        assert ttl.count("related_to") == 1
+# ---------------------------------------------------------------------------
+# RDF-star triple tests
+# ---------------------------------------------------------------------------
+
+
+def test_rdfstar_validate_event():
+    event = Event(
+        concept_id="disc-test",
+        event_type=EventType.VALIDATE,
+        actor="agent_1",
+        payload={"confidence": 0.85},
+    )
+    triple = event_to_rdfstar_triple(event)
+    assert "<<adl:disc-test adl:hasStatus adl:status/validated>>" in triple
+    assert 'adl:hasActor "agent_1"' in triple
+    assert "adl:hasConfidence 0.85" in triple
+
+
+def test_rdfstar_register_event():
+    event = Event(
+        concept_id="disc-test",
+        event_type=EventType.REGISTER,
+        actor="agent_1",
+        payload={},
+    )
+    triple = event_to_rdfstar_triple(event)
+    assert "<<adl:disc-test rdf:type adl:discovery>>" in triple
+    assert 'adl:hasActor "agent_1"' in triple
+
+
+def test_rdfstar_deprecate_event():
+    event = Event(
+        concept_id="disc-test",
+        event_type=EventType.DEPRECATE,
+        actor="agent_1",
+        payload={},
+    )
+    triple = event_to_rdfstar_triple(event)
+    assert "<<adl:disc-test adl:hasStatus adl:status/deprecated>>" in triple
+
+
+def test_rdfstar_archive_event():
+    event = Event(
+        concept_id="disc-test",
+        event_type=EventType.ARCHIVE,
+        actor="agent_1",
+        payload={},
+    )
+    triple = event_to_rdfstar_triple(event)
+    assert "<<adl:disc-test adl:hasStatus adl:status/archived>>" in triple
+
+
+# ---------------------------------------------------------------------------
+# Document export tests
+# ---------------------------------------------------------------------------
+
+
+def test_rdfstar_document_export_has_prefixes():
+    doc = _make_sample_doc()
+    turtle = document_to_rdfstar_turtle(doc)
+    assert "@prefix adl:" in turtle
+    assert "@prefix rdf:" in turtle
+    assert "@prefix xsd:" in turtle
+
+
+def test_rdfstar_document_export_has_concept():
+    doc = _make_sample_doc()
+    turtle = document_to_rdfstar_turtle(doc)
+    assert "adl:disc-test a adl:discovery" in turtle
+
+
+def test_rdfstar_document_export_has_event():
+    doc = _make_sample_doc()
+    turtle = document_to_rdfstar_turtle(doc)
+    assert "<<adl:disc-test adl:hasStatus adl:status/validated>>" in turtle
+    assert 'adl:hasActor "agent_1"' in turtle
+
+
+def test_rdfstar_document_export_skips_snapshot():
+    doc = _make_sample_doc()
+    turtle = document_to_rdfstar_turtle(doc)
+    # Synthetic SNAPSHOT events should not appear in RDF-star export
+    assert "adl:hasEventType adl:eventType/snapshot" not in turtle
+
+
+# ---------------------------------------------------------------------------
+# SPARQL-star query tests
+# ---------------------------------------------------------------------------
+
+
+def test_sparqlstar_validate_query():
+    query = sparqlstar_query_template("disc-test", event_type=EventType.VALIDATE)
+    assert "SELECT ?actor ?confidence ?timestamp" in query
+    assert "<<adl:disc-test adl:hasStatus adl:status/validated>>" in query
+
+
+def test_sparqlstar_register_query():
+    query = sparqlstar_query_template("disc-test", event_type=EventType.REGISTER)
+    assert "<<adl:disc-test rdf:type adl:discovery>>" in query
+
+
+def test_sparqlstar_generic_query():
+    query = sparqlstar_query_template("disc-test")
+    assert "<<adl:disc-test ?p ?o>>" in query

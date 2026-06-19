@@ -22,6 +22,7 @@ Properties proven:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from enum import IntEnum
 from functools import reduce
 from typing import Any
@@ -133,6 +134,68 @@ class CRDTState:
         for event in chain.events:
             state = state.apply_event(event.event_type.value, event.payload)
         return state
+
+
+def merge_event_chains(chain_a, chain_b) -> "EventChain":
+    """
+    LWW-Set merge of two EventChains (Theorem 9, paper §4.7).
+
+    Algorithm:
+      1. Union events by event_id (deduplicate — LWW on identical event_id)
+      2. Sort by timestamp (causal order)
+      3. Recompute cryptographic hashes (chain re-anchoring)
+      4. Return merged EventChain
+
+    Properties:
+      - Commutative: merge(A, B) = merge(B, A)
+      - Associative: merge(merge(A, B), C) = merge(A, merge(B, C))
+      - Idempotent: merge(A, A) = A
+    """
+    from .models import Event, EventChain
+
+    if chain_a.concept_id != chain_b.concept_id:
+        raise ValueError(
+            f"Cannot merge chains with different concept_ids: "
+            f"{chain_a.concept_id} vs {chain_b.concept_id}"
+        )
+
+    # Union by event_id (LWW — last writer wins on duplicate)
+    event_map: dict[str, Event] = {}
+    for event in chain_a.events:
+        event_map[event.event_id] = event
+    for event in chain_b.events:
+        if event.event_id in event_map:
+            # LWW: keep the one with later timestamp
+            existing = event_map[event.event_id]
+            try:
+                existing_ts = datetime.fromisoformat(existing.timestamp)
+            except (ValueError, TypeError):
+                existing_ts = datetime.min.replace(tzinfo=timezone.utc)
+            try:
+                new_ts = datetime.fromisoformat(event.timestamp)
+            except (ValueError, TypeError):
+                new_ts = datetime.min.replace(tzinfo=timezone.utc)
+            if new_ts >= existing_ts:
+                event_map[event.event_id] = event
+        else:
+            event_map[event.event_id] = event
+
+    # Sort by timestamp
+    sorted_events = sorted(
+        event_map.values(),
+        key=lambda e: (
+            datetime.fromisoformat(e.timestamp)
+            if e.timestamp
+            else datetime.min.replace(tzinfo=timezone.utc)
+        ),
+    )
+
+    # Build new chain with recomputed hashes
+    merged = EventChain(concept_id=chain_a.concept_id)
+    for event in sorted_events:
+        merged.append(event)
+
+    return merged
 
 
 # ============================================================================

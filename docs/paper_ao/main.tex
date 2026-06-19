@@ -26,6 +26,7 @@
 \theoremstyle{definition}
 \newtheorem{definition}{Definition}[section]
 \newtheorem{theorem}{Theorem}[section]
+\newtheorem{coretheorem}{Theorem}
 \newtheorem{corollary}{Corollary}[section]
 \newtheorem{lemma}{Lemma}[section]
 \newtheorem{proposition}{Proposition}[section]
@@ -99,12 +100,16 @@ agent governance; capability registry; lifecycle governance; event sourcing; mul
 \section{Conclusion and Future Work}\label{sec:conclusion}
 \input{sections/07_conclusion}
 
+% ---------------------------------------------------------------------------
+% Appendices: Included in main paper for revise-and-resubmit.
+% For final journal submission, these may move to supplementary material.
+% ---------------------------------------------------------------------------
 \appendix
-\section{PROV-O Export Example}\label{app:prov-o}
-\input{sections/appendix_a}
+%\section{PROV-O Export Example}\label{app:prov-o}
+%\input{sections/appendix_a}
 
-\section{SHACL Shape for L3 Relation Validation}\label{app:shacl}
-\input{sections/appendix_b}
+%\section{SHACL Shape for L3 Relation Validation}\label{app:shacl}
+%\input{sections/appendix_b}
 
 \section{Adversarial Integrity Test Suite}\label{app:adversarial}
 \input{sections/appendix_c}
@@ -115,8 +120,8 @@ agent governance; capability registry; lifecycle governance; event sourcing; mul
 \section{Proof Sketches for Formal Theorems}\label{app:proofs}
 \input{sections/appendix_e}
 
-\section{RDF-star Interoperability Demonstration}
-\input{sections/appendix_f}
+%\section{RDF-star Interoperability Demonstration}\label{app:rdfstar}
+%\input{sections/appendix_f}
 
 \bibliographystyle{plainnat}
 \bibliography{references}

@@ -185,7 +185,7 @@ def to_rdfstar(chain: EventChain) -> str:
             rel_pred = ADL[relation.replace("-", "_")]
 
             lines.append(
-                f"<< <{src_uri}> <{rel_pred}> <{tgt_uri}> >> " f"adl:confidence {confidence} ;"
+                f"<< <{src_uri}> <{rel_pred}> <{tgt_uri}> >> adl:confidence {confidence} ;"
             )
             if provenance_event:
                 lines.append(f"    prov:wasGeneratedBy <{provenance_event}> ;")

@@ -28,6 +28,8 @@ try:
 except ImportError:  # pragma: no cover
     yaml = None  # type: ignore[assignment]
 
+from .exceptions import ADLTemplateError
+from .l2_template import L2TemplateValidator
 from .models import (
     ActionExecStatus,
     ADLActionBlock,
@@ -86,9 +88,10 @@ class ADLParser:
             return s[1:-1]
         return s
 
-    def __init__(self) -> None:
+    def __init__(self, strict_template: bool = False) -> None:
         if yaml is None:
             raise ImportError("PyYAML is required. Install: pip install pyyaml")
+        self.strict_template = strict_template
 
     # ------------------------------------------------------------------
     # Public API
@@ -111,16 +114,29 @@ class ADLParser:
             2. Parse YAML → ADLFrontMatter
             3. Extract L3 blocks from body → ADLBlock list
             4. Remove L3 blocks from body → clean L2 Markdown
+            5. If l2_template is enabled, validate L2 body structure
         """
         front_matter_raw, body = self._split_front_matter(text)
         fm = self._parse_front_matter(front_matter_raw)
         l3_blocks, action_blocks, clean_body = self._extract_adl_blocks(body)
-        return ADLDocument(
+        doc = ADLDocument(
             front_matter=fm,
             markdown_body=clean_body.strip(),
             adl_blocks=l3_blocks,
             action_blocks=action_blocks,
         )
+
+        # L2 template validation
+        l2_val = doc.front_matter.l2_template
+        if isinstance(l2_val, str):
+            l2_val = l2_val.lower().strip()
+
+        if l2_val not in (False, "false"):
+            if self.strict_template or l2_val in (True, "true", "strict"):
+                validator = L2TemplateValidator()
+                validator.validate(doc.markdown_body, mode="strict")
+
+        return doc
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -272,14 +288,14 @@ from .exceptions import ADLParseError  # noqa: E402, F811 — re-export for back
 # ---------------------------------------------------------------------------
 
 
-def parse_file(path: str | Path) -> ADLDocument:
+def parse_file(path: str | Path, strict_template: bool = False) -> ADLDocument:
     """One-shot parse a file."""
-    return ADLParser().parse_file(path)
+    return ADLParser(strict_template=strict_template).parse_file(path)
 
 
-def parse_text(text: str) -> ADLDocument:
+def parse_text(text: str, strict_template: bool = False) -> ADLDocument:
     """One-shot parse a string."""
-    return ADLParser().parse_text(text)
+    return ADLParser(strict_template=strict_template).parse_text(text)
 
 
 def extract_wiki_links(text: str) -> list[str]:

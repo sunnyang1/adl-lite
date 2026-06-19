@@ -1,4 +1,8 @@
-"""Pytest path setup for adl-lite package root."""
+"""Pytest path setup and core ADL Lite fixtures.
+
+This conftest is intentionally lightweight — no FDE/FastAPI/SQLAlchemy dependencies.
+FDE-specific fixtures live in conftest_fde.py (not auto-loaded by pytest).
+"""
 
 from __future__ import annotations
 

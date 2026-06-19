@@ -1,5 +1,11 @@
 # ADL Lite — Product Requirements Document
 
+> **⚠️ 过时警告 (Outdated):** 本文档停留在 PRD v0.1 / Phase 1 阶段。当前项目状态请参考:
+> - **权威指南:** `AGENTS.md` (v0.2.0, 代码-论文对齐, 716 测试)
+> - **生存路径:** `SURVIVAL_PATH.md` (最新执行追踪)
+> - **技术规范:** `docs/SPEC.md` (正在更新至 v0.2.0)
+> - **论文:** `docs/paper_ao/` (Applied Ontology 提交, 39页, 9 定理)
+
 **Status:** Living doc (Phase 1 shipped; Phase 2+ tracks below)  
 **Companion docs:** [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) (execution tasks), [`SPEC.md`](SPEC.md) (normative syntax), [`RESEARCH_STATEMENT.md`](RESEARCH_STATEMENT.md) (academic framing)  
 **Ontology design:** [`proposals/ONTOLOGY_MIDDLE_LAYER.md`](proposals/ONTOLOGY_MIDDLE_LAYER.md)
