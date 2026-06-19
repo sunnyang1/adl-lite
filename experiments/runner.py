@@ -36,6 +36,7 @@ from . import (
     e20_template_effectiveness,  # noqa: F401
     e20b_calibration_baseline,  # noqa: F401
     e21_100k_stress,  # noqa: F401
+    e25_microbenchmark,  # noqa: F401
     E23_contention_stress,  # noqa: F401
     proof_trace_checker,  # noqa: F401
 )
