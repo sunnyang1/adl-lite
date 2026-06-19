@@ -132,3 +132,96 @@ class TestCRDTState:
         assert state.confidence == 0.92  # max of {0.80, 0.92}
         assert state.validator_count == 2
         assert state.evidence_count == 1
+
+
+class TestEventChainCRDTSemantics:
+    """Verify that EventChain.status and EventChain.confidence follow CRDT semantics."""
+
+    def test_confidence_g_counter_max(self):
+        """VALIDATE(0.9) → VALIDATE(0.5) → confidence stays 0.9 (G-Counter)."""
+        chain = EventChain(concept_id="g-counter-test")
+        chain.append(
+            Event(
+                concept_id="g-counter-test",
+                event_type=EventType.VALIDATE,
+                actor="a",
+                payload={"confidence": 0.9},
+            )
+        )
+        chain.append(
+            Event(
+                concept_id="g-counter-test",
+                event_type=EventType.VALIDATE,
+                actor="b",
+                payload={"confidence": 0.5},
+            )
+        )
+        # G-Counter semantics: max across all VALIDATE events
+        assert chain.confidence == 0.9
+
+    def test_status_lub_deprecated_dominates_validate(self):
+        """DEPRECATE then VALIDATE → status stays DEPRECATED (LUB)."""
+        chain = EventChain(concept_id="lub-test")
+        chain.append(Event(concept_id="lub-test", event_type=EventType.VALIDATE, actor="a"))
+        chain.append(Event(concept_id="lub-test", event_type=EventType.DEPRECATE, actor="b"))
+        chain.append(Event(concept_id="lub-test", event_type=EventType.VALIDATE, actor="c"))
+        # LUB of (VALIDATED, DEPRECATED) = DEPRECATED
+        assert chain.status.value == "deprecated"
+
+    def test_status_lub_archived_dominates_all(self):
+        """ARCHIVE then any lifecycle event → status stays ARCHIVED."""
+        chain = EventChain(concept_id="arch-test")
+        chain.append(Event(concept_id="arch-test", event_type=EventType.VALIDATE, actor="a"))
+        chain.append(Event(concept_id="arch-test", event_type=EventType.ARCHIVE, actor="a"))
+        chain.append(Event(concept_id="arch-test", event_type=EventType.VALIDATE, actor="b"))
+        chain.append(Event(concept_id="arch-test", event_type=EventType.DEPRECATE, actor="c"))
+        # LUB with ARCHIVE is always ARCHIVED
+        assert chain.status.value == "archived"
+
+    def test_confidence_max_with_snapshot(self):
+        """SNAPSHOT confidence is also considered in the G-Counter max."""
+        chain = EventChain(concept_id="snap-test")
+        chain.append(
+            Event(
+                concept_id="snap-test",
+                event_type=EventType.VALIDATE,
+                actor="a",
+                payload={"confidence": 0.7},
+            )
+        )
+        chain.append(
+            Event(
+                concept_id="snap-test",
+                event_type=EventType.SNAPSHOT,
+                actor="b",
+                payload={"confidence": 0.85},
+            )
+        )
+        chain.append(
+            Event(
+                concept_id="snap-test",
+                event_type=EventType.VALIDATE,
+                actor="c",
+                payload={"confidence": 0.6},
+            )
+        )
+        # max(0.7, 0.85, 0.6) = 0.85
+        assert chain.confidence == 0.85
+
+    def test_status_provisional_by_default(self):
+        """Empty chain or chain with only EVIDENCE/RELATE → PROVISIONAL."""
+        chain = EventChain(concept_id="empty-test")
+        chain.append(
+            Event(concept_id="empty-test", event_type=EventType.EVIDENCE, actor="a")
+        )
+        chain.append(
+            Event(concept_id="empty-test", event_type=EventType.RELATE, actor="b")
+        )
+        assert chain.status.value == "provisional"
+
+    def test_confidence_zero_with_no_validate(self):
+        """Chain without any VALIDATE or SNAPSHOT → confidence 0.0."""
+        chain = EventChain(concept_id="no-val-test")
+        chain.append(Event(concept_id="no-val-test", event_type=EventType.REGISTER, actor="a"))
+        chain.append(Event(concept_id="no-val-test", event_type=EventType.EVIDENCE, actor="b"))
+        assert chain.confidence == 0.0

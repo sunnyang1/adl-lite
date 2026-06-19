@@ -62,7 +62,8 @@ class TestConsensusEngineForks:
 
     def test_fork_marks_original_and_creates_chain(self, engine_with_fork):
         engine, original_id = engine_with_fork
-        assert engine.get_status(original_id) == DiscoveryStatus.FORKED
+        # Under CRDT LUB semantics, VALIDATED(3) > FORKED(2), so parent stays VALIDATED
+        assert engine.get_status(original_id) == DiscoveryStatus.VALIDATED
         assert engine.get_status("disc-matdo-kinetic") == DiscoveryStatus.PROVISIONAL
         assert engine.verify_all()[original_id] is True
         assert engine.verify_all()["disc-matdo-kinetic"] is True
@@ -100,7 +101,8 @@ class TestConsensusEngineForks:
             actor="merger",
             reason="Parallel: distinct domain metaphors retained",
         )
-        assert engine.get_status(original_id) == DiscoveryStatus.FORKED
+        # Under CRDT LUB, VALIDATED(3) > FORKED(2); parent stays VALIDATED
+        assert engine.get_status(original_id) == DiscoveryStatus.VALIDATED
         assert engine.get_status("disc-matdo-kinetic") == DiscoveryStatus.VALIDATED
 
     def test_prune_path_archives_stale_fork(self, engine_with_fork):

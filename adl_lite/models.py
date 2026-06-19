@@ -287,41 +287,75 @@ class EventChain:
             return self._events[index]
 
     # ------------------------------------------------------------------
+    # Status lattice order (CRDT LUB computation)
+    # ------------------------------------------------------------------
+    _STATUS_ORDER: dict[DiscoveryStatus, int] = {
+        DiscoveryStatus.PROVISIONAL: 1,
+        DiscoveryStatus.FORKED: 2,
+        DiscoveryStatus.VALIDATED: 3,
+        DiscoveryStatus.DEPRECATED: 4,
+        DiscoveryStatus.ARCHIVED: 5,
+    }
+    _STATUS_FROM_ORDER: dict[int, DiscoveryStatus] = {
+        1: DiscoveryStatus.PROVISIONAL,
+        2: DiscoveryStatus.FORKED,
+        3: DiscoveryStatus.VALIDATED,
+        4: DiscoveryStatus.DEPRECATED,
+        5: DiscoveryStatus.ARCHIVED,
+    }
+
+    # ------------------------------------------------------------------
     # Computed properties (derived from events, NOT stored)
     # ------------------------------------------------------------------
 
     @property
     def status(self) -> DiscoveryStatus:
-        """Status computed from the chain — the latest lifecycle event for this capability."""
+        """Status derived as LUB (max) over the lifecycle lattice (CRDT semantics).
+
+        The status lattice is:
+            provisional < forked < validated < deprecated < archived
+        Once a concept reaches a higher-status state, it never regresses.
+        This is the CRDT join-semilattice property (Theorem 9).
+        """
         with self._lock:
-            for event in reversed(self._events):
-                if event.event_type in (
-                    EventType.REGISTER,
-                    EventType.VALIDATE,
-                    EventType.DEPRECATE,
-                    EventType.FORK,
-                    EventType.ARCHIVE,
-                ):
-                    type_to_status = {
-                        EventType.REGISTER: DiscoveryStatus.PROVISIONAL,
-                        EventType.VALIDATE: DiscoveryStatus.VALIDATED,
-                        EventType.DEPRECATE: DiscoveryStatus.DEPRECATED,
-                        EventType.FORK: DiscoveryStatus.FORKED,
-                        EventType.ARCHIVE: DiscoveryStatus.ARCHIVED,
-                    }
-                    return type_to_status[event.event_type]
-            return DiscoveryStatus.PROVISIONAL
+            max_order = 0
+            type_to_status = {
+                EventType.REGISTER: DiscoveryStatus.PROVISIONAL,
+                EventType.VALIDATE: DiscoveryStatus.VALIDATED,
+                EventType.DEPRECATE: DiscoveryStatus.DEPRECATED,
+                EventType.FORK: DiscoveryStatus.FORKED,
+                EventType.ARCHIVE: DiscoveryStatus.ARCHIVED,
+            }
+            for event in self._events:
+                if event.event_type in type_to_status:
+                    order = self._STATUS_ORDER[type_to_status[event.event_type]]
+                    if order > max_order:
+                        max_order = order
+            if max_order == 0:
+                return DiscoveryStatus.PROVISIONAL
+            return self._STATUS_FROM_ORDER[max_order]
 
     @property
     def confidence(self) -> float:
-        """O(1) — confidence from the most recent VALIDATE event (paper §4.4)."""
-        # Scan backwards from the tail for the first VALIDATE event
-        for event in reversed(self._events):
+        """G-Counter: max confidence across all VALIDATE events (CRDT semantics).
+
+        Unlike the previous LWW (last-writer-wins) O(1) implementation, this
+        uses a G-Counter (max) semantics: once a validator asserts a high
+        confidence, lower subsequent assertions cannot decrease the aggregate.
+        This prevents malicious or erroneous validators from downgrading a
+        concept's confidence after it has been validated.  See Theorem 9.
+        """
+        max_conf = 0.0
+        for event in self._events:
             if event.event_type == EventType.VALIDATE:
-                return min(1.0, max(0.0, float(event.payload.get("confidence", 0.0))))
+                val = min(1.0, max(0.0, float(event.payload.get("confidence", 0.0))))
+                if val > max_conf:
+                    max_conf = val
             if event.event_type == EventType.SNAPSHOT:
-                return min(1.0, max(0.0, float(event.payload.get("confidence", 0.0))))
-        return 0.0
+                val = min(1.0, max(0.0, float(event.payload.get("confidence", 0.0))))
+                if val > max_conf:
+                    max_conf = val
+        return max_conf
 
     def calibrated_confidence(self, calibrator: "MARGINCalibrator") -> float:
         """Return mean confidence calibrated by per-actor accuracy scores."""
