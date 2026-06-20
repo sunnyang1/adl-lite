@@ -36,7 +36,7 @@ Relations with at least one endpoint in \texttt{validated} status and no endpoin
 
 \subsection{EventChain: Core Data Structure}\label{subsec:eventchain}
 
-The EventChain is the fundamental data structure of ADL Lite: an append-only sequence of cryptographically linked events. An event comprises ten fields: \texttt{event\_id}, \texttt{concept\_id}, \texttt{event\_type}, \texttt{actor}, \texttt{reasoning}, \texttt{timestamp}, \texttt{payload}, \texttt{previous\_event\_id}, \texttt{hash}, and an optional \texttt{signature} (for Ed25519 signature verification, \S\ref{subsec:trust-model}). The event type system is partitioned into lifecycle events $\Sigma_{\text{life}}$ and communication events $\Sigma_{\text{comm}}$:
+The EventChain-record (the serialized information content entity, see \S\ref{subsec:two-level-account}) is the fundamental data structure of ADL Lite: an append-only sequence of cryptographically linked events. An event comprises ten fields: \texttt{event\_id}, \texttt{concept\_id}, \texttt{event\_type}, \texttt{actor}, \texttt{reasoning}, \texttt{timestamp}, \texttt{payload}, \texttt{previous\_event\_id}, \texttt{hash}, and an optional \texttt{signature} (for Ed25519 signature verification, \S\ref{subsec:trust-model}). The event type system is partitioned into lifecycle events $\Sigma_{\text{life}}$ and communication events $\Sigma_{\text{comm}}$:
 
 \begin{align}
     \Sigma_{\text{life}} &= \{\text{REGISTER},\; \text{VALIDATE},\; \text{DEPRECATE},\; \text{FORK},\; \text{ARCHIVE}\} \\

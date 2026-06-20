@@ -1,9 +1,14 @@
 \section{OWL 2 DL Axiomatization of ADL Lite Core Categories}\label{app:owl-dl}
 
-% TODO: Extract from §3.6 (Formal Alignment Fragment: OWL 2 DL Axiomatization)
-% Source: docs/paper_ao/sections/03_ontological_analysis.tex, lines 253--256
-% Include: complete OWL 2 DL file with namespace declarations, URI mappings,
-% ROBOT-compatible syntax, and alignment axioms for BFO/DOLCE/UFO integration.
+This appendix presents the OWL~2 DL alignment fragment that formalizes the ontological dependence patterns from \S\ref{subsec:ontological-dependence}. The fragment declares the following axioms:
 
-% TODO: Add ROBOT validation report (consistency check output).
-% TODO: Add LogMapLite / Agent-OM alignment precision metrics (FW1).
+\begin{itemize}[leftmargin=2em]
+    \item \texttt{adl:Event} $\sqsubseteq$ \texttt{bfo:occurrent} --- events are occurrents in BFO terms.
+    \item \texttt{adl:EventChain} $\sqsubseteq$ \texttt{bfo:process} --- an event chain is a process with temporal parts.
+    \item \texttt{adl:follows} links temporal parts within a process.
+    \item \texttt{adl:Concept} $\sqsubseteq$ \texttt{bfo:generically\_dependent\_continuant} --- concepts are GDCs.
+    \item \texttt{adl:Concept} is concretized by an \texttt{EventChain\_Record} (an ICE).
+    \item \texttt{adl:hasPreviousHash} and \texttt{adl:hasSHA256Hash} are datatype properties linking events to their cryptographic predecessors.
+\end{itemize}
+
+The complete OWL~2 DL file is provided as supplementary material (available in the repository's \texttt{supplementary/} directory), where it has been syntax-checked but not yet validated with ROBOT consistency checking. It is intended as a \emph{conceptual alignment anchor}---a starting point for interoperability with BFO-based tools. It is not a complete operational encoding of the derivation functions ($\delta$, $\gamma$), which require aggregation over event sequences and exceed OWL~2 DL expressivity (NExpTime-complete). Full bidirectional import/export (Turtle and RDF/XML) is implemented (\texttt{owl\_export.py} / \texttt{owl\_import.py}); automated BFO/DOLCE/UFO alignment and ROBOT validation are deferred to future work (FW1).

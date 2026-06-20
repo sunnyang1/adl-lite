@@ -16,11 +16,10 @@ The empirical results support the event-first design, but the deeper contributio
 
 \subsection{Capability Registry Contribution}\label{subsec:conceptual-modeling}
 
-ADL Lite contributes to capability registry practice in three respects, each addressing a distinct practical need.\par
-\textbf{Layered capability documentation.} The L1--L4 document model spans identity, narrative, assertion, and action, serving as a documentation methodology applicable to domains beyond multi-agent governance.
-
-\textbf{Event-driven capability lifecycle modeling.} ADL Lite represents lifecycle states as event histories rather than as static attributes or state machines---an event-driven perspective particularly valuable for domains with high capability velocity.\par
-\textbf{Collaborative capability governance.} The precondition system and closed action registry provide a lightweight, declarative, and human-readable mechanism for governing capability evolution, thereby lowering the barrier to collaborative authoring while maintaining machine-checkable constraints.
+ADL Lite contributes to capability governance in three respects, corresponding to the three axes in \S\ref{subsec:contributions}.\par
+\textbf{Ontological analysis contribution.} The L1--L4 document model and the two-level ontological account (EventChain-process vs. EventChain-record) provide a methodology for analyzing capability registries through foundational ontology lenses (BFO, DOLCE, UFO), applicable beyond multi-agent governance.\par
+\textbf{Formal semantics contribution.} Event-driven lifecycle modeling---where states are derived from event histories rather than stored as mutable attributes---enables deterministic, auditable governance with proven properties (Theorems 1--7).\par
+\textbf{Architectural verification contribution.} The precondition system and closed action registry provide a lightweight, declarative, and human-readable mechanism for governing capability evolution, lowering the barrier to collaborative authoring while maintaining machine-checkable constraints.
 
 \subsection{Limitations}\label{subsec:limitations}
 
@@ -41,6 +40,16 @@ The results must be interpreted in light of twelve limitations, each of which is
 
 \textbf{L11. Overstatement risk in governance claims.} The abstract and introduction have been carefully scoped to the collaborative non-Byzantine trust model. However, readers may still overgeneralize the tamper-evidence guarantees to adversarial settings. We explicitly state that the SHA-256 chain detects tampering post-hoc but does not prevent it, and that actor identity is self-declared in Phase~1. All governance claims are scoped to the collaborative-audit setting; adversarial robustness is planned for Phase~3 (FW4).\par
 \textbf{L12. Fork resolution.} The fork resolution has been migrated from the earlier last-event rule to CRDT lattice semantics (LUB) in v0.3.5. Under the CRDT semantics, the status of a forked parent is the maximum of its previous status and \texttt{forked}; a previously \texttt{validated} parent remains \texttt{validated} after a fork. The confidence is a G-Counter (max) over all validations, preventing downgrade. For multi-way concurrent merges with conflicting lifecycle events (e.g., a \textsc{Validate} and a \textsc{Deprecate} from different branches), semantic merge policies (e.g., quorum-based resolution, accuracy-weighted ordering) are planned for Phase~3 (FW4).\par
+
+\subsection{Threats to Validity}\label{subsec:threats}
+
+We discuss three classes of threats to the validity of our claims.\par
+
+\textbf{Internal validity.} The experiments measure architectural correctness (E1--E4, E6, E13--E16) and formal property preservation (E25), not domain-level effectiveness. E2-exhaustive random sampling covers all chains of length up to 3; it does not prove correctness for arbitrary-length chains, though the 100\% pass rate on 10,000 randomized traces (E25, length 2--100) increases confidence. The AML evaluation (E6) is a volume stress test with synthetically injected governance events, not a validation of laundering-pattern detection accuracy.\par
+
+\textbf{External validity.} The results generalize to capability-lifecycle governance scenarios with similar event volumes and collaborative (non-Byzantine) trust models. They do not generalize to adversarial settings without Phase~3 authentication (FW4) or to domains where capabilities are not linguistically describable (e.g., purely procedural skills). The current evaluation is limited to the AML domain; generalization to SKILL.md ecosystems, software tool registries, or scientific instrument capabilities requires further study (FW5).\par
+
+\textbf{Construct validity.} The two-level ontological account (EventChain-process vs.\ EventChain-record) is sophisticated but has not been validated by independent ontologists. The informal natural-language proofs (Theorems 1--7) are rigorous but not machine-checked; the randomized trace checker (E25) provides empirical validation, not deductive certainty. The OWL~2 DL alignment fragment is syntax-checked but not ROBOT-validated (FW1). These are acknowledged limitations (L1, L10, L12) with corresponding future-work items.\par
 
 \subsection{Comparison with Foundational Ontologies}\label{subsec:comparison-foundational}
 
