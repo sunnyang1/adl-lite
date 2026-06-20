@@ -21,7 +21,7 @@ from . import (
     e4_precondition,  # noqa: F401
     e5_agent_audit,  # noqa: F401
     e6_aml_pipeline,  # noqa: F401
-    e6_multiagent_coordination,  # noqa: F401
+    e6b_multiagent_coordination,  # noqa: F401
     e7_realtime_watcher,  # noqa: F401
     e8_edge_sync,  # noqa: F401
     e9_git_baseline,  # noqa: F401
@@ -37,7 +37,7 @@ from . import (
     e20b_calibration_baseline,  # noqa: F401
     e21_100k_stress,  # noqa: F401
     e25_microbenchmark,  # noqa: F401
-    E23_contention_stress,  # noqa: F401
+    e23_contention_stress,  # noqa: F401
     proof_trace_checker,  # noqa: F401
 )
 from .base import ExperimentResult

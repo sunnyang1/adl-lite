@@ -1,0 +1,83 @@
+\section{Satisfiability and Complexity Analysis}\label{app:complexity}
+
+This appendix provides the full complexity-class discussion and the complete comparison with Event Calculus, Situation Calculus, and Description Logic that were compressed from Section~\ref{subsec:precondition-language} and Section~\ref{subsec:event-frameworks}.
+
+\subsection{Complexity Class Membership}
+
+\begin{proposition}[Precondition Evaluation Termination and Complexity]
+\label{prop:precondition-complexity}
+For any well-formed EventChain $C$ and any precondition rule $r$, $\text{eval}(r, C)$ terminates in $O(1)$ time. Furthermore, for a precondition list $R = [r_1, \ldots, r_k]$ with $k$ rules, the total evaluation time is $O(k)$, and the space complexity is $O(1)$ for both single-rule and multi-rule evaluation.
+\end{proposition}
+
+\begin{proof}
+Field lookup takes $O(1)$ time. Status-derived fields are computed by $\delta(C)$ and $\gamma(C)$, which scan the chain once ($O(n)$ in chain length) but are memoized in the derived snapshot; front-matter fields are dictionary lookups. Comparator dispatch is $O(1)$ because $\mathcal{K}$ is a closed enumeration with exactly eight cases, implemented as explicit lambda dispatch. The precondition language contains no recursion, no quantification, no fixed-point operators, and no unbounded iteration. For $k$ rules, evaluation is a sequential scan of the rule list with short-circuit semantics (the first failing rule terminates evaluation). Thus total time is $O(k)$. Space is $O(1)$ because no auxiliary data structures are allocated beyond the rule list itself and the lookup result.
+\end{proof}
+
+Table~\ref{tab:complexity-full} summarises the computational complexity of precondition evaluation.
+
+\begin{table}[htbp]
+\centering
+\caption{Computational complexity of precondition evaluation.}
+\label{tab:complexity-full}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Operation} & \textbf{Time} & \textbf{Space} & \textbf{Notes} \\
+\midrule
+Single rule $\text{eval}(r, C)$ & $\mathcal{O}(1)$ & $\mathcal{O}(1)$ & No recursion, no quantification \\
+Rule list $\text{eval}(R, C)$, $|R| = k$ & $\mathcal{O}(k)$ & $\mathcal{O}(1)$ & Short-circuit on first failure \\
+Field lookup $\text{lookup}(f, C)$ & $\mathcal{O}(1)$ & $\mathcal{O}(1)$ & Memoized snapshot or dict lookup \\
+Comparator dispatch $k(x, y)$ & $\mathcal{O}(1)$ & $\mathcal{O}(1)$ & Closed 8-case enumeration \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Determinism and logical fragment.} The precondition system is \textbf{not} Turing-complete. It lacks loops, recursion, unbounded quantification, and dynamic code execution. The closed $\mathcal{K}$ enumeration with explicit lambda dispatch guarantees that every precondition evaluation follows the same code path, yielding constant-time termination. This design deliberately sacrifices expressive power (no arbitrary computation over the chain) in exchange for guaranteed termination and auditability.
+
+\textbf{Logical fragment.} Each precondition rule $\langle f, k, v \rangle$ is equivalent to a \emph{Horn clause} in first-order logic: $f(x) \land k(x, v) \rightarrow \text{permits}(a)$, where $a$ is the action being validated. The precondition language therefore corresponds to a propositional Horn-clause fragment with closed-world semantics (the Comparator enumeration is a finite, closed set of ground predicates). It is a strict subset of the full first-order logic used in UFO-B executable specifications \cite{guizzardi2024ufob}, making it a \emph{tractable specialization} rather than a competing formalism. This fragment is decidable in $O(1)$ time and amenable to straightforward implementation in any programming language with enumerations and lambda expressions.
+
+\textbf{Satisfiability and complexity class.} The precondition evaluation problem is in \textbf{P} (polynomial time) because: (i)~the field alphabet $\mathcal{F}$ is finite (bounded by the ADLFrontMatter schema); (ii)~the comparator alphabet $\mathcal{K}$ is a closed enumeration of exactly 8 operators; (iii)~the value domain for each field is bounded (e.g., $\texttt{status} \in \{\text{provisional}, \text{validated}, \text{deprecated}, \text{forked}, \text{archived}\}$); and (iv)~evaluation involves no quantification, no recursion, and no unbounded iteration. For a precondition list of $k$ rules, the total evaluation time is $O(k)$, which is linear in the input size and therefore polynomial. This tractability is a deliberate design choice: the precondition language is intentionally restricted to guarantee polynomial-time evaluation, avoiding the exponential complexity of general first-order logic satisfiability or the undecidability of Turing-complete rule languages.
+
+\subsection{Comparison with Formal Event Frameworks}
+
+ADL Lite's event model may be compared with three classical formal frameworks for reasoning about events and change: Event Calculus, Situation Calculus, and Description Logic.
+
+\subsubsection{Event Calculus}
+
+The Event Calculus (EC), introduced by Kowalski and Sergot \cite{event_calculus}, is a logic programming framework for reasoning about events and their effects. EC distinguishes \emph{events} (occurrences that initiate or terminate \emph{fluents}), \emph{fluents} (properties that hold over intervals of time), and \emph{axioms} that specify which events initiate or terminate which fluents.
+
+In EC, a capability's status would be modeled as a fluent: $\text{Validated}(c)$ holds over an interval $[t_1, t_2)$ if a \texttt{VALIDATE} event initiates it at $t_1$ and no subsequent \texttt{DEPRECATE} event terminates it before $t_2$. ADL Lite's $\delta(C)$ function computes exactly this fluent, but it does so by examining the entire event history rather than maintaining a set of currently holding fluents.
+
+The principal difference concerns temporal representation. EC uses \emph{interval-based} temporal reasoning: fluents hold over intervals, and events are points that initiate or terminate intervals. ADL Lite uses \emph{chain-based} temporal reasoning: the current state is computed by scanning the ordered event sequence from genesis to present. Both approaches are equivalent in expressive power for the class of properties that ADL Lite models (status transitions with no continuous change), but the chain-based approach is computationally simpler---$\delta(C)$ is $O(n)$ in the chain length---and provides built-in cryptographic integrity.
+
+EC also supports \emph{continuous change} (e.g., a moving object's position changes continuously over time). ADL Lite does not support continuous change; all state changes are discrete events. This is a deliberate limitation: the target domain (capability lifecycle governance) involves discrete state transitions (proposed $\to$ validated $\to$ deprecated), not continuous physical processes.
+
+\subsubsection{Situation Calculus}
+
+The Situation Calculus (SC), developed by McCarthy and Hayes \cite{situation_calculus}, is a first-order logical framework for reasoning about action and change. SC distinguishes \emph{situations} (snapshots of the world at a point in time) and \emph{actions} (functions that map situations to situations). The fundamental axiom of SC is the \emph{frame axiom}: an action changes only the properties it is specified to change; all other properties remain unchanged.
+
+ADL Lite's EventChain can be viewed as a sequence of situations: each event $e_i$ transforms the situation $S_{i-1}$ into $S_i$. The status derivation $\delta(C)$ computes the value of a specific fluent (status) in the final situation $S_n$. However, ADL Lite does not explicitly represent situations; it represents only the event sequence. This is analogous to the \emph{event sourcing} pattern in software engineering: the state is reconstructed by replaying events, not by storing snapshots.
+
+The frame axiom in SC is a source of the \emph{frame problem}: specifying which properties do \emph{not} change after an action requires an unbounded number of axioms. ADL Lite avoids the frame problem by construction: as there are no stored mutable fields, no properties need preservation across state transitions. All derived properties are recomputed from the event sequence, so the ``frame'' is implicit in the derivation functions.
+
+\subsubsection{Description Logic Expressivity}
+
+ADL Lite's derivation functions can be analyzed in terms of Description Logic (DL) expressivity. The status derivation $\delta(C)$ is a function from a sequence of events to a status value. In DL terms, this is a \emph{role chain} query: the status of a capability is determined by the type of the last event in the chain of events related to the capability by the \texttt{previous\_event\_id} role.
+
+The derivation functions $\delta$ and $\gamma$ are computable in polynomial time ($O(n)$ in the chain length). They do not require the full expressive power of OWL-DL (which is NExpTime-complete for satisfiability). In fact, $\delta$ and $\gamma$ can be expressed in the DL-lite family of lightweight description logics, which support efficient query answering over large datasets \cite{dl_lite}.
+
+Specifically, $\delta$ corresponds to a \emph{path query} over the event chain: ``find the last event in the chain whose type is in $\Sigma_{\text{life}}$, and return the corresponding status.'' This query can be expressed in DL-Lite$_{\mathcal{R}}$ using role inclusion axioms:
+\begin{equation}
+    \exists \text{hasLastLifecycleEvent}^-.\{\tau\} \sqsubseteq \text{hasStatus}.\{f(\tau)\}
+\end{equation}
+for each $\tau \in \Sigma_{\text{life}}$, where $f(\tau)$ maps event types to statuses. The confidence aggregation $\gamma$ involves aggregation (mean, max) over sets of events, which goes beyond standard DL query answering but can be handled by DL extensions with aggregation operators \cite{dl_lite}.
+
+\textbf{Expressiveness bounds.} ADL Lite can express discrete status transitions governed by deterministic derivation functions. It cannot express: (i) continuous change (e.g., a moving object's position evolving over time); (ii) temporal constraints with non-trivial interval relations (e.g., ``event A must occur before event B'' independent of chain order); (iii) existential quantification over event types not in the closed $\Sigma_{\text{life}}$ alphabet; (iv) disjunctive or conditional derivation rules beyond the fixed $f$ mapping. These limitations are by design: the target domain (capability lifecycle governance) requires only discrete, deterministic transitions. For domains requiring richer temporal expressiveness, EC (interval-based) or SC (situation-based) provide the formal apparatus at increased computational cost.
+
+\textbf{EC correspondence.} In Event Calculus terms, $\delta(C)$ computes the fluent $\text{Status}(c, t)$ at time $t$ by evaluating:
+\begin{align}
+    \text{HoldsAt}(\text{Status}(c, s), t) &\iff \exists e \in C_{\text{life}}.\; \text{Happens}(e, t_e) \land t_e \leq t \; \land \\
+    &\qquad \neg \exists e' \in C_{\text{life}}.\; \text{Happens}(e', t_{e'}) \land t_e < t_{e'} \leq t
+\end{align}
+where $s = f(e.\tau)$. The key difference is temporal representation: EC uses interval-based reasoning (fluents hold over intervals); ADL Lite uses chain-based reasoning (scan to the last lifecycle event). Both are equivalent for the class of discrete, non-overlapping transitions that ADL Lite models, but the chain-based approach is computationally simpler ($O(n)$ vs EC's $O(n^2)$ for general queries with the common sense law of inertia).
+
+The practical implication is that ADL Lite's derivation semantics are \emph{tractable}: they do not require OWL reasoners or complex inference engines. This aligns with the design goal of lightweight deployment: the ontology can be processed by a simple Python script operating over Markdown files, without requiring a triple store or DL reasoner.

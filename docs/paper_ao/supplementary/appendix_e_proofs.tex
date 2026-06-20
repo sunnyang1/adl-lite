@@ -1,0 +1,171 @@
+\section{Complete Proof Sketches for Formal Theorems}\label{app:proofs}
+
+This appendix provides the full natural-language proofs, well-formedness axioms, and sensitivity analysis that were compressed from Section~\ref{subsec:formal-semantics}.
+
+\subsection{Event Alphabet and Well-Formedness}
+
+Let $\Sigma = \Sigma_{\text{life}} \cup \Sigma_{\text{comm}}$ be the event alphabet. An event is a tuple $e = (\tau, a, t, p, h, h_{\text{prev}}, e_{\text{prev}})$, where $\tau \in \Sigma$ denotes the event type, $a \in \mathcal{A}$ denotes the actor, $t \in \mathbb{R}_{\geq 0}$ denotes the timestamp, $p \in \mathcal{P}$ denotes the payload, $h \in \{0,1\}^{256}$ denotes the hash, $h_{\text{prev}} \in \{0,1\}^{256} \cup \{\text{genesis}\}$ denotes the previous hash, and $e_{\text{prev}} \in \text{ID} \cup \{\text{null}\}$ denotes the previous event identifier.
+
+A chain $C = [e_1, \ldots, e_n]$ is well-formed, denoted $\text{WF}(C)$, if it satisfies the following eight axioms:
+\begin{enumerate}[label=(\arabic*)]
+    \item $e_1.h_{\text{prev}} = \text{genesis}$ and $e_1.e_{\text{prev}} = \text{null}$. (Genesis anchoring)
+    \item All events in $C$ share the same $\text{concept\_id}$. (Concept identity)
+    \item For all $i \geq 2$: $e_i.h_{\text{prev}} = e_{i-1}.h$ and $e_i.e_{\text{prev}} = e_{i-1}.\text{event\_id}$. (Cryptographic linkage)
+    \item For all $i$: $e_i.h = \text{SHA-256}(\text{Canon}(e_i))$. (Hash correctness)
+    \item All $\text{event\_id}$ values in $C$ are pairwise distinct. (Distinctness)
+    \item For all $i$: $e_i.a \neq \text{null} \land e_i.a \neq \text{""}$. (Actor non-empty)
+    \item For all $i > 1$: $e_i.t \geq e_{i-1}.t$. (Timestamp monotonicity)
+    \item For all $i$: $e_i.p$ conforms to the schema defined for $e_i.\tau$ in \texttt{adl\_core\_ontology.yaml}. (Payload type safety)
+\end{enumerate}
+
+The canonicalization function $\text{Canon}(e)$ serializes $e$ as UTF-8 JSON with sorted keys, six-decimal-place float rounding, and all fields (including the timestamp) included.
+
+\subsection{Status Derivation $\delta$}
+
+The status space is $S = \{\text{provisional},\; \text{validated},\; \text{deprecated},\; \text{forked},\; \text{archived}\}$. For a chain $C$, let $C_{\text{life}} = [e \in C \mid e.\tau \in \Sigma_{\text{life}}]$ denote the lifecycle subsequence. Then:
+\begin{equation}
+    \delta(C) = \begin{cases}
+        \text{provisional} & \text{if } C_{\text{life}} = [] \\
+        f(\tau_{\text{last}}) & \text{otherwise}
+    \end{cases}
+\end{equation}
+where $\tau_{\text{last}}$ denotes the event type of the last element of $C_{\text{life}}$, and $f$ maps $\text{REGISTER} \to \text{provisional}$, $\text{VALIDATE} \to \text{validated}$, $\text{DEPRECATE} \to \text{deprecated}$, $\text{FORK} \to \text{forked}$, $\text{ARCHIVE} \to \text{archived}$.
+
+\textbf{Algorithm.} The status derivation $\delta(C)$ is implemented as the following deterministic procedure:
+\begin{enumerate}[label=\arabic*.]
+    \item \textbf{Input:} Well-formed EventChain $C = [e_1, \ldots, e_n]$
+    \item Compute $C_{\text{life}} \gets \{e \in C \mid e.\tau \in \Sigma_{\text{life}}\}$
+    \item \textbf{If} $C_{\text{life}} = \emptyset$: \textbf{return} $\text{provisional}$
+    \item \textbf{Else:} let $e_{\text{last}} \gets \text{last}(C_{\text{life}})$; \textbf{return} $f(e_{\text{last}}.\tau)$
+\end{enumerate}
+This procedure executes in $O(n)$ time where $n = |C|$, and requires $O(1)$ additional space beyond the input chain.
+
+\subsection{Confidence Aggregation $\gamma_{\text{agg}}$}
+
+Let $V = [e \in C \mid e.\tau = \text{VALIDATE}]$ denote the validation subsequence. Then:
+\begin{equation}
+    \gamma_{\text{agg}}(C) = \begin{cases}
+        0.0 & \text{if } V = [] \\
+        \min(1.0,\; c_{\text{base}} + \beta \times (N_{\text{vals}} - 1)) & \text{otherwise}
+    \end{cases}
+\end{equation}
+where $\text{actors}(V) = \{e.a \mid e \in V\}$ denotes the set of distinct actors, $\phi(a, V) = \max\{e.p.\text{confidence} \mid e \in V \land e.a = a\}$ denotes the maximum confidence reported by actor $a$, and $c_{\text{base}} = \max(0.5,\; \text{mean}_{a \in \text{actors}(V)} \phi(a, V))$ denotes the base confidence. We define $N_{\text{vals}} = |\text{actors}(V)|$, and $\beta = 0.05$ is the bonus increment per additional distinct validator.
+
+\textbf{Complete algebraic definition.} The anti-double-counting mechanism is formalised as follows. Let $V = [e \in C \mid e.\tau = \text{VALIDATE}]$ be the validation subsequence and let $A = \text{actors}(V) = \{e.a \mid e \in V\}$ be the set of distinct validators. For each actor $a \in A$, define the per-actor maximum confidence:
+\begin{equation}
+    \phi(a, V) = \max\{\,e.p.\text{confidence} \mid e \in V \;\land\; e.a = a\,\}
+\end{equation}
+The base confidence is the mean of per-actor maxima, floored at $0.5$:
+\begin{equation}
+    c_{\text{base}} = \max\!\left(0.5,\; \frac{1}{|A|}\sum_{a \in A} \phi(a, V)\right)
+\end{equation}
+The aggregate confidence with anti-double-counting is:
+\begin{equation}
+    \gamma_{\text{agg}}(C) = \begin{cases}
+        0.0 & \text{if } V = \emptyset \\
+        \min\!\Bigl(1.0,\; c_{\text{base}} + \beta \times \bigl(|A| - 1\bigr)\Bigr) & \text{otherwise}
+    \end{cases}
+\end{equation}
+where $\beta = 0.05$ is the bonus per distinct validator beyond the first. The per-actor maxima $\phi(a, V)$ ensure that duplicate \texttt{VALIDATE} events from the same actor do not compound: only the highest confidence value from each actor contributes to $c_{\text{base}}$.
+
+The per-actor maxima ensure that duplicate validations from the same actor do not compound. The base confidence floor of 0.5 ensures that any validated capability has at least moderate confidence. The bonus of $\beta = 0.05$ per additional distinct validator rewards independent confirmation.
+
+\textbf{Operational assumptions.} The term ``independent validation'' in Theorem~5 is an \emph{operational} assumption about distinct actors, not a claim of statistical independence, within the context of capability governance. It means that each validator is a different agent (identified by a distinct \texttt{actor} string), and the bonus term rewards the \emph{diversity} of validators rather than their \emph{statistical independence}. ADL Lite does not test for statistical independence (e.g., correlation between validators' judgments); that calibration is addressed by the calibration layer (\S\ref{subsec:calibration}). The $\operatorname{argmax}$ semantics for duplicate validators from the same actor prevent overcounting of correlated judgments by the same source.
+
+\textbf{Parameter rationale and sensitivity.} The base floor $c_{\text{base}} \geq 0.5$ is chosen to align with social-science consensus thresholds: a majority belief (more than 50\% agreement) is conventionally treated as the minimum bar for collective acceptance \cite{guha2016schemaorg}. The bonus increment of $0.05$ is calibrated so that ten independent validators yield $c_{\text{base}} + 0.05 \times 9 \approx 0.95$ (assuming $c_{\text{base}} \approx 0.5$), leaving headroom for exceptionally high-confidence validations without hitting the $\min(1.0, \cdot)$ cap prematurely. This design reflects a heuristic trade-off: larger increments (e.g., $0.1$) would allow quorum attainment with too few validators, risking collusion; smaller increments (e.g., $0.01$) would require impractically large validator pools. The parameters are therefore \emph{heuristic} rather than derived from an optimization objective.
+
+Sensitivity analysis confirms that Theorems~4--6 hold for any bonus $\beta \in (0, 0.1]$ and any floor $c_{\text{min}} \in [0.3, 0.7]$. With the precondition $c \geq c_{\text{base}}$ in Theorem~5, strict monotonicity is preserved for all $\beta > 0$; the $\beta \leq c_{\text{min}} / 10$ bound required by the earlier formulation is no longer necessary. Future work (FW9, Section~\ref{subsec:future-work}) will replace these fixed parameters with staking-calibrated, per-actor adaptive weights.
+
+\subsection{Fork and Confluence Semantics}
+
+A fork operation $\text{Fork}(C, a)$, parameterized by an initiating agent $a$, transforms a concept chain $C$ into a parent-child pair:
+\begin{align}
+    \text{Fork}(C, a) &= (C_{\text{fork}}, C') \\
+    C_{\text{fork}} &= C \oplus [e_{\text{FORK}}] \\
+    C' &= [e'_{\text{REG}}]
+\end{align}
+where $e_{\text{FORK}}$ carries payload $\{\text{fork\_target}: C'.\text{concept\_id}, \text{reason}: \dots\}$ and $e'_{\text{REG}}$ initializes the new concept with a fresh $\text{concept\_id}$.
+
+\textbf{Identity inheritance.} The child chain inherits a derived identity from the parent. Let $C$ have $\text{concept\_id} = \text{disc-capital-trap}$. The fork operation produces:
+\begin{align}
+    C_{\text{fork}}.\text{concept\_id} &= \text{disc-capital-trap} \quad \text{(unchanged)} \\
+    C'.\text{concept\_id} &= \text{disc-capital-trap-fork-1} \quad \text{(fresh)}
+\end{align}
+The child $\text{concept\_id}$ is formed by appending a deterministic fork suffix to the parent identifier. This ensures: (i)~\textbf{Identity preservation:} The parent chain retains its original rigid designator. (ii)~\textbf{Lineage traceability:} The child's identifier encodes its parent, enabling backward traversal. (iii)~\textbf{Uniqueness:} The suffix guarantees distinctness.
+
+\textbf{Concrete example.} If $\text{Fork}(C, \text{agent\_2})$ produces $C'$ with $C'.\text{concept\_id} = \text{disc-capital-trap-fork-1}$, then any relation established in $C'$ referencing $\text{disc-capital-trap}$ (via \texttt{fork-of}) is resolvable to the parent chain. Both chains share the same genesis hash, but their event histories diverge after the fork point.
+
+\textbf{Fork-level independence.} For any well-formed chain $C$ and any pair of agents $a_1, a_2$:
+$$\text{Fork}(C, a_1)_{\text{child}} \perp \text{Fork}(C, a_2)_{\text{child}}$$
+where $\perp$ denotes independence: each child chain's derived state depends only on its own event sequence, never on the sibling chain. This follows from the per-chain semantics of $\delta$ and the fact that child chains carry distinct $\text{concept\_id}$ values. The parent chain's status becomes $\text{forked}$ regardless of which agent initiated the fork, preserving determinism (Theorem~1).
+
+\textbf{Phase~1 merge rule.} When agents reconcile concurrent modifications without forking, the Phase~1 merge rule is last-event by timestamp, with $\text{event\_id}$ as a tie-breaker for equal timestamps. This is a \emph{social coordination convention}, not a CRDT property. It requires agents to agree on a single authoritative branch; divergent branches that cannot be reconciled socially are resolved through fork-and-deprecate. The optional CRDT merge semantics and Phase~3 DAG design are discussed below.
+
+\subsection{Core Theorem Proofs}
+
+\textbf{Theorem~\ref{thm:determinism} (Determinism).} For any well-formed chain $C$, $\delta(C)$ is unique and depends only on the last lifecycle event in $C$.
+\begin{proof}
+By definition, $\delta$ filters $C$ to $C_{\text{life}}$ (deterministic), checks emptiness (deterministic), and applies the total function $f$ to the last element (unique for ordered sequences).
+\end{proof}
+
+\textbf{Theorem~\ref{thm:confluence} (Fork Determinism).} Let $C$ fork to $(C_{\text{fork}}, C')$. Then $\delta(C_{\text{fork}}) = \text{forked}$ and $\delta(C') = \text{provisional}$.
+\begin{proof}
+Since $e_{\text{FORK}} \in \Sigma_{\text{life}}$ is the last lifecycle event in $C_{\text{fork}}$, we have $f(\text{FORK}) = \text{forked}$. As $C'$ contains only $e'_{\text{REG}}$, it follows that $f(\text{REGISTER}) = \text{provisional}$.
+\end{proof}
+
+\textbf{Theorem~\ref{thm:monotonicity} (Transition Monotonicity).} For any well-formed $C$ and event $e_{\text{new}}$, the transition from $s = \delta(C)$ to $s' = \delta(C \oplus [e_{\text{new}}])$ is valid iff $e_{\text{new}}.\tau \in \Sigma_{\text{life}}$.
+\begin{proof}
+If $e_{\text{new}}.\tau \notin \Sigma_{\text{life}}$, then $C_{\text{life}}$ is unchanged, so $s' = s$ (identity transition, always valid). If $e_{\text{new}}.\tau \in \Sigma_{\text{life}}$, then $s' = f(e_{\text{new}}.\tau)$, which is exactly the target state defined by the transition matrix.
+\end{proof}
+
+\textbf{Theorem~\ref{thm:boundedness} (Confidence Boundedness).} For any well-formed $C$, $\gamma_{\text{agg}}(C) \in [0, 1]$.
+\begin{proof}
+If $V = []$, $\gamma_{\text{agg}}(C) = 0.0$. Otherwise, each $\phi(a, V) \in [0, 1]$ by payload validation, so their mean is in $[0, 1]$. Thus $c_{\text{base}} \geq 0.5$. The bonus term is non-negative, and the outer $\min(1.0, \cdot)$ caps the result at 1.0.
+\end{proof}
+
+\textbf{Theorem~\ref{thm:monotonicity-confidence} (Confidence Monotonicity).} Let $\gamma_{\text{agg}}(C) = c$ and let $e_{\text{new}}$ be a \texttt{VALIDATE} event from a new actor who is non-colluding with existing validators, with $e_{\text{new}}.p.\text{confidence} \geq c_{\text{base}}$, where $c_{\text{base}}$ is the current base confidence of $C$. Then $\gamma_{\text{agg}}(C \oplus [e_{\text{new}}]) \geq c$, with strict inequality if $c < 1.0$.
+\begin{proof}
+Let $N'_{\text{vals}} = N_{\text{vals}} + 1$. The proof assumes the new actor is non-colluding with existing validators, so the per-actor maxima reflect independent judgments. The new base confidence $c'_{\text{base}}$ is the weighted mean of the $N_{\text{vals}}$ per-actor maxima and the new actor's confidence $c$. Because $c \geq c_{\text{base}} \geq c_{\text{base}}^{\text{raw}}$, the weighted mean satisfies $c'_{\text{base}} \geq c_{\text{base}}^{\text{raw}}$, and therefore $c'_{\text{base}} = \max(0.5, c'_{\text{base}}) \geq \max(0.5, c_{\text{base}}^{\text{raw}}) = c_{\text{base}}$. The bonus term increases by exactly $0.05$ (from $0.05 \times (N_{\text{vals}} - 1)$ to $0.05 \times N_{\text{vals}}$). Hence $\gamma_{\text{agg}}(C') = \min(1.0, c'_{\text{base}} + 0.05 \times N_{\text{vals}}) \geq \min(1.0, c_{\text{base}} + 0.05 \times (N_{\text{vals}} - 1) + 0.05) \geq \gamma_{\text{agg}}(C)$. If $c < 1.0$, the $\min(1.0, \cdot)$ cap is not binding for $\gamma_{\text{agg}}(C)$, and the $+0.05$ bonus yields strict inequality.
+\end{proof}
+
+\textbf{Remark (Collusion vulnerability).} Theorem~5 assumes non-colluding actors. As demonstrated in the empirical boundary experiment E14 (Section~\ref{subsec:e14}), a single colluding actor can drive $\gamma_{\text{agg}}(C)$ to $0.99$. This vulnerability is a known Phase~1 limitation (L9, Section~\ref{subsec:limitations}), addressed by the calibration layer (\S\ref{subsec:calibration}) and staking-based validation (FW9, Section~\ref{subsec:future-work}).
+
+\textbf{Theorem~\ref{thm:consistency} (Status--Confidence Consistency).} If $\delta(C) = \text{validated}$, then $\gamma_{\text{agg}}(C) \geq 0.5$.
+\begin{proof}
+$\delta(C) = \text{validated}$ implies that the last lifecycle event is \texttt{VALIDATE}, so $V \neq \emptyset$. Thus $c_{\text{base}} = \max(0.5, \text{mean}(\cdot)) \geq 0.5$. By Theorem~4, the final value is at least $c_{\text{base}} \geq 0.5$.
+\end{proof}
+
+\textbf{Theorem~\ref{thm:wf-preservation} (Well-Formedness Preservation).} For any well-formed chain $C$ and any event $e_{\text{new}}$ satisfying the preconditions of its action type, the extended chain $C' = C \oplus [e_{\text{new}}]$ is well-formed.
+\begin{proof}
+We verify each $\text{WF}_i$ axiom for $C'$.
+\begin{enumerate}[label=(\arabic*)]
+    \item $\text{WF}_1$: The genesis event is unchanged, so $e_1.h_{\text{prev}} = \text{genesis}$ and $e_1.e_{\text{prev}} = \text{null}$ still hold.
+    \item $\text{WF}_2$: $e_{\text{new}}$ shares the same $\text{concept\_id}$ by construction (the append operation enforces this), so all events in $C'$ share the same $\text{concept\_id}$.
+    \item $\text{WF}_3$: $e_{\text{new}}$ is appended with $e_{\text{new}}.h_{\text{prev}} = e_n.h$ and $e_{\text{new}}.e_{\text{prev}} = e_n.\text{event\_id}$, where $e_n$ is the previous last event. All prior linkages are unchanged.
+    \item $\text{WF}_4$: $e_{\text{new}}.h$ is computed as $\text{SHA-256}(\text{Canon}(e_{\text{new}}))$ by construction. All existing hashes are unchanged.
+    \item $\text{WF}_5$: $e_{\text{new}}.\text{event\_id}$ is generated as a fresh UUID, so it is distinct from all existing $\text{event\_id}$ values in $C$.
+    \item $\text{WF}_6$: The ActionExecutor rejects events with empty actor fields as part of payload validation, so $e_{\text{new}}.a \neq \text{null}$ and $e_{\text{new}}.a \neq \text{""}$.
+    \item $\text{WF}_7$: The append operation enforces $e_{\text{new}}.t \geq e_n.t$, preserving timestamp monotonicity.
+    \item $\text{WF}_8$: The ActionExecutor checks payload schema conformance via Pydantic validation before appending, so $\text{SchemaValid}(e_{\text{new}}.\tau, e_{\text{new}}.p)$ holds.
+\end{enumerate}
+Thus $\text{WF}(C')$ holds.
+\end{proof}
+
+\subsection{CRDT Convergence}
+
+\textbf{Theorem~\ref{thm:crdt-convergence} (CRDT Convergence).} For any well-formed concurrent branches $B_1, B_2$ derived from the same genesis event, the LWW-Set merge satisfies:
+\begin{align}
+    \text{Merge}(B_1, B_2) &= \text{Merge}(B_2, B_1) \quad \text{(commutativity)} \\
+    \text{Merge}(\text{Merge}(B_1, B_2), B_3) &= \text{Merge}(B_1, \text{Merge}(B_2, B_3)) \quad \text{(associativity)} \\
+    \text{Merge}(B_1, B_1) &= B_1 \quad \text{(idempotence)}
+\end{align}
+Furthermore, after merge, $\delta(\text{Merge}(B_1, B_2))$ is uniquely determined.
+\begin{proof}
+Events are deduplicated by $\text{event\_id}$, so the union is idempotent. Union is commutative and associative by set semantics. $\delta$ depends only on the last lifecycle event in the merged set; for equal-timestamp ties, $\text{event\_id}$ provides a total order, making $\delta$ deterministic.
+\end{proof}
+
+\textbf{Corollary (Event-Level CRDT).} Each event $e$ is a trivial CRDT: it is immutable (no update operation), so trivially convergent. The chain $C$ as an append-only log is a grow-only set (G-Set) CRDT.
+
+\subsection{Machine-Checking Scope}
+
+TLC verifies Theorems 1--3 (determinism, fork determinism, transition monotonicity) for all event sequences of length $\leq 20$ over the closed alphabet $\Sigma$. Theorems 4--6 (boundedness, confidence monotonicity, status--confidence consistency), Theorem 8 (precondition evaluation complexity), and Lemmas 1--2 (collusion vulnerability, threshold mitigation) are proved by rigorous natural-language argument. Theorem 9 (CRDT convergence) is verified by executable assertions in the Python implementation. Full machine-checked proofs for unbounded chains are planned for future work (FW10, FW12).

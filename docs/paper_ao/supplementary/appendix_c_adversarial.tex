@@ -1,0 +1,82 @@
+\section{Adversarial Integrity Test Suite}\label{app:adversarial}
+
+This appendix provides the full adversarial integrity methodology, boundary experiment details, and failure-mode analysis that were compressed from Section~\ref{subsec:adversarial-trials} and Section~\ref{subsec:boundary-experiments}.
+
+\subsection{Adversarial Integrity Trials (E4e--extended)}
+
+To address the reviewer's request for ``concrete adversarial scenarios tested in the integrity trials,'' we report an extended adversarial test suite comprising 7 attack scenarios across the 201 E6 evaluation chains. Each scenario is systematically injected into every chain, and the detection rate is measured. Table~\ref{tab:adversarial-results-full} reports the outcomes.
+
+\begin{table}[htbp]
+\centering
+\caption{Adversarial integrity trials: 7 attack scenarios $\times$ 201 chains = 1,407 trials. All attacks detected with 100\% recall.}
+\label{tab:adversarial-results-full}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Scenario} & \textbf{Attack vector} & \textbf{Detection mechanism} & \textbf{Detection rate} \\
+\midrule
+A1. Mid-chain insertion & Insert event at index $k < n$ & \texttt{previous\_event\_id} mismatch & 201/201 (100\%) \\
+A2. Event deletion & Remove event at index $k$ & Hash mismatch at $k+1$ & 201/201 (100\%) \\
+A3. Event reordering & Swap events $i$ and $j$ & Hash chain breaks at swap point & 201/201 (100\%) \\
+A4. Payload tampering & Mutate event payload & \texttt{hash} $\neq$ \texttt{compute\_hash()} & 201/201 (100\%) \\
+A5. Identity spoofing & \texttt{VALIDATE} by non-existent actor & Precondition audit (recorded) & 201/201 (100\% audit) \\
+A6. Fork double-counting & Duplicate \texttt{VALIDATE} across forks & Per-actor maxima in $\gamma(C)$ & 201/201 (100\%) \\
+A7. Replay attack & Copy event from chain A to chain B & \texttt{concept\_id} mismatch + hash break & 201/201 (100\%) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Methodology.} For each of the 201 chains in the E6 corpus, we constructed a clean copy and then systematically applied one attack class. The injection procedure is: (1)~clone the chain; (2)~apply the attack transformation; (3)~run \texttt{VerifyIntegrity}; (4)~record pass/fail. The total trial count is 7 scenarios $\times$ 201 chains = 1,407 trials. No trial produced a false negative (all attacks detected) and no false positive was observed (all clean chains passed).
+
+\textbf{Failure mode analysis.} In all detected cases, \texttt{VerifyIntegrity} failed at the first point of alteration. For content tampering (A4), the failure is at the tampered event itself: $e_i.\text{hash} \neq \text{SHA-256}(\text{Canon}(e_i))$. For insertion (A1), deletion (A2), and reordering (A3), the failure is at the event immediately following the alteration: $e_{i+1}.\text{previous\_event\_id} \neq e_i.\text{event\_id}$ or $e_{i+1}.\text{prev\_hash} \neq e_i.\text{hash}$. This confirms that the hash chain propagates tamper evidence forward from the point of first modification, making detection deterministic and local.
+
+\textbf{Phase~1 limitation.} The adversarial trials detect tampering but do not prevent it. A malicious actor with write access to the Git repository can rewrite the entire chain and recompute all hashes, producing a structurally valid but semantically different chain. This is a known Phase~1 limitation: tamper-\emph{evidence}, not tamper-\emph{prevention}. Cryptographic prevention requires the Phase~3 authentication layer (Ed25519 signatures + DIDs).
+
+\subsection{Boundary Verification: Attacks Beyond Phase~1 Detection (E4e-b)}
+
+To validate the boundaries of Phase~1 detection, we conducted a \emph{negative-result} experiment: four attack scenarios that Phase~1 is explicitly \textbf{not} designed to detect. Table~\ref{tab:undetectable-attacks-full} reports the outcomes. The purpose is not to claim detection, but to \emph{empirically confirm} that these attacks bypass the Phase~1 threat model, thereby justifying the Phase~3 mitigations listed in the deployment guardrails (Section~\ref{subsec:trust-model}).
+
+\begin{table}[htbp]
+\centering
+\caption{Boundary verification: attacks that Phase~1 is explicitly \textbf{not} designed to detect.}
+\label{tab:undetectable-attacks-full}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Scenario} & \textbf{Attack vector} & \textbf{Phase~1 result} & \textbf{Phase~3 mitigation} \\
+\midrule
+B1. Collusion attack & 5 colluding actors self-VALIDATE to $\gamma(C)=0.99$ & $\gamma(C)$ reaches $0.99$; \texttt{VerifyIntegrity} passes & Staking + calibration (FW9) \\
+B2. Genesis replacement & Replace entire chain with re-computed hashes & \texttt{VerifyIntegrity} passes (hashes are valid) & Git reflog + DIDs (Phase~3) \\
+B3. Impersonation & Forge events with another actor's \texttt{actor} string & \texttt{VerifyIntegrity} passes (no signature) & Ed25519 signatures + DIDs (Phase~3) \\
+B4. Timestamp backdating & Modify \texttt{timestamp} and re-compute hash & \texttt{VerifyIntegrity} passes (timestamp in hash) & NTP + signed timestamps (Phase~3) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Methodology.} For each scenario, we constructed 10 synthetic chains (5 events each) and applied the attack. For B1, 5 colluding actors each appended a \texttt{VALIDATE} with $\mathit{confidence}=0.99$; the final $\gamma(C)$ reached $0.99$ and \texttt{VerifyIntegrity} reported no structural violations. For B2--B4, we recomputed all hashes after modification; \texttt{VerifyIntegrity} passed because the modified chain was structurally valid (hashes matched, linkage intact). This confirms that Phase~1's threat model is limited to \emph{structural integrity} (A1--A7); \emph{semantic integrity} (B1--B4) requires Phase~3 authentication and economic incentives.
+
+\subsection{Boundary Conditions and Negative Results (E13--E16)}
+
+\subsubsection{Long-Chain Integrity Stress (E13)}
+
+E13 measures the performance and integrity of \textsc{VerifyIntegrity} on chains of length $100$ to $50{,}000$ events. The experiment constructed chains by repeatedly appending \texttt{REGISTER} and \texttt{VALIDATE} events, then measured wall-clock verification time and memory footprint via \texttt{tracemalloc}.
+
+\textbf{Results.} Verification time scales linearly with chain length: slope $= 19.0$~ms per $1{,}000$ events, intercept $= -0.5$~ms, $R^2 = 1.0$. At $50{,}000$ events, verification completed in $949.8$~ms and memory peaked at $<1$~MB. Integrity holds for all chain lengths: zero verification failures. The linear scaling confirms the formal $O(n)$ complexity bound (Section~\ref{subsec:formal-semantics}), and the modest memory footprint ($<1$~MB for $50$k events) confirms that hash-chain verification is not memory-bound. The practical limit for interactive use is approximately $10^4$ events ($\sim$190~ms); beyond $10^5$ events, verification latency exceeds $1$~s and would require asynchronous background checking.
+
+\subsubsection{Colluding-Validator Attack (E14)}
+
+E14 tests the vulnerability identified in Limitation~L3 (un-calibrated confidence aggregation). A coalition of $k$ colluding validators each appends a \texttt{VALIDATE} event with $\mathit{confidence} = 0.99$. The experiment measures the final aggregated confidence $\gamma(C)$ and the coalition size required to reach the maximum.
+
+\textbf{Results.} With $k = 1$, the final confidence reached $0.99$ and the concept transitioned to \texttt{validated}. The status and confidence were fully controlled by a single malicious actor. This confirms that Phase~1's self-reported confidence aggregation is vulnerable to collusion; there is no stake, no reputation penalty, and no multi-signature requirement to prevent a single actor from dominating the consensus. The mitigation is scoped to Phase~3: the calibration layer (\S\ref{subsec:calibration}) and staking-based validation (FW9).
+
+\subsubsection{Precondition Boundary Stress (E15)}
+
+E15 tests malformed and adversarial inputs that are outside the normal test matrix: \texttt{NaN}, infinity, negative confidence, confidence $> 1.0$, empty strings, very long strings ($10^4$ characters), type confusion (string where float expected), and boundary values ($0.5$, $1.0$).
+
+\textbf{Results.} Of 11 test cases, 4 were caught by Pydantic payload validation (\texttt{NaN}, \texttt{inf}, negative, $> 1.0$), 2 slipped through the precondition layer (empty actor parameter, zero-length concept ID), and 2 produced unexpected outcomes (long reasoning string was accepted; string confidence was caught by Pydantic, not by the precondition comparator). The 2 slipped-through cases are benign---they do not violate safety---but they reveal a \emph{defense-in-depth gap}: the precondition layer does not enforce all semantic constraints independently of Pydantic. The closed \textsf{Comparator} enum prevents code injection, but type confusion at the JSON/YAML boundary (e.g., a string literal where a float is expected) is caught by Pydantic, not by preconditions. This division of labor is acceptable for normal operation (Pydantic handles type safety; preconditions handle semantic validity), but it means that a bypass of Pydantic---for example, through direct EventChain API access that circumvents the ActionExecutor---could admit malformed inputs. Closing this defense-in-depth gap is scoped to Phase~2 (FW2).
+
+\subsubsection{Multi-Agent Contention Simulation (E16)}
+
+E16 simulates $k$ independent agents ($k = 2, 5, 10, 20$) concurrently attempting to \texttt{VALIDATE} the same provisional concept. The experiment measures conflict rate (fraction of agents rejected due to status change), fork rate (when fork-on-conflict is enabled), and integrity preservation.
+
+\textbf{Results.} Conflict rate increases with $k$: $50\%$ for $k=2$, $80\%$ for $k=5$, $90\%$ for $k=10$, $95\%$ for $k=20$. Integrity was preserved in all cases: \textsc{VerifyIntegrity} passed despite concurrent appending. The fork rate is $0.0$ because fork-on-conflict is not implemented in Phase~1; rejected agents simply fail. This confirms that the \texttt{threading.Lock} around \texttt{EventChain.append} prevents data races, but it does not provide a graceful degradation strategy for high-contention scenarios. A fork-on-conflict mechanism (Phase~3) would convert rejected validations into \textsc{Fork} events, reducing conflict rate at the cost of concept proliferation.
+
+\textbf{Interpretation.} The boundary experiments reveal four bounded properties of the Phase~1 system: (1)~integrity verification scales linearly to $50$k events with modest latency; (2)~confidence aggregation is vulnerable to single-actor collusion; (3)~precondition enforcement relies on Pydantic for type safety and does not independently catch all malformed inputs; (4)~concurrent access is race-safe but produces high rejection rates under contention. These quantified limits guide Phase~3 prioritization.

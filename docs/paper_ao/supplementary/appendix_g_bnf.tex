@@ -1,0 +1,100 @@
+\section{Complete BNF Grammar and Inference Rules}\label{app:bnf}
+
+This appendix provides the complete syntax and operational semantics of the ADL Lite precondition language, together with the ontology-to-schema mapping and a concrete event-encoding example that were compressed from Section~\ref{subsec:document-model} and Section~\ref{subsec:precondition-language}.
+
+\subsection{Ontology-to-Schema Mapping}
+
+Table~\ref{tab:ontology-schema-mapping-full} maps ontological constraints to their concrete L1--L4 encodings. The encoding is enforced by three mechanisms: (1)~Pydantic model validation, which rejects malformed events before they enter the chain; (2)~YAML schema validation in the parser, which ensures front-matter fields are well-typed; and (3)~precondition evaluation in the ActionExecutor, which rejects actions that violate ontological constraints (e.g., \texttt{VALIDATE} on a non-\texttt{provisional} concept).
+
+\begin{table}[htbp]
+\centering
+\caption{Ontology-to-schema mapping: from BFO/DOLCE/UFO constraints to L1--L4 syntax.}
+\label{tab:ontology-schema-mapping-full}
+\begin{tabular}{@{}p{3.5cm}p{3.2cm}p{4.8cm}@{}}
+\toprule
+\textbf{Ontological constraint} & \textbf{Ontology source} & \textbf{L1--L4 encoding} \\
+\midrule
+Event has temporal extent & BFO:occurrent & L1: \texttt{timestamp} (required, ISO-8601) \\
+Event has participant & BFO:agent & L1: \texttt{actor} (required string) \\
+Event depends on prior event & DOLCE:accomplishment & L4: \texttt{previous\_event\_id} + SHA-256 linkage \\
+Concept is GDC & BFO:GDC & L1: \texttt{adl\_id} as rigid designator \\
+Concept has no independent existence & BFO:dependence & L1: \texttt{status} derived, not stored \\
+Relation is a relator & UFO:Relator & L3: \texttt{adl:relation} block with \texttt{source/target/predicate} \\
+Action has intentionality & UFO:Action & L4: \texttt{adl:action} block with \texttt{reasoning} field \\
+Action has preconditions & UFO-B:Institutional Event & L4: \texttt{preconditions} list with Comparator rules \\
+ICE carries information & BFO:ICE & L2: Markdown body (human-readable) \\
+ICE has structured form & BFO:ICE & L3: YAML-typed assertions \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{L3 Relation Lifecycle Operations}\label{app:l3-lifecycle}
+
+ADL Lite's L3 relation blocks support three lifecycle operations: \emph{establishment}, \emph{modification}, and \emph{revocation}. Each operation is recorded as an event in the capability's EventChain, enabling full provenance tracking for relational assertions.
+
+\textbf{Establishment.} A relation is established by a \texttt{RELATE} event with fields: \texttt{source}, \texttt{relation} (predicate from closed registry), \texttt{target}, optional \texttt{confidence}, and optional \texttt{mapping\_type}. The precondition requires that the \texttt{relation} predicate be registered in \texttt{adl\_core\_ontology.yaml} (strict mode) or be accepted with a warning (relaxed mode).
+
+\textbf{Modification.} A relation's confidence or mapping type can be modified by a subsequent \texttt{RELATE} event with the same \texttt{source}, \texttt{relation}, and \texttt{target} but different \texttt{confidence} or \texttt{mapping\_type}. The new event \emph{supersedes} the previous one: derived queries return the most recent value. Both events remain in the chain for audit purposes.
+
+\textbf{Revocation.} A relation is revoked by a \texttt{RELATE} event with the same \texttt{source}, \texttt{relation}, and \texttt{target}, but with \texttt{confidence = 0.0} or a special \texttt{revoked: true} flag. The relation is excluded from derived state. The revocation itself is cryptographically linked to the original establishment event via the chain.
+
+\textbf{Truth maintenance under forks.} When a capability forks, all active relations from the parent chain are \emph{inherited} by the child chain at the fork point. Subsequent modifications in either lineage do not affect the other.
+
+\textbf{Conflicting relation assertions.} If two agents assert contradictory relations, both events are appended to the chain. The derived state includes both assertions, and downstream consumers must apply their own resolution logic. ADL Lite provides the \emph{provenance infrastructure} for conflict detection but does not prescribe a single resolution strategy.
+
+\subsection{Concrete VALIDATE Event Encoding}
+
+The ontological commitment that \texttt{VALIDATE} is an intentional action (UFO:Action) performed by an agent (BFO:agent) at a time (BFO:occurrent) is encoded as the following YAML structure within an L4 \texttt{adl:action} block:
+
+\begin{verbatim}
+```adl:action
+action: validate
+actor: agent_3
+reasoning: "Cross-domain validation complete"
+timestamp: 2024-06-15T09:30:00+00:00
+params:
+  confidence: 0.85
+```
+\end{verbatim}
+
+The parser maps this block to an \texttt{Event(event\_type=VALIDATE, actor="agent\_3", ...)} and appends it to the EventChain. The precondition system checks that the target concept's current status is \texttt{provisional}, and the Pydantic validator ensures that \texttt{confidence} is a float in $[0, 1]$.
+
+\subsection{Precondition Language BNF}
+
+A precondition rule is a triple:
+\begin{equation}
+    \text{rule} ::= \langle \text{field}, \text{comparator}, \text{value} \rangle
+\end{equation}
+where $\text{field} \in \mathcal{F}$ denotes an ADLFrontMatter field name, $\text{comparator} \in \mathcal{K}$ denotes a comparator drawn from a closed enumeration of eight operators, and $\text{value} \in \mathcal{V}$ denotes a literal or set of literals. The comparator alphabet is:
+\begin{equation}
+    \mathcal{K} = \{\text{EQ}, \text{NEQ}, \text{GT}, \text{GTE}, \text{LT}, \text{LTE}, \text{IN}, \text{EXISTS}\}
+\end{equation}
+
+\textbf{BNF grammar.} The complete syntax of the precondition language is given by the following grammar, where $\langle\text{rule}\rangle$ is the start symbol:
+\begin{align}
+    \langle\text{rule}\rangle &::= \langle\text{field}\rangle\; \langle\text{comparator}\rangle\; \langle\text{value}\rangle \\
+    \langle\text{field}\rangle &\in \mathcal{F} = \{\texttt{status}, \texttt{confidence}, \texttt{scope}, \texttt{adl\_type}, \dots\} \\
+    \langle\text{comparator}\rangle &\in \mathcal{K} = \{\text{EQ}, \text{NEQ}, \text{GT}, \text{GTE}, \text{LT}, \text{LTE}, \text{IN}, \text{EXISTS}\} \\
+    \langle\text{value}\rangle &::= \text{string} \mid \text{number} \mid \text{boolean} \mid \langle\text{set}\rangle \\
+    \langle\text{set}\rangle &::= [\,\text{value}_1\text{, }\dots\text{, }\text{value}_n\,]
+\end{align}
+The grammar is context-free, unambiguous, and contains no recursion, no quantification, and no unbounded iteration. Every precondition is a single production of $\langle\text{rule}\rangle$ with exactly three components.
+
+\subsection{Operational Semantics Inference Rules}
+
+Precondition evaluation is a deterministic partial function. For a precondition rule $r = \langle f, k, v \rangle$ and an EventChain $C$, the evaluation $\text{eval}(r, C)$ is defined by the following inference rules:
+\begin{align}
+    \text{eval}(\langle f, \text{EQ}, v \rangle, C) &= (\text{lookup}(f, C) = v) \\
+    \text{eval}(\langle f, \text{NEQ}, v \rangle, C) &= (\text{lookup}(f, C) \neq v) \\
+    \text{eval}(\langle f, \text{GT}, v \rangle, C) &= (\text{lookup}(f, C) > v) \\
+    \text{eval}(\langle f, \text{GTE}, v \rangle, C) &= (\text{lookup}(f, C) \geq v) \\
+    \text{eval}(\langle f, \text{LT}, v \rangle, C) &= (\text{lookup}(f, C) < v) \\
+    \text{eval}(\langle f, \text{LTE}, v \rangle, C) &= (\text{lookup}(f, C) \leq v) \\
+    \text{eval}(\langle f, \text{IN}, S \rangle, C) &= (\text{lookup}(f, C) \in S) \\
+    \text{eval}(\langle f, \text{EXISTS}, \_ \rangle, C) &= (\text{lookup}(f, C) \neq \text{null})
+\end{align}
+where $\text{lookup}(f, C)$ is defined as:
+\begin{equation}
+    \text{lookup}(f, C) = \text{Snapshot}(C)[f]
+\end{equation}
+where $\text{Snapshot}(C)$ is the derived L1 front-matter view produced by $\text{ADLFrontMatter.}\text{from\_chain}(C)$. This snapshot is the canonical source of truth for precondition evaluation: it memoises $\delta(C)$, $\gamma(C)$, and the validator list (computed from the chain), alongside the identity fields that are not chain-derived. The function $\text{lookup}(f, C)$ is therefore total for all $f \in \mathcal{F}$ because every field in the snapshot has a default value (e.g., \texttt{confidence} defaults to 0.0, \texttt{status} defaults to \texttt{provisional}). The evaluation is pure (no side effects) and referentially transparent.

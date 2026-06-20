@@ -130,11 +130,11 @@ Thus $\text{WF}(C')$ holds.
 The seven core theorems form a dependency graph: Theorem~\ref{thm:determinism} (foundational) $\to$ Theorem~\ref{thm:confluence} (fork) $\to$ Theorem~\ref{thm:monotonicity-status} (preconditions); Theorem~\ref{thm:boundedness} (independent) $\to$ Theorem~\ref{thm:monotonicity-confidence} (cap argument) $\to$ Theorem~\ref{thm:consistency} (status--confidence); and Theorem~\ref{thm:wf-preservation} (Well-Formedness Preservation). The optional CRDT property (Theorem~\ref{thm:crdt-convergence-appendix}) and the G-Set corollary depend on Theorem~\ref{thm:determinism} and $\Phi$ respectively. Together, these proofs establish that ADL Lite's derivation semantics is deterministic, fork-deterministic, transition-monotonic, bounded, confidence-monotonic, status--confidence consistent, and well-formedness-preserving.
 
 %-------------------------------------------------------------------------------
-\subsection{Randomized Trace-Checker Artifact (E24)}
+\subsection{Randomized Trace-Checker Artifact (E25)}
 %-------------------------------------------------------------------------------
 \label{subsec:trace-checker}
 
-A randomized trace-checker (Experiment E24, `experiments/proof\_trace\_checker.py`) generates 10,000 synthetic EventChains of length 2--100 and verifies Theorems 1--7 empirically. All 10,000 traces passed all checks (100\% pass rate). This is not a machine-checked proof (Coq/TLA+), but it provides reproducible property-based validation. Machine-checked proofs for unbounded chains remain future work (FW10).
+A randomized trace-checker (Experiment E25, `experiments/proof\_trace\_checker.py`) generates 10,000 synthetic EventChains of length 2--100 and verifies Theorems 1--7 empirically. All 10,000 traces passed all checks (100\% pass rate). This is not a machine-checked proof (Coq/TLA+), but it provides reproducible property-based validation. Machine-checked proofs for unbounded chains remain future work (FW10).
 
 %-------------------------------------------------------------------------------
 \subsection{Sensitivity Analysis: Confidence Aggregation Parameters}

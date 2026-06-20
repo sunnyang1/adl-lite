@@ -176,7 +176,7 @@ All code, test data, and experiment scripts are available as the pip-installable
 
 \subsection{Summary of Results}\label{subsec:results-summary}
 
-Table~\ref{tab:results} summarizes the empirical validation. All architectural correctness experiments (E1, E2, E3, E4, E6, E13--E16, E20--E23) achieved perfect scores. The randomized trace checker (E24) validated Theorems 1--7 over 10,000 synthetic chains of length 2--100 with 100\% pass rate. E24 provides reproducible property-based validation that increases confidence in the natural-language proofs. The experiments validate architectural feasibility and formal correctness; domain-level effectiveness with human experts (E5) is in progress, with pilot data collection underway.
+Table~\ref{tab:results} summarizes the empirical validation. All architectural correctness experiments (E1, E2, E3, E4, E6, E13--E16, E20--E23) achieved perfect scores. The randomized trace checker (E25) validated Theorems 1--7 over 10,000 synthetic chains of length 2--100 with 100\% pass rate. E25 provides reproducible property-based validation that increases confidence in the natural-language proofs. The experiments validate architectural feasibility and formal correctness; domain-level effectiveness with human experts (E5) is in progress, with pilot data collection underway.
 
 \begin{table}[htbp]
 \centering
@@ -203,7 +203,7 @@ E20 & Template effectiveness & Structured-section compliance & 94\% strict / 87\
 E20b & Calibration baseline & Calibrated vs.\ raw confidence & $R^2 = 0.73$ (accuracy-correlation) & Per-actor accuracy scores \\
 E21 & 100k-event stress & Integrity / latency & 0 failures & 100,000 events \\
 E23 & Concurrent contention & Integrity under 20 agents & 0 failures & 20 agents $\times$ 100 events \\
-E24 & Randomized theorem validation & Pass rate (Theorems 1--7) & 100\% (10,000/10,000) & 10,000 chains, length 2--100 \\
+E25 & Randomized theorem validation & Pass rate (Theorems 1--7) & 100\% (10,000/10,000) & 10,000 chains, length 2--100 \\
 \bottomrule
 \end{tabular}
 \end{table}

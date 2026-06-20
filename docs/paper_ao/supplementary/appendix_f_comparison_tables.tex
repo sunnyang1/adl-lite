@@ -1,0 +1,73 @@
+\section{Comparison Tables Removed from Section~2 and Section~5}\label{app:comparison-tables}
+
+This appendix provides the full comparative capability-governance discussion that was compressed from Section~\ref{subsec:comparative-eval}.
+
+\subsection{Governance Task Suite}
+
+We define four governance tasks representative of multi-agent concept lifecycle management:
+
+\begin{enumerate}[label=(\arabic*)]
+    \item \textbf{Acceptance workflow.} A concept is proposed, reviewed by $k$ validators, and accepted only if the quorum threshold (minimum validations) is met. Measure: number of system steps required to reach final status.
+    \item \textbf{Retraction/deprecation workflow.} A previously accepted concept is deprecated based on new evidence. Measure: completeness of the audit trail linking deprecation to the evidence that justified it.
+    \item \textbf{Audit query.} A downstream consumer asks: ``What was the status of concept $X$ at time $t$, and who contributed to its validation?'' Measure: time to answer ($O(1)$ for nanopub lookup vs.\ $O(n)$ for EventChain scan).
+    \item \textbf{Consensus threshold check.} Determine whether a concept has reached a configurable confidence threshold (e.g., $\gamma(C) \geq 0.7$) and which validators contributed. Measure: computational cost of threshold evaluation.
+\end{enumerate}
+
+\subsection{Comparison Results}
+
+Table~\ref{tab:comparative-eval-full} presents the qualitative governance task comparison. Table~\ref{tab:comparative-benchmark-full} supplements this with quantitative benchmarks measured on identical hardware (Apple M2, macOS 14, Python 3.10) via the E12 experiment.
+
+\begin{table}[htbp]
+\centering
+\caption{Governance task comparison. $\checkmark$ = supported; $\circ$ = partially supported; $\times$ = not supported.}
+\label{tab:comparative-eval-full}
+\begin{tabular}{@{}p{3.0cm}p{3.5cm}p{3.5cm}p{3.5cm}@{}}
+\toprule
+\textbf{Task} & \textbf{Nanopubs + Trusty URIs} & \textbf{PROV-O Pipeline} & \textbf{ADL Lite (v0.2)} \\
+\midrule
+Acceptance workflow & $\circ$ (manual versioning) & $\circ$ (requires external workflow engine) & $\checkmark$ (deterministic $\delta(C)$) \\
+Retraction/deprecation & $\checkmark$ (new nanopub with retraction) & $\checkmark$ (prov:wasInvalidatedBy) & $\checkmark$ (\textsc{DEPRECATE} + precondition) \\
+Audit query & $\checkmark$ ($O(1)$ per nanopub) & $\checkmark$ (SPARQL query) & $\circ$ ($O(n)$ linear scan) \\
+Consensus threshold & $\times$ (no built-in aggregation) & $\times$ (no built-in aggregation) & $\checkmark$ ($\gamma(C)$ with quorum rules) \\
+Multi-event lifecycle & $\circ$ (chained nanopubs) & $\checkmark$ (activity sequences) & $\checkmark$ (native EventChain) \\
+Verification cost & $O(1)$ per nanopub & $\sim O(|\text{activities}|)$ & $O(n)$ per chain \\
+Authentication & $\checkmark$ (RSA signatures) & $\circ$ (planned: LD-Proofs) & $\checkmark$ (Ed25519 + \texttt{did:key}) \\
+Infrastructure & RDF triplestore + nanopub server & RDF triplestore + PROV tooling & Git + \texttt{pip install adl-lite} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Empirical benchmark comparison (E12). ADL Lite measurements on Apple M2, macOS 14, Python 3.10. Nanopub and PROV-O figures are estimated from published specifications; head-to-head benchmark deferred to Phase~3.}
+\label{tab:comparative-benchmark-full}
+\begin{tabular}{@{}p{3.5cm}lll@{}}
+\toprule
+\textbf{Metric} & \textbf{ADL Lite (measured)} & \textbf{Nanopubs (published)} & \textbf{PROV-O (published)} \\
+\midrule
+Per-assertion verify & 0.59 $\mu$s (SHA-256 hash only) & $O(1)$ hash comparison \cite{trusty_uris} & O($n\log n$) RDF canon.~\cite{w3c_rdf_canon} \\
+Chain verify (300 events) & 2.13 ms & N/A (atomic claims) & N/A \\
+Audit query (300 events) & 0.022 ms & $\sim$SPARQL lookup ms$^a$ & $\sim$SPARQL lookup ms$^a$ \\
+Storage per event & 603 bytes & 31--86\% non-assertion triples \cite{nanopublications} & $\sim$RDF triple overhead \\
+Hash/storage overhead & 10.6\% (64 bytes/event) & Content-addressed URI overhead & Canon. + signature overhead \\
+Throughput & 135k events/s (verify) & Per-claim only & Per-document batch \\
+All 201 chains verify & 69 ms (total) & N/A (no chain concept) & N/A \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+$^a$Estimated from published specifications; not empirically measured on identical hardware.
+
+\textbf{Interpretation.} Nanopublications with Trusty URIs provide $O(1)$ per-claim hash verification with built-in RSA signatures---an authentication capability ADL Lite currently lacks. However, nanopubs are atomic units without built-in lifecycle state machines, consensus thresholds, or multi-event provenance chains. PROV-O pipelines offer rich workflow descriptions but require external execution engines and incur RDF canonicalization overhead.
+
+\textbf{Capability-governance efficacy.} Nanopublications provide per-claim integrity but no lifecycle state machine; status transitions, if any, are managed externally. ADL Lite provides deterministic status derivation ($\delta$, $\gamma$) natively, with preconditions enforced at append time. PROV-O provides rich workflow descriptions but requires external execution engines (e.g., BPMN orchestrators) to enforce lifecycle rules, and those engines are not cryptographically bound to the provenance data.
+
+\textbf{Failure modes.} ADL Lite's primary failure mode is chain corruption, detected by $\text{VerifyIntegrity}$; recovery is possible via Git reflog or peer copies. Nanopublications' failure mode is URI dereference failure (broken links to retracted or unhosted nanopubs). PROV-O's failure mode is reasoning inconsistency (contradictory activity sequences detected by OWL reasoning, not by cryptographic verification).
+
+\textbf{Head-to-head benchmark.} A direct quantitative benchmark against nanopublication and PROV-O pipelines on identical governance tasks is deferred to Phase~3, when ADL Lite's Ed25519 authentication layer will be comparable to Trusty URIs' RSA signatures. Until then, the comparison in Table~\ref{tab:comparative-benchmark-full} reports measured ADL Lite figures against published estimates for the baselines.
+
+ADL Lite uniquely combines deterministic lifecycle derivation ($\delta$, $\gamma$) with cryptographic chain integrity in a single lightweight package. The measured overhead is modest: 10.6\% storage increase per event (from the 64-byte SHA-256 hash) and 0.59 $\mu$s per-event hash computation. Audit queries complete in 0.005--0.022 ms for chains of 28--300 events, and full chain verification (201 chains, 9,300 events) completes in 69 ms. The throughput of 135,000 verified events per second confirms that the cryptographic chain imposes no practical performance barrier.
+
+The most significant gap remains authentication: without Ed25519 signatures (Phase~3), ADL Lite cannot match nanopubs' actor identity verification. This gap is scoped to Section~\ref{subsec:trust-model}. When authentication is added, ADL Lite will combine signed assertions with its existing lifecycle governance, closing the gap while retaining unique advantages in derivation semantics and precondition enforcement.
+
+\textbf{Approximate baselines.} Two alternative approaches can approximate subsets of ADL Lite's functionality at lower implementation cost, though neither achieves the full integration. (1)~\emph{Git + hooks}: A Git repository with pre-commit hooks enforcing YAML schema validation and Markdown linting can provide syntactic governance, but hooks operate at the file level, not the event level; they cannot enforce lifecycle transitions (e.g., preventing \texttt{VALIDATE} after \texttt{DEPRECATE}) because they lack chain-derived state. (2)~\emph{Nanopublications + external scripts}: Nanopubs with Trusty URIs provide per-claim integrity, and external Python scripts can implement lifecycle state machines, but the scripts are not native to the nanopub format; they require a separate execution layer and cannot enforce preconditions at append time. ADL Lite's advantage is the \emph{co-location} of governance semantics (preconditions, derivation functions) with the data structure (EventChain) in a single lightweight package.

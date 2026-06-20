@@ -1,0 +1,105 @@
+\section{E19 Governance Cost Methodology}\label{app:e19}
+
+This appendix provides the complete task definitions, baseline system implementations, measured cost tables, and measurement methodology for the empirical head-to-head benchmark reported in Section~\ref{subsec:comparative-analysis}.
+
+\subsection{Task Definitions}
+
+We define four governance tasks representative of multi-agent concept lifecycle management:
+
+\begin{enumerate}[label=T\arabic*:, leftmargin=3em]
+    \item \textbf{Acceptance workflow.} A concept is proposed, reviewed by $k$ validators, and accepted only if the quorum threshold (minimum validations) is met. Measure: wall-clock latency and LOC required to implement the full workflow.
+    \item \textbf{Retraction/deprecation workflow.} A previously accepted concept is deprecated based on new evidence. Measure: completeness of the audit trail linking deprecation to the evidence that justified it.
+    \item \textbf{Audit query.} A downstream consumer asks: ``What was the status of concept $X$ at time $t$, and who contributed to its validation?'' Measure: whether the system can answer the query from its native data structures without additional scripts.
+    \item \textbf{Consensus threshold check.} Determine whether a concept has reached a configurable confidence threshold (e.g., $\gamma(C) \geq 0.7$) and which validators contributed. Measure: computational cost of threshold evaluation.
+\end{enumerate}
+
+\subsection{Baseline Systems}
+
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{S1: ADL Lite} (Python API, built-in state derivation via $\delta$ and $\gamma$).
+    \item \textbf{S2: Nanopublications} (simulated with \texttt{rdflib} + SHA-256 Trusty URI hash; no built-in state derivation).
+    \item \textbf{S3: PROV-O} (simulated with the \texttt{prov} library; no built-in state derivation).
+    \item \textbf{S4: Git-only} (simulated with \texttt{pygit2}; Markdown + Git log parsing, no ADL semantics).
+\end{itemize}
+
+\subsection{Measurement Protocol}
+
+All metrics are measured via actual code execution on identical hardware (Apple M2, macOS 14, Python 3.10):
+
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{Latency (ms):} wall-clock time via \texttt{time.perf\_counter()}, measured per task per system, averaged over 4 tasks.
+    \item \textbf{LOC:} source lines of the task-specific implementation functions, counted via \texttt{inspect.getsource()} with blank lines and comments removed. For ADL Lite, each task calls a dedicated task function (e.g., \texttt{\_s1\_adl\_accept}); LOC is the sum of those 4 functions plus the 4 helper functions (register, validate, deprecate, status).
+    \item \textbf{Errors:} count of exceptions raised during task execution (0 if all tasks succeed).
+    \item \textbf{Completed:} number of tasks that return successfully without error.
+    \item \textbf{Audit completeness:} fraction of required provenance information (status, validators, confidence, deprecation actor) that is directly retrievable from the system's native data structures without additional scripts. Nanopub scores 0.82 because it lacks a native DEPRECATE mechanism (simulated with an RDF flag); all other systems score 1.0.
+\end{itemize}
+
+\textbf{Key findings.} ADL Lite achieves the lowest latency ($\approx$0.0 ms, pure in-memory operations) and competitive LOC (27 total, or 6--7 per task) because state derivation ($\delta$, $\gamma$) is built-in. Nanopub has the lowest LOC (21 total, 5--6 per task) but lower audit completeness (0.82) due to the lack of native deprecation. PROV-O requires more LOC (50 total) because every entity, activity, and relation must be explicitly declared with \texttt{QualifiedName} objects. Git-only has the highest latency (21.25 ms) because each state change triggers actual file I/O and a Git commit, but achieves full audit completeness (1.0) because the Git log is a complete tamper-evident audit trail.
+
+\textbf{Limitations.} The nanopub and PROV-O implementations are \emph{simulated} with Python libraries, not full production systems. A full independent benchmark with multiple developers and validated measurements is scoped to future work (E20). Nevertheless, the measurements are real and reproducible: the code is in \texttt{experiments/e19\_governance\_benchmark.py} and can be run with \texttt{python -m experiments.runner E19}.
+
+Table~\ref{tab:e19-benchmark-full} presents the measured values for transparency.
+
+\begin{table}[htbp]
+\centering
+\caption{Empirical governance cost benchmark (E19): ADL Lite vs. baselines on 4 governance tasks. \textbf{All values are measured via actual execution on identical hardware.}}
+\label{tab:e19-benchmark-full}
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+\textbf{System} & \textbf{LOC} & \textbf{Latency (ms)} & \textbf{Errors} & \textbf{Completed} & \textbf{Audit} \\
+\midrule
+S1. ADL Lite & 27 & 0.0 & 0 & 4/4 & 1.00 \\
+S2. Nanopub + scripts & 21 & 0.5 & 0 & 4/4 & 0.82 \\
+S3. PROV-O + scripts & 50 & 1.25 & 0 & 4/4 & 1.00 \\
+S4. Git-only & 45 & 21.25 & 0 & 4/4 & 1.00 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Per-Task Breakdown}
+
+Table~\ref{tab:e19-per-task} provides the per-task LOC measurements, which reveal where each system incurs overhead.
+
+\begin{table}[htbp]
+\centering
+\caption{Per-task LOC breakdown (E19).}
+\label{tab:e19-per-task}
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+\textbf{System} & \textbf{T1 (Accept)} & \textbf{T2 (Retract)} & \textbf{T3 (Audit)} & \textbf{T4 (Consensus)} & \textbf{Total} \\
+\midrule
+S1. ADL Lite & 7 & 6 & 5 & 9 & 27 \\
+S2. Nanopub & 6 & 4 & 5 & 6 & 21 \\
+S3. PROV-O & 12 & 9 & 6 & 23 & 50 \\
+S4. Git-only & 11 & 12 & 8 & 14 & 45 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Interpretation.} ADL Lite's T4 (consensus) is the most expensive task (9 LOC) because it requires a loop with three validations. PROV-O's T4 is the most expensive (23 LOC) because each validation requires an activity, an agent, a \texttt{wasAssociatedWith} relation, and a \texttt{used} relation, all with \texttt{QualifiedName} identifiers. Git-only's T2 (retraction) is expensive (12 LOC) because it requires a full Git commit to record the deprecation state change.
+
+\subsection{Scale Benchmark: $10^6$ Feasibility}
+
+Table~\ref{tab:e19-scale} presents the measured $10^6$ scale results. Each system creates $N$ concepts with register + validate events (2 events per concept). Systems that could not complete $10^6$ within a reasonable time were measured at a smaller scale and linearly extrapolated; this is reported honestly in the table.
+
+\begin{table}[htbp]
+\centering
+\caption{$10^6$ scale feasibility benchmark (E19). All ADL Lite values are empirical; S3 and S4 are linearly extrapolated from smaller-scale measurements.}
+\label{tab:e19-scale}
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+\textbf{System} & \textbf{Scale} & \textbf{Events} & \textbf{Time (s)} & \textbf{Throughput} & \textbf{Method} \\
+\midrule
+S1. ADL Lite & $10^6$ & $2\times10^6$ & 87.0 & 22,987 evt/s & Measured \\
+S2. Nanopub & $10^6$ & $4\times10^6$ triples & 77.9 & 51,331 triple/s & Measured \\
+S3. PROV-O & $10^5$ & $2\times10^5$ & 14.6 & 13,673 evt/s & Measured \\
+\quad $\to$ extrapolated & $10^6$ & $2\times10^6$ & 146.3 & 13,673 evt/s & Linear projection \\
+S4. Git-only (batch=100) & $10^4$ & $10^4$ & 0.55 & 5.46 ms/commit & Measured \\
+\quad $\to$ extrapolated & $10^6$ & $10^6$ & 54.6 & 5.46 ms/commit & Linear projection \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key findings.} (i)~ADL Lite achieves 22,987 events/s at $10^6$ scale, confirming the linear throughput claim from E6. The measured time (87.0~s for 2$\times$$10^6$ events) is higher than the E6b projection (47.7~s for 1$\times$$10^6$ events) because E6b was based on CSV import throughput (20,847 events/s), whereas the E19 scale test creates independent EventChain objects with full Pydantic materialization overhead. (ii)~Nanopub has the highest triple throughput (51,331 triples/s) but lower audit completeness (0.82) due to the lack of native deprecation. (iii)~PROV-O's throughput is lower (13,673 events/s) because every entity and activity requires a \texttt{QualifiedName} and explicit relation declaration; the projected $10^6$ time (146.3~s) is $\approx$1.7$\times$ ADL Lite. (iv)~Git-only with batch commits (100 concepts per commit) is surprisingly efficient at scale (projected 54.6~s for $10^6$) because batching amortizes the per-commit overhead, but the audit trail is coarser (one commit per 100 concepts, not one per event).
+
+\textbf{Limitations.} The S3 and S4 figures for $10^6$ are linear extrapolations from 100,000 and 10,000 respectively, not direct measurements. A full $10^6$ run for PROV-O would take $\approx$146~s (feasible but slow); a full $10^6$ run for Git-only would require 10,000 batch commits ($\approx$54.6~s). Both are feasible and will be executed in the independent replication study (E20). The S1 and S2 figures are direct measurements.

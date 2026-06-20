@@ -1,0 +1,118 @@
+\documentclass[11pt,a4paper]{article}
+
+% ---------------------------------------------------------------------------
+% Packages (mirroring main.tex for independent compilation)
+% ---------------------------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{microtype}
+\usepackage{natbib}
+\usepackage{enumitem}
+\usepackage{calc}
+\usepackage{multirow}
+\usepackage{tabularx}
+
+% Theorem environments
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{coretheorem}{Theorem}
+\newtheorem{corollary}{Corollary}[section]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{proposition}{Proposition}[section]
+
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}[section]
+
+% Line length
+\setlength{\textwidth}{6.5in}
+\setlength{\oddsidemargin}{0in}
+\setlength{\evensidemargin}{0in}
+\setlength{\textheight}{9in}
+\setlength{\topmargin}{-0.5in}
+
+% Listings style
+\lstset{
+    basicstyle=\small\ttfamily,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!50!black},
+    stringstyle=\color{red},
+}
+
+% ---------------------------------------------------------------------------
+% Title
+% ---------------------------------------------------------------------------
+\title{ADL Lite: Supplementary Material}
+\author{
+    Anonymous Authors \\
+    \textit{Affiliation withheld for peer review}
+}
+\date{}
+
+% ---------------------------------------------------------------------------
+% Document
+% ---------------------------------------------------------------------------
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This document provides supplementary material for the Applied Ontology submission of ``ADL Lite: An Event-First Capability-Lifecycle Registry for LLM Agent Ecosystems.'' It contains complete proofs, formal specifications, reproducibility protocols, comparison tables, and extended analyses that were compressed from the main paper to meet the 40--50 page limit.
+\end{abstract}
+
+\appendix
+
+% Appendix A -- OWL 2 DL
+\input{appendix_a_owl_dl}
+
+% Appendix B -- SHACL
+\input{appendix_b_shacl}
+
+% Appendix C -- Adversarial
+\input{appendix_c_adversarial}
+
+% Appendix D -- Reproducibility
+\input{appendix_d_reproducibility}
+
+% Appendix E -- Proofs
+\input{appendix_e_proofs}
+
+% Appendix F -- Comparison Tables
+\input{appendix_f_comparison_tables}
+
+% Appendix G -- BNF + Inference Rules
+\input{appendix_g_bnf}
+
+% Appendix H -- Complexity
+\input{appendix_h_complexity}
+
+% Appendix I -- TLA+
+\input{appendix_i_tla}
+
+% Appendix J -- Loss Analysis
+\input{appendix_j_loss_analysis}
+
+% Appendix K -- Threat Model
+\input{appendix_k_threat_model}
+
+% Appendix L -- E19 Methodology
+\input{appendix_l_e19_methodology}
+
+% Appendix M -- Compression Log
+\input{appendix_m_compression_log}
+
+\end{document}
