@@ -1,89 +1,113 @@
 # Changelog
 
-All notable changes to this project are documented in this file.
+All notable changes to ADL Lite are documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — 2026-06-17: Reviewer Response & Code-Paper Alignment
+## [0.3.5] — 2025-06-20
+
+### Breaking Changes
+
+- **CRDT semantics migration (LWW → LUB/G-Counter).**
+  `EventChain.status` now derives via a **join-semilattice LUB** over the lifecycle
+  lattice (`provisional < forked < validated < deprecated < archived`) instead of
+  the previous last-write-wins (LWW) rule. Once a concept reaches a higher-status
+  state, it **never regresses**.
+  - `DEPRECATE` after `VALIDATE` → `deprecated` (permanent)
+  - `ARCHIVE` after any state → `archived` (permanent)
+  - `REGISTER` after `DEPRECATE` → `deprecated` (not `provisional`)
+  - `FORK` after `VALIDATED` → parent stays `validated` (not `forked`)
+
+- **`EventChain.confidence` now uses G-Counter (max) semantics.**
+  Confidence is the **maximum** over all `VALIDATE` / `SNAPSHOT` events, not the
+  most recent one. Once a high-confidence validation is recorded, subsequent
+  lower-confidence assertions **cannot decrease** the aggregate.
+  - `VALIDATE(0.9)` → `VALIDATE(0.5)` → confidence stays `0.9`
+  - This prevents malicious or erroneous validators from downgrading a concept.
 
 ### Added
 
-- **EWMA confidence (`γ_ewma`)** — `adl_lite/calibration.py`: time-decay weighted calibration with configurable α (0.3 default), addressing overconfidence in stale self-validations
-- **Context-calibrated confidence (`γ_ctx`)** — `adl_lite/calibration.py`: per-domain accuracy profiles (e.g., AML, fraud, general) for domain-specific calibration
-- **Band-calibrated confidence (`γ_band`)** — `adl_lite/calibration.py`: epistemic-band correction (+0.15 low, -0.10 high) for systematic over/under-confidence
-- **L3 Relation Reconciliation (`RelationValidator`)** — `adl_lite/relation_validator.py`: Invariant 2 enforcement — relations invalid when either endpoint archived or both deprecated; fork inheritance rules (isomorphic-to/specialisation-of inherited, analogical-to re-evaluated)
-- **Minimal DID integration** — `adl_lite/did_resolver.py`: `did:key` local resolution (no network); `adl_lite/key_registry.py`: Ed25519 signature verification, YAML persistence, Git commit soft-checks, `TransparencyAnchor` deterministic chain hashes
-- **OWL 2 bidirectional** — `adl_lite/owl_import.py`: `parse_owl_turtle()` and `parse_owl_rdfxml()` for round-trip import/export with Protégé
-- **RDF-star / SPARQL-star** — `adl_lite/rdfstar_export.py`: `document_to_rdfstar_turtle()` and `sparqlstar_query_template()` for annotated triple provenance in triple stores (Jena, GraphDB, Stardog)
-- **EventChain signature verification** — `adl_lite/models.py`: `verify_integrity(registry=KeyRegistry)` optionally validates Ed25519 signatures on events carrying `signature` field
-- **Reproduce script** — `reproduce.sh`: one-command reproduction (6 steps: env setup → tests → E1–E11 → E6 benchmark → adversarial suite → summary report), CI-friendly exit codes, `--quick` flag
-- **12 new relation validator tests** — `tests/test_relation_validator.py`: 12 tests covering Invariant 2 validity rules, fork inheritance, and violation detection
-- **Public API exports** — `RelationValidator`, `KeyRegistry`, `GitSignatureVerifier`, `TransparencyAnchor`, `resolve_did_key`, `verify_did_signature`, `is_did`, `create_did_key`, `parse_owl_turtle`, `parse_owl_rdfxml`, `document_to_rdfstar_turtle`, `sparqlstar_query_template`
+- **Incremental CRDT caches** in `EventChain`:
+  - `_cached_status` and `_cached_status_order`: updated on every `append()`,
+    making `status` query O(1).
+  - `_cached_confidence`: updated on every `append()`, making `confidence`
+    query O(1).
+  - Defensive fallback re-computation when `_events` is mutated directly
+    (bypassing `append()`).
+
+- **`StatusOrder` (IntEnum)** in `crdt.py`: unified lattice order for status
+  derivation, used by both `CRDTState` and `EventChain`.
+
+- **E25 microbenchmark experiment** (`experiments/e25_microbenchmark.py`):
+  - Precondition evaluation time vs rule count `k`
+  - Confidence aggregation time (`γ_default`, `γ_agg`, `γ_cal`) vs validator
+    count `|V|`
+  - Storage overhead comparison (ADL Lite / Git / PROV-O)
+
+- **`examples/weather_data_retrieval.md`**: end-to-end multi-agent lifecycle
+  case study demonstrating registration → validation → dispute → fork →
+  deprecation → downstream consumption.
+
+- **6 new CRDT semantics tests** (`tests/test_crdt_proofs.py`):
+  - `test_confidence_g_counter_max`
+  - `test_status_lub_deprecated_dominates_validate`
+  - `test_status_lub_archived_dominates_all`
+  - `test_confidence_max_with_snapshot`
+  - `test_status_provisional_by_default`
+  - `test_confidence_zero_with_no_validate`
 
 ### Changed
 
-- **Paper** — 35pp → 39pp (added §4.5 δ/γ worked example, §6.5 quantitative comparison table, Invariant 2, Appendix D reproduction script description)
-- **Test count** — 590 → 716 tests (all passing)
-- **EventChain.verify_integrity()** — added optional `registry` parameter for Ed25519 signature verification (backward-compatible, registry=None maintains existing behavior)
+- **Paper §4.5**: `δ(C)` formula updated from LWW (`f(τ_last)`) to LUB
+  (`max_{≺}{f(e.τ)}`).
+- **Paper §4.5**: `γ_default` updated from `e_last(V)` to G-Counter `max`.
+- **Paper Table 2**: lifecycle transition matrix updated for CRDT precondition
+  semantics.
+- **Paper §4.7**: CRDT migration described as "completed" (Phase 1 & 2), with
+  Phase 3 (semantic merge policies) as future work.
+- **Paper §6.2 L8**: PROV-O provenance mapping and JSON-LD serialization now
+  listed as **implemented** (only SHACL remains future work).
+- **Paper §6.2 L12**: fork resolution described as migrated to CRDT LUB in
+  v0.3.5 (not LWW).
 
 ### Fixed
 
-- **Reference errors** — `subsec:confidence-derivation` → `subsec:calibration`, removed undefined `tab:transition-matrix`, renamed duplicate `subsec:positioning` → `subsec:related-positioning`
-- **12-axiom well-formedness** — `base64` import added for signature verification in `verify_integrity()`
+- **Paper–code consistency**: all "last-VALIDATE" and "LWW" references in the
+  paper aligned with the CRDT code implementation.
 
-## [Unreleased] — 2026-06-03: AO Reviewer Revision
+---
+
+## [0.3.0] — 2025-06-15
 
 ### Added
 
-- **Trust model & security boundaries** (`docs/paper_ao/sections/04_architecture.tex` §4.8): explicit threat model table (8 threats), trust assumptions, planned Phase 3 mitigations (Ed25519/Linked Data Proofs/DIDs)
-- **CRDT convergence semantics**: Theorem 7 (LWW-Set merge) + Corollary (G-Set CRDT) in §4.6, with full proof sketches in Appendix E
-- **Comparative evaluation** (§5.7): 4-task governance suite vs nanopublications + PROV-O, 8-metric comparison table
-- **Adversarial test suite** (Appendix C): 8 attack classes, 32 test cases, results table
-- **SHACL coverage analysis** (Appendix B): 5 constraint definitions, Core vs SPARQL expressivity table
-- **Hardware environment + latency decomposition** (§5.6): Apple M2 specs, per-stage latency breakdown (CSV 13%, Pydantic 58%, SHA-256 16%, ChainVerify 10%)
-- **Related work expansions** (§2): OBO Foundry change management, RO-Crate/FAIR Digital Objects, blockchain provenance, Git signed-commit workflows, PLUGMEM integration
-- **Formal notation table** (§4.6): $\Sigma$, $\text{WF}$, $\delta$, $\gamma$, $\text{Fork}$ symbol reference
-- **TLA$^{+}$ mechanised proof footnote** (§4.6)
-- **PLUGMEM integration discussion** (§6.5)
-
-### Changed
-
-- **BFO GDC category fix** (§3.2.2, §3.4.1, Table 1): Concept depends on EventChain as ICE (Information Content Entity) bearer, not as occurrent. Added formal dependency diagram.
-- **References**: 61 placeholder entries removed; 13 cited placeholders replaced with real citations. Now 30 real references (100%).
-- **Paper page count**: 45 → 52 pages
+- Peer review round 4: AgentHub, Zhou G1-G3, DIDs/VCs citations.
+- Precondition formal language (`eval(r, C)`) with `apply(κ, lookup(f, C), v)`.
+- PROV-O mapping table with loss analysis.
+- REVOKE semantics discussion (epistemic weakening vs. cessation).
+- Multi-agent weather-data-retrieval case study in paper §5.
+- γ ablation microbenchmark (E25) in paper §5.
+- LWW → CRDT migration path (Phase 1/2/3) in paper §4.
 
 ### Fixed
 
-- Theorem 6 proof relocation (was orphaned during CRDT theorem insertion, now correctly positioned before Theorem 7)
+- Theorem 7/9 numbering.
+- E6b table data.
+- Appendix E Theorem 7 proof.
 
-## [0.2.0] - 2026-05-23
+---
 
-### Added
-
-- Example fork pair (`examples/matdo_original.md`, `examples/matdo_fork_kinetic.md`)
-- Wiki-link extraction (`extract_wiki_links`, `ADLDocument.wiki_links`)
-- Agent tools module (`adl_lite/tools.py`) and `prompts/write_discovery.md`
-- Agent workflow doc (`docs/AGENT_WORKFLOW.md`)
-- Scripted 5-agent simulation (`experiments/harness.py`, `python -m experiments.run_sim --scripted`)
-- AML mini-dataset (`data/aml/` — 20 concepts, 15 queries)
-- Evaluation pilots RQ1–RQ4 (`experiments/rq*.py`, `python -m experiments.run_all`)
-- Baselines: plain Markdown and YAML-only wiki
-- Paper pack: `docs/paper/OUTLINE.md`, `FIGURES.md`, `RELATED_WORK.md`
-- Research statement (`docs/RESEARCH_STATEMENT.md`)
-- Pilot results (`docs/experiments/RESULTS.md`)
-- Optional MCP script (`scripts/mcp_adl.py`)
-- CI workflow (`.github/workflows/ci.yml`)
-- Tests: `test_consensus_forks.py`, `test_aml_dataset.py`, `test_experiments.py`
-
-## [0.1.0] - 2026-05-23
+## [0.2.0] — 2025-05-30
 
 ### Added
 
-- Markdown-native ADL parser (L1 YAML, L2 body, L3 `adl:*` blocks)
-- Pydantic models, SSA validator, hybrid memory index, consensus engine
-- Example discovery document (`examples/capital_reflux_trap.md`)
-- `adl-lite` CLI: `parse`, `validate`, `store`, `related`, `consensus`
-- Normative spec (`docs/SPEC.md`) and Phase 1 implementation plan
-
-[0.2.0]: https://github.com/sunnyang1/adl-lite/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/sunnyang1/adl-lite/releases/tag/v0.1.0
+- Initial release with 590 tests.
+- Four-layer document model (L1/L2/L3/L4).
+- EventChain with cryptographic integrity.
+- ActionExecutor with precondition language.
+- ConsensusEngine with fork/merge.
+- Calibration layer (γ_default, γ_agg, γ_cal).
+- CRDT convergence proofs (Theorem 9).
+- OWL 2 DL / RDF-star / JSON-LD export.
+- 13+ experiments (E1–E23).

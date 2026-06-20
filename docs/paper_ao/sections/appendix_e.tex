@@ -5,15 +5,15 @@ This appendix provides proof sketches for the seven core theorems of Section~\re
 %-------------------------------------------------------------------------------
 
 \begin{theorem}[Determinism]\label{thm:determinism}
-For any well-formed chain $C$, the status $\delta(C)$ is unique and depends only on the last lifecycle event in $C$. Formally:
+For any well-formed chain $C$, the status $\delta(C)$ is unique and is the least upper bound (LUB) of all lifecycle events in $C$. Formally:
 \begin{equation}
-    \forall C, C' \; . \; \Phi(C) \land \Phi(C') \land \operatorname{last}(C_{\text{life}}) = \operatorname{last}(C'_{\text{life}}) \implies \delta(C) = \delta(C').
+    \forall C, C' \; . \; \Phi(C) \land \Phi(C') \land \operatorname{lub}(C_{\text{life}}) = \operatorname{lub}(C'_{\text{life}}) \implies \delta(C) = \delta(C').
 \end{equation}
-Moreover, $\delta(C)$ is computable in $O(|C|)$ time.
+where $\operatorname{lub}(C_{\text{life}}) = \max_{\prec}\{f(e.\textit{type}) \mid e \in C_{\text{life}}\}$ is the maximum over the status lattice. Moreover, $\delta(C)$ is computable in $O(|C_{\text{life}}|)$ time by a single scan.
 \end{theorem}
 
 \begin{proof}[Proof Sketch]
-The lifecycle subsequence $C_{\text{life}} = \operatorname{filter}(C, \Sigma_{\text{life}})$ is totally ordered because $\Phi(C)$ enforces cryptographic linkage. If $C_{\text{life}}$ is empty, $\delta(C) = \textit{provisional}$ by definition. Otherwise, it has a unique last element $\operatorname{last}(C_{\text{life}})$, and $f$ is total on the closed alphabet $\Sigma_{\text{life}}$, yielding a unique status $f(\operatorname{last}(C_{\text{life}}).\textit{type})$. The complexity claim follows because filtering $C$ takes one linear scan.
+The lifecycle subsequence $C_{\text{life}} = \operatorname{filter}(C, \Sigma_{\text{life}})$ is totally ordered because $\Phi(C)$ enforces cryptographic linkage. If $C_{\text{life}}$ is empty, $\delta(C) = \textit{provisional}$ by definition. Otherwise, the LUB over the status lattice is the maximum element, which is unique because the lattice order is antisymmetric. Thus $\delta(C) = \max_{\prec}\{f(e.\textit{type}) \mid e \in C_{\text{life}}\}$ is uniquely determined. The complexity claim follows because filtering $C$ takes one linear scan and computing the max over $C_{\text{life}}$ is $O(|C_{\text{life}}|)$.
 \end{proof}
 
 %-------------------------------------------------------------------------------
@@ -21,11 +21,11 @@ The lifecycle subsequence $C_{\text{life}} = \operatorname{filter}(C, \Sigma_{\t
 %-------------------------------------------------------------------------------
 
 \begin{theorem}[Fork Determinism, No Merge]\label{thm:confluence}
-Let $\operatorname{fork}(C) = (C_{\text{fork}}, C')$ where $C_{\text{fork}} = C \oplus [e_{\textsc{Fork}}]$ and $C' = [e'_{\textsc{Register}}]$. Then $\delta(C_{\text{fork}}) = \textit{forked}$ and $\delta(C') = \textit{provisional}$, independently, because $C_{\text{fork}}$ and $C'$ are disjoint after the fork point.
+Let $\operatorname{fork}(C) = (C_{\text{fork}}, C')$ where $C_{\text{fork}} = C \oplus [e_{\textsc{Fork}}]$ and $C' = [e'_{\textsc{Register}}]$. Let $s = \delta(C)$ be the parent's status before the fork. Then $\delta(C_{\text{fork}}) = \max(s, \textit{forked})$ (the LUB of the parent's previous status and \textsc{Fork}) and $\delta(C') = \textit{provisional}$, independently, because $C_{\text{fork}}$ and $C'$ are disjoint after the fork point.
 \end{theorem}
 
 \begin{proof}[Proof Sketch]
-By Theorem~\ref{thm:determinism}, $\delta(C_{\text{fork}}) = f(\textsc{Fork}) = \textit{forked}$ and $\delta(C') = f(\textsc{Register}) = \textit{provisional}$. Independence holds because $C_{\text{fork}}$ appends to $C$ while $C'$ starts afresh; $\textsc{Fork}$ and $\textsc{Register}$ map to different statuses under $f$, and status is derived per-chain.
+By the CRDT LUB semantics, $\delta(C_{\text{fork}}) = \max\{\delta(C), f(\textsc{Fork})\} = \max(s, \textit{forked})$. If $s = \textit{validated}$ (order 3) and $f(\textsc{Fork}) = \textit{forked}$ (order 2), then $\max(3, 2) = 3$ and the parent remains \textit{validated}. If $s = \textit{provisional}$ (order 1), then $\max(1, 2) = 2$ and the parent becomes \textit{forked}. For the child, $\delta(C') = f(\textsc{Register}) = \textit{provisional}$ because $C'$ contains exactly one event. Independence holds because $C_{\text{fork}}$ appends to $C$ while $C'$ starts afresh; the two derivations are independent per-chain.
 \end{proof}
 
 %-------------------------------------------------------------------------------
@@ -73,7 +73,7 @@ If $\delta(C) = \textit{validated}$, then $\gamma_{\text{agg}}(C) > 0$ (in fact,
 \end{theorem}
 
 \begin{proof}[Proof Sketch]
-$\delta(C) = \textit{validated}$ implies $\operatorname{last}(C_{\text{life}}).\textit{type} = \textsc{Validate}$, so $V \neq \emptyset$. Every $\textsc{Validate}$ event carries confidence $\geq 0.5$ by the ActionExecutor precondition system, hence $\phi(a, V) \geq 0.5$ for all actors. Therefore $c_{\text{base}} = \max(0.5, \text{mean}(\phi)) \geq 0.5$, and the bonus term is non-negative, yielding $\gamma_{\text{agg}}(C) = \min(1.0, c_{\text{base}} + \text{bonus}) \geq 0.5 > 0$.
+$\delta(C) = \textit{validated}$ implies that the LUB of all lifecycle events in $C$ is $\textit{validated}$, which requires at least one $\textsc{Validate}$ event in $C_{\text{life}}$ (since no other lifecycle event type maps to $\textit{validated}$). Thus $V \neq \emptyset$. Every $\textsc{Validate}$ event carries confidence $\geq 0.5$ by the ActionExecutor precondition system, hence $\phi(a, V) \geq 0.5$ for all actors. Therefore $c_{\text{base}} = \max(0.5, \text{mean}(\phi)) \geq 0.5$, and the bonus term is non-negative, yielding $\gamma_{\text{agg}}(C) = \min(1.0, c_{\text{base}} + \text{bonus}) \geq 0.5 > 0$.
 \end{proof}
 
 %-------------------------------------------------------------------------------
@@ -85,7 +85,7 @@ For any well-formed concurrent branches $B_1, B_2$ from the same genesis, the LW
 \end{theorem}
 
 \begin{proof}[Proof Sketch]
-Set union is commutative and associative; deduplication by \textit{event\_id} is symmetric and idempotent. For idempotence, $\text{Merge}(B_1, B_1) = B_1$ because $\Phi$ guarantees pairwise distinct \textit{event\_id} values within $B_1$. Determinism of $\delta$ after merge follows because equal-timestamp ties are broken by \textit{event\_id} (UUID lexicographic ordering), yielding a unique last lifecycle event, and Theorem~\ref{thm:determinism} applies.
+Set union is commutative and associative; deduplication by \textit{event\_id} is symmetric and idempotent. For idempotence, $\text{Merge}(B_1, B_1) = B_1$ because $\Phi$ guarantees pairwise distinct \textit{event\_id} values within $B_1$. Determinism of $\delta$ after merge follows because the merged set contains all lifecycle events from both branches; the LUB over the status lattice is uniquely determined (Theorem~\ref{thm:determinism}), so $\delta$ is independent of merge order.
 \end{proof}
 
 %-------------------------------------------------------------------------------

@@ -18,15 +18,16 @@ Properties proven:
   3. Idempotence: merge(A, A) = A
   4. Monotonicity: state only grows (never shrinks) with event appends
 """
-
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import IntEnum
 from functools import reduce
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+if TYPE_CHECKING:
+    from .models import EventChain
 
 class StatusOrder(IntEnum):
     """Lattice-ordered status — higher = more progressed."""
@@ -136,7 +137,7 @@ class CRDTState:
         return state
 
 
-def merge_event_chains(chain_a, chain_b) -> "EventChain":
+def merge_event_chains(chain_a, chain_b) -> EventChain:
     """
     LWW-Set merge of two EventChains (Theorem 9, paper §4.7).
 

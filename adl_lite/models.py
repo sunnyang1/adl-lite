@@ -23,10 +23,15 @@ import json
 import threading
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Literal, Union
+from typing import TYPE_CHECKING, Any, Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
+
+from .crdt import StatusOrder
+
+if TYPE_CHECKING:
+    from .calibration import MARGINCalibrator
 
 # ---------------------------------------------------------------------------
 # Canonicalization version — bump when canonicalization rules change
@@ -236,6 +241,11 @@ class EventChain:
         self.markdown_body = markdown_body
         self.source_path = source_path
 
+        # CRDT incremental caches: updated on every append, O(1) query
+        self._cached_status: DiscoveryStatus = DiscoveryStatus.PROVISIONAL
+        self._cached_status_order: int = 0
+        self._cached_confidence: float = 0.0
+
         if events:
             for e in events:
                 self.append(e)
@@ -263,6 +273,34 @@ class EventChain:
                 event.hash = ""
                 event.model_post_init(None)
             self._events.append(event)
+            # Incremental CRDT cache update
+            self._update_crdt_caches(event)
+
+    def _update_crdt_caches(self, event: Event) -> None:
+        """Update _cached_status and _cached_confidence incrementally.
+
+        Must be called inside the _lock.
+        """
+        # Status LUB: max over lifecycle lattice
+        type_to_status = {
+            EventType.REGISTER: DiscoveryStatus.PROVISIONAL,
+            EventType.VALIDATE: DiscoveryStatus.VALIDATED,
+            EventType.DEPRECATE: DiscoveryStatus.DEPRECATED,
+            EventType.FORK: DiscoveryStatus.FORKED,
+            EventType.ARCHIVE: DiscoveryStatus.ARCHIVED,
+        }
+        if event.event_type in type_to_status:
+            status = type_to_status[event.event_type]
+            order = StatusOrder[status.name.upper()].value
+            if order > self._cached_status_order:
+                self._cached_status_order = order
+                self._cached_status = DiscoveryStatus[StatusOrder(order).name]
+
+        # Confidence G-Counter: max over VALIDATE / SNAPSHOT
+        if event.event_type in (EventType.VALIDATE, EventType.SNAPSHOT):
+            val = min(1.0, max(0.0, float(event.payload.get("confidence", 0.0))))
+            if val > self._cached_confidence:
+                self._cached_confidence = val
 
     @property
     def events(self) -> list[Event]:
@@ -287,24 +325,6 @@ class EventChain:
             return self._events[index]
 
     # ------------------------------------------------------------------
-    # Status lattice order (CRDT LUB computation)
-    # ------------------------------------------------------------------
-    _STATUS_ORDER: dict[DiscoveryStatus, int] = {
-        DiscoveryStatus.PROVISIONAL: 1,
-        DiscoveryStatus.FORKED: 2,
-        DiscoveryStatus.VALIDATED: 3,
-        DiscoveryStatus.DEPRECATED: 4,
-        DiscoveryStatus.ARCHIVED: 5,
-    }
-    _STATUS_FROM_ORDER: dict[int, DiscoveryStatus] = {
-        1: DiscoveryStatus.PROVISIONAL,
-        2: DiscoveryStatus.FORKED,
-        3: DiscoveryStatus.VALIDATED,
-        4: DiscoveryStatus.DEPRECATED,
-        5: DiscoveryStatus.ARCHIVED,
-    }
-
-    # ------------------------------------------------------------------
     # Computed properties (derived from events, NOT stored)
     # ------------------------------------------------------------------
 
@@ -316,24 +336,36 @@ class EventChain:
             provisional < forked < validated < deprecated < archived
         Once a concept reaches a higher-status state, it never regresses.
         This is the CRDT join-semilattice property (Theorem 9).
+
+        O(1) — reads from the incremental cache updated on every append.
         """
         with self._lock:
-            max_order = 0
-            type_to_status = {
-                EventType.REGISTER: DiscoveryStatus.PROVISIONAL,
-                EventType.VALIDATE: DiscoveryStatus.VALIDATED,
-                EventType.DEPRECATE: DiscoveryStatus.DEPRECATED,
-                EventType.FORK: DiscoveryStatus.FORKED,
-                EventType.ARCHIVE: DiscoveryStatus.ARCHIVED,
-            }
-            for event in self._events:
-                if event.event_type in type_to_status:
-                    order = self._STATUS_ORDER[type_to_status[event.event_type]]
-                    if order > max_order:
-                        max_order = order
-            if max_order == 0:
-                return DiscoveryStatus.PROVISIONAL
-            return self._STATUS_FROM_ORDER[max_order]
+            # Defensive: if _events was mutated directly (bypassing append()),
+            # the cache may be stale. Recompute when events exist but cache
+            # is still at its default (order == 0).
+            if self._events and self._cached_status_order == 0:
+                return self._compute_status_from_events()
+            return self._cached_status
+
+    def _compute_status_from_events(self) -> DiscoveryStatus:
+        """Recompute status from all events (fallback when cache is stale)."""
+        max_order = 0
+        type_to_status = {
+            EventType.REGISTER: DiscoveryStatus.PROVISIONAL,
+            EventType.VALIDATE: DiscoveryStatus.VALIDATED,
+            EventType.DEPRECATE: DiscoveryStatus.DEPRECATED,
+            EventType.FORK: DiscoveryStatus.FORKED,
+            EventType.ARCHIVE: DiscoveryStatus.ARCHIVED,
+        }
+        for event in self._events:
+            if event.event_type in type_to_status:
+                status = type_to_status[event.event_type]
+                order = StatusOrder[status.name.upper()].value
+                if order > max_order:
+                    max_order = order
+        if max_order == 0:
+            return DiscoveryStatus.PROVISIONAL
+        return DiscoveryStatus[StatusOrder(max_order).name]
 
     @property
     def confidence(self) -> float:
@@ -344,42 +376,53 @@ class EventChain:
         confidence, lower subsequent assertions cannot decrease the aggregate.
         This prevents malicious or erroneous validators from downgrading a
         concept's confidence after it has been validated.  See Theorem 9.
+
+        O(1) — reads from the incremental cache updated on every append.
         """
+        with self._lock:
+            # Defensive: if _events was mutated directly, recompute.
+            if self._events and self._cached_confidence == 0.0:
+                return self._compute_confidence_from_events()
+            return self._cached_confidence
+
+    def _compute_confidence_from_events(self) -> float:
+        """Recompute confidence from all events (fallback when cache is stale)."""
         max_conf = 0.0
         for event in self._events:
-            if event.event_type == EventType.VALIDATE:
-                val = min(1.0, max(0.0, float(event.payload.get("confidence", 0.0))))
-                if val > max_conf:
-                    max_conf = val
-            if event.event_type == EventType.SNAPSHOT:
+            if event.event_type in (EventType.VALIDATE, EventType.SNAPSHOT):
                 val = min(1.0, max(0.0, float(event.payload.get("confidence", 0.0))))
                 if val > max_conf:
                     max_conf = val
         return max_conf
 
-    def calibrated_confidence(self, calibrator: "MARGINCalibrator") -> float:
+    def calibrated_confidence(self, calibrator: MARGINCalibrator) -> float:
         """Return mean confidence calibrated by per-actor accuracy scores."""
         from .calibration import calibrated_confidence as _calibrated_confidence
+
         return _calibrated_confidence(self.events, calibrator)
 
     def ewma_confidence(self, alpha: float = 0.3) -> float:
         """Return EWMA-calibrated confidence with time-decay weighting."""
         from .calibration import ewma_confidence as _ewma_confidence
+
         return _ewma_confidence(self.events, alpha=alpha)
 
     def context_calibrated_confidence(
-        self, calibrator: "MARGINCalibrator", context: str = "general"
+        self, calibrator: MARGINCalibrator, context: str = "general"
     ) -> float:
         """Return confidence calibrated within a specific epistemic context."""
         from .calibration import context_calibrated_confidence as _ctx_cal
+
         return _ctx_cal(self.events, calibrator, context=context)
 
     def band_calibrated_confidence(
-        self, calibrator: "MARGINCalibrator | None" = None,
+        self,
+        calibrator: MARGINCalibrator | None = None,
         bands: list[tuple[float, float, float]] | None = None,
     ) -> float:
         """Return per-band calibrated confidence addressing over/under-confidence."""
         from .calibration import band_calibrated_confidence as _band_cal
+
         return _band_cal(self.events, calibrator=calibrator, bands=bands)
 
     def aggregated_confidence(self) -> float:
@@ -392,6 +435,7 @@ class EventChain:
                N_vals = number of distinct validators
         """
         from .calibration import aggregated_confidence as _aggregated_confidence
+
         return _aggregated_confidence(self.events)
 
     @property
@@ -399,9 +443,7 @@ class EventChain:
         """Distinct actors who have performed VALIDATE events."""
         with self._lock:
             return list(
-                dict.fromkeys(
-                    e.actor for e in self._events if e.event_type == EventType.VALIDATE
-                )
+                dict.fromkeys(e.actor for e in self._events if e.event_type == EventType.VALIDATE)
             )
 
     @property
@@ -461,11 +503,7 @@ class EventChain:
 
     def _check_wf6_non_empty_actor(self) -> list[str]:
         """Axiom 6: every event must have a non-empty actor identifier."""
-        return [
-            e.event_id
-            for e in self._events
-            if not e.actor or not str(e.actor).strip()
-        ]
+        return [e.event_id for e in self._events if not e.actor or not str(e.actor).strip()]
 
     def _check_wf7_timestamp_monotonicity(self) -> list[str]:
         """Axiom 7: event timestamps must be weakly monotonic (non-decreasing)."""
@@ -503,11 +541,7 @@ class EventChain:
 
     def _check_wf10_hash_algorithm(self) -> list[str]:
         """Axiom 10: hash values must be 64-character hex (SHA-256)."""
-        return [
-            e.event_id
-            for e in self._events
-            if e.hash and len(e.hash) != 64
-        ]
+        return [e.event_id for e in self._events if e.hash and len(e.hash) != 64]
 
     def _check_wf11_canonical_fields(self) -> list[str]:
         """Axiom 11: every non-genesis event must link to previous event."""
@@ -521,11 +555,7 @@ class EventChain:
 
     def _check_wf12_event_type_valid(self) -> list[str]:
         """Axiom 12: event_type must be a known EventType enum member."""
-        return [
-            e.event_id
-            for e in self._events
-            if not isinstance(e.event_type, EventType)
-        ]
+        return [e.event_id for e in self._events if not isinstance(e.event_type, EventType)]
 
     def verify_integrity(self, full: bool = False, registry=None) -> bool:
         """
@@ -598,8 +628,9 @@ class EventChain:
                 return True
 
             # full=True: verify archive file hashes and subchain integrity
-            from .cold_storage import ColdStorage
             from pathlib import Path
+
+            from .cold_storage import ColdStorage
 
             for event in self._events:
                 if event.event_type != EventType.ARCHIVE:
@@ -680,11 +711,13 @@ class EventChain:
     def archive(self, keep_last_n: int = 10) -> Event | None:
         """Migrate historical events to cold storage and append an ARCHIVE event."""
         from .cold_storage import ColdStorage
+
         return ColdStorage().archive(self, keep_last_n=keep_last_n)
 
     def unarchive(self) -> list[Event]:
         """Return archived events from cold storage."""
         from .cold_storage import ColdStorage
+
         return ColdStorage().unarchive(self.concept_id)
 
     # ------------------------------------------------------------------
@@ -959,7 +992,7 @@ class ADLFormalSealBlock(BaseModel):
 
 
 # Union type for all L3 blocks
-ADLBlock = Union[ADLRelationBlock, ADLEvidenceBlock, ADLFormalSealBlock]
+ADLBlock = ADLRelationBlock | ADLEvidenceBlock | ADLFormalSealBlock
 
 
 # ---------------------------------------------------------------------------
@@ -1073,7 +1106,7 @@ class ADLActionBlock(BaseModel):
 
 
 # Union type for all blocks (L3 + L4)
-AllBlocks = Union[ADLRelationBlock, ADLEvidenceBlock, ADLFormalSealBlock, ADLActionBlock]
+AllBlocks = ADLRelationBlock | ADLEvidenceBlock | ADLFormalSealBlock | ADLActionBlock
 
 
 # ---------------------------------------------------------------------------
