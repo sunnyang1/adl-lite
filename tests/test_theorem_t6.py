@@ -10,9 +10,7 @@ adl_core_ontology.yaml).
 
 from __future__ import annotations
 
-import pytest
-
-from adl_lite.models import Event, EventChain, EventType, DiscoveryStatus
+from adl_lite.models import DiscoveryStatus, Event, EventChain, EventType
 
 
 class TestTheorem6StatusConfidenceConsistency:

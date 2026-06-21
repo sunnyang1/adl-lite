@@ -14,12 +14,14 @@ from adl_lite.action_executor import ActionExecutor
 from adl_lite.l2_template import L2TemplateValidator, react_to_l2_template
 from adl_lite.models import ADLActionBlock, ADLDocument, ADLFrontMatter, ADLType, Event, EventType
 from adl_lite.ontology import OntologyManager
+
 try:
     from .base import BaseExperiment, ExperimentResult
     from .registry import register
 except ImportError:
     from experiments.base import BaseExperiment, ExperimentResult
     from experiments.registry import register
+
 
 @dataclass
 class RoundResult:
@@ -30,11 +32,14 @@ class RoundResult:
     invalid_attempts: int = 0
     invalid_rejected: int = 0
 
+
 @register("E20")
 class E20TemplateEffectiveness(BaseExperiment):
     experiment_id = "E20"
     name = "L2 Template Compliance Effectiveness"
-    description = "Template enforcement reduces invalid transitions (5 agents, 3 concepts, 20 rounds)"
+    description = (
+        "Template enforcement reduces invalid transitions (5 agents, 3 concepts, 20 rounds)"
+    )
 
     def run(self) -> ExperimentResult:
         random.seed(42)
@@ -44,12 +49,16 @@ class E20TemplateEffectiveness(BaseExperiment):
         tv = L2TemplateValidator()
         concepts = [f"template-concept-{i}" for i in range(3)]
         for cid in concepts:
-            engine.register(ADLDocument(
-                front_matter=ADLFrontMatter(
-                    adl_type=ADLType.DISCOVERY, adl_id=cid,
-                    status=DiscoveryStatus.PROVISIONAL, confidence=0.0,
+            engine.register(
+                ADLDocument(
+                    front_matter=ADLFrontMatter(
+                        adl_type=ADLType.DISCOVERY,
+                        adl_id=cid,
+                        status=DiscoveryStatus.PROVISIONAL,
+                        confidence=0.0,
+                    )
                 )
-            ))
+            )
         agents = [f"agent_{i}" for i in range(5)]
         action_types = [EventType.VALIDATE, EventType.DEPRECATE, EventType.FORK, EventType.EVIDENCE]
         round_results: list[RoundResult] = []
@@ -64,24 +73,44 @@ class E20TemplateEffectiveness(BaseExperiment):
                 if action == EventType.VALIDATE:
                     tvalid = random.random() < 0.7
                     tpl = react_to_l2_template(
-                        {"observation": "Gradient explosion observed.", "thought": "High LR causes overshoot.", "conclusion": "Validated phenomenon."}
-                        if tvalid else {"observation": "Gradient explosion observed."}
+                        {
+                            "observation": "Gradient explosion observed.",
+                            "thought": "High LR causes overshoot.",
+                            "conclusion": "Validated phenomenon.",
+                        }
+                        if tvalid
+                        else {"observation": "Gradient explosion observed."}
                     )
                     body = "\n\n".join(
                         f"## {k}\n\n{getattr(tpl, k.lower())}"
-                        for k in ("Observation", "Reasoning", "Conclusion") if getattr(tpl, k.lower())
+                        for k in ("Observation", "Reasoning", "Conclusion")
+                        if getattr(tpl, k.lower())
                     )
                 doc = ADLDocument(
                     front_matter=ADLFrontMatter(
-                        adl_type=ADLType.DISCOVERY, adl_id=concept,
-                        status=engine.get_status(concept), confidence=0.8,
+                        adl_type=ADLType.DISCOVERY,
+                        adl_id=concept,
+                        status=engine.get_status(concept),
+                        confidence=0.8,
                     ),
                     markdown_body=body,
                 )
-                params = {"confidence": 0.8} if action == EventType.VALIDATE else {"fork_id": f"{concept}-fork", "rationale": "alt"} if action == EventType.FORK else {"reason": "obsolete"} if action == EventType.DEPRECATE else {}
-                block = ADLActionBlock(action=action.value, actor=agent, reasoning=f"R{rn}", params=params)
+                params = (
+                    {"confidence": 0.8}
+                    if action == EventType.VALIDATE
+                    else {"fork_id": f"{concept}-fork", "rationale": "alt"}
+                    if action == EventType.FORK
+                    else {"reason": "obsolete"}
+                    if action == EventType.DEPRECATE
+                    else {}
+                )
+                block = ADLActionBlock(
+                    action=action.value, actor=agent, reasoning=f"R{rn}", params=params
+                )
                 svalid = len(executor.validate_action(doc, block)) == 0
-                is_valid = svalid and (not (action == EventType.VALIDATE and ton) or tv.validate(body, mode="relaxed"))
+                is_valid = svalid and (
+                    not (action == EventType.VALIDATE and ton) or tv.validate(body, mode="relaxed")
+                )
                 if is_valid:
                     rr.valid_attempts += 1
                 else:
@@ -94,10 +123,15 @@ class E20TemplateEffectiveness(BaseExperiment):
                         else:
                             rr.invalid_rejected += 1
                     else:
-                        engine.chains[concept].append(Event(
-                            concept_id=concept, event_type=action, actor=agent,
-                            reasoning=f"R{rn}", payload=params,
-                        ))
+                        engine.chains[concept].append(
+                            Event(
+                                concept_id=concept,
+                                event_type=action,
+                                actor=agent,
+                                reasoning=f"R{rn}",
+                                payload=params,
+                            )
+                        )
                         if is_valid:
                             rr.valid_accepted += 1
                 except Exception:
@@ -110,7 +144,6 @@ class E20TemplateEffectiveness(BaseExperiment):
         tva_on = sum(r.valid_accepted for r in onr)
         ti_on = sum(r.invalid_attempts for r in onr)
         tir_on = sum(r.invalid_rejected for r in onr)
-        tv_off = sum(r.valid_attempts for r in offr)
         ti_off = sum(r.invalid_attempts for r in offr)
         tia_off = ti_off - sum(r.invalid_rejected for r in offr)
         gr_on = tva_on / tv_on if tv_on else 0.0
@@ -129,13 +162,18 @@ class E20TemplateEffectiveness(BaseExperiment):
                 "good_transition_rate_on": round(gr_on, 4),
                 "bad_transition_prevention_on": round(bp_on, 4),
                 "bad_transition_rate_off": round(br_off, 4),
-                "total_rounds": 20, "agents": 5, "concepts": 3,
+                "total_rounds": 20,
+                "agents": 5,
+                "concepts": 3,
             },
             raw_data=[
                 {
-                    "round": r.round_num, "template_on": r.template_on,
-                    "valid_attempts": r.valid_attempts, "valid_accepted": r.valid_accepted,
-                    "invalid_attempts": r.invalid_attempts, "invalid_rejected": r.invalid_rejected,
+                    "round": r.round_num,
+                    "template_on": r.template_on,
+                    "valid_attempts": r.valid_attempts,
+                    "valid_accepted": r.valid_accepted,
+                    "invalid_attempts": r.invalid_attempts,
+                    "invalid_rejected": r.invalid_rejected,
                 }
                 for r in round_results
             ],
@@ -152,10 +190,16 @@ class E20TemplateEffectiveness(BaseExperiment):
         elif action == EventType.ARCHIVE:
             engine.transition(concept, DiscoveryStatus.ARCHIVED, agent, f"R{rn}")
         else:
-            engine.chains[concept].append(Event(
-                concept_id=concept, event_type=action, actor=agent,
-                reasoning=f"R{rn}", payload=params,
-            ))
+            engine.chains[concept].append(
+                Event(
+                    concept_id=concept,
+                    event_type=action,
+                    actor=agent,
+                    reasoning=f"R{rn}",
+                    payload=params,
+                )
+            )
+
 
 if __name__ == "__main__":
     E20TemplateEffectiveness().run()

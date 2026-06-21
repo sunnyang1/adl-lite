@@ -2,10 +2,21 @@
 Tests for RDF-star / SPARQL-star export (FW8).
 """
 
-import pytest
 
-from adl_lite.models import ADLDocument, ADLFrontMatter, ADLType, DiscoveryStatus, Event, EventChain, EventType
-from adl_lite.rdfstar_export import document_to_rdfstar_turtle, event_to_rdfstar_triple, sparqlstar_query_template
+from adl_lite.models import (
+    ADLDocument,
+    ADLFrontMatter,
+    ADLType,
+    DiscoveryStatus,
+    Event,
+    EventChain,
+    EventType,
+)
+from adl_lite.rdfstar_export import (
+    document_to_rdfstar_turtle,
+    event_to_rdfstar_triple,
+    sparqlstar_query_template,
+)
 
 
 def _make_sample_doc() -> ADLDocument:

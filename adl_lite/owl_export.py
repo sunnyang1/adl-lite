@@ -41,12 +41,15 @@ def document_to_owl_rdfxml(doc: ADLDocument) -> str:
 
     Returns an XML string suitable for import into Protégé or other OWL tools.
     """
-    root = Element("rdf:RDF", {
-        "xmlns:owl": OWL_NS,
-        "xmlns:rdf": RDF_NS,
-        "xmlns:rdfs": RDFS_NS,
-        "xmlns:adl": ADL_NS,
-    })
+    root = Element(
+        "rdf:RDF",
+        {
+            "xmlns:owl": OWL_NS,
+            "xmlns:rdf": RDF_NS,
+            "xmlns:rdfs": RDFS_NS,
+            "xmlns:adl": ADL_NS,
+        },
+    )
 
     # Ontology declaration
     onto = SubElement(root, "owl:Ontology")
@@ -128,12 +131,12 @@ def document_to_owl_turtle(doc: ADLDocument) -> str:
         "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
         "",
         f"adl:{doc.adl_id} a adl:{doc.front_matter.adl_type.value} ;",
-        f'    adl:hasStatus adl:status/{doc.front_matter.status.value} ;',
+        f"    adl:hasStatus adl:status/{doc.front_matter.status.value} ;",
         f'    adl:hasConfidence "{doc.front_matter.confidence}"^^xsd:float ;',
     ]
 
     for validator in doc.front_matter.validators:
-        lines.append(f'    adl:validatedBy adl:agent/{validator} ;')
+        lines.append(f"    adl:validatedBy adl:agent/{validator} ;")
 
     if doc.front_matter.domain:
         lines.append(f'    adl:hasDomain "{doc.front_matter.domain}" ;')
@@ -143,7 +146,7 @@ def document_to_owl_turtle(doc: ADLDocument) -> str:
 
     for event in doc.event_chain.events:
         lines.append(f"adl:event/{event.event_id} a adl:Event ;")
-        lines.append(f'    adl:belongsTo adl:{doc.adl_id} ;')
+        lines.append(f"    adl:belongsTo adl:{doc.adl_id} ;")
         lines.append(f'    adl:hasActor "{event.actor}" ;')
         lines.append(f'    adl:hasTimestamp "{event.timestamp}"^^xsd:dateTime .')
         lines.append("")

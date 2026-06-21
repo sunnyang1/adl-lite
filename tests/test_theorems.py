@@ -10,18 +10,16 @@ Tests for theorems from the ADL Lite paper.
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
 
 import pytest
 
 from adl_lite.models import (
     CANON_VERSION,
+    DiscoveryStatus,
     Event,
     EventChain,
     EventType,
-    DiscoveryStatus,
 )
-
 
 # ============================================================================
 # T4: Boundedness
@@ -304,7 +302,7 @@ class TestTheorem8O1Complexity:
     def test_status_o1_vs_chain_length(self) -> None:
         """Status access time should not grow with chain length."""
         chain = EventChain(concept_id="test")
-        for i in range(100):
+        for _ in range(100):
             chain.append(
                 Event(
                     concept_id="test",
@@ -326,7 +324,7 @@ class TestTheorem8O1Complexity:
     def test_confidence_o1_vs_chain_length(self) -> None:
         """Confidence access time should not grow with chain length."""
         chain = EventChain(concept_id="test")
-        for i in range(100):
+        for _ in range(100):
             chain.append(
                 Event(
                     concept_id="test",
@@ -383,8 +381,10 @@ class TestCanonVersion:
         assert len(e.hash) == 64
         # Verify hash computation includes canon_version by comparing
         # with a manual computation
-        import hashlib, json
-        from adl_lite.models import _round_floats, CANON_VERSION
+        import hashlib
+        import json
+
+        from adl_lite.models import CANON_VERSION, _round_floats
         hash_content = {
             "event_id": e.event_id,
             "concept_id": e.concept_id,

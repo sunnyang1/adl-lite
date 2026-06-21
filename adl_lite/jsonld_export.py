@@ -99,8 +99,7 @@ def document_to_jsonld(doc: ADLDocument) -> dict[str, Any]:
 
     if doc.front_matter.validators:
         result["validators"] = [
-            {"@id": f"http://adl-lite.org/ontology/agent/{v}"}
-            for v in doc.front_matter.validators
+            {"@id": f"http://adl-lite.org/ontology/agent/{v}"} for v in doc.front_matter.validators
         ]
 
     if doc.front_matter.mechanism:

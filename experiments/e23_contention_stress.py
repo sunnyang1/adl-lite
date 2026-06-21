@@ -4,9 +4,14 @@
 Target: integrity_rate=1.0, conflict_rate<0.5, zero data races.
 """
 from __future__ import annotations
-import random, threading, time
+
+import random
+import threading
+import time
+
 from adl_lite.models import DiscoveryStatus, Event, EventChain, EventType
 from adl_lite.sync_manager import SyncManager
+
 from .base import BaseExperiment, ExperimentResult
 from .registry import register
 
@@ -100,7 +105,7 @@ class E23ContentionStress(BaseExperiment):
         integrity_rate = ok / n_concepts
         passes = integrity_rate == 1.0 and conflict_rate < 0.5
 
-        print(f"\nE23: Concurrent Agent Contention")
+        print("\nE23: Concurrent Agent Contention")
         print(f"Agents: {n_agents}, Concepts: {n_concepts}, Rounds: {n_rounds}")
         print(f"Conflict rate: {conflict_rate:.2f}")
         print(f"Fork rate: {fork_rate:.2f}")

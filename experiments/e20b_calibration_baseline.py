@@ -3,11 +3,15 @@
 Simulates 5 agents with different accuracy profiles validating 20 concepts,
 showing that simple linear calibration reduces ECE and mitigates collusion.
 """
+
 from __future__ import annotations
+
 import random
 from dataclasses import dataclass
+
 from adl_lite.calibration import MARGINCalibrator, calibrated_confidence
 from adl_lite.models import Event, EventChain, EventType
+
 from .base import BaseExperiment, ExperimentResult
 from .registry import register
 
@@ -18,6 +22,7 @@ class AgentProfile:
     accuracy: float
     confidence: float
 
+
 AGENTS = [
     AgentProfile("Agent_A", 0.6, 0.9),
     AgentProfile("Agent_B", 0.6, 0.9),
@@ -26,15 +31,21 @@ AGENTS = [
     AgentProfile("Agent_E", 0.95, 0.95),
 ]
 
+
 def _build_chain(concept_id: str, validators: list[AgentProfile]) -> EventChain:
     chain = EventChain(concept_id=concept_id)
     chain.append(Event(concept_id=concept_id, event_type=EventType.REGISTER, actor="system"))
     for agent in validators:
-        chain.append(Event(
-            concept_id=concept_id, event_type=EventType.VALIDATE, actor=agent.name,
-            payload={"confidence": agent.confidence},
-        ))
+        chain.append(
+            Event(
+                concept_id=concept_id,
+                event_type=EventType.VALIDATE,
+                actor=agent.name,
+                payload={"confidence": agent.confidence},
+            )
+        )
     return chain
+
 
 def _compute_ece(confidences: list[float], truths: list[float], bins: int = 5) -> float:
     """ECE = Σ |confidence_bucket - accuracy_bucket| × count / total."""
@@ -45,7 +56,11 @@ def _compute_ece(confidences: list[float], truths: list[float], bins: int = 5) -
     ece = 0.0
     for i in range(bins):
         lo, hi = bucket_edges[i], bucket_edges[i + 1]
-        indices = [j for j, c in enumerate(confidences) if lo <= c <= hi] if i == bins - 1 else [j for j, c in enumerate(confidences) if lo <= c < hi]
+        indices = (
+            [j for j, c in enumerate(confidences) if lo <= c <= hi]
+            if i == bins - 1
+            else [j for j, c in enumerate(confidences) if lo <= c < hi]
+        )
         if not indices:
             continue
         count = len(indices)
@@ -53,6 +68,7 @@ def _compute_ece(confidences: list[float], truths: list[float], bins: int = 5) -
         avg_truth = sum(truths[j] for j in indices) / count
         ece += abs(avg_conf - avg_truth) * (count / total)
     return ece
+
 
 @register("E20b")
 class E20bCalibrationBaseline(BaseExperiment):
@@ -95,7 +111,9 @@ class E20bCalibrationBaseline(BaseExperiment):
         colluders = [AgentProfile("Agent_A", 0.6, 0.99), AgentProfile("Agent_B", 0.6, 0.99)]
         collusion_chain = _build_chain("collusion-test", colluders)
         collusion_events = [e for e in collusion_chain.events if e.event_type == EventType.VALIDATE]
-        gamma_raw = sum(float(e.payload.get("confidence", 0.0)) for e in collusion_events) / len(collusion_events)
+        gamma_raw = sum(float(e.payload.get("confidence", 0.0)) for e in collusion_events) / len(
+            collusion_events
+        )
         gamma_cal = calibrated_confidence(collusion_events, calibrator)
         # Standard weighted mean: (0.99*0.6 + 0.99*0.6)/(0.6+0.6) = 0.99
         n_min_mitigated = gamma_cal < gamma_raw  # True if calibration reduced confidence
@@ -104,7 +122,9 @@ class E20bCalibrationBaseline(BaseExperiment):
         mixed = [AgentProfile("Agent_A", 0.6, 0.99), AgentProfile("Agent_E", 0.95, 0.5)]
         mixed_chain = _build_chain("mixed-test", mixed)
         mixed_events = [e for e in mixed_chain.events if e.event_type == EventType.VALIDATE]
-        gamma_mixed_raw = sum(float(e.payload.get("confidence", 0.0)) for e in mixed_events) / len(mixed_events)
+        gamma_mixed_raw = sum(float(e.payload.get("confidence", 0.0)) for e in mixed_events) / len(
+            mixed_events
+        )
         gamma_mixed_cal = calibrated_confidence(mixed_events, calibrator)
 
         print("E20b: Calibration Baseline")
@@ -122,7 +142,9 @@ class E20bCalibrationBaseline(BaseExperiment):
 
         return ExperimentResult(
             experiment_id=self.experiment_id,
-            status="passed" if ece_cal < ece_raw and gamma_mixed_cal < gamma_mixed_raw else "partial",
+            status="passed"
+            if ece_cal < ece_raw and gamma_mixed_cal < gamma_mixed_raw
+            else "partial",
             metrics={
                 "ece_raw": round(ece_raw, 4),
                 "ece_cal": round(ece_cal, 4),
@@ -135,6 +157,6 @@ class E20bCalibrationBaseline(BaseExperiment):
             },
             raw_data=[
                 {"concept_id": cid, "ground_truth": truth, "gamma_raw": raw, "gamma_cal": cal}
-                for (cid, truth), raw, cal in zip(concepts, raw_confs, cal_confs)
+                for (cid, truth), raw, cal in zip(concepts, raw_confs, cal_confs, strict=False)
             ],
         )

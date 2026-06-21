@@ -20,7 +20,9 @@ class TestE20bCalibrationBaseline:
         assert "ece_raw" in result.metrics
         assert "ece_cal" in result.metrics
         assert result.metrics["ece_cal"] < result.metrics["ece_raw"]
-        assert result.metrics["n_min_mitigated"] is False  # same accuracy, same value → no reduction
+        assert (
+            result.metrics["n_min_mitigated"] is False
+        )  # same accuracy, same value → no reduction
         assert result.metrics["collusion_gamma_raw"] == 0.99
         assert result.metrics["collusion_gamma_cal"] == 0.99
         # Mixed scenario: calibration mitigates when validators differ

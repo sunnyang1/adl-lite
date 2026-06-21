@@ -65,17 +65,12 @@ class MARGINCalibrator:
             data = yaml.safe_load(f) or {}
         raw = data.get("profiles", [])
         self._profiles = {
-            p["actor"]: CalibrationProfile(**p)
-            for p in raw
-            if isinstance(p, dict) and "actor" in p
+            p["actor"]: CalibrationProfile(**p) for p in raw if isinstance(p, dict) and "actor" in p
         }
         # Load context-scoped profiles: {context: {actor: profile}}
         raw_ctx = data.get("context_profiles", {})
         self._context_profiles = {
-            ctx: {
-                actor: CalibrationProfile(**prof)
-                for actor, prof in actors.items()
-            }
+            ctx: {actor: CalibrationProfile(**prof) for actor, prof in actors.items()}
             for ctx, actors in raw_ctx.items()
             if isinstance(actors, dict)
         }
@@ -107,7 +102,9 @@ class MARGINCalibrator:
                 return ctx_profiles[actor].accuracy_score
         return self._profiles.get(actor, CalibrationProfile(actor=actor)).accuracy_score
 
-    def update_accuracy(self, actor: str, observed_accuracy: float, context: str = "general") -> None:
+    def update_accuracy(
+        self, actor: str, observed_accuracy: float, context: str = "general"
+    ) -> None:
         """Update or create a profile for actor."""
         if context == "general":
             self._profiles[actor] = CalibrationProfile(
@@ -168,9 +165,7 @@ def aggregated_confidence(events: list[Event]) -> float:
 # ---------------------------------------------------------------------------
 
 
-def calibrated_confidence(
-    events: list[Event], calibrator: MARGINCalibrator
-) -> float:
+def calibrated_confidence(events: list[Event], calibrator: MARGINCalibrator) -> float:
     """
     Compute per-actor accuracy-weighted calibrated confidence.
 
@@ -302,8 +297,8 @@ def context_calibrated_confidence(
 # ---------------------------------------------------------------------------
 
 DEFAULT_BANDS: list[tuple[float, float, float]] = [
-    (0.0, 0.3, 0.15),   # low-confidence band: underconfidence → boost
-    (0.3, 0.7, 0.0),    # mid band: no correction
+    (0.0, 0.3, 0.15),  # low-confidence band: underconfidence → boost
+    (0.3, 0.7, 0.0),  # mid band: no correction
     (0.7, 1.0, -0.10),  # high-confidence band: overconfidence → dampen
 ]
 
@@ -360,4 +355,3 @@ def band_calibrated_confidence(
         total += adjusted
 
     return min(1.0, total / len(actor_max))
-

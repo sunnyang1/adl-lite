@@ -124,7 +124,7 @@ def to_prov_o(chain: EventChain) -> str:
             g.add((actor, RDF.type, PROV.Agent))
             g.add((actor, RDFS.label, Literal(event.actor)))
 
-    return g.serialize(format="turtle")
+    return str(g.serialize(format="turtle"))
 
 
 def to_rdfstar(chain: EventChain) -> str:

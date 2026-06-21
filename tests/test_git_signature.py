@@ -2,10 +2,6 @@
 Tests for hardened GitSignatureVerifier.
 """
 
-import os
-import struct
-import subprocess
-import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -22,6 +18,7 @@ def _mock_run(stdout="", returncode=0):
         m.returncode = returncode
         m.stderr = ""
         return m
+
     return run
 
 

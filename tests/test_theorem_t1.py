@@ -10,7 +10,7 @@ function f to the last element.
 
 from __future__ import annotations
 
-from adl_lite.models import Event, EventChain, EventType, DiscoveryStatus
+from adl_lite.models import DiscoveryStatus, Event, EventChain, EventType
 
 
 class TestTheorem1Determinism:

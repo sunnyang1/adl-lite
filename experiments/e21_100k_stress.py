@@ -10,15 +10,15 @@ import gc
 import resource
 import time
 
-from adl_lite.models import Event, EventChain, EventType
 from adl_lite.cold_storage import ColdStorage
+from adl_lite.models import Event, EventChain, EventType
 
 from .base import BaseExperiment, ExperimentResult
 from .registry import register
 
 
 @register("E21")
-class E21_100kStress(BaseExperiment):
+class E21HundredKStress(BaseExperiment):
     experiment_id = "E21"
     name = "100k Event Stress Test"
     description = "Measure verify_integrity, memory, and append latency at 100k events"
@@ -51,6 +51,7 @@ class E21_100kStress(BaseExperiment):
 
         # macOS returns bytes; Linux returns KB
         import sys
+
         if sys.platform == "darwin":
             memory_peak_mb = (peak_rss - baseline_rss) / (1024 * 1024)
         else:
@@ -88,14 +89,14 @@ class E21_100kStress(BaseExperiment):
 
         status = "passed" if passes else "partial" if ok else "failed"
 
-        print(f"\nE21: 100k Event Stress Test")
+        print("\nE21: 100k Event Stress Test")
         print(f"Chain length: {n_events}{' (projected from 50k)' if projected else ''}")
         print(f"Verify time: {verify_time:.3f} s")
         print(f"Memory peak: {memory_peak_mb:.2f} MB")
         print(f"Append latency: {append_latency_ms:.3f} ms/event")
         print(f"Total time: {total_time:.3f} s")
         if archived:
-            print(f"Archive triggered: yes")
+            print("Archive triggered: yes")
         print(f"Status: {'PASS' if passes else 'FAIL'} (against targets)")
 
         return ExperimentResult(

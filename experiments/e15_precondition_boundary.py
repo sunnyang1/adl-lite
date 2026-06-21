@@ -9,8 +9,6 @@ quantify which ones slip through and which are caught.
 
 from __future__ import annotations
 
-import math
-
 from adl_lite.action_executor import ActionExecutor
 from adl_lite.models import (
     ADLActionBlock,
@@ -207,7 +205,9 @@ class E15PreconditionBoundaryStress(BaseExperiment):
                 errors = [str(exc)]
                 actually_passed = False
 
-            if stage != expected and not (expected == "pydantic_reject" and stage == "precondition_reject"):
+            if stage != expected and not (
+                expected == "pydantic_reject" and stage == "precondition_reject"
+            ):
                 unexpected += 1
 
             results.append(

@@ -4,9 +4,17 @@ Tests for OWL 2 DL bidirectional import (FW1).
 
 import pytest
 
-from adl_lite.models import ADLDocument, ADLFrontMatter, ADLType, DiscoveryStatus, Event, EventChain, EventType
-from adl_lite.owl_export import document_to_owl_turtle, document_to_owl_rdfxml
-from adl_lite.owl_import import parse_owl_turtle, parse_owl_rdfxml
+from adl_lite.models import (
+    ADLDocument,
+    ADLFrontMatter,
+    ADLType,
+    DiscoveryStatus,
+    Event,
+    EventChain,
+    EventType,
+)
+from adl_lite.owl_export import document_to_owl_rdfxml, document_to_owl_turtle
+from adl_lite.owl_import import parse_owl_rdfxml, parse_owl_turtle
 
 
 def _make_sample_doc() -> ADLDocument:
@@ -137,7 +145,9 @@ def test_owl_turtle_parse_empty():
 
 def test_owl_rdfxml_parse_empty():
     with pytest.raises(ValueError, match="Could not find concept"):
-        parse_owl_rdfxml('<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"></rdf:RDF>')
+        parse_owl_rdfxml(
+            '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"></rdf:RDF>'
+        )
 
 
 # ---------------------------------------------------------------------------

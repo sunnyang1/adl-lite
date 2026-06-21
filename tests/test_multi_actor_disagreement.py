@@ -6,6 +6,7 @@ tests/test_multi_actor_disagreement.py
 from __future__ import annotations
 
 import math
+
 import pytest
 
 from adl_lite.models import (
@@ -20,16 +21,16 @@ BETA = 0.05
 
 def gamma(chain: EventChain, beta: float = BETA) -> float:
     """Confidence aggregation function γ(C) from paper §4.6."""
-    V = [e for e in chain.events if e.event_type == EventType.VALIDATE]
-    if not V:
+    validations = [e for e in chain.events if e.event_type == EventType.VALIDATE]
+    if not validations:
         return 0.0
 
-    actors = {e.actor for e in V}
+    actors = {e.actor for e in validations}
 
     def phi(actor: str) -> float:
         confidences = [
             e.payload.get("confidence", 0.0)
-            for e in V
+            for e in validations
             if e.actor == actor
         ]
         return max(confidences) if confidences else 0.0

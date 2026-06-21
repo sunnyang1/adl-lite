@@ -53,24 +53,23 @@ class E13LongChainStress(BaseExperiment):
 
         # Compute linear regression slope (ms per event)
         import statistics
+
         xs = [d["n_events"] for d in raw_data]
         ys = [d["verify_ms"] for d in raw_data]
         mean_x = statistics.mean(xs)
         mean_y = statistics.mean(ys)
-        num = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))
+        num = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys, strict=False))
         den = sum((x - mean_x) ** 2 for x in xs)
         slope = num / den if den else 0.0
         intercept = mean_y - slope * mean_x
 
         # R^2
-        ss_res = sum((y - (slope * x + intercept)) ** 2 for x, y in zip(xs, ys))
+        ss_res = sum((y - (slope * x + intercept)) ** 2 for x, y in zip(xs, ys, strict=False))
         ss_tot = sum((y - mean_y) ** 2 for y in ys)
         r_squared = 1 - ss_res / ss_tot if ss_tot else 0.0
 
         # Identify the point where memory > 50 MB (soft threshold)
-        memory_threshold_hit = next(
-            (d for d in raw_data if d["memory_peak_mb"] > 50), None
-        )
+        memory_threshold_hit = next((d for d in raw_data if d["memory_peak_mb"] > 50), None)
 
         return ExperimentResult(
             experiment_id=self.experiment_id,
@@ -81,7 +80,9 @@ class E13LongChainStress(BaseExperiment):
                 "r_squared": round(r_squared, 4),
                 "max_n_events": max(xs),
                 "max_verify_ms": max(ys),
-                "memory_threshold_hit_at": memory_threshold_hit["n_events"] if memory_threshold_hit else None,
+                "memory_threshold_hit_at": memory_threshold_hit["n_events"]
+                if memory_threshold_hit
+                else None,
             },
             raw_data=raw_data,
         )

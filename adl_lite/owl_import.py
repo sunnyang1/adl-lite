@@ -19,7 +19,6 @@ from .models import (
     ADLType,
     DiscoveryStatus,
     Event,
-    EventChain,
     EventType,
 )
 
@@ -53,7 +52,11 @@ def parse_owl_turtle(turtle_str: str) -> ADLDocument:
     ADL Lite's own export, so it can rely on predictable structure rather
     than a full generic Turtle parser. For arbitrary OWL, use rdflib.
     """
-    lines = [line.strip() for line in turtle_str.splitlines() if line.strip() and not line.strip().startswith("@prefix")]
+    lines = [
+        line.strip()
+        for line in turtle_str.splitlines()
+        if line.strip() and not line.strip().startswith("@prefix")
+    ]
 
     # Find concept declaration line
     concept_id = None
@@ -74,7 +77,7 @@ def parse_owl_turtle(turtle_str: str) -> ADLDocument:
     status = DiscoveryStatus.PROVISIONAL
     confidence = 0.0
     validators: list[str] = []
-    domain = None
+    domain = ""
     scope = "public"
 
     for line in lines:
@@ -93,7 +96,7 @@ def parse_owl_turtle(turtle_str: str) -> ADLDocument:
             if uri:
                 validators.append(uri.split("/")[-1])
         elif "adl:hasDomain" in line:
-            domain = _extract_turtle_value(line, "adl:hasDomain")
+            domain = _extract_turtle_value(line, "adl:hasDomain") or domain
         elif "adl:hasScope" in line:
             scope_val = _extract_turtle_value(line, "adl:hasScope")
             if scope_val:
@@ -102,15 +105,15 @@ def parse_owl_turtle(turtle_str: str) -> ADLDocument:
     # Parse events
     events: list[Event] = []
     event_id = None
-    event_actor = None
-    event_timestamp = None
+    event_actor = ""
+    event_timestamp = ""
 
     for line in lines:
         if "adl:event/" in line and " a adl:Event" in line:
             # Start of event block
             event_id = line.split("adl:event/")[1].split(" ")[0].strip()
-            event_actor = None
-            event_timestamp = None
+            event_actor = ""
+            event_timestamp = ""
         elif "adl:hasActor" in line and event_id:
             val = _extract_turtle_value(line, "adl:hasActor")
             if val:
@@ -132,8 +135,8 @@ def parse_owl_turtle(turtle_str: str) -> ADLDocument:
                 )
             )
             event_id = None
-            event_actor = None
-            event_timestamp = None
+            event_actor = ""
+            event_timestamp = ""
 
     # Build document
     front_matter = ADLFrontMatter(
@@ -146,13 +149,10 @@ def parse_owl_turtle(turtle_str: str) -> ADLDocument:
         scope=scope,
     )
 
-    chain = EventChain(concept_id=concept_id, events=events)
-    doc = ADLDocument(
+    return ADLDocument(
         front_matter=front_matter,
         markdown_body="",
-        event_chain=chain,
     )
-    return doc
 
 
 def parse_owl_rdfxml(rdfxml_str: str) -> ADLDocument:
@@ -184,7 +184,9 @@ def parse_owl_rdfxml(rdfxml_str: str) -> ADLDocument:
     if concept_elem is None:
         raise ValueError("Could not find concept individual in RDF/XML")
 
-    concept_id = concept_elem.get("{http://www.w3.org/1999/02/22-rdf-syntax-ns#}about", "").replace(ADL_NS, "")
+    concept_id = concept_elem.get("{http://www.w3.org/1999/02/22-rdf-syntax-ns#}about", "").replace(
+        ADL_NS, ""
+    )
 
     # Type
     adl_type = ADLType.CONCEPT
@@ -217,7 +219,7 @@ def parse_owl_rdfxml(rdfxml_str: str) -> ADLDocument:
         validators.append(val_uri.split("/")[-1])
 
     # Domain
-    domain = None
+    domain = ""
     domain_elem = concept_elem.find("adl:hasDomain", ns)
     if domain_elem is not None and domain_elem.text:
         domain = domain_elem.text
@@ -235,11 +237,11 @@ def parse_owl_rdfxml(rdfxml_str: str) -> ADLDocument:
         if "event/" not in about:
             continue
 
-        event_id = about.replace(f"{ADL_NS}event/", "")
+        about.replace(f"{ADL_NS}event/", "")
         actor_elem = event_ind.find("adl:hasActor", ns)
-        actor = actor_elem.text if actor_elem is not None else "unknown"
+        actor = actor_elem.text if actor_elem is not None and actor_elem.text else "unknown"
         ts_elem = event_ind.find("adl:hasTimestamp", ns)
-        timestamp = ts_elem.text if ts_elem is not None else ""
+        timestamp = ts_elem.text if ts_elem is not None and ts_elem.text else ""
 
         events.append(
             Event(
@@ -261,9 +263,7 @@ def parse_owl_rdfxml(rdfxml_str: str) -> ADLDocument:
         scope=scope,
     )
 
-    chain = EventChain(concept_id=concept_id, events=events)
     return ADLDocument(
         front_matter=front_matter,
         markdown_body="",
-        event_chain=chain,
     )

@@ -29,18 +29,11 @@ class TestL2TemplateModel:
         assert t.conclusion == "con"
 
     def test_create_invalid_missing_field(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             L2Template(observation="obs", reasoning="rea")
 
     def test_from_markdown_full(self) -> None:
-        body = (
-            "# Observation\n"
-            "We saw X.\n"
-            "# Reasoning\n"
-            "Therefore Y.\n"
-            "# Conclusion\n"
-            "Do Z."
-        )
+        body = "# Observation\nWe saw X.\n# Reasoning\nTherefore Y.\n# Conclusion\nDo Z."
         t = L2Template.from_markdown(body)
         assert t.observation == "We saw X."
         assert t.reasoning == "Therefore Y."
@@ -55,11 +48,7 @@ class TestL2TemplateModel:
 
 class TestParseSections:
     def test_basic_extraction(self) -> None:
-        body = (
-            "# Observation\nObs text\n"
-            "# Reasoning\nRea text\n"
-            "# Conclusion\nCon text"
-        )
+        body = "# Observation\nObs text\n# Reasoning\nRea text\n# Conclusion\nCon text"
         sections = _parse_sections(body)
         assert sections == {
             "observation": "Obs text",
@@ -68,20 +57,12 @@ class TestParseSections:
         }
 
     def test_multi_level_headers(self) -> None:
-        body = (
-            "## Observation\nObs\n"
-            "### Reasoning\nRea\n"
-            "#### Conclusion\nCon"
-        )
+        body = "## Observation\nObs\n### Reasoning\nRea\n#### Conclusion\nCon"
         sections = _parse_sections(body)
         assert set(sections.keys()) == {"observation", "reasoning", "conclusion"}
 
     def test_case_insensitive(self) -> None:
-        body = (
-            "# OBSERVATION\nObs\n"
-            "# reasoning\nRea\n"
-            "# ConClUsIoN\nCon"
-        )
+        body = "# OBSERVATION\nObs\n# reasoning\nRea\n# ConClUsIoN\nCon"
         sections = _parse_sections(body)
         assert sections["observation"] == "Obs"
         assert sections["reasoning"] == "Rea"
@@ -109,11 +90,7 @@ class TestParseSections:
         assert sections["conclusion"] == "Con\nFooter."
 
     def test_reordered_sections(self) -> None:
-        body = (
-            "# Conclusion\nCon\n"
-            "# Observation\nObs\n"
-            "# Reasoning\nRea"
-        )
+        body = "# Conclusion\nCon\n# Observation\nObs\n# Reasoning\nRea"
         sections = _parse_sections(body)
         assert sections["conclusion"] == "Con"
         assert sections["observation"] == "Obs"
@@ -148,7 +125,9 @@ class TestL2TemplateValidator:
     def test_multiple_missing_sections_strict(self) -> None:
         body = "# Observation\nObs"
         validator = L2TemplateValidator()
-        with pytest.raises(ADLTemplateError, match="Missing or empty L2 sections: reasoning, conclusion"):
+        with pytest.raises(
+            ADLTemplateError, match="Missing or empty L2 sections: reasoning, conclusion"
+        ):
             validator.validate(body)
 
     def test_empty_section_strict(self) -> None:

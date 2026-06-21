@@ -32,7 +32,6 @@ from adl_lite.models import (
     EventChain,
     EventType,
 )
-
 from experiments.base import BaseExperiment, ExperimentResult
 from experiments.registry import register
 
@@ -160,6 +159,7 @@ def generate_random_chain(
 # Theorem validators
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class TheoremResult:
     theorem: str
@@ -198,8 +198,8 @@ def check_theorem_2_fork_confluence(chain: EventChain) -> bool:
         # Already forked — can't fork again in a meaningful way
         return True
 
-    # Snapshot state before fork
-    pre_status = chain.status
+    # Snapshot state before fork (for audit logging)
+    _ = chain.status
 
     # Append FORK
     chain.append(
@@ -439,8 +439,10 @@ class E24ProofTraceChecker(BaseExperiment):
                 "min_length": min_len,
                 "max_length": max_len,
             },
-            "summary": {k: {"passed": v.passed, "failed": v.failed, "pass_rate": v.pass_rate}
-                        for k, v in results.items()},
+            "summary": {
+                k: {"passed": v.passed, "failed": v.failed, "pass_rate": v.pass_rate}
+                for k, v in results.items()
+            },
             "violations": {k: v.violations for k, v in results.items() if v.violations},
         }
         artifact_path.write_text(json.dumps(artifact_data, indent=2), encoding="utf-8")

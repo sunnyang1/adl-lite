@@ -15,7 +15,7 @@ Metrics:
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from adl_lite.models import DiscoveryStatus, Event, EventChain, EventType
@@ -256,7 +256,7 @@ class MultiAgentSimulation:
                 challenge_prob = max(0.01, min(0.10, 0.10 - avg_reliability * 0.12))
             else:
                 challenge_prob = 0.05
-            
+
             if self.rng.random() < challenge_prob:
                 challenger = self.rng.choice(self.agents)
                 if self.rng.random() < 0.3:
@@ -358,7 +358,7 @@ class E6bMultiAgentCoordination(BaseExperiment):
                     seed=42 + k * 100 + hash(strategy) % 1000 + trial * 7,
                 )
                 trial_results.append(sim.run())
-            
+
             # Average metrics across trials
             avg_result = self._average_results(trial_results, k, strategy)
             all_results.append(avg_result)
@@ -392,19 +392,19 @@ class E6bMultiAgentCoordination(BaseExperiment):
     def _average_results(self, trial_results: list[dict[str, Any]], k: int, strategy: str) -> dict[str, Any]:
         if not trial_results:
             return {}
-        
+
         n = len(trial_results)
         avg_ttc = sum(r["time_to_consensus_mean"] for r in trial_results) / n
         avg_conflict = sum(r["conflict_rate"] for r in trial_results) / n
         avg_reviewer = sum(r["reviewer_overhead"] for r in trial_results) / n
         avg_cal = sum(r["calibration_mean"] for r in trial_results) / n
         avg_rel = sum(r["reliability_mean"] for r in trial_results) / n
-        
+
         # Collect all raw ttc values for std calculation
         all_ttc: list[int] = []
         for r in trial_results:
             all_ttc.extend(r.get("raw_ttc", []))
-        
+
         return {
             "k_agents": k,
             "strategy": strategy,

@@ -30,7 +30,6 @@ import inspect
 import os
 import tempfile
 import time
-from pathlib import Path
 from typing import Any
 
 import pygit2
@@ -42,38 +41,39 @@ from adl_lite.models import Event, EventChain, EventType
 from .base import BaseExperiment, ExperimentResult
 from .registry import register
 
-
 # ============================================================================
 # S1: ADL Lite baseline
 # ============================================================================
 
+
 def _s1_adl_register(concept_id: str) -> EventChain:
     """Create an EventChain and register a concept."""
     chain = EventChain(concept_id=concept_id)
-    chain.append(Event(
-        concept_id=concept_id, event_type=EventType.REGISTER, actor="discoverer"
-    ))
+    chain.append(Event(concept_id=concept_id, event_type=EventType.REGISTER, actor="discoverer"))
     return chain
 
 
 def _s1_adl_validate(chain: EventChain, validator: str, confidence: float) -> None:
     """Add a validation event to the chain."""
-    chain.append(Event(
-        concept_id=chain.concept_id, event_type=EventType.VALIDATE,
-        actor=validator, payload={"confidence": confidence}
-    ))
+    chain.append(
+        Event(
+            concept_id=chain.concept_id,
+            event_type=EventType.VALIDATE,
+            actor=validator,
+            payload={"confidence": confidence},
+        )
+    )
 
 
 def _s1_adl_deprecate(chain: EventChain, actor: str) -> None:
     """Add a deprecation event to the chain."""
-    chain.append(Event(
-        concept_id=chain.concept_id, event_type=EventType.DEPRECATE, actor=actor
-    ))
+    chain.append(Event(concept_id=chain.concept_id, event_type=EventType.DEPRECATE, actor=actor))
 
 
 def _s1_adl_status(chain: EventChain) -> tuple[str, float]:
     """Return (status, confidence) from the chain."""
     return chain.status.name, chain.confidence
+
 
 NP = Namespace("http://www.nanopub.org/nschema#")
 
@@ -115,9 +115,11 @@ def _s2_nanopub_validators(g: Graph, concept_id: str) -> list[str]:
 # S3: PROV-O baseline (prov library)
 # ============================================================================
 
+
 def _s3_prov_register(doc, concept_id: str) -> None:
     """Register a concept in PROV-O document."""
-    from prov.model import Namespace, ProvActivity, ProvEntity, ProvAgent, QualifiedName, Literal
+    from prov.model import Namespace
+
     ns = Namespace("ex", "http://example.org/")
     adl = Namespace("adl", "http://example.org/adl/")
     doc.add_namespace(adl)
@@ -131,15 +133,19 @@ def _s3_prov_register(doc, concept_id: str) -> None:
 
 def _s3_prov_validate(doc, concept_id: str, validator: str, confidence: float) -> None:
     """Add validation activity to PROV-O document."""
-    from prov.model import Namespace, ProvActivity, Literal
+    from prov.model import Literal, Namespace
+
     ns = Namespace("ex", "http://example.org/")
     adl = Namespace("adl", "http://example.org/adl/")
     doc.add_namespace(adl)
     qname = ns[concept_id]
-    doc.activity(ns[f"{concept_id}-validate-{validator}"], other_attributes={
-        "prov:label": "validate",
-        adl["confidence"]: Literal(confidence, "xsd:double"),
-    })
+    doc.activity(
+        ns[f"{concept_id}-validate-{validator}"],
+        other_attributes={
+            "prov:label": "validate",
+            adl["confidence"]: Literal(confidence, "xsd:double"),
+        },
+    )
     doc.agent(ns[validator], {"prov:label": validator})
     doc.wasAssociatedWith(ns[f"{concept_id}-validate-{validator}"], ns[validator])
     doc.used(ns[f"{concept_id}-validate-{validator}"], qname)
@@ -147,7 +153,8 @@ def _s3_prov_validate(doc, concept_id: str, validator: str, confidence: float) -
 
 def _s3_prov_deprecate(doc, concept_id: str, actor: str) -> None:
     """Add deprecation activity to PROV-O document."""
-    from prov.model import Namespace, ProvActivity
+    from prov.model import Namespace
+
     ns = Namespace("ex", "http://example.org/")
     qname = ns[concept_id]
     doc.activity(ns[f"{concept_id}-deprecate"], other_attributes={"prov:label": "deprecate"})
@@ -176,6 +183,7 @@ def _s3_prov_status(doc, concept_id: str) -> str:
 # ============================================================================
 # S4: Git-only baseline (pygit2)
 # ============================================================================
+
 
 def _s4_git_init(repo_dir: str) -> pygit2.Repository:
     """Initialize a Git repository."""
@@ -211,11 +219,14 @@ def _s4_git_status(repo: pygit2.Repository, concept_id: str) -> str:
 # E19 Experiment Class
 # ============================================================================
 
+
 @register("E19")
 class E19GovernanceBenchmark(BaseExperiment):
     experiment_id = "E19"
     name = "Head-to-head governance benchmark (measured)"
-    description = "ADL Lite vs. nanopub vs. PROV-O vs. Git-only on 4 governance tasks — all metrics measured"
+    description = (
+        "ADL Lite vs. nanopub vs. PROV-O vs. Git-only on 4 governance tasks — all metrics measured"
+    )
 
     def run(self) -> ExperimentResult:
         raw_data = []
@@ -250,7 +261,7 @@ class E19GovernanceBenchmark(BaseExperiment):
         s1 = metrics["S1"]
         s2 = metrics["S2"]
         s3 = metrics["S3"]
-        s4 = metrics["S4"]
+        # s4 = metrics["S4"]  # Git-only baseline omitted from comparison
 
         adl_better_loc = s1["total_loc"] <= s2["total_loc"] and s1["total_loc"] <= s3["total_loc"]
         adl_better_completion = s1["tasks_completed"] >= s2["tasks_completed"]
@@ -286,7 +297,7 @@ class E19GovernanceBenchmark(BaseExperiment):
                 completed, audit_info = self._run_s3_prov(task_id)
             elif system_id == "S4":
                 completed, audit_info = self._run_s4_git(task_id)
-        except Exception as e:
+        except Exception:
             errors = 1
             completed = False
 
@@ -398,6 +409,7 @@ class E19GovernanceBenchmark(BaseExperiment):
 
     def _run_s3_prov(self, task_id: str) -> tuple[bool, float]:
         from prov.model import ProvDocument
+
         doc = ProvDocument()
         _s3_prov_register(doc, f"e19-prov-{task_id}")
 
@@ -439,30 +451,57 @@ class E19GovernanceBenchmark(BaseExperiment):
             repo = _s4_git_init(tmpdir)
 
             if task_id == "T1":
-                _s4_git_commit(repo, "concept.md", f"# e19-git-{task_id}\n\nStatus: provisional\n", "register")
-                _s4_git_commit(repo, "concept.md", f"# e19-git-{task_id}\n\nStatus: validated\nValidated by: v1 (0.8), v2 (0.75)\n", "validate")
+                _s4_git_commit(
+                    repo, "concept.md", f"# e19-git-{task_id}\n\nStatus: provisional\n", "register"
+                )
+                _s4_git_commit(
+                    repo,
+                    "concept.md",
+                    f"# e19-git-{task_id}\n\nStatus: validated\nValidated by: v1 (0.8), v2 (0.75)\n",
+                    "validate",
+                )
                 status = _s4_git_status(repo, f"e19-git-{task_id}")
                 audit = 1.0 if status == "validated" else 0.5
                 return True, audit
 
             elif task_id == "T2":
-                _s4_git_commit(repo, "concept.md", f"# e19-git-{task_id}\n\nStatus: provisional\n", "register")
-                _s4_git_commit(repo, "concept.md", f"# e19-git-{task_id}\n\nStatus: validated\n", "validate")
-                _s4_git_commit(repo, "concept.md", f"# e19-git-{task_id}\n\nStatus: deprecated\n", "deprecate")
+                _s4_git_commit(
+                    repo, "concept.md", f"# e19-git-{task_id}\n\nStatus: provisional\n", "register"
+                )
+                _s4_git_commit(
+                    repo, "concept.md", f"# e19-git-{task_id}\n\nStatus: validated\n", "validate"
+                )
+                _s4_git_commit(
+                    repo, "concept.md", f"# e19-git-{task_id}\n\nStatus: deprecated\n", "deprecate"
+                )
                 status = _s4_git_status(repo, f"e19-git-{task_id}")
                 audit = 1.0 if status == "deprecated" else 0.5
                 return True, audit
 
             elif task_id == "T3":
-                _s4_git_commit(repo, "concept.md", f"# e19-git-{task_id}\n\nStatus: provisional\n", "register")
-                _s4_git_commit(repo, "concept.md", f"# e19-git-{task_id}\n\nStatus: validated\nValidated by: v1\n", "validate")
+                _s4_git_commit(
+                    repo, "concept.md", f"# e19-git-{task_id}\n\nStatus: provisional\n", "register"
+                )
+                _s4_git_commit(
+                    repo,
+                    "concept.md",
+                    f"# e19-git-{task_id}\n\nStatus: validated\nValidated by: v1\n",
+                    "validate",
+                )
                 status = _s4_git_status(repo, f"e19-git-{task_id}")
                 audit = 1.0 if status == "validated" else 0.5
                 return True, audit
 
             elif task_id == "T4":
-                _s4_git_commit(repo, "concept.md", f"# e19-git-{task_id}\n\nStatus: provisional\n", "register")
-                _s4_git_commit(repo, "concept.md", f"# e19-git-{task_id}\n\nStatus: validated\nValidated by: v0, v1, v2\n", "validate")
+                _s4_git_commit(
+                    repo, "concept.md", f"# e19-git-{task_id}\n\nStatus: provisional\n", "register"
+                )
+                _s4_git_commit(
+                    repo,
+                    "concept.md",
+                    f"# e19-git-{task_id}\n\nStatus: validated\nValidated by: v0, v1, v2\n",
+                    "validate",
+                )
                 status = _s4_git_status(repo, f"e19-git-{task_id}")
                 audit = 1.0 if status == "validated" else 0.5
                 return True, audit
@@ -499,6 +538,7 @@ class E19GovernanceBenchmark(BaseExperiment):
     def _run_s1_scale(self, n: int) -> dict:
         """Scale test for ADL Lite: create n concepts (register + validate)."""
         import gc
+
         gc.collect()
         t0 = time.perf_counter()
         for i in range(n):
@@ -533,6 +573,7 @@ class E19GovernanceBenchmark(BaseExperiment):
     def _run_s3_scale(self, n: int) -> dict:
         """Scale test for PROV-O: create n documents (register + validate)."""
         from prov.model import ProvDocument
+
         t0 = time.perf_counter()
         for i in range(n):
             doc = ProvDocument()
@@ -559,6 +600,7 @@ class E19GovernanceBenchmark(BaseExperiment):
         We batch 'batch_size' concepts per commit to make it feasible.
         """
         import tempfile
+
         with tempfile.TemporaryDirectory() as tmpdir:
             repo = _s4_git_init(tmpdir)
             t0 = time.perf_counter()
@@ -567,7 +609,7 @@ class E19GovernanceBenchmark(BaseExperiment):
                 batch_content.append(f"# scale-{i}\n\nStatus: validated\n")
                 if len(batch_content) >= batch_size or i == n - 1:
                     content = "\n---\n".join(batch_content)
-                    _s4_git_commit(repo, "concepts.md", content, f"batch-{i//batch_size}")
+                    _s4_git_commit(repo, "concepts.md", content, f"batch-{i // batch_size}")
                     batch_content = []
             elapsed = time.perf_counter() - t0
             commits = (n + batch_size - 1) // batch_size
@@ -623,7 +665,7 @@ class E19GovernanceBenchmark(BaseExperiment):
 
         try:
             source = inspect.getsource(func)
-            lines = [l for l in source.splitlines() if l.strip() and not l.strip().startswith("#")]
+            lines = [line for line in source.splitlines() if line.strip() and not line.strip().startswith("#")]
             return len(lines)
         except (OSError, TypeError):
             return 0

@@ -19,7 +19,6 @@ import time
 
 from adl_lite import Event, EventChain, EventType
 
-
 # ---------------------------------------------------------------------------
 # Simulated LWW (old behavior) — full scan on every query
 # ---------------------------------------------------------------------------
@@ -101,21 +100,22 @@ def run():
 
     for length in (1000, 5000, 10000, 50000):
         chain = _build_chain(length)
+        _chain = chain
 
         # CRDT cached query
         crdt_status_us = _benchmark(
-            "status", lambda: chain.status, repeats=max(100, 50000 // length)
+            "status", lambda chain=_chain: chain.status, repeats=max(100, 50000 // length)
         )
         crdt_conf_us = _benchmark(
-            "confidence", lambda: chain.confidence, repeats=max(100, 50000 // length)
+            "confidence", lambda chain=_chain: chain.confidence, repeats=max(100, 50000 // length)
         )
 
         # LWW scan query
         lww_status_us = _benchmark(
-            "status_scan", lambda: _lww_status_scan(chain), repeats=max(100, 50000 // length)
+            "status_scan", lambda chain=_chain: _lww_status_scan(chain), repeats=max(100, 50000 // length)
         )
         lww_conf_us = _benchmark(
-            "conf_scan", lambda: _lww_confidence_scan(chain), repeats=max(100, 50000 // length)
+            "conf_scan", lambda chain=_chain: _lww_confidence_scan(chain), repeats=max(100, 50000 // length)
         )
 
         status_speedup = lww_status_us / crdt_status_us if crdt_status_us > 0 else float("inf")

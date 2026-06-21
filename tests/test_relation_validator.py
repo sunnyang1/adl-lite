@@ -7,14 +7,10 @@ Paper §4.2: "valid(r) ↔ S(C1) ∉ {archived} ∧ S(C2) ∉ {archived}
 
 from __future__ import annotations
 
-import pytest
-
 from adl_lite import (
     ADLRelationBlock,
     DiscoveryStatus,
     EventChain,
-    Event,
-    EventType,
     RelationValidator,
 )
 
@@ -25,50 +21,38 @@ class TestRelationValidator:
     def test_valid_both_validated(self) -> None:
         """Relation between two validated concepts is valid."""
         validator = RelationValidator()
-        rel = ADLRelationBlock(
-            source="concept-a", relation="isomorphic-to", target="concept-b"
-        )
+        rel = ADLRelationBlock(source="concept-a", relation="isomorphic-to", target="concept-b")
         assert validator.valid(rel, DiscoveryStatus.VALIDATED, DiscoveryStatus.VALIDATED)
 
     def test_valid_one_deprecated(self) -> None:
         """Relation with one deprecated endpoint is valid."""
         validator = RelationValidator()
-        rel = ADLRelationBlock(
-            source="concept-a", relation="related-to", target="concept-b"
-        )
+        rel = ADLRelationBlock(source="concept-a", relation="related-to", target="concept-b")
         assert validator.valid(rel, DiscoveryStatus.VALIDATED, DiscoveryStatus.DEPRECATED)
         assert validator.valid(rel, DiscoveryStatus.DEPRECATED, DiscoveryStatus.VALIDATED)
 
     def test_invalid_both_deprecated(self) -> None:
         """Relation between two deprecated concepts is invalid."""
         validator = RelationValidator()
-        rel = ADLRelationBlock(
-            source="concept-a", relation="isomorphic-to", target="concept-b"
-        )
+        rel = ADLRelationBlock(source="concept-a", relation="isomorphic-to", target="concept-b")
         assert not validator.valid(rel, DiscoveryStatus.DEPRECATED, DiscoveryStatus.DEPRECATED)
 
     def test_invalid_source_archived(self) -> None:
         """Relation with archived source is invalid."""
         validator = RelationValidator()
-        rel = ADLRelationBlock(
-            source="concept-a", relation="related-to", target="concept-b"
-        )
+        rel = ADLRelationBlock(source="concept-a", relation="related-to", target="concept-b")
         assert not validator.valid(rel, DiscoveryStatus.ARCHIVED, DiscoveryStatus.VALIDATED)
 
     def test_invalid_target_archived(self) -> None:
         """Relation with archived target is invalid."""
         validator = RelationValidator()
-        rel = ADLRelationBlock(
-            source="concept-a", relation="related-to", target="concept-b"
-        )
+        rel = ADLRelationBlock(source="concept-a", relation="related-to", target="concept-b")
         assert not validator.valid(rel, DiscoveryStatus.VALIDATED, DiscoveryStatus.ARCHIVED)
 
     def test_invalid_both_archived(self) -> None:
         """Relation between two archived concepts is invalid."""
         validator = RelationValidator()
-        rel = ADLRelationBlock(
-            source="concept-a", relation="isomorphic-to", target="concept-b"
-        )
+        rel = ADLRelationBlock(source="concept-a", relation="isomorphic-to", target="concept-b")
         assert not validator.valid(rel, DiscoveryStatus.ARCHIVED, DiscoveryStatus.ARCHIVED)
 
     def test_filter_valid_relations(self) -> None:
@@ -97,9 +81,7 @@ class TestRelationValidator:
         validator = RelationValidator()
         parent = EventChain(concept_id="parent-concept")
         parent_relations = [
-            ADLRelationBlock(
-                source="parent-concept", relation="isomorphic-to", target="other"
-            ),
+            ADLRelationBlock(source="parent-concept", relation="isomorphic-to", target="other"),
         ]
         inherited = validator.inherit_relations(parent, "child-concept", parent_relations)
         assert len(inherited) == 1
@@ -112,9 +94,7 @@ class TestRelationValidator:
         validator = RelationValidator()
         parent = EventChain(concept_id="parent-concept")
         parent_relations = [
-            ADLRelationBlock(
-                source="other", relation="specialisation-of", target="parent-concept"
-            ),
+            ADLRelationBlock(source="other", relation="specialisation-of", target="parent-concept"),
         ]
         inherited = validator.inherit_relations(parent, "child-concept", parent_relations)
         assert len(inherited) == 1
@@ -126,9 +106,7 @@ class TestRelationValidator:
         validator = RelationValidator()
         parent = EventChain(concept_id="parent-concept")
         parent_relations = [
-            ADLRelationBlock(
-                source="parent-concept", relation="analogical-to", target="other"
-            ),
+            ADLRelationBlock(source="parent-concept", relation="analogical-to", target="other"),
         ]
         inherited = validator.inherit_relations(parent, "child-concept", parent_relations)
         assert len(inherited) == 0

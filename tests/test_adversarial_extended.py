@@ -10,10 +10,10 @@ These complement the existing test_adversarial.py and test_adversarial_integrity
 
 from __future__ import annotations
 
-from adl_lite.models import Event, EventChain, EventType, DiscoveryStatus
 from adl_lite.action_executor import ActionExecutor
-from adl_lite.ontology import OntologyManager
 from adl_lite.consensus import ConsensusEngine
+from adl_lite.models import DiscoveryStatus, Event, EventChain, EventType
+from adl_lite.ontology import OntologyManager
 
 
 class TestMidChainInsertion:
@@ -131,7 +131,8 @@ class TestIdentitySpoofing:
         chain.append(Event(concept_id="spoof-test", event_type=EventType.REGISTER, actor="alice"))
 
         # Now "bob" (who never registered) tries to VALIDATE
-        from adl_lite.models import ADLDocument, ADLFrontMatter, ADLActionBlock, ADLType
+        from adl_lite.models import ADLActionBlock, ADLDocument, ADLFrontMatter, ADLType
+
         doc = ADLDocument(
             front_matter=ADLFrontMatter.from_chain(
                 chain,
@@ -149,7 +150,7 @@ class TestIdentitySpoofing:
             reasoning="Spoofing alice",
             params={"confidence": 0.85},
         )
-        errors = executor.validate_action(doc, action)
+        _ = executor.validate_action(doc, action)
         # The action may or may not be rejected depending on ontology rules,
         # but the event would be recorded with actor="bob" for audit.
         # In Phase 1, identity is self-declared; the system records it for audit.
@@ -158,10 +159,21 @@ class TestIdentitySpoofing:
     def test_spoofing_detected_by_actor_audit(self):
         """Two different actors using same name produce auditable conflict."""
         chain = EventChain(concept_id="actor-audit")
-        chain.append(Event(concept_id="actor-audit", event_type=EventType.REGISTER, actor="agent_1"))
-        chain.append(Event(concept_id="actor-audit", event_type=EventType.VALIDATE, actor="agent_1", payload={"confidence": 0.8}))
+        chain.append(
+            Event(concept_id="actor-audit", event_type=EventType.REGISTER, actor="agent_1")
+        )
+        chain.append(
+            Event(
+                concept_id="actor-audit",
+                event_type=EventType.VALIDATE,
+                actor="agent_1",
+                payload={"confidence": 0.8},
+            )
+        )
         # Later, "agent_1" (possibly a different physical agent) contradicts earlier validation
-        chain.append(Event(concept_id="actor-audit", event_type=EventType.DEPRECATE, actor="agent_1"))
+        chain.append(
+            Event(concept_id="actor-audit", event_type=EventType.DEPRECATE, actor="agent_1")
+        )
 
         # Audit: actor "agent_1" both validated and deprecated the same capability
         validators = [e for e in chain.events if e.event_type == EventType.VALIDATE]
@@ -181,7 +193,14 @@ class TestForkDoubleCounting:
         base_id = "double-count-base"
         base = EventChain(concept_id=base_id)
         base.append(Event(concept_id=base_id, event_type=EventType.REGISTER, actor="a"))
-        base.append(Event(concept_id=base_id, event_type=EventType.VALIDATE, actor="v1", payload={"confidence": 0.8}))
+        base.append(
+            Event(
+                concept_id=base_id,
+                event_type=EventType.VALIDATE,
+                actor="v1",
+                payload={"confidence": 0.8},
+            )
+        )
         engine.chains[base_id] = base
 
         # Fork 1
@@ -199,15 +218,33 @@ class TestForkDoubleCounting:
         assert fork2.verify_integrity()
 
         # Add VALIDATE from v1 on fork-1
-        fork1.append(Event(concept_id="fork-1", event_type=EventType.VALIDATE, actor="v1", payload={"confidence": 0.9}))
+        fork1.append(
+            Event(
+                concept_id="fork-1",
+                event_type=EventType.VALIDATE,
+                actor="v1",
+                payload={"confidence": 0.9},
+            )
+        )
         # Add VALIDATE from v1 on fork-2 (same actor)
-        fork2.append(Event(concept_id="fork-2", event_type=EventType.VALIDATE, actor="v1", payload={"confidence": 0.85}))
+        fork2.append(
+            Event(
+                concept_id="fork-2",
+                event_type=EventType.VALIDATE,
+                actor="v1",
+                payload={"confidence": 0.85},
+            )
+        )
 
         # γ uses per-actor maxima, so v1 contributes once per chain, not twice
         # But across chains, they are independent — the paper acknowledges this
         # The test verifies that within each chain, the same actor doesn't inflate
-        v1_events_f1 = [e for e in fork1.events if e.actor == "v1" and e.event_type == EventType.VALIDATE]
-        v1_events_f2 = [e for e in fork2.events if e.actor == "v1" and e.event_type == EventType.VALIDATE]
+        v1_events_f1 = [
+            e for e in fork1.events if e.actor == "v1" and e.event_type == EventType.VALIDATE
+        ]
+        v1_events_f2 = [
+            e for e in fork2.events if e.actor == "v1" and e.event_type == EventType.VALIDATE
+        ]
         assert len(v1_events_f1) == 1
         assert len(v1_events_f2) == 1
 
@@ -225,13 +262,29 @@ class TestForkDoubleCounting:
         fork_a = engine.chains["fork-a"]
         fork_b = engine.chains["fork-b"]
 
-        fork_a.append(Event(concept_id="fork-a", event_type=EventType.VALIDATE, actor="v1", payload={"confidence": 0.8}))
-        fork_b.append(Event(concept_id="fork-b", event_type=EventType.VALIDATE, actor="v2", payload={"confidence": 0.9}))
+        fork_a.append(
+            Event(
+                concept_id="fork-a",
+                event_type=EventType.VALIDATE,
+                actor="v1",
+                payload={"confidence": 0.8},
+            )
+        )
+        fork_b.append(
+            Event(
+                concept_id="fork-b",
+                event_type=EventType.VALIDATE,
+                actor="v2",
+                payload={"confidence": 0.9},
+            )
+        )
 
         # Each fork has independent validation state
         # Both are VALIDATED, but they are independent chains with different concept_ids
         assert fork_a.concept_id != fork_b.concept_id, "Forks have distinct identities"
-        assert fork_a.status == fork_b.status == DiscoveryStatus.VALIDATED, "Both independently validated"
+        assert fork_a.status == fork_b.status == DiscoveryStatus.VALIDATED, (
+            "Both independently validated"
+        )
         assert fork_a.verify_integrity()
         assert fork_b.verify_integrity()
 

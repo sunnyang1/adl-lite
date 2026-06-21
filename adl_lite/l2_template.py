@@ -66,8 +66,7 @@ class L2TemplateValidator:
         """
         sections = _parse_sections(body)
         missing = [
-            name for name in ("observation", "reasoning", "conclusion")
-            if not sections.get(name)
+            name for name in ("observation", "reasoning", "conclusion") if not sections.get(name)
         ]
         if missing:
             msg = f"Missing or empty L2 sections: {', '.join(missing)}"

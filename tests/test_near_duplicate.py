@@ -18,10 +18,10 @@ from adl_lite.near_duplicate import (
     suggest_merge,
 )
 
-
 # ---------------------------------------------------------------------------
 # 1. Normalisation
 # ---------------------------------------------------------------------------
+
 
 class TestNormalisation:
     """Test _normalize_name for consistent comparison."""
@@ -45,6 +45,7 @@ class TestNormalisation:
 # ---------------------------------------------------------------------------
 # 2. Jaccard similarity
 # ---------------------------------------------------------------------------
+
 
 class TestJaccardSimilarity:
     """Test word-level Jaccard overlap."""
@@ -90,6 +91,7 @@ class TestJaccardSimilarity:
 # 3. Levenshtein ratio
 # ---------------------------------------------------------------------------
 
+
 class TestLevenshteinRatio:
     """Test edit-distance similarity."""
 
@@ -114,6 +116,7 @@ class TestLevenshteinRatio:
 # ---------------------------------------------------------------------------
 # 4. check_near_duplicate — string input
 # ---------------------------------------------------------------------------
+
 
 class TestCheckNearDuplicateString:
     """Test near-duplicate detection with string candidate."""
@@ -216,6 +219,7 @@ class TestCheckNearDuplicateString:
 # 5. check_near_duplicate — ADLDocument input
 # ---------------------------------------------------------------------------
 
+
 class TestCheckNearDuplicateDocument:
     """Test near-duplicate detection with ADLDocument candidate."""
 
@@ -236,7 +240,9 @@ class TestCheckNearDuplicateDocument:
             )
         return chain
 
-    def _make_doc(self, concept_id: str, en_name: str | None = None, zh_name: str | None = None) -> ADLDocument:
+    def _make_doc(
+        self, concept_id: str, en_name: str | None = None, zh_name: str | None = None
+    ) -> ADLDocument:
         front_matter = ADLFrontMatter(
             adl_type="discovery",
             adl_id=concept_id,
@@ -291,6 +297,7 @@ class TestCheckNearDuplicateDocument:
 # 6. suggest_merge
 # ---------------------------------------------------------------------------
 
+
 class TestSuggestMerge:
     """Test merge suggestion workflow."""
 
@@ -339,6 +346,7 @@ class TestSuggestMerge:
 
     def test_suggest_merge_with_document(self):
         from adl_lite.models import ADLDocument, ADLFrontMatter
+
         front_matter = ADLFrontMatter(
             adl_type="discovery",
             adl_id="disc-new",
@@ -363,6 +371,7 @@ class TestSuggestMerge:
 # ---------------------------------------------------------------------------
 # 7. Paper §5.4 workflow example
 # ---------------------------------------------------------------------------
+
 
 class TestPaperWorkflowExample:
     """Test the specific example from §5.4 of the paper."""
@@ -396,7 +405,7 @@ class TestPaperWorkflowExample:
             assert matches[0]["concept_id"] == "disc-gradient-explosion"
 
         # At high threshold, may not match (they are different words)
-        matches_strict = check_near_duplicate("exploding-gradients", existing, threshold=0.85)
+        _ = check_near_duplicate("exploding-gradients", existing, threshold=0.85)
         # This may or may not match depending on the method
         # The test is just checking that the function works
 

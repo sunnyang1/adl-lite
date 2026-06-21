@@ -7,7 +7,7 @@ from experiments.e21_100k_stress import E21_100kStress
 from experiments.registry import instantiate
 
 
-class TestE21_100kStress:
+class TestE21HundredKStress:
     def test_experiment_registered(self):
         exp = instantiate("E21")
         assert exp is not None

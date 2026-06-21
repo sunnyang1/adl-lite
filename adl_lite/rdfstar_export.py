@@ -44,26 +44,26 @@ def event_to_rdfstar_triple(event) -> str:
     if event.event_type == EventType.VALIDATE:
         status = "adl:status/validated"
         lines = [
-            f'    <<{concept_uri} adl:hasStatus {status}>>',
+            f"    <<{concept_uri} adl:hasStatus {status}>>",
             f'        adl:hasActor "{actor}" ;',
-            f'        adl:hasConfidence {confidence} ;',
+            f"        adl:hasConfidence {confidence} ;",
             f'        adl:hasTimestamp "{timestamp}"^^xsd:dateTime .',
         ]
     elif event.event_type == EventType.REGISTER:
         lines = [
-            f'    <<{concept_uri} rdf:type adl:discovery>>',
+            f"    <<{concept_uri} rdf:type adl:discovery>>",
             f'        adl:hasActor "{actor}" ;',
             f'        adl:hasTimestamp "{timestamp}"^^xsd:dateTime .',
         ]
     elif event.event_type == EventType.DEPRECATE:
         lines = [
-            f'    <<{concept_uri} adl:hasStatus adl:status/deprecated>>',
+            f"    <<{concept_uri} adl:hasStatus adl:status/deprecated>>",
             f'        adl:hasActor "{actor}" ;',
             f'        adl:hasTimestamp "{timestamp}"^^xsd:dateTime .',
         ]
     elif event.event_type == EventType.ARCHIVE:
         lines = [
-            f'    <<{concept_uri} adl:hasStatus adl:status/archived>>',
+            f"    <<{concept_uri} adl:hasStatus adl:status/archived>>",
             f'        adl:hasActor "{actor}" ;',
             f'        adl:hasTimestamp "{timestamp}"^^xsd:dateTime .',
         ]
@@ -71,7 +71,7 @@ def event_to_rdfstar_triple(event) -> str:
         # Generic fallback for other event types
         evt_name = event.event_type.value
         lines = [
-            f'    <<{concept_uri} adl:hasEventType adl:eventType/{evt_name}>>',
+            f"    <<{concept_uri} adl:hasEventType adl:eventType/{evt_name}>>",
             f'        adl:hasActor "{actor}" ;',
             f'        adl:hasTimestamp "{timestamp}"^^xsd:dateTime .',
         ]
@@ -94,12 +94,12 @@ def document_to_rdfstar_turtle(doc: ADLDocument) -> str:
         "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
         "",
         f"adl:{doc.adl_id} a adl:{doc.front_matter.adl_type.value} ;",
-        f'    adl:hasStatus adl:status/{doc.front_matter.status.value} ;',
+        f"    adl:hasStatus adl:status/{doc.front_matter.status.value} ;",
         f'    adl:hasConfidence "{doc.front_matter.confidence}"^^xsd:float ;',
     ]
 
     for validator in doc.front_matter.validators:
-        lines.append(f'    adl:validatedBy adl:agent/{validator} ;')
+        lines.append(f"    adl:validatedBy adl:agent/{validator} ;")
 
     if doc.front_matter.domain:
         lines.append(f'    adl:hasDomain "{doc.front_matter.domain}" ;')

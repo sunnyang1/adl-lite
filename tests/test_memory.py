@@ -43,15 +43,47 @@ class TestHotIndex:
     def test_keys_and_len(self):
         idx = HotIndex()
         assert len(idx) == 0
-        idx.put(ConceptSkeleton(adl_id="a", semantic_type=ADLType.CONCEPT, domain_tag="test", status=DiscoveryStatus.PROVISIONAL, scope="public"))
-        idx.put(ConceptSkeleton(adl_id="b", semantic_type=ADLType.CONCEPT, domain_tag="test", status=DiscoveryStatus.VALIDATED, scope="public"))
+        idx.put(
+            ConceptSkeleton(
+                adl_id="a",
+                semantic_type=ADLType.CONCEPT,
+                domain_tag="test",
+                status=DiscoveryStatus.PROVISIONAL,
+                scope="public",
+            )
+        )
+        idx.put(
+            ConceptSkeleton(
+                adl_id="b",
+                semantic_type=ADLType.CONCEPT,
+                domain_tag="test",
+                status=DiscoveryStatus.VALIDATED,
+                scope="public",
+            )
+        )
         assert len(idx) == 2
         assert idx.keys() == {"a", "b"}
 
     def test_filter_by_status(self):
         idx = HotIndex()
-        idx.put(ConceptSkeleton(adl_id="a", semantic_type=ADLType.CONCEPT, domain_tag="test", status=DiscoveryStatus.PROVISIONAL, scope="public"))
-        idx.put(ConceptSkeleton(adl_id="b", semantic_type=ADLType.CONCEPT, domain_tag="test", status=DiscoveryStatus.VALIDATED, scope="public"))
+        idx.put(
+            ConceptSkeleton(
+                adl_id="a",
+                semantic_type=ADLType.CONCEPT,
+                domain_tag="test",
+                status=DiscoveryStatus.PROVISIONAL,
+                scope="public",
+            )
+        )
+        idx.put(
+            ConceptSkeleton(
+                adl_id="b",
+                semantic_type=ADLType.CONCEPT,
+                domain_tag="test",
+                status=DiscoveryStatus.VALIDATED,
+                scope="public",
+            )
+        )
         results = idx.filter(status=DiscoveryStatus.VALIDATED)
         assert len(results) == 1
         assert results[0].adl_id == "b"
@@ -59,7 +91,10 @@ class TestHotIndex:
     def test_filter_by_domain(self):
         idx = HotIndex()
         sk = ConceptSkeleton(
-            adl_id="a", semantic_type=ADLType.CONCEPT, domain_tag="financial_aml", status=DiscoveryStatus.PROVISIONAL,
+            adl_id="a",
+            semantic_type=ADLType.CONCEPT,
+            domain_tag="financial_aml",
+            status=DiscoveryStatus.PROVISIONAL,
             scope="public",
         )
         idx.put(sk)
@@ -68,15 +103,39 @@ class TestHotIndex:
 
     def test_filter_by_scope_prefix(self):
         idx = HotIndex()
-        idx.put(ConceptSkeleton(adl_id="a", semantic_type=ADLType.CONCEPT, domain_tag="test", status=DiscoveryStatus.PROVISIONAL, scope="private/acme"))
-        idx.put(ConceptSkeleton(adl_id="b", semantic_type=ADLType.CONCEPT, domain_tag="test", status=DiscoveryStatus.PROVISIONAL, scope="public"))
+        idx.put(
+            ConceptSkeleton(
+                adl_id="a",
+                semantic_type=ADLType.CONCEPT,
+                domain_tag="test",
+                status=DiscoveryStatus.PROVISIONAL,
+                scope="private/acme",
+            )
+        )
+        idx.put(
+            ConceptSkeleton(
+                adl_id="b",
+                semantic_type=ADLType.CONCEPT,
+                domain_tag="test",
+                status=DiscoveryStatus.PROVISIONAL,
+                scope="public",
+            )
+        )
         assert len(idx.filter(scope_prefix="private/")) == 1
         assert len(idx.filter(scope_prefix="public")) == 1
         assert len(idx.filter(scope_prefix="shared/")) == 0
 
     def test_clear(self):
         idx = HotIndex()
-        idx.put(ConceptSkeleton(adl_id="a", semantic_type=ADLType.CONCEPT, domain_tag="test", status=DiscoveryStatus.PROVISIONAL, scope="public"))
+        idx.put(
+            ConceptSkeleton(
+                adl_id="a",
+                semantic_type=ADLType.CONCEPT,
+                domain_tag="test",
+                status=DiscoveryStatus.PROVISIONAL,
+                scope="public",
+            )
+        )
         idx.clear()
         assert len(idx) == 0
         assert idx.get("a") is None

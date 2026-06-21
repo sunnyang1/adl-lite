@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -131,6 +130,7 @@ class TestL2TemplateParser:
     def test_extract_wiki_links(self):
         """extract_wiki_links covers the wiki-link regex."""
         from adl_lite.parser import extract_wiki_links
+
         links = extract_wiki_links("See [[Concept A]] and [[Concept B|alias]].")
         assert links == ["Concept A", "Concept B"]
 

@@ -24,7 +24,9 @@ from .registry import register
 class E16MultiAgentContention(BaseExperiment):
     experiment_id = "E16"
     name = "Multi-agent contention simulation"
-    description = "Conflict rate and fork rate under concurrent agent access (single-host simulation)"
+    description = (
+        "Conflict rate and fork rate under concurrent agent access (single-host simulation)"
+    )
 
     def run(self) -> ExperimentResult:
         raw_data = []

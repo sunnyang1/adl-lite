@@ -39,6 +39,7 @@ def _jaccard_similarity(a: str, b: str) -> float:
 def _levenshtein_ratio(a: str, b: str) -> float:
     """Compute Levenshtein similarity ratio (0-1)."""
     import difflib
+
     return difflib.SequenceMatcher(None, a, b).ratio()
 
 
@@ -91,11 +92,13 @@ def check_near_duplicate(
             similarity = _jaccard_similarity(candidate_name, existing_name)
 
         if similarity >= threshold:
-            matches.append({
-                "concept_id": chain.concept_id,
-                "similarity": round(similarity, 4),
-                "method": method,
-            })
+            matches.append(
+                {
+                    "concept_id": chain.concept_id,
+                    "similarity": round(similarity, 4),
+                    "method": method,
+                }
+            )
 
     matches.sort(key=lambda x: x["similarity"], reverse=True)
     return matches
@@ -174,11 +177,13 @@ try:
             similarity = float(util.pytorch_cos_sim(candidate_embedding, existing_embedding)[0][0])
 
             if similarity >= threshold:
-                matches.append({
-                    "concept_id": chain.concept_id,
-                    "similarity": round(similarity, 4),
-                    "method": "embedding",
-                })
+                matches.append(
+                    {
+                        "concept_id": chain.concept_id,
+                        "similarity": round(similarity, 4),
+                        "method": "embedding",
+                    }
+                )
 
         matches.sort(key=lambda x: x["similarity"], reverse=True)
         return matches

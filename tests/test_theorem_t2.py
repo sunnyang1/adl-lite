@@ -13,10 +13,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from adl_lite import ConsensusEngine, DiscoveryStatus, parse_file
-from adl_lite.consensus import ForkManager
 from adl_lite.models import Event, EventChain, EventType
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"

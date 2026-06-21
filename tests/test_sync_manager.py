@@ -394,7 +394,7 @@ class TestEdgeNode:
         # Build a center chain that's ahead (with a future timestamp to maintain monotonicity)
         center = EventChain(concept_id="edge-concept")
 
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
 
         center.append(
             Event(

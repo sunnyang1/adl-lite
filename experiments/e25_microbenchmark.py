@@ -21,7 +21,7 @@ from adl_lite import (
     aggregated_confidence,
     calibrated_confidence,
 )
-from adl_lite.models import DiscoveryStatus
+
 from .base import BaseExperiment, ExperimentResult
 from .registry import register
 

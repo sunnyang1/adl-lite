@@ -4,8 +4,6 @@ Tests for hardened TransparencyAnchor.
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from adl_lite.key_registry import TransparencyAnchor
 from adl_lite.models import Event, EventChain, EventType
 
@@ -35,9 +33,7 @@ def test_verify_anchor_at_commit():
     a = TransparencyAnchor()
     a.anchor([chain])
     with patch("subprocess.run") as m:
-        m.return_value = MagicMock(
-            stdout=f"`{a._compute_anchor([chain])}`\n", returncode=0
-        )
+        m.return_value = MagicMock(stdout=f"`{a._compute_anchor([chain])}`\n", returncode=0)
         assert a.verify_anchor_at_commit("deadbeef") is True
 
 

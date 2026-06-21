@@ -30,3 +30,20 @@ data/aml/ibm_data/
 package-lock.json
 .lark_*.log
 miaoxiang/
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.out
+*.synctex.gz
+*.toc
+docs/paper_ao/main.pdf
+# Work buddy / tool artifacts
+.workbuddy/
+.codebuddy/
+# Planning artifacts
+plan.md
+polish_sections/
+archive/

@@ -128,7 +128,9 @@ class TestColdStorageArchive:
         with pytest.raises(FileNotFoundError):
             storage.unarchive("nonexistent")
 
-    def test_event_chain_archive_wrapper(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_event_chain_archive_wrapper(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.chdir(tmp_path)
         chain = _build_chain("disc-test", 50)
         archive_event = chain.archive(keep_last_n=10)

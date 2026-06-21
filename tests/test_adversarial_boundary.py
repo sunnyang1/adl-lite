@@ -73,9 +73,7 @@ class TestBoundaryB2GenesisReplacement:
         )
 
         # But the content is different
-        assert (
-            chain._events[0].payload != malicious_chain._events[0].payload
-        )
+        assert chain._events[0].payload != malicious_chain._events[0].payload
 
     def test_genesis_replacement_different_status(self):
         """Attacker replaces validated chain with provisional-only chain."""

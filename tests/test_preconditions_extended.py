@@ -14,10 +14,9 @@ from __future__ import annotations
 import time
 from typing import Any
 
-import pytest
-from hypothesis import given, settings, HealthCheck
 import hypothesis.strategies as st
-
+import pytest
+from hypothesis import HealthCheck, given, settings
 from pydantic import ValidationError
 
 from adl_lite.models import (
@@ -29,7 +28,6 @@ from adl_lite.models import (
     PreconditionRule,
     ProvisionalNames,
 )
-
 
 # ---------------------------------------------------------------------------
 # Hypothesis strategies
@@ -331,26 +329,10 @@ def _valid_precondition_rule() -> st.SearchStrategy[PreconditionRule]:
 def _mutated_front_matter(fm: ADLFrontMatter) -> st.SearchStrategy[ADLFrontMatter]:
     """Return a strategy that yields a single-field mutation of *fm*."""
     mutations = [
-        fm.model_copy(
-            update={
-                "confidence": min(1.0, max(0.0, fm.confidence + 0.1))
-            }
-        ),
-        fm.model_copy(
-            update={
-                "confidence": min(1.0, max(0.0, fm.confidence - 0.1))
-            }
-        ),
-        fm.model_copy(
-            update={
-                "novelty": min(1.0, max(0.0, fm.novelty + 0.1))
-            }
-        ),
-        fm.model_copy(
-            update={
-                "novelty": min(1.0, max(0.0, fm.novelty - 0.1))
-            }
-        ),
+        fm.model_copy(update={"confidence": min(1.0, max(0.0, fm.confidence + 0.1))}),
+        fm.model_copy(update={"confidence": min(1.0, max(0.0, fm.confidence - 0.1))}),
+        fm.model_copy(update={"novelty": min(1.0, max(0.0, fm.novelty + 0.1))}),
+        fm.model_copy(update={"novelty": min(1.0, max(0.0, fm.novelty - 0.1))}),
         fm.model_copy(
             update={
                 "status": (
@@ -361,31 +343,13 @@ def _mutated_front_matter(fm: ADLFrontMatter) -> st.SearchStrategy[ADLFrontMatte
             }
         ),
         fm.model_copy(
-            update={
-                "scope": (
-                    "private/org1"
-                    if fm.scope != "private/org1"
-                    else "public"
-                )
-            }
+            update={"scope": ("private/org1" if fm.scope != "private/org1" else "public")}
         ),
-        fm.model_copy(
-            update={
-                "domain": "mutated" if fm.domain != "mutated" else "original"
-            }
-        ),
-        fm.model_copy(
-            update={"validators": fm.validators + ["mutator"]}
-        ),
+        fm.model_copy(update={"domain": "mutated" if fm.domain != "mutated" else "original"}),
+        fm.model_copy(update={"validators": fm.validators + ["mutator"]}),
         fm.model_copy(update={"validators": []}),
         fm.model_copy(
-            update={
-                "adl_id": (
-                    "mutated-id"
-                    if fm.adl_id != "mutated-id"
-                    else "original-id"
-                )
-            }
+            update={"adl_id": ("mutated-id" if fm.adl_id != "mutated-id" else "original-id")}
         ),
     ]
     return st.sampled_from(mutations)
@@ -424,9 +388,7 @@ class TestPreconditionPropertyBased:
         result = rule.check(fm)
         elapsed = time.perf_counter() - start
         assert isinstance(result, bool)
-        assert elapsed < 0.001, (
-            f"Rule evaluation took {elapsed:.4f}s (expected O(1))"
-        )
+        assert elapsed < 0.001, f"Rule evaluation took {elapsed:.4f}s (expected O(1))"
 
     @given(
         rule=_valid_precondition_rule(),
@@ -451,9 +413,7 @@ class TestPreconditionPropertyBased:
         start = time.perf_counter()
         _ = rule.check(mutated)
         elapsed = time.perf_counter() - start
-        assert elapsed < 0.001, (
-            f"Mutated evaluation took {elapsed:.4f}s (expected O(1))"
-        )
+        assert elapsed < 0.001, f"Mutated evaluation took {elapsed:.4f}s (expected O(1))"
 
 
 # ---------------------------------------------------------------------------
@@ -473,9 +433,7 @@ class TestPreconditionInvalidRules:
                 "validators",
             ]
         ),
-        bad_comparator=st.text(min_size=1).filter(
-            lambda s: s not in {c.value for c in Comparator}
-        ),
+        bad_comparator=st.text(min_size=1).filter(lambda s: s not in {c.value for c in Comparator}),
     )
     @settings(max_examples=200, deadline=None)
     def test_invalid_comparator_rejected(

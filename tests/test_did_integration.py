@@ -12,8 +12,7 @@ from adl_lite.did_resolver import (
     verify_did_signature,
 )
 from adl_lite.key_registry import KeyRegistry
-from adl_lite.models import Event, EventChain, EventType
-
+from adl_lite.models import Event, EventType
 
 # ---------------------------------------------------------------------------
 # did:key resolution tests
@@ -129,6 +128,7 @@ def test_sign_and_verify_event():
     )
     # Sign the event hash
     import base64
+
     signature = private_key.sign(event.hash.encode("utf-8"))
     event.signature = base64.b64encode(signature).decode("ascii")
 

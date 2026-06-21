@@ -13,8 +13,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-import pytest
-
+from adl_lite.consensus import ConsensusEngine
 from adl_lite.models import (
     ADLDocument,
     ADLFrontMatter,
@@ -24,7 +23,6 @@ from adl_lite.models import (
     EventChain,
     EventType,
 )
-from adl_lite.consensus import ConsensusEngine
 
 N_APPEND = 10_000
 N_VERIFY = 1_000
@@ -54,7 +52,7 @@ def benchmark_event_append() -> dict[str, Any]:
 
 def benchmark_integrity_verify() -> dict[str, Any]:
     chain = EventChain(concept_id="bench-verify")
-    for i in range(N_VERIFY):
+    for _ in range(N_VERIFY):
         chain.append(
             Event(
                 concept_id="bench-verify",

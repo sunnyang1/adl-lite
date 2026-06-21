@@ -16,8 +16,6 @@ import threading
 import time
 from typing import Any
 
-import pytest
-
 from adl_lite.models import Event, EventChain, EventType
 
 THREAD_COUNTS = [2, 5, 10, 20]
@@ -60,10 +58,7 @@ def _run_benchmark(num_threads: int, events_per_thread: int) -> dict[str, Any]:
             results["thread_times"].append(elapsed)
             results["successful"] += local_success
 
-    threads = [
-        threading.Thread(target=worker, args=(i,))
-        for i in range(num_threads)
-    ]
+    threads = [threading.Thread(target=worker, args=(i,)) for i in range(num_threads)]
 
     t0 = time.perf_counter()
     for t in threads:
@@ -117,12 +112,8 @@ def test_concurrency_stress() -> None:
     """Pytest entry point."""
     rows = run_concurrency_stress()
     for r in rows:
-        assert r["integrity_rate"] == 1.0, (
-            f"Integrity broken for {r['threads']} threads"
-        )
-        assert r["conflicts"] == 0, (
-            f"Unexpected conflicts for {r['threads']} threads"
-        )
+        assert r["integrity_rate"] == 1.0, f"Integrity broken for {r['threads']} threads"
+        assert r["conflicts"] == 0, f"Unexpected conflicts for {r['threads']} threads"
 
 
 if __name__ == "__main__":

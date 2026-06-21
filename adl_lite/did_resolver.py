@@ -20,7 +20,7 @@ import re
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
 # Ed25519 multicodec prefix (0xed01) as varint
-ED25519_MULTICODEC_PREFIX = bytes([0xed, 0x01])
+ED25519_MULTICODEC_PREFIX = bytes([0xED, 0x01])
 
 
 def _base58btc_decode(s: str) -> bytes:
@@ -84,10 +84,10 @@ def resolve_did_key(did: str) -> ed25519.Ed25519PublicKey:
     if not raw_bytes.startswith(ED25519_MULTICODEC_PREFIX):
         raise ValueError(
             f"Unexpected multicodec prefix: expected {ED25519_MULTICODEC_PREFIX.hex()}, "
-            f"got {raw_bytes[:len(ED25519_MULTICODEC_PREFIX)].hex()}"
+            f"got {raw_bytes[: len(ED25519_MULTICODEC_PREFIX)].hex()}"
         )
 
-    pub_key_bytes = raw_bytes[len(ED25519_MULTICODEC_PREFIX):]
+    pub_key_bytes = raw_bytes[len(ED25519_MULTICODEC_PREFIX) :]
     if len(pub_key_bytes) != 32:
         raise ValueError(f"Expected 32-byte Ed25519 public key, got {len(pub_key_bytes)} bytes")
 
@@ -111,9 +111,7 @@ def is_did(actor: str) -> bool:
     return actor.startswith("did:key:")
 
 
-def verify_did_signature(
-    did: str, message: bytes, signature: bytes
-) -> bool:
+def verify_did_signature(did: str, message: bytes, signature: bytes) -> bool:
     """
     Verify a message signature using the public key resolved from a did:key.
 

@@ -111,7 +111,7 @@ class GitSignatureVerifier:
                 return False
             return True
         except Exception as exc:
-            warnings.warn(f"Git signature soft-check failed: {exc}")
+            warnings.warn(f"Git signature soft-check failed: {exc}", stacklevel=2)
             return False
 
     def verify_all_events_in_chain(self, chain: EventChain) -> list[tuple[Event, bool]]:
@@ -120,7 +120,7 @@ class GitSignatureVerifier:
     def verify_event(self, event: Event, repo_path: str = ".") -> bool:
         commit = self._find_commit(event, repo_path)
         if not commit:
-            warnings.warn(f"Event {event.event_id} not found in Git history")
+            warnings.warn(f"Event {event.event_id} not found in Git history", stacklevel=2)
             return False
         return self._verify_commit(commit, event.actor, repo_path)
 
@@ -128,10 +128,22 @@ class GitSignatureVerifier:
         for needle in (event.hash, event.event_id):
             try:
                 r = subprocess.run(
-                    ["git", "-C", repo_path, "log", "--all", "--reverse", "--format=%H", "-S", needle],
-                    capture_output=True, text=True, check=True,
+                    [
+                        "git",
+                        "-C",
+                        repo_path,
+                        "log",
+                        "--all",
+                        "--reverse",
+                        "--format=%H",
+                        "-S",
+                        needle,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=True,
                 )
-                lines = [l for l in r.stdout.strip().split("\n") if l]
+                lines = [line for line in r.stdout.strip().split("\n") if line]
                 if lines:
                     return lines[0]
             except Exception:
@@ -142,10 +154,14 @@ class GitSignatureVerifier:
         pk = self.registry.get_public_key(actor)
         if pk is None:
             return False
-        if subprocess.run(
-            ["git", "-C", repo_path, "verify-commit", commit],
-            capture_output=True, text=True,
-        ).returncode != 0:
+        if (
+            subprocess.run(
+                ["git", "-C", repo_path, "verify-commit", commit],
+                capture_output=True,
+                text=True,
+            ).returncode
+            != 0
+        ):
             return False
         pk_bytes = pk.public_bytes_raw()
         wire = struct.pack(">I", 11) + b"ssh-ed25519" + struct.pack(">I", len(pk_bytes)) + pk_bytes
@@ -154,11 +170,22 @@ class GitSignatureVerifier:
         try:
             os.write(fd, f"{actor} * {key}\n".encode())
             os.close(fd)
-            return subprocess.run(
-                ["git", "-C", repo_path, "-c", f"gpg.ssh.allowedSignersFile={path}",
-                 "verify-commit", commit],
-                capture_output=True, text=True,
-            ).returncode == 0
+            return (
+                subprocess.run(
+                    [
+                        "git",
+                        "-C",
+                        repo_path,
+                        "-c",
+                        f"gpg.ssh.allowedSignersFile={path}",
+                        "verify-commit",
+                        commit,
+                    ],
+                    capture_output=True,
+                    text=True,
+                ).returncode
+                == 0
+            )
         except Exception:
             return False
         finally:
@@ -185,9 +212,7 @@ class TransparencyAnchor:
     def anchor(self, chains: list[EventChain]) -> str:
         self._last_chains = chains
         value = self._compute_anchor(chains)
-        self.anchor_path.write_text(
-            f"# ADL Transparency Anchor\n\n`{value}`\n", encoding="utf-8"
-        )
+        self.anchor_path.write_text(f"# ADL Transparency Anchor\n\n`{value}`\n", encoding="utf-8")
         return value
 
     def verify_anchor(self) -> bool:
@@ -201,7 +226,8 @@ class TransparencyAnchor:
         try:
             r = subprocess.run(
                 ["git", "show", f"{commit_hash}:{self.anchor_path}"],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
             )
             return r.returncode == 0 and f"`{self._compute_anchor(self._last_chains)}`" in r.stdout
         except Exception:
@@ -211,7 +237,9 @@ class TransparencyAnchor:
         try:
             r = subprocess.run(
                 ["git", "log", "--follow", "--format=%H:%at", "--", str(self.anchor_path)],
-                capture_output=True, text=True, check=True,
+                capture_output=True,
+                text=True,
+                check=True,
             )
             history: list[dict[str, str]] = []
             for line in r.stdout.strip().split("\n"):
@@ -221,18 +249,24 @@ class TransparencyAnchor:
                 try:
                     content = subprocess.run(
                         ["git", "show", f"{h}:{self.anchor_path}"],
-                        capture_output=True, text=True, check=True,
+                        capture_output=True,
+                        text=True,
+                        check=True,
                     ).stdout
                     start = content.find("`")
                     end = content.find("`", start + 1) if start != -1 else -1
                     if start != -1 and end != -1:
-                        val = content[start + 1:end]
+                        val = content[start + 1 : end]
                         if len(val) == 64:
-                            history.append({
-                                "commit": h,
-                                "timestamp": datetime.fromtimestamp(int(ts), tz=timezone.utc).isoformat(),
-                                "anchor": val,
-                            })
+                            history.append(
+                                {
+                                    "commit": h,
+                                    "timestamp": datetime.fromtimestamp(
+                                        int(ts), tz=timezone.utc
+                                    ).isoformat(),
+                                    "anchor": val,
+                                }
+                            )
                 except Exception:
                     pass
             return history

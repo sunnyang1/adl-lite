@@ -4,7 +4,14 @@ Tests for adl_lite.calibration.
 
 import pytest
 
-from adl_lite.calibration import CalibrationProfile, MARGINCalibrator, calibrated_confidence
+from adl_lite.calibration import (
+    CalibrationProfile,
+    MARGINCalibrator,
+    band_calibrated_confidence,
+    calibrated_confidence,
+    context_calibrated_confidence,
+    ewma_confidence,
+)
 from adl_lite.models import Event, EventChain, EventType
 
 
@@ -109,14 +116,15 @@ def test_event_type_calibrate_exists():
 # EWMA confidence tests
 # ---------------------------------------------------------------------------
 
-
-from adl_lite.calibration import ewma_confidence, context_calibrated_confidence, band_calibrated_confidence
-
-
 def test_ewma_confidence_single_event():
     """Single VALIDATE event returns its own confidence."""
     events = [
-        Event(concept_id="test", event_type=EventType.VALIDATE, actor="a1", payload={"confidence": 0.8})
+        Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="a1",
+            payload={"confidence": 0.8},
+        )
     ]
     assert ewma_confidence(events, alpha=0.3) == pytest.approx(0.8)
 
@@ -130,8 +138,18 @@ def test_ewma_confidence_no_validate():
 def test_ewma_confidence_time_decay():
     """Higher alpha gives more weight to recent events."""
     events = [
-        Event(concept_id="test", event_type=EventType.VALIDATE, actor="a1", payload={"confidence": 0.5}),
-        Event(concept_id="test", event_type=EventType.VALIDATE, actor="a2", payload={"confidence": 0.9}),
+        Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="a1",
+            payload={"confidence": 0.5},
+        ),
+        Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="a2",
+            payload={"confidence": 0.9},
+        ),
     ]
     # With alpha=0.3: EWMA = 0.3*0.9 + 0.7*0.5 = 0.27 + 0.35 = 0.62
     assert ewma_confidence(events, alpha=0.3) == pytest.approx(0.62)
@@ -140,8 +158,18 @@ def test_ewma_confidence_time_decay():
 def test_ewma_confidence_alpha_high():
     """Alpha=0.9 strongly weights the most recent event."""
     events = [
-        Event(concept_id="test", event_type=EventType.VALIDATE, actor="a1", payload={"confidence": 0.5}),
-        Event(concept_id="test", event_type=EventType.VALIDATE, actor="a2", payload={"confidence": 0.9}),
+        Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="a1",
+            payload={"confidence": 0.5},
+        ),
+        Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="a2",
+            payload={"confidence": 0.9},
+        ),
     ]
     # With alpha=0.9: EWMA = 0.9*0.9 + 0.1*0.5 = 0.81 + 0.05 = 0.86
     assert ewma_confidence(events, alpha=0.9) == pytest.approx(0.86)
@@ -150,9 +178,24 @@ def test_ewma_confidence_alpha_high():
 def test_ewma_confidence_per_actor_max():
     """EWMA uses per-actor max confidence, not all events."""
     events = [
-        Event(concept_id="test", event_type=EventType.VALIDATE, actor="a1", payload={"confidence": 0.5}),
-        Event(concept_id="test", event_type=EventType.VALIDATE, actor="a1", payload={"confidence": 0.9}),
-        Event(concept_id="test", event_type=EventType.VALIDATE, actor="a2", payload={"confidence": 0.7}),
+        Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="a1",
+            payload={"confidence": 0.5},
+        ),
+        Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="a1",
+            payload={"confidence": 0.9},
+        ),
+        Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="a2",
+            payload={"confidence": 0.7},
+        ),
     ]
     # Per-actor max: a1=0.9, a2=0.7
     # EWMA(alpha=0.3): S1=0.9, S2=0.3*0.7+0.7*0.9 = 0.21+0.63 = 0.84
@@ -170,12 +213,19 @@ def test_context_calibrated_confidence_basic(tmp_path):
     calibrator.update_accuracy("agent_1", 0.6, context="aml")
     calibrator.update_accuracy("agent_1", 0.9, context="general")
     events = [
-        Event(concept_id="test", event_type=EventType.VALIDATE, actor="agent_1", payload={"confidence": 0.8})
+        Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="agent_1",
+            payload={"confidence": 0.8},
+        )
     ]
     # In 'aml' context: 0.8 * 0.6 = 0.48
     assert context_calibrated_confidence(events, calibrator, context="aml") == pytest.approx(0.48)
     # In 'general' context: 0.8 * 0.9 = 0.72
-    assert context_calibrated_confidence(events, calibrator, context="general") == pytest.approx(0.72)
+    assert context_calibrated_confidence(events, calibrator, context="general") == pytest.approx(
+        0.72
+    )
 
 
 def test_context_calibrated_fallback_to_global(tmp_path):
@@ -183,7 +233,12 @@ def test_context_calibrated_fallback_to_global(tmp_path):
     calibrator = MARGINCalibrator(path=tmp_path / "cal.yaml")
     calibrator.update_accuracy("agent_1", 0.7)
     events = [
-        Event(concept_id="test", event_type=EventType.VALIDATE, actor="agent_1", payload={"confidence": 0.8})
+        Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="agent_1",
+            payload={"confidence": 0.8},
+        )
     ]
     # Unknown context 'fraud' falls back to global 0.7
     assert context_calibrated_confidence(events, calibrator, context="fraud") == pytest.approx(0.56)
@@ -197,7 +252,12 @@ def test_context_calibrated_fallback_to_global(tmp_path):
 def test_band_calibrated_confidence_low_band():
     """Low-confidence band gets boosted."""
     events = [
-        Event(concept_id="test", event_type=EventType.VALIDATE, actor="a1", payload={"confidence": 0.2})
+        Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="a1",
+            payload={"confidence": 0.2},
+        )
     ]
     # Low band [0.0, 0.3) gets +0.15 → 0.35
     assert band_calibrated_confidence(events) == pytest.approx(0.35)
@@ -206,7 +266,12 @@ def test_band_calibrated_confidence_low_band():
 def test_band_calibrated_confidence_high_band():
     """High-confidence band gets dampened."""
     events = [
-        Event(concept_id="test", event_type=EventType.VALIDATE, actor="a1", payload={"confidence": 0.9})
+        Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="a1",
+            payload={"confidence": 0.9},
+        )
     ]
     # High band [0.7, 1.0] gets -0.10 → 0.80
     assert band_calibrated_confidence(events) == pytest.approx(0.80)
@@ -217,7 +282,12 @@ def test_band_calibrated_confidence_with_calibrator(tmp_path):
     calibrator = MARGINCalibrator(path=tmp_path / "cal.yaml")
     calibrator.update_accuracy("a1", 0.5)
     events = [
-        Event(concept_id="test", event_type=EventType.VALIDATE, actor="a1", payload={"confidence": 0.9})
+        Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="a1",
+            payload={"confidence": 0.9},
+        )
     ]
     # High band correction -0.10 * accuracy 0.5 = -0.05 → 0.85
     assert band_calibrated_confidence(events, calibrator) == pytest.approx(0.85)
@@ -226,8 +296,18 @@ def test_band_calibrated_confidence_with_calibrator(tmp_path):
 def test_band_calibrated_confidence_multiple_actors():
     """Multiple actors in different bands."""
     events = [
-        Event(concept_id="test", event_type=EventType.VALIDATE, actor="a1", payload={"confidence": 0.2}),
-        Event(concept_id="test", event_type=EventType.VALIDATE, actor="a2", payload={"confidence": 0.9}),
+        Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="a1",
+            payload={"confidence": 0.2},
+        ),
+        Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="a2",
+            payload={"confidence": 0.9},
+        ),
     ]
     # a1: 0.2 + 0.15 = 0.35; a2: 0.9 - 0.10 = 0.80; mean = (0.35+0.80)/2 = 0.575
     assert band_calibrated_confidence(events) == pytest.approx(0.575)
@@ -240,8 +320,22 @@ def test_band_calibrated_confidence_multiple_actors():
 
 def test_event_chain_ewma_confidence():
     chain = EventChain(concept_id="test")
-    chain.append(Event(concept_id="test", event_type=EventType.VALIDATE, actor="a1", payload={"confidence": 0.5}))
-    chain.append(Event(concept_id="test", event_type=EventType.VALIDATE, actor="a2", payload={"confidence": 0.9}))
+    chain.append(
+        Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="a1",
+            payload={"confidence": 0.5},
+        )
+    )
+    chain.append(
+        Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="a2",
+            payload={"confidence": 0.9},
+        )
+    )
     assert chain.ewma_confidence(alpha=0.3) == pytest.approx(0.62)
 
 
@@ -249,13 +343,27 @@ def test_event_chain_context_calibrated(tmp_path):
     calibrator = MARGINCalibrator(path=tmp_path / "cal.yaml")
     calibrator.update_accuracy("a1", 0.6, context="aml")
     chain = EventChain(concept_id="test")
-    chain.append(Event(concept_id="test", event_type=EventType.VALIDATE, actor="a1", payload={"confidence": 0.8}))
+    chain.append(
+        Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="a1",
+            payload={"confidence": 0.8},
+        )
+    )
     assert chain.context_calibrated_confidence(calibrator, context="aml") == pytest.approx(0.48)
 
 
 def test_event_chain_band_calibrated():
     chain = EventChain(concept_id="test")
-    chain.append(Event(concept_id="test", event_type=EventType.VALIDATE, actor="a1", payload={"confidence": 0.9}))
+    chain.append(
+        Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="a1",
+            payload={"confidence": 0.9},
+        )
+    )
     assert chain.band_calibrated_confidence() == pytest.approx(0.80)
 
 
@@ -284,4 +392,3 @@ def test_yaml_load_missing_file(tmp_path):
     calibrator.load_profiles()
     assert calibrator._profiles == {}
     assert calibrator._context_profiles == {}
-

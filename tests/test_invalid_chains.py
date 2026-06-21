@@ -8,7 +8,6 @@ integrity tests by providing documented, reproducible invalid examples.
 
 from __future__ import annotations
 
-import pytest
 from adl_lite.models import Event, EventChain, EventType
 
 
@@ -47,8 +46,8 @@ class TestWrongActor:
     """A3: Actor does not exist in registry — for precondition validation."""
 
     def test_wrong_actor_rejected_by_precondition(self):
-        from adl_lite.models import ADLDocument, ADLFrontMatter, ADLActionBlock, ADLType
         from adl_lite.action_executor import ActionExecutor
+        from adl_lite.models import ADLActionBlock, ADLDocument, ADLFrontMatter, ADLType
         from adl_lite.ontology import OntologyManager
 
         chain = EventChain(concept_id="wrong-actor")
@@ -72,7 +71,7 @@ class TestWrongActor:
             params={"confidence": 0.85},
         )
         executor = ActionExecutor(OntologyManager())
-        errors = executor.validate_action(doc, action)
+        _ = executor.validate_action(doc, action)
         # Phase 1: actor identity is self-declared; the action is recorded for audit.
         # Precondition system may or may not reject based on ontology rules.
         # The chain itself remains valid.
@@ -170,8 +169,8 @@ class TestScopeViolation:
     """A8: Actor lacks scope for action."""
 
     def test_scope_violation_detected(self):
-        from adl_lite.validator import ADLValidator
         from adl_lite.models import ADLFrontMatter, ADLType
+        from adl_lite.validator import ADLValidator
 
         chain = EventChain(concept_id="scope-violation")
         chain.append(
@@ -198,7 +197,7 @@ class TestExpiredSeal:
     """A9: Seal timestamp older than threshold."""
 
     def test_expired_seal_detected(self):
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
 
         chain = EventChain(concept_id="expired-seal")
         old_ts = (datetime.now(timezone.utc) - timedelta(days=365)).isoformat()
@@ -231,7 +230,7 @@ class TestForkCycle:
     """A10: Fork reference creates a cycle (A forks B, B forks A)."""
 
     def test_fork_cycle_prevented(self):
-        from adl_lite.consensus import ConsensusEngine, ForkManager
+        from adl_lite.consensus import ConsensusEngine
 
         engine = ConsensusEngine()
         a_id = "cycle-a"
@@ -244,7 +243,7 @@ class TestForkCycle:
 
         # Fork B from A
         engine.fork(a_id, b_id, actor="a", reason="divergence")
-        chain_b = engine.chains[b_id]
+        # chain_b = engine.chains[b_id]
 
         # Now try to fork A from B (would create cycle)
         # The fork_manager should track lineage and prevent cycles

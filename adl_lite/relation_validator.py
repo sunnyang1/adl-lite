@@ -56,7 +56,10 @@ class RelationValidator:
             return False
 
         # Both endpoints deprecated → invalid
-        if source_status == DiscoveryStatus.DEPRECATED and target_status == DiscoveryStatus.DEPRECATED:
+        if (
+            source_status == DiscoveryStatus.DEPRECATED
+            and target_status == DiscoveryStatus.DEPRECATED
+        ):
             return False
 
         return True

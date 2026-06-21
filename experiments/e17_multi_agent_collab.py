@@ -12,10 +12,9 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
-from typing import Any
 
-from adl_lite.models import Event, EventChain, EventType
 from adl_lite.action_executor import ActionExecutor
+from adl_lite.models import Event, EventChain, EventType
 from adl_lite.ontology import OntologyManager
 
 from .base import BaseExperiment, ExperimentResult
@@ -43,7 +42,7 @@ class E17MultiAgentCollaboration(BaseExperiment):
 
     def run(self) -> ExperimentResult:
         mgr = OntologyManager()
-        executor = ActionExecutor(mgr)
+        _ = ActionExecutor(mgr)
 
         # 3 shared concepts, each starts with REGISTER
         concepts = [f"collab-concept-{i}" for i in range(3)]
@@ -135,11 +134,8 @@ class E17MultiAgentCollaboration(BaseExperiment):
         total_invalid_on = sum(r.invalid_attempts for r in on_rounds)
         total_invalid_rejected_on = sum(r.invalid_rejected for r in on_rounds)
 
-        total_valid_off = sum(r.valid_attempts for r in off_rounds)
         total_invalid_off = sum(r.invalid_attempts for r in off_rounds)
-        total_invalid_accepted_off = total_invalid_off - sum(
-            r.invalid_rejected for r in off_rounds
-        )
+        total_invalid_accepted_off = total_invalid_off - sum(r.invalid_rejected for r in off_rounds)
 
         good_transition_rate_on = (
             total_valid_accepted_on / total_valid_on if total_valid_on else 0.0
