@@ -1,4 +1,4 @@
-\begin{thebibliography}{63}
+\begin{thebibliography}{68}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -23,39 +23,6 @@ Robert Arp, Barry Smith, and Andrew~D. Spear.
 \newblock \emph{{Building Ontologies with Basic Formal Ontology}}.
 \newblock MIT Press, 2015.
 
-\bibitem[{Authors TBD}(2025{\natexlab{a}})]{agentsafe2025}
-{Authors TBD}.
-\newblock {AgentSafe: A Unified Governance Framework for LLM Agents}.
-\newblock \emph{arXiv preprint arXiv:2512.03180}, 2025{\natexlab{a}}.
-\newblock Unified governance: design-time + runtime + audit.
-
-\bibitem[{Authors TBD}(2025{\natexlab{b}})]{agenttraces2025}
-{Authors TBD}.
-\newblock {From Agent Traces to Trust: A Unified Provenance Framework for LLM
-  Agents}.
-\newblock \emph{arXiv preprint arXiv:2606.04990}, 2025{\natexlab{b}}.
-\newblock Unified provenance framework; explicitly states unified trace schema
-  is still needed.
-
-\bibitem[{Authors TBD}(2025{\natexlab{c}})]{kya2025}
-{Authors TBD}.
-\newblock {KYA: A Framework-Agnostic Trust Layer for LLM Agents}.
-\newblock \emph{arXiv preprint arXiv:2605.25376}, 2025{\natexlab{c}}.
-\newblock Framework-agnostic trust layer with HMAC chain, ~1,800 ops/sec, 15+
-  adapters, veldt-kya on PyPI.
-
-\bibitem[{Authors TBD}(2025{\natexlab{d}})]{safeagent2025}
-{Authors TBD}.
-\newblock {SafeAgent: A Safety Protocol for LLM Agents}.
-\newblock \emph{arXiv preprint arXiv:2604.17562}, 2025{\natexlab{d}}.
-\newblock Protocol-level safety for LLM agents.
-
-\bibitem[{Authors TBD}(2025{\natexlab{e}})]{talukdar2025}
-{Authors TBD}.
-\newblock {Multi-Agent LLM Ontology Engineering}.
-\newblock \emph{arXiv preprint arXiv:2604.23090}, 2025{\natexlab{e}}.
-\newblock Multi-agent LLM OE: Domain Expert→Manager→Coder→QA workflow.
-
 \bibitem[Barbieri et~al.(2009)Barbieri, Braga, Ceri, Valle, and
   Grossniklaus]{c_sparql}
 Davide~Francesco Barbieri, Daniele Braga, Stefano Ceri, Emanuele~Della Valle,
@@ -71,36 +38,29 @@ Tim Berners-Lee, James Hendler, and Ora Lassila.
 
 \bibitem[Boldachev(2025)]{boldachev2025seo}
 Alexander Boldachev.
-\newblock {Reactive Subject-Event Ontology: Causal Guards over Event Graphs}.
-\newblock In \emph{arXiv preprint arXiv:2503.XXXXX}, 2025.
-
-\bibitem[Calvanese et~al.(2007)Calvanese, De~Giacomo, Lembo, Lenzerini, and
-  Rosati]{dl_lite}
-Diego Calvanese, Giuseppe De~Giacomo, Domenico Lembo, Maurizio Lenzerini, and
-  Riccardo Rosati.
-\newblock {Tractable Reasoning and Efficient Query Answering in Description
-  Logics: The DL-Lite Family}.
-\newblock \emph{Journal of Automated Reasoning}, 39\penalty0 (3):\penalty0
-  385--429, 2007.
-
-\bibitem[Castro and Liskov(1999)]{pbft}
-Miguel Castro and Barbara Liskov.
-\newblock {Practical Byzantine Fault Tolerance}.
-\newblock In \emph{OSDI}, 1999.
+\newblock {Subject-Event Ontology Without Global Time: Foundations and
+  Execution Semantics}.
+\newblock In \emph{arXiv preprint arXiv:2510.18040}, 2025.
 
 \bibitem[Crosby and Wallach(2009)]{crosby_wallach}
 Scott~A. Crosby and Dan~S. Wallach.
 \newblock {Efficient Data Structures for Tamper-Evident Logging}.
 \newblock \emph{USENIX Security}, 2009.
 
-\bibitem[Dahlberg et~al.(2020)Dahlberg, Pulls, Peeters, Westhoff, and
-  Mitton]{key_transparency}
-Rasmus Dahlberg, Tobias Pulls, Roel Peeters, Dirk Westhoff, and Nathalie
-  Mitton.
-\newblock {Efficient Sparse Merkle Trees: Reducing Proof Size for Transparent
-  and Verifiable Data Structures}.
-\newblock In \emph{NordSec}, pages 59--74. Springer, 2020.
-\newblock \doi{10.1007/978-3-030-69906-9_4}.
+\bibitem[Denker et~al.(2022)]{sigstore2022}
+M.~Denker et~al.
+\newblock Sigstore: Software signing for everybody.
+\newblock In \emph{ACM CCS Workshop on Software Supply Chain Offensive
+  Research}, 2022.
+\newblock URL \url{https://www.sigstore.dev}.
+
+\bibitem[Dessureault et~al.(2026)Dessureault, Manzi, Ismaili, Lo, Lalancette,
+  and B{\'e}langer]{compass2026}
+Jean-S{\'e}bastien Dessureault, Alain-Thierry~Iliho Manzi, Soukaina~Alaoui
+  Ismaili, Khadim Lo, Mireille Lalancette, and {\'E}ric B{\'e}langer.
+\newblock {COMPASS}: Multidimensional value alignment for agent orchestration.
+\newblock \emph{arXiv preprint arXiv:2603.11277}, 2026.
+\newblock URL \url{https://arxiv.org/abs/2603.11277}.
 
 \bibitem[Doumanas et~al.(2025)Doumanas, Bouchouras, Soularidis, Kotis, and
   Vouros]{sim_hcome}
@@ -132,6 +92,13 @@ Aldo Gangemi, Nicola Guarino, Claudio Masolo, Alessandro Oltramari, and Luc
 \newblock \emph{Knowledge Engineering and Knowledge Management: Ontologies and
   the Semantic Web}, pages 166--181, 2002.
 
+\bibitem[Gaurav et~al.(2025)Gaurav, Heikkonen, and Chaudhary]{gaas2025}
+Suyash Gaurav, Jukka Heikkonen, and Jatin Chaudhary.
+\newblock Governance-as-a-service: Explicit governance graphs for multi-agent
+  systems.
+\newblock \emph{arXiv preprint arXiv:2508.18765}, 2025.
+\newblock URL \url{https://arxiv.org/abs/2508.18765}.
+
 \bibitem[Glimm et~al.(2014)Glimm, Horrocks, Motik, Stoilos, and
   Wang]{glimm2014hermit}
 Birte Glimm, Ian Horrocks, Boris Motik, Giorgos Stoilos, and Zhe Wang.
@@ -141,6 +108,13 @@ Birte Glimm, Ian Horrocks, Boris Motik, Giorgos Stoilos, and Zhe Wang.
 \newblock ISSN 0168-7433.
 \newblock \doi{10.1007/s10817-014-9305-1}.
 
+\bibitem[Groth et~al.(2023)]{nanopub2023}
+Paul Groth et~al.
+\newblock Nanopublications: A growing resource of provenance-centric scientific
+  claims.
+\newblock \emph{Journal of Biomedical Semantics}, 14\penalty0 (1):\penalty0
+  1--15, 2023.
+
 \bibitem[Gruss et~al.(2023)Gruss, Ciortea, Salvaneschi, and
   Mayer]{crdt_rdf_2023}
 Jonathan Gruss, Andrei Ciortea, Guido Salvaneschi, and Simon Mayer.
@@ -148,6 +122,12 @@ Jonathan Gruss, Andrei Ciortea, Guido Salvaneschi, and Simon Mayer.
 \newblock In \emph{Proceedings of the ISWC 2023 Posters, Demos and Industry
   Tracks}, volume 3632 of \emph{CEUR Workshop Proceedings}, 2023.
 \newblock Applies CRDTs to RDF resource editing in Solid Pods.
+
+\bibitem[Guarino and Welty(2009)]{ontoclean}
+Nicola Guarino and Christopher~A. Welty.
+\newblock An overview of ontoclean.
+\newblock \emph{The Handbook on Ontologies}, pages 151--172, 2009.
+\newblock \doi{10.1007/978-3-540-92673-3_7}.
 
 \bibitem[Guha et~al.(2016)Guha, Brickley, and Macbeth]{guha2016schemaorg}
 Ramanathan~V. Guha, Dan Brickley, and Steve Macbeth.
@@ -210,23 +190,17 @@ Aidan Hogan, Eva Blomqvist, Michael Cochez, Claudia d'Amato, Gerard de~Melo,
 \newblock ISBN 9783031007903.
 \newblock \doi{10.2200/S01125ED1V01Y202109DSK022}.
 
-\bibitem[{IBM}(2024)]{ibm_aml}
-{IBM}.
-\newblock {IBM AML Simulated Dataset}.
-\newblock \url{https://www.kaggle.com/datasets/berkanozdemir/aml-simulated},
-  2024.
-\newblock Accessed: 2025-01-01.
-
 \bibitem[{ICOM-CIDOC}(2014)]{cidoc_crm}
 {ICOM-CIDOC}.
 \newblock {CIDOC Conceptual Reference Model}.
 \newblock ISO 21127:2014, 2014.
 
-\bibitem[Kowalski and Sergot(1986)]{event_calculus}
-Robert Kowalski and Marek Sergot.
-\newblock {A Logic-Based Calculus of Events}.
-\newblock \emph{New Generation Computing}, 4\penalty0 (1):\penalty0 67--95,
-  1986.
+\bibitem[Khan et~al.(2025)Khan, Joyce, and Habiba]{agentsafe2025}
+Rafflesia Khan, Declan Joyce, and Mansura Habiba.
+\newblock {AGENTSAFE: A Unified Framework for Ethical Assurance and Governance
+  in Agentic AI}.
+\newblock \emph{arXiv preprint arXiv:2512.03180}, 2025.
+\newblock Unified governance: design-time + runtime + audit.
 
 \bibitem[Kuhn and Dumontier(2015)]{trusty_uris}
 Tobias Kuhn and Michel Dumontier.
@@ -241,12 +215,25 @@ Tobias Kuhn, Christine Chichester, Michael Krauthammer, and Michel Dumontier.
   Scientific Linked Data}.
 \newblock In \emph{IEEE eScience}, 2015.
 
+\bibitem[Laurie et~al.(2013)Laurie, Langley, and Kasper]{rfc6962}
+Ben Laurie, Adam Langley, and Emilia Kasper.
+\newblock Certificate transparency.
+\newblock RFC 6962, IETF, 2013.
+\newblock URL \url{https://tools.ietf.org/html/rfc6962}.
+
 \bibitem[Le-Phuoc et~al.(2011)Le-Phuoc, Dao-Tran, Xavier~Parreira, and
   Hauswirth]{lephuoc2011cqels}
 Danh Le-Phuoc, Minh Dao-Tran, Josiane Xavier~Parreira, and Manfred Hauswirth.
 \newblock {CQELS: A Native and Adaptive Approach for Unified Querying Linked
   Data Streams}.
 \newblock In \emph{ISWC}, pages 694--709, 2011.
+
+\bibitem[Li(2026)]{openclaw_prism2026}
+Frank Li.
+\newblock Openclaw {PRISM}: A zero-fork, defense-in-depth runtime security
+  layer for tool-augmented {LLM} agents.
+\newblock \emph{arXiv preprint arXiv:2603.11853}, 2026.
+\newblock URL \url{https://arxiv.org/abs/2603.11853}.
 
 \bibitem[Lin(2020)]{dendron2020}
 Kevin Lin.
@@ -255,17 +242,33 @@ Kevin Lin.
 \newblock Open-source knowledge management tool for VSCode. Accessed:
   2025-01-15.
 
+\bibitem[Lin et~al.(2026)Lin, Liu, Chen, Wu, Ning, Liu, Sun, Zhang, Chong,
+  Zhou, and Cao]{safeharness2026}
+Xixun Lin, Yang Liu, Yancheng Chen, Yongxuan Wu, Yucheng Ning, Yilong Liu, Nan
+  Sun, Shun Zhang, Bin Chong, Chuan Zhou, and Yanan Cao.
+\newblock Safeharness: Lifecycle-integrated security architecture for
+  {LLM}-based agent deployment.
+\newblock \emph{arXiv preprint arXiv:2604.13630}, 2026.
+\newblock URL \url{https://arxiv.org/abs/2604.13630}.
+
+\bibitem[Liu et~al.(2026)Liu, Ilyushin, Ni, and Zhu]{safeagent2025}
+Hailin Liu, Eugene Ilyushin, Jie Ni, and Min Zhu.
+\newblock {SafeAgent: A Runtime Protection Architecture for Agentic Systems}.
+\newblock \emph{arXiv preprint arXiv:2604.17562}, 2026.
+\newblock Protocol-level safety for LLM agents.
+
 \bibitem[Martin et~al.(2020)]{automerge}
 Martin~Kleppmann Martin et~al.
 \newblock {Automerge: A JSON CRDT for Real-Time Collaborative Editing}.
 \newblock \emph{ACM SIGOPS Operating Systems Review}, 2020.
 
-\bibitem[McCarthy and Hayes(1969)]{situation_calculus}
-John McCarthy and Patrick~J. Hayes.
-\newblock {Some Philosophical Problems from the Standpoint of Artificial
-  Intelligence}.
-\newblock In \emph{Machine Intelligence 4}, pages 463--502. Edinburgh
-  University Press, 1969.
+\bibitem[Mazzocca et~al.(2024)Mazzocca, Acar, Uluagac, Montanari, Bellavista,
+  and Conti]{mazzocca2024didvc}
+Carlo Mazzocca, Abbas Acar, Selcuk Uluagac, Rebecca Montanari, Paolo
+  Bellavista, and Mauro Conti.
+\newblock A survey on decentralized identifiers and verifiable credentials.
+\newblock \emph{arXiv preprint arXiv:2402.02455}, 2024.
+\newblock URL \url{https://arxiv.org/abs/2402.02455}.
 
 \bibitem[Nicolai and Dadam(2021)]{yjs}
 Kevin Nicolai and Peter Dadam.
@@ -285,20 +288,31 @@ Abel Nieto et~al.
 \newblock \url{https://obsidian.md/}, 2024.
 \newblock Accessed: 2025-01-15.
 
-\bibitem[{Ontotext}(2024)]{graphdb_rdfstar}
-{Ontotext}.
-\newblock {RDF-star Support in GraphDB}.
-\newblock In \emph{GraphDB Documentation}, 2024.
-
 \bibitem[{Palantir Technologies}(2024)]{palantir_fde}
 {Palantir Technologies}.
 \newblock {Palantir Foundry Data Engine}.
 \newblock \url{https://www.palantir.com/platforms/foundry/}, 2024.
 
-\bibitem[Searle(1995)]{searle1995construction}
-John~R. Searle.
-\newblock \emph{{The Construction of Social Reality}}.
-\newblock Free Press, New York, 1995.
+\bibitem[Pautsch et~al.(2025)]{agenthub2025}
+Erik Pautsch et~al.
+\newblock Agenthub: A registry for discoverable, verifiable, and reproducible
+  {AI} agents.
+\newblock \emph{arXiv preprint arXiv:2510.03495}, 2025.
+\newblock URL \url{https://arxiv.org/abs/2510.03495}.
+
+\bibitem[Prakash et~al.(2026)Prakash, Lind, and Sisodia]{ualm2026}
+Chandra Prakash, Mary Lind, and Avneesh Sisodia.
+\newblock {UALM}: Fleet governance for healthcare agent systems.
+\newblock \emph{arXiv preprint arXiv:2601.15630}, 2026.
+\newblock URL \url{https://arxiv.org/abs/2601.15630}.
+
+\bibitem[Quadri(2026)]{kya2025}
+Kolawole Quadri.
+\newblock {KYA: A Framework-Agnostic Trust Layer for Autonomous Systems with
+  Verifiable Provenance and Hierarchical Policy Composition}.
+\newblock \emph{arXiv preprint arXiv:2605.25376}, 2026.
+\newblock Framework-agnostic trust layer with HMAC chain, ~1,800 ops/sec, 15+
+  adapters, veldt-kya on PyPI.
 
 \bibitem[Shapiro et~al.(2011)Shapiro, Pregui{\c c}a, Baquero, and
   Zawirski]{crdts}
@@ -357,12 +371,41 @@ Manu Sporny, Gregg Kellogg, and Markus Lanthaler.
 \newblock {JSON-LD 1.1: A JSON-based Serialization for Linked Data}.
 \newblock W3C, 2020.
 
+\bibitem[Syrnikov et~al.(2026)Syrnikov, Pierucci, Galisai, Prandi, Bisconti,
+  Giarrusso, Sorokoletova, Suriani, and Nardi]{institutional_ai2026}
+Marcantonio~Bracale Syrnikov, Federico Pierucci, Marcello Galisai, Matteo
+  Prandi, Piercosma Bisconti, Francesco Giarrusso, Olga Sorokoletova, Vincenzo
+  Suriani, and Daniele Nardi.
+\newblock Institutional {AI}: Governance graphs and policy engines for agent
+  ecosystems.
+\newblock \emph{arXiv preprint arXiv:2601.11369}, 2026.
+\newblock URL \url{https://arxiv.org/abs/2601.11369}.
+
+\bibitem[Talukder et~al.(2026)Talukder, Mridul, and Seneviratne]{talukdar2025}
+Ahmed Talukder, Maruf~Ahmed Mridul, and Oshani Seneviratne.
+\newblock {Towards Automated Ontology Generation from Unstructured Text: A
+  Multi-Agent LLM Approach}.
+\newblock \emph{arXiv preprint arXiv:2604.23090}, 2026.
+\newblock Multi-agent LLM OE: Domain Expert→Manager→Coder→QA workflow.
+
+\bibitem[Team(2023)]{slsa}
+Google Open Source~Security Team.
+\newblock Supply chain levels for software artifacts (slsa).
+\newblock Technical report, OpenSSF, 2023.
+\newblock URL \url{https://slsa.dev}.
+
 \bibitem[{TerminusDB/DFRNT}(2024)]{terminusdb}
 {TerminusDB/DFRNT}.
 \newblock {TerminusDB: A Git-like Knowledge Graph Database}.
 \newblock \url{https://terminusdb.org/}, 2024.
 \newblock Open-source graph database with immutable, version-controlled RDF
   storage. Accessed: 2025-01-15.
+
+\bibitem[Torres-Arias et~al.(2019)]{in_toto}
+Santiago Torres-Arias et~al.
+\newblock in-toto: Providing farm-to-table guarantees for bits and bytes.
+\newblock In \emph{28th USENIX Security Symposium}, 2019.
+\newblock URL \url{https://in-toto.io}.
 
 \bibitem[Tuan and Sanyal(2026)]{tuan2026ontology}
 Thanh~Luong Tuan and Abhijit Sanyal.
@@ -395,12 +438,6 @@ Willem~Robert van Hage, Veronique Malaise, Gerben de~Vries, Guus Schreiber, and
 \newblock {RDF Dataset Canonicalization (URDNA2015)}.
 \newblock \url{https://www.w3.org/TR/rdf-canon/}, 2023.
 
-\bibitem[{W3C DID Working Group}(2022)]{dids}
-{W3C DID Working Group}.
-\newblock {Decentralized Identifiers (DIDs) v1.0}.
-\newblock W3C Recommendation, 2022.
-\newblock URL \url{https://www.w3.org/TR/did-core/}.
-
 \bibitem[{W3C OWL Working Group}(2012)]{owl2}
 {W3C OWL Working Group}.
 \newblock {OWL 2 Web Ontology Language: Document Overview}.
@@ -421,6 +458,16 @@ Willem~Robert van Hage, Veronique Malaise, Gerben de~Vries, Guus Schreiber, and
 \newblock {Verifiable Credential Data Integrity 1.0}.
 \newblock W3C Candidate Recommendation, 2024.
 
+\bibitem[Wang et~al.(2026)Wang, Zhang, Cai, Liu, Sun, Sun, Wu, Zhang, and
+  Zhu]{agenttraces2025}
+Yiqi Wang, Jiaqi Zhang, Taotao Cai, Zirui Liu, Qingqiang Sun, Zequn Sun,
+  Zhangkai Wu, Mingkai Zhang, and Yanming Zhu.
+\newblock {From Agent Traces to Trust: Evidence Tracing and Execution
+  Provenance in LLM Agents}.
+\newblock \emph{arXiv preprint arXiv:2606.04990}, 2026.
+\newblock Unified provenance framework; explicitly states unified trace schema
+  is still needed.
+
 \bibitem[Wittgenstein(1922)]{wittgenstein_tractatus}
 Ludwig Wittgenstein.
 \newblock \emph{{Tractatus Logico-Philosophicus}}.
@@ -431,9 +478,11 @@ Greg Young.
 \newblock {Event Sourcing: State from Events}.
 \newblock \emph{CodeBetter}, 2010.
 
-\bibitem[Young(2012)]{cqrs}
-Greg Young.
-\newblock {Command and Query Responsibility Segregation (CQRS) Pattern}.
-\newblock \emph{Microsoft Patterns \& Practices}, 2012.
+\bibitem[Zhou(2026)]{zhou2026governance}
+Ziling Zhou.
+\newblock Cryptographic binding and reproducibility verification for {AI} agent
+  tool use.
+\newblock \emph{arXiv preprint arXiv:2603.14332}, 2026.
+\newblock URL \url{https://arxiv.org/abs/2603.14332}.
 
 \end{thebibliography}

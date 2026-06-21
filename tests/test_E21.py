@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import experiments.e21_100k_stress  # noqa: F401
-from experiments.e21_100k_stress import E21_100kStress
+from experiments.e21_100k_stress import E21HundredKStress
 from experiments.registry import instantiate
 
 
@@ -11,10 +11,10 @@ class TestE21HundredKStress:
     def test_experiment_registered(self):
         exp = instantiate("E21")
         assert exp is not None
-        assert isinstance(exp, E21_100kStress)
+        assert isinstance(exp, E21HundredKStress)
 
     def test_experiment_runs_and_produces_numbers(self):
-        exp = E21_100kStress()
+        exp = E21HundredKStress()
         result = exp._run_wrapper()
         assert result.status in ("passed", "partial", "failed")
         assert "verify_time_s" in result.metrics
@@ -26,7 +26,7 @@ class TestE21HundredKStress:
         assert result.duration_ms > 0
 
     def test_metrics_are_positive(self):
-        exp = E21_100kStress()
+        exp = E21HundredKStress()
         result = exp.run()
         assert result.metrics["verify_time_s"] >= 0
         assert result.metrics["memory_peak_mb"] >= 0
@@ -34,7 +34,7 @@ class TestE21HundredKStress:
         assert result.metrics["total_time_s"] > 0
 
     def test_raw_data_has_one_row(self):
-        exp = E21_100kStress()
+        exp = E21HundredKStress()
         result = exp.run()
         assert len(result.raw_data) == 1
         row = result.raw_data[0]
