@@ -1,0 +1,44 @@
+{
+  "concept_id": "duplicate-event",
+  "description": "Two events share the same event_id",
+  "expected_error": "previous_event_id mismatch at duplicate insertion point",
+  "events": [
+    {
+      "event_id": "7c4584e22f3647b3a4353d52d082ac0e",
+      "concept_id": "duplicate-event",
+      "event_type": "register",
+      "actor": "a",
+      "timestamp": "2026-06-14T02:34:13.586422+00:00",
+      "payload": {},
+      "previous_event_id": null,
+      "hash": "",
+      "_prev_hash": ""
+    },
+    {
+      "event_id": "3438947854594126bc4276091330cc42",
+      "concept_id": "duplicate-event",
+      "event_type": "validate",
+      "actor": "b",
+      "timestamp": "2026-06-14T02:34:13.586423+00:00",
+      "payload": {
+        "confidence": 0.8
+      },
+      "previous_event_id": null,
+      "hash": "",
+      "_prev_hash": ""
+    },
+    {
+      "event_id": "3438947854594126bc4276091330cc42",
+      "concept_id": "duplicate-event",
+      "event_type": "validate",
+      "actor": "c",
+      "timestamp": "2026-06-14T02:34:13.586424+00:00",
+      "payload": {
+        "confidence": 0.9
+      },
+      "previous_event_id": null,
+      "hash": "",
+      "_prev_hash": ""
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "concept_id": "invalid-transition",
+  "description": "ARCHIVE without VALIDATE \u2014 invalid lifecycle transition",
+  "expected_error": "semantic: provisional -> archive without validated intermediate",
+  "events": [
+    {
+      "event_id": "54ecfad07fc3414eaa8b9b46790401be",
+      "concept_id": "invalid-transition",
+      "event_type": "register",
+      "actor": "a",
+      "timestamp": "2026-06-14T02:34:13.586119+00:00",
+      "payload": {},
+      "previous_event_id": null,
+      "hash": "",
+      "_prev_hash": ""
+    },
+    {
+      "event_id": "72668335cc3f4eff83a87afa19316abd",
+      "concept_id": "invalid-transition",
+      "event_type": "archive",
+      "actor": "a",
+      "timestamp": "2026-06-14T02:34:13.586125+00:00",
+      "payload": {},
+      "previous_event_id": null,
+      "hash": "",
+      "_prev_hash": ""
+    }
+  ]
+}

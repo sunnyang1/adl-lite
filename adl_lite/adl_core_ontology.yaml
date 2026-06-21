@@ -170,6 +170,38 @@ actions:
     preconditions: []
     side_effects: []
 
+  relate:
+    description: Establish a typed relation between concepts
+    allowed_on: [concept, relation]
+    triggers_transition: null
+    required_params: [target_concept_id, predicate]
+    preconditions: []
+    side_effects: []
+
+  evidence:
+    description: Attach evidence to a concept or relation
+    allowed_on: [concept, relation, evidence]
+    triggers_transition: null
+    required_params: []
+    preconditions: []
+    side_effects: []
+
+  seal:
+    description: Apply a formal seal for cryptographic attestation
+    allowed_on: [concept, formal_seal]
+    triggers_transition: null
+    required_params: []
+    preconditions: []
+    side_effects: []
+
+  revoke:
+    description: Explicitly revoke a relation between concepts
+    allowed_on: [concept, relation]
+    triggers_transition: null
+    required_params: [target_concept_id, predicate]
+    preconditions: []
+    side_effects: []
+
 # Collusion resistance: minimum distinct validators required for VALIDATE
 # Paper §5.2.3: N_min ≥ 2 recommended for production deployments
 # Current default: 1 (development / single-agent mode)

@@ -1,0 +1,129 @@
+@prefix adl: <http://adl-lite.org/ontology#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+
+<http://adl-lite.org/shacl>
+    a sh:NodeShape ;
+    rdfs:label "ADL Lite SHACL Shapes" ;
+    rdfs:comment "SHACL shape definitions for validating ADL Lite RDF data." ;
+    sh:declare [
+        sh:prefix "adl" ;
+        sh:namespace <http://adl-lite.org/ontology#> ;
+    ] .
+
+# ---------------------------------------------------------------------------
+# adl:EventShape
+# ---------------------------------------------------------------------------
+
+adl:EventShape
+    a sh:NodeShape ;
+    sh:targetClass adl:Event ;
+    rdfs:label "Event Shape" ;
+    rdfs:comment "Constraints on instances of adl:Event." ;
+    sh:property [
+        sh:path adl:eventType ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:in ( "REGISTER" "VALIDATE" "DEPRECATE" "FORK" "ARCHIVE" "EVIDENCE" "SNAPSHOT" "RELATE" "SEAL" ) ;
+        sh:name "event type" ;
+        sh:description "The type of the event, drawn from the ADL Lite event-type enumeration." ;
+    ] ;
+    sh:property [
+        sh:path adl:hasHash ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:pattern "^[a-f0-9]{64}$" ;
+        sh:name "event hash" ;
+        sh:description "SHA-256 hash of the canonicalised event, expressed as a 64-character hex string." ;
+    ] ;
+    sh:property [
+        sh:path prov:wasAssociatedWith ;
+        sh:class prov:Agent ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:name "was associated with" ;
+        sh:description "The PROV agent responsible for authoring the event." ;
+    ] ;
+    sh:property [
+        sh:path prov:startedAtTime ;
+        sh:datatype xsd:dateTime ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:name "started at time" ;
+        sh:description "Timestamp at which the event was authored." ;
+    ] .
+
+# ---------------------------------------------------------------------------
+# adl:EventChainShape
+# ---------------------------------------------------------------------------
+
+adl:EventChainShape
+    a sh:NodeShape ;
+    sh:targetClass adl:EventChain ;
+    rdfs:label "Event Chain Shape" ;
+    rdfs:comment "Constraints on instances of adl:EventChain." ;
+    sh:property [
+        sh:path adl:hasEvent ;
+        sh:class adl:Event ;
+        sh:minCount 1 ;
+        sh:name "has event" ;
+        sh:description "An event chain must contain at least one event." ;
+    ] ;
+    sh:property [
+        sh:path adl:hasConceptID ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:name "has concept ID" ;
+        sh:description "Unique identifier of the concept described by the event chain." ;
+    ] ;
+    sh:property [
+        sh:path adl:hasGenesisHash ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:pattern "^[a-f0-9]{64}$" ;
+        sh:name "has genesis hash" ;
+        sh:description "SHA-256 hash of the genesis event, anchoring the chain." ;
+    ] .
+
+# ---------------------------------------------------------------------------
+# adl:ConceptShape
+# ---------------------------------------------------------------------------
+
+adl:ConceptShape
+    a sh:NodeShape ;
+    sh:targetClass adl:Concept ;
+    rdfs:label "Concept Shape" ;
+    rdfs:comment "Constraints on instances of adl:Concept." ;
+    sh:property [
+        sh:path adl:hasConceptID ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:name "has concept ID" ;
+        sh:description "Unique identifier of the concept." ;
+    ] ;
+    sh:property [
+        sh:path adl:hasStatus ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:in ( "provisional" "validated" "deprecated" "forked" "archived" ) ;
+        sh:name "has status" ;
+        sh:description "Discovery status derived from the event chain." ;
+    ] ;
+    sh:property [
+        sh:path adl:hasConfidence ;
+        sh:datatype xsd:float ;
+        sh:minCount 0 ;
+        sh:maxCount 1 ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 1.0 ;
+        sh:name "has confidence" ;
+        sh:description "Confidence score in the range [0,1]." ;
+    ] .

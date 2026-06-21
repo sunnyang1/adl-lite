@@ -1,0 +1,20 @@
+{
+  "concept_id": "unauthorized-validate",
+  "description": "VALIDATE event without prior REGISTER \u2014 semantic lifecycle violation",
+  "expected_error": "semantic: validate without register (structurally valid but semantically invalid)",
+  "events": [
+    {
+      "event_id": "242a46780988425dbb704e460dd67a99",
+      "concept_id": "unauthorized-validate",
+      "event_type": "validate",
+      "actor": "a",
+      "timestamp": "2026-06-14T02:34:13.585908+00:00",
+      "payload": {
+        "confidence": 0.85
+      },
+      "previous_event_id": null,
+      "hash": "",
+      "_prev_hash": ""
+    }
+  ]
+}

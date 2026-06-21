@@ -1,0 +1,20 @@
+{
+  "concept_id": "scope-violation",
+  "description": "Actor validates concept outside their scope",
+  "expected_error": "semantic: actor scope insufficient for action",
+  "events": [
+    {
+      "event_id": "f1a7bedf29b040eba4ebdd696d74b75e",
+      "concept_id": "scope-violation",
+      "event_type": "register",
+      "actor": "user/bob",
+      "timestamp": "2026-06-14T02:34:13.586231+00:00",
+      "payload": {
+        "scope": "private/acme-corp"
+      },
+      "previous_event_id": null,
+      "hash": "",
+      "_prev_hash": ""
+    }
+  ]
+}

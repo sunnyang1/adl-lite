@@ -4,14 +4,14 @@ ADL Lite inverts the object-first stance of conventional operational ontologies 
 
 \subsection{Categories and Taxonomy}\label{subsec:categories}
 
-ADL Lite's categories are analyzed with reference to BFO \cite{bfo}, DOLCE \cite{dolce}, and UFO \cite{ufo}. Table~\ref{tab:upper-ontology-mapping} presents the cross-mapping.
+We analyze ADL Lite's categories with reference to BFO \cite{bfo}, DOLCE \cite{dolce}, and UFO \cite{ufo}. Table~\ref{tab:upper-ontology-mapping} presents the cross-mapping.
 
 \begin{table}[htbp]
 \centering
 \small
 \caption{Cross-mapping of ADL Lite categories to upper ontologies. Entries marked ``---'' indicate intentional non-alignment; those marked ``\texorpdfstring{$\approx$}{~}'' denote approximate correspondence.}
 \label{tab:upper-ontology-mapping}
-\begin{tabular}{@{}p{1.6cm}p{2.4cm}p{2.2cm}p{2.0cm}p{3.6cm}@{}}
+\begin{tabularx}{\textwidth}{@{}p{1.4cm}p{2.5cm}XXXX@{}}
 \toprule
 \textbf{ADL Lite} & \textbf{BFO 2.0} & \textbf{DOLCE} & \textbf{UFO} & \textbf{Note} \\
 \midrule
@@ -25,7 +25,7 @@ Actor & \texttt{agent} & \texttt{physical agent}$\approx$ & \texttt{Agent} & Can
 Payload & \texttt{information content entity} & \texttt{information object} & \texttt{Information Entity} & Structured data carried by event \\
 Hash & \texttt{generically dependent continuant} & --- & --- & Cryptographic identifier; no physical bearer \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \subsubsection{Event as Occurrent/Perdurant}
@@ -34,7 +34,7 @@ In BFO, an \emph{occurrent} unfolds in time and is ontologically distinct from \
 
 \subsubsection{Concept as Generically Dependent Continuant}
 
-An ADL Lite concept is a \emph{generically dependent continuant} (GDC) in BFO terms \cite{bfo}: it depends on some continuant for its existence, but not on any \emph{specific} one. It depends on its EventChain \emph{as an ICE}---the serialized chain record borne by the Markdown file---rather than on the occurrent process itself.\footnote{In BFO and IAO \cite{iao}, the dependence chain is: Concept $\xrightarrow{\text{GDC}}$ ICE(EventChain\_record) $\xrightarrow{\text{concretized\_by}}$ Markdown\_file. A GDC cannot depend on an occurrent, but can depend on the ICE that documents it \cite{bfo,fine1995ontologicaldependence}.} The concept's identity is determined by the \emph{genesis event} (the first event in the chain), not by the totality of events---analogous to a poem, which depends on some physical copy for its existence but not on any specific one. In DOLCE, the closest category is \emph{non-physical object} \cite{dolce}; in UFO, concepts are \emph{conceptual entities} \cite{ufo}.
+An ADL Lite concept is a \emph{generically dependent continuant} (GDC) in BFO terms \cite{bfo}: it depends on some continuant for its existence, but not on any \emph{specific} one. It depends on its EventChain \emph{as an ICE}---the serialized chain record borne by the Markdown file---rather than on the occurrent process itself.\footnote{In BFO and IAO \cite{iao}, the dependence chain is: concept $\xrightarrow{\text{GDC}}$ ICE(EventChain-record) $\xrightarrow{\text{concretized\_by}}$ Markdown\_file. A GDC cannot depend on an occurrent, but can depend on the ICE that documents it \cite{bfo,fine1995ontologicaldependence}.} The concept's identity is determined by the \emph{genesis event} (the first event in the chain), not by the totality of events---analogous to a poem, which depends on some physical copy for its existence but not on any specific one. In DOLCE, the closest category is \emph{non-physical object} \cite{dolce}; in UFO, concepts are \emph{conceptual entities} \cite{ufo}.
 
 \subsubsection{EventChain as Process}
 
@@ -55,16 +55,16 @@ ADL Lite's L3 relation blocks assert typed edges between concepts. In BFO, these
 \end{multline}
 where $\text{Revoked}(c_1, c_2, p, t)$ holds if and only if there exists a revocation event $e'$ with $e'.\text{timestamp} \leq t$.
 
-\textbf{Revocation.} A relator is terminated by a revocation event $e_{\text{rev}}$:
+\textbf{Revocation.} A relator is terminated by an explicit \texttt{REVOKE} event $e_{\text{rev}}$:
 \begin{multline}\label{eq:relation-revocation}
-    \text{Revoked}(c_1, c_2, p, t) \iff \exists e_{\text{rev}} \in C.\; e_{\text{rev}}.\text{type} = \text{RELATE} \land e_{\text{rev}}.\text{timestamp} \leq t \land \\
-    \bigl(e_{\text{rev}}.\text{payload}.\text{confidence} = 0.0 \lor e_{\text{rev}}.\text{payload}.\text{revoked} = \text{true}\bigr)
+    \text{Revoked}(c_1, c_2, p, t) \iff \exists e_{\text{rev}} \in C.\; e_{\text{rev}}.\text{type} = \text{REVOKE} \land e_{\text{rev}}.\text{timestamp} \leq t \land \\
+    e_{\text{rev}}.\text{payload}.\text{target\_concept\_id} = c_2 \land e_{\text{rev}}.\text{payload}.\text{predicate} = p
 \end{multline}
 
-\textbf{Note on revocation semantics.} We deliberately overload the \texttt{RELATE} event for revocation rather than introducing a dedicated \texttt{REVOKE} event type. This is an \emph{epistemic weakening} design: a relation with \texttt{confidence}=0 is not ``deleted'' from the chain (it remains auditable as an ICE); it is ``weakened to zero belief.'' The relator continues to exist as an ICE (the L3 block remains in the Markdown file), but its mediation function is suspended. This differs from \emph{cessation semantics} (a \texttt{REVOKE} event would explicitly terminate the relator). We choose epistemic weakening because: (i)~it preserves complete audit trails (no event types are removed), (ii)~it aligns with the event-first principle that all state changes are new events, not deletions, and (iii)~it allows graded revocation (\texttt{confidence}=0.3 means ``partially weakened'' rather than ``terminated''). Importantly, \emph{HoldsAt does not depend on confidence}: it checks only whether a Revoked event exists. Confidence is epistemic strength, not an existence condition. Introducing a dedicated \texttt{REVOKE} event type would not change Theorems~1--6, because \texttt{REVOKE} would be a communication event (not in $\Sigma_{\text{life}}$), so it would not affect $\delta(C)$. Full cessation semantics via a dedicated \texttt{REVOKE} event type is planned as a future extension (FW12).\par
-\textbf{Design choice: epistemic weakening vs. cessation.} The two approaches differ in four dimensions. \emph{Audit completeness:} epistemic weakening preserves all events (the revoked relation remains in the chain as an ICE), whereas cessation semantics could remove the relator entirely (or mark it as terminated). \emph{Ontological status:} under weakening, the relator's existential status is unchanged---it still exists as an ICE but with suspended mediation; under cessation, the relator ceases to exist. \emph{Downstream reasoning:} weakening allows graded confidence (partial revocation), while cessation is binary (revoked or not). \emph{Event algebra:} weakening requires no new event types, keeping $\Sigma$ closed; cessation requires extending $\Sigma$ with \texttt{REVOKE}. The trade-off is that weakening conflates epistemic and existential dimensions, which may surprise consumers expecting clean separation. A future \texttt{REVOKE} event type (FW12) would provide explicit cessation while preserving the event-first audit trail.
+\textbf{Note on revocation semantics.} ADL Lite supports two distinct semantics for relation termination. \emph{Cessation semantics} (Equation~\ref{eq:relation-revocation}): a dedicated \texttt{REVOKE} event explicitly terminates the relator. The relator ceases to exist as a mediator; the record (the L3 block and the \texttt{REVOKE} event itself) remains as an auditable ICE. \emph{Epistemic weakening} (alternative): a \texttt{RELATE} event with \texttt{confidence}=0 weakens the relation to zero belief without formally terminating it. The relator continues to exist as an ICE but its mediation function is suspended. This allows graded weakening (\texttt{confidence}=0.3 means ``partially weakened''). Importantly, \emph{HoldsAt does not depend on confidence}: it checks only whether a \texttt{REVOKE} event exists (Equation~\ref{eq:relation-revocation}). Confidence is epistemic strength, not an existence condition. We recommend \emph{cessation semantics} as the default because it preserves the clean separation between existential status (the relator holds or not) and epistemic strength (how confident we are). The \texttt{REVOKE} event is a communication event (not in $\Sigma_{\text{life}}$), so it does not affect $\delta(C)$; Theorems~1--6 are unchanged. Epistemic weakening is retained for backward compatibility and for use cases requiring graded belief revision.
 
-\textbf{Role constraints.} For a relator to hold, both relata must exist and must not be in terminal status:
+\textbf{Why HoldsAt is independent of confidence.} The `HoldsAt` predicate (Equation~1) checks only whether a \texttt{REVOKE} event exists in the chain, not the confidence of any \texttt{RELATE} event. This separation reflects the ontological distinction between \emph{existence} (does the relator hold at time $t$?) and \emph{epistemic strength} (how confident are we in the relation?). Confidence is a payload field of \texttt{RELATE} events that informs downstream consumers (e.g., a query engine may rank relations by confidence), but it does not determine whether the relation exists. A relation with confidence 0.3 still holds; a relation with a \texttt{REVOKE} event does not hold, regardless of the confidence of the original \texttt{RELATE}. This design keeps existential conditions binary and epistemic conditions graded, avoiding the conflation that motivated the \texttt{REVOKE} event type (see above).\par
+\textbf{Optional thresholded variant.} For systems that prefer belief-graded relation existence, a thresholded variant $\text{HoldsAt}_\theta$ can be defined as $\text{HoldsAt}(c_1, c_2, p, t) \land \exists e \in C.\; e.\text{type} = \text{RELATE} \land e.\text{payload}.\text{confidence} \geq \theta$. This is a consumer-side filter, not a core ontology axiom, and does not affect the event-first derivation semantics.
 \begin{multline}\label{eq:relation-role-constraints}
     \text{HoldsAt}\bigl(\text{Relation}(c_1, c_2, p), t\bigr) \rightarrow \text{Exists}(c_1, t) \land \text{Exists}(c_2, t) \land \neg\text{Deprecated}(c_1, t) \land \\
     \neg\text{Deprecated}(c_2, t) \land \neg\text{Archived}(c_1, t) \land \neg\text{Archived}(c_2, t)
@@ -103,18 +103,35 @@ EventChain-record ($R$): the serialized, hash-linked JSON/YAML representation---
 \end{enumerate}
 
 \paragraph{Resolving the apparent ambiguity.}
-$\text{EventChain\_process}$ and $\text{EventChain\_record}$ are distinct (Axioms I3--I4); the process causally produces the record (D4), which bears the concept (D2). A GDC cannot ontologically depend on an occurrent (D5), but can depend on the ICE that documents it (D2--D3). The concept's causal origin is traceable to the genesis event (the \texttt{REGISTER} occurrence), but its ontological bearer is the record. This resolves the category mistake.
+$\text{EventChain-process}$ and $\text{EventChain-record}$ are distinct (Axioms I3--I4); the process causally produces the record (D4), which bears the concept (D2). A GDC cannot ontologically depend on an occurrent (D5), but can depend on the ICE that documents it (D2--D3). The concept's causal origin is traceable to the genesis event (the \texttt{REGISTER} occurrence), but its ontological bearer is the record. This resolves the category mistake.
 \subsubsection{Action as Planned Process / Intentional Event}
 
 ADL Lite's L4 action types are \emph{planned processes} in BFO (processes realizing a plan) \cite{bfo} and \emph{actions} in UFO (intentional events performed by agents to achieve goals) \cite{ufo}. The precondition system captures the plan aspect: an action can only be performed if certain conditions hold (e.g., \texttt{VALIDATE} requires status \texttt{provisional}), reflecting ontological norms governing which events are permissible in which states.
 
 \subsection{Identity Conditions}\label{subsec:identity-conditions}
 
-Identity conditions are formalized in Section~\ref{subsec:two-level-account}: events by UUID (Axiom I1), concepts by genesis hash (Axiom I2), and chains by concept plus ordered events (Axioms I3--I4). Fork creates a new concept (new genesis hash); deprecation and re-activation are status changes, not identity changes. We evaluate the concept's identity through the OntoClean lens \cite{ontoclean}.
+We formalize identity conditions in Section~\ref{subsec:two-level-account}: events by UUID (Axiom I1), concepts by genesis hash (Axiom I2), and chains by concept plus ordered events (Axioms I3--I4). Fork creates a new concept (new genesis hash); deprecation and re-activation are status changes, not identity changes. We evaluate the concept's identity through the OntoClean lens \cite{ontoclean}.
 
 \textbf{Registry-item identity versus domain-concept identity.} We distinguish two senses of ``concept'' in ADL Lite. \emph{Registry-item identity} (operational) is fixed by the genesis hash; it is the identity criterion used by the EventChain data structure. Two registry entries with the same genesis hash are the same item, regardless of their content. \emph{Domain-concept identity} (intensional) is determined by the meaning, definition, and extensional content of the capability. Two registry items (different genesis hashes) may refer to the same domain concept (e.g., ``gradient-explosion'' and ``exploding-gradients'' in Section~\ref{subsec:domain-applicability}). The genesis-hash criterion provides \emph{registry-item} identity, not \emph{domain-concept} identity. It is intentionally operational: the registry must distinguish items even when their content is identical (to handle independent discovery by different agents). Domain-level identity is mediated by L3 relations (e.g., \texttt{isomorphic-to}, \texttt{specialisation-of}). This is analogous to a library catalog, in which each entry has a unique ISBN (registry identity) but multiple entries may refer to the same intellectual work (domain identity).
 
 \textbf{Rigidity.} A concept's genesis hash is essential---it cannot change without the entity ceasing to exist---while its status is non-rigid. This aligns with OntoClean's recommendation to use rigid properties as identity criteria.
+
+\subsubsection{Domain-Level Identity Alignment and Merge Conditions}\label{subsubsec:domain-identity-alignment}
+
+While the genesis hash provides operational identity, domain-level identity (whether two chains denote the same concept) is determined by human curators or domain experts, not by the registry. ADL Lite does not support automatic chain merging: two chains with different genesis hashes are always distinct registry items. Domain-level consolidation is a governance decision recorded via L3 relations and \textsc{DEPRECATE} events.
+
+\textbf{Normative L3 predicates for identity alignment.} We recommend the following predicates for domain-level identity consolidation, ordered from strongest to weakest claim:
+\begin{enumerate}[label=(\roman*)]
+    \item \texttt{isomorphic-to}: Two concepts have identical structure and content but different genesis hashes (e.g., two independent registrations of the same laundering pattern). This is the strongest identity claim short of genesis equality.
+    \item \texttt{specialisation-of}: One concept is a refinement or instance of another (e.g., a specific laundering technique that instantiates a general pattern).
+    \item \texttt{fork-of}: Explicit lineage relationship (the child chain was derived from the parent via a fork operation). This is stronger than \texttt{isomorphic-to} because it records provenance, not just structural similarity.
+    \item \texttt{related-to}: General association for concepts that are related but not identical or hierarchical.
+    \item \texttt{analogical-to}: Two concepts are similar by analogy but not structurally identical (weaker than \texttt{isomorphic-to}).
+\end{enumerate}
+
+\textbf{Merge conditions (manual).} A domain expert may decide that two chains denote the same concept and deprecate one in favor of the other, linking them via \texttt{isomorphic-to} or \texttt{specialisation-of}. This is recorded as a \textsc{DEPRECATE} event with reasoning (e.g., ``Duplicate of concept-X; consolidated under \texttt{isomorphic-to} relation''), not as an automatic merge. The deprecated chain remains auditable; the consolidation is itself a governance decision subject to validation by other agents. The genesis hash of the deprecated chain is preserved in the relation, so the full provenance of the consolidation decision is recoverable.
+
+\textbf{Provenance-addressing vs. content-addressing.} The genesis hash is an \emph{operational (provenance) identifier}, not a \emph{content-addressed hash} (e.g., Merkle DAG or IPFS CID). The genesis hash includes the \texttt{event\_id} (random UUID), \texttt{timestamp}, and \texttt{canon\_version}, in addition to the payload. Two independent \textsc{Register} events with byte-identical payloads will therefore have \emph{different genesis hashes} (different UUIDs and timestamps). This is a deliberate design choice: the genesis hash guarantees \emph{provenance uniqueness} (each registration is a distinct event with its own actor, timestamp, and UUID), not \emph{semantic equivalence}. Content-addressing would enable automatic deduplication but would lose the provenance information needed to distinguish independent registrations by different actors. Domain-level consolidation of identical concepts is the responsibility of human curators, who must explicitly assert a relation via L3 predicates (as described above).
 
 \textbf{Unity.} A concept is a unified whole individuated by its genesis hash; the \texttt{EventChain}, by contrast, is a mereological sum of events with no unified whole beyond sequential aggregation \cite{ontoclean}.
 
@@ -126,14 +143,14 @@ ADL Lite exhibits three forms of dependence.
 
 \subsubsection{Identity and Dependence Conditions}\label{subsubsec:identity-dependence}
 
-The Concept is a GDC depending on the EventChain record:
+The concept is a GDC depending on the EventChain record:
 \vspace{0.3em}
 \begin{center}
-\textsf{Concept} $\; \xrightarrow{\text{GDC}} \;$ \textsf{ICE}(\textsf{EventChain\_record}) $\; \xrightarrow{\text{concretized\_by}} \;$ \textsf{Markdown\_file}
+\textsf{Concept} $\; \xrightarrow{\text{GDC}} \;$ \textsf{ICE}(\textsf{EventChain-record}) $\; \xrightarrow{\text{concretized\_by}} \;$ \textsf{Markdown\_file}
 \end{center}
 \vspace{0.3em}
 
-A Concept depends on the information artifact (the serialized EventChain record) rather than on the occurrent process of events. This is consistent with BFO's constraint that GDCs cannot depend on occurrents. Its identity is fixed by the genesis event. As a GDC, it can be concretized in multiple copies (Git repositories, local files, and agent caches) without loss of identity. If all copies are lost but later restored from backup, the Concept persists because the genesis hash is unchanged. A Concept ceases to exist only when all concretizations are irreversibly destroyed \emph{and} no agent retains information to reconstruct the chain. This high bar reflects the durability of distributed, hash-addressed systems.
+A concept depends on the information artifact (the serialized EventChain record) rather than on the occurrent process of events. This is consistent with BFO's constraint that GDCs cannot depend on occurrents. Its identity is fixed by the genesis event. As a GDC, it can be concretized in multiple copies (Git repositories, local files, and agent caches) without loss of identity. If all copies are lost but later restored from backup, the concept persists because the genesis hash is unchanged. A concept ceases to exist only when all concretizations are irreversibly destroyed \emph{and} no agent retains information to reconstruct the chain. This high bar reflects the durability of distributed, hash-addressed systems.
 
 \subsubsection{Causal Origin and Ontological Dependence of the Concept}
 
@@ -150,7 +167,43 @@ We formalize these dependence patterns as an OWL~2 DL alignment fragment in the 
 
 \subsection{Formal Alignment Fragment: OWL~2 DL Axiomatization}\label{subsec:formal-alignment}
 
-The OWL~2 DL alignment fragment that formalizes the dependence patterns above is presented in Appendix~\ref{app:owl-dl}. It declares \texttt{adl:Event} $\sqsubseteq$ \texttt{bfo:occurrent}, \texttt{adl:EventChain} $\sqsubseteq$ \texttt{bfo:process}, and \texttt{adl:Concept} $\sqsubseteq$ \texttt{bfo:generically\_dependent\_continuant}, together with datatype properties for cryptographic linkage. The fragment is syntax-checked but not yet validated with ROBOT; full operational encoding of $\delta$ and $\gamma$ exceeds OWL~2 DL expressivity and is deferred to future work (FW1).
+We present the OWL~2 DL alignment fragment that formalizes the dependence patterns above in Appendix~\ref{app:owl-dl}. It declares \texttt{adl:Event} $\sqsubseteq$ \texttt{bfo:occurrent}, \texttt{adl:EventChain} $\sqsubseteq$ \texttt{bfo:process}, and \texttt{adl:Concept} $\sqsubseteq$ \texttt{bfo:generically\_dependent\_continuant}, together with datatype properties for cryptographic linkage. The fragment is syntax-checked but not yet validated with ROBOT; full operational encoding of $\delta$ and $\gamma$ exceeds OWL~2 DL expressivity and is deferred to future work (FW1).
+
+\textbf{SHACL/OWL expressivity boundaries.} The SHACL shape graph (Appendix~\ref{app:shacl}) validates L3 relation blocks against structural constraints: identifier format (\texttt{sh:pattern}), predicate membership (\texttt{sh:in}), confidence range (\texttt{sh:minInclusive}/\texttt{sh:maxInclusive}), and directionality (\texttt{sh:sparql}). Five of eight constraints use SHACL Core; three require SHACL-SPARQL. However, the status derivation function $\delta$ and the precondition checks are \emph{not expressible in SHACL or OWL~2 DL} for fundamental reasons: (i)~$\delta$ aggregates over event sequences (taking the maximum over lifecycle events), which requires recursion or fixed-point computation exceeding SHACL's declarative expressivity; (ii)~preconditions involve comparator dispatch over derived snapshots, which is procedural rather than declarative; (iii)~OWL~2 DL is NExpTime-complete and cannot encode sequence aggregation or procedural preconditions (Appendix~A, \S A.3). Rather than shoehorning $\delta$ and preconditions into SHACL/OWL, we provide bidirectional export/import (Turtle/RDF/XML) that preserves the EventChain as a PROV-O activity sequence. The exported RDF can be validated by SHACL for structural constraints, while $\delta$ and preconditions are computed by the ADL Lite runtime. This division of labor---declarative validation (SHACL) for structural constraints, procedural computation (Python runtime) for derivation semantics---is a deliberate design choice that respects the expressivity boundaries of each technology. A conservative approximation of $\delta$ (e.g., ``if any \texttt{VALIDATE} event exists, the concept is validated'') could be encoded as a SHACL-SPARQL rule, but this would lose the lattice semantics; full operational encoding remains future work (FW6b).
+
+\textbf{Interoperability mapping table.} Table~\ref{tab:interoperability-mapping} provides a normative mapping from ADL Lite core constructs to OWL~2 DL classes, SHACL shapes, and PROV-O/IAO properties. This mapping enables the applied ontology community to adopt ADL Lite's lifecycle semantics within existing RDF tooling without abandoning the runtime's derivation functions.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Normative interoperability mapping: ADL Lite $\to$ OWL~2 DL / SHACL / PROV-O / IAO.}
+\label{tab:interoperability-mapping}
+\begin{tabularx}{\textwidth}{@{}p{2.8cm}p{2.8cm}p{3.2cm}p{3.2cm}@{}}
+\toprule
+\textbf{ADL Lite} & \textbf{OWL~2 DL Class} & \textbf{SHACL Shape} & \textbf{PROV-O / IAO} \\
+\midrule
+Event & \texttt{adl:Event} $\sqsubseteq$ \texttt{bfo:occurrent} & \texttt{sh:NodeShape} (event-id pattern) & \texttt{prov:Activity} \\
+EventChain & \texttt{adl:EventChain} $\sqsubseteq$ \texttt{bfo:process} & \texttt{sh:NodeShape} (ordered list) & \texttt{prov:Activity} (sequence) \\
+Concept & \texttt{adl:Concept} $\sqsubseteq$ \texttt{bfo:GDC} & \texttt{sh:NodeShape} (concept-id pattern) & \texttt{prov:Entity} \\
+EventChain-record & \texttt{adl:EventChainRecord} $\sqsubseteq$ \texttt{iao:ICE} & \texttt{sh:NodeShape} (hash format) & \texttt{prov:Entity} (serialized) \\
+Relation (L3) & \texttt{adl:Relation} $\sqsubseteq$ \texttt{owl:ObjectProperty} & \texttt{sh:PropertyShape} (predicate in-set) & \texttt{prov:wasDerivedFrom} (qualified) \\
+Action (L4) & \texttt{adl:Action} $\sqsubseteq$ \texttt{owl:Class} & \texttt{sh:NodeShape} (action in-set) & \texttt{prov:Activity} (type-qualified) \\
+Actor & \texttt{adl:Actor} $\sqsubseteq$ \texttt{owl:Thing} & \texttt{sh:NodeShape} (actor non-empty) & \texttt{prov:Agent} \\
+Payload & \texttt{adl:Payload} (datatype property) & \texttt{sh:PropertyShape} (JSON schema) & \texttt{prov:value} (literal) \\
+Hash & \texttt{adl:SHA256Hash} (datatype property) & \texttt{sh:PropertyShape} (64 hex chars) & \texttt{prov:hadPrimarySource} \\
+\textsc{Register} & \texttt{adl:RegisterEvent} & \texttt{sh:sparql} (genesis check) & \texttt{prov:wasGeneratedBy} \\
+\textsc{Validate} & \texttt{adl:ValidateEvent} & \texttt{sh:sparql} (predecessor status) & \texttt{prov:wasAttributedTo} \\
+\textsc{Deprecate} & \texttt{adl:DeprecateEvent} & \texttt{sh:sparql} (status validated) & \texttt{prov:wasInvalidatedBy} \\
+\textsc{Fork} & \texttt{adl:ForkEvent} & \texttt{sh:sparql} (parent exists) & \texttt{prov:wasDerivedFrom} \\
+\textsc{Evidence} & \texttt{adl:EvidenceEvent} & \texttt{sh:NodeShape} (evidence type) & \texttt{prov:used} \\
+$\delta(C)$ & \emph{Not expressible} (recursion) & \emph{Not expressible} (sequence) & \texttt{prov:hadActivity} (approx.) \\
+$\gamma(C)$ & \emph{Not expressible} (aggregation) & \emph{Not expressible} (aggregation) & \texttt{prov:value} (approx.) \\
+Precondition & \emph{Not expressible} (procedural) & \emph{Partial} (SHACL-SPARQL) & \emph{Not applicable} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Adoption path.} The bidirectional export/import (Turtle/RDF/XML via \texttt{owl\_export.py} / \texttt{jsonld\_export.py}) allows ADL Lite concepts to be consumed by RDF tooling without losing the EventChain structure. The exported RDF represents each event as a PROV-O activity with cryptographic linkage, and the concept as a PROV-O entity with derived status. This is a ``lossy but useful'' export: the lifecycle semantics ($\delta$, $\gamma$, preconditions) are not encoded in the RDF (they exceed OWL/SHACL expressivity), but the structural and provenance information is preserved. The SHACL shape graph (Appendix~\ref{app:shacl}) validates five of eight L3 structural constraints; the remaining three (directionality, cross-document existence, conditional symmetry) require SHACL-SPARQL. Full operational encoding of $\delta$ and preconditions in SHACL/OWL remains future work (FW6b).
 
 \subsection{Comparison with Upper Ontologies: Alignment Choices, Deviations, and Costs}\label{subsec:alignment-deviations}
 

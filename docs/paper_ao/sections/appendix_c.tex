@@ -36,11 +36,12 @@ Table~\ref{tab:adversarial-results-appendix} summarizes the results across all t
 
 \begin{table}[htbp]
 \centering
+\small
 \caption{Adversarial integrity test results. \texorpdfstring{$\checkmark$}{checkmark} = detected/rejected; \texorpdfstring{$\circ$}{circle} = detected as evidence, not prevented; \texorpdfstring{$\times$}{cross} = not detected in Phase~1 (requires Phase~1.5/3); N/A = not applicable.}
 \label{tab:adversarial-results-appendix}
-\begin{tabular}{@{}p{2.8cm}rrrl@{}}
+\begin{tabular}{@{}p{2.5cm}rrrp{4cm}@{}}
 \toprule
-\textbf{Attack Class} & \textbf{Test Cases} & \textbf{Detected} & \textbf{Result} & \textbf{Verification} \\
+\textbf{Attack Class} & \textbf{Tests} & \textbf{Detected} & \textbf{Result} & \textbf{Verification} \\
 \midrule
 A1. Content tampering & 10 & 10 & $\checkmark$ & Hash mismatch \\
 A2. Event reordering & 5 & 5 & $\checkmark$ & Linkage break \\

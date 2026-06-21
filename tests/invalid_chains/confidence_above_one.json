@@ -1,0 +1,31 @@
+{
+  "concept_id": "confidence-above-one",
+  "description": "Confidence value exceeds 1.0 \u2014 semantic range violation",
+  "expected_error": "semantic: confidence out of bounds [0, 1]",
+  "events": [
+    {
+      "event_id": "b5f8a036941245b39c0c0f169816ba85",
+      "concept_id": "confidence-above-one",
+      "event_type": "register",
+      "actor": "a",
+      "timestamp": "2026-06-14T02:34:13.586586+00:00",
+      "payload": {},
+      "previous_event_id": null,
+      "hash": "",
+      "_prev_hash": ""
+    },
+    {
+      "event_id": "c3fc04f5804b4678b3dc66e4ad0802b1",
+      "concept_id": "confidence-above-one",
+      "event_type": "validate",
+      "actor": "b",
+      "timestamp": "2026-06-14T02:34:13.586589+00:00",
+      "payload": {
+        "confidence": 1.5
+      },
+      "previous_event_id": null,
+      "hash": "",
+      "_prev_hash": ""
+    }
+  ]
+}

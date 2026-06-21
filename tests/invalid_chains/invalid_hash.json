@@ -1,0 +1,18 @@
+{
+  "concept_id": "invalid-hash",
+  "description": "Hash field tampered to arbitrary value",
+  "expected_error": "hash mismatch: event.hash != computed hash",
+  "events": [
+    {
+      "event_id": "75e119b3b47a4d53b90140d4a3642221",
+      "concept_id": "invalid-hash",
+      "event_type": "register",
+      "actor": "a",
+      "timestamp": "2026-06-14T02:34:13.585470+00:00",
+      "payload": {},
+      "previous_event_id": null,
+      "hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "_prev_hash": ""
+    }
+  ]
+}

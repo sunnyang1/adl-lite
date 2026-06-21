@@ -1,0 +1,22 @@
+\subsection{AgentSafe Integration Sketch}
+\label{subsec:agentsafe-integration}
+
+AgentSafe is a unified runtime framework for ethical assurance and governance in agentic AI systems~\cite{agentsafe2025}. Its core capability is the real-time detection of agent behaviour risks---including prompt injection, tool misuse, and goal misalignment---before they propagate to downstream systems. ADL Lite can serve as the provenance ledger for AgentSafe alerts: when AgentSafe detects a security event, it generates an ADL Lite \texttt{EVIDENCE} event whose payload contains the AgentSafe alert ID, severity score, and red-team reasoning. This event is appended to the capability's EventChain, making the risk visible to all validators and providing a tamper-evident audit trail that links runtime behaviour to concept governance.
+
+A concrete example is red-team testing. AgentSafe's red-team module may discover that a capability is susceptible to indirect prompt injection during tool execution. The red-team outcome is encoded as an ADL Lite event: if the vulnerability is severe, the outcome is a \texttt{DEPRECATE} action signed by the red-team agent; if it is moderate, a \texttt{VALIDATE} action with a lowered confidence score and a mitigation condition. Table~\ref{tab:agentsafe-mapping} shows the mapping from AgentSafe output categories to ADL Lite event types.
+
+\begin{table}[htbp]
+\centering
+\caption{Mapping from AgentSafe runtime outputs to ADL Lite events.}
+\label{tab:agentsafe-mapping}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{AgentSafe Output} & \textbf{ADL Lite Event} & \textbf{Reasoning} \\
+\midrule
+Critical vulnerability & \texttt{DEPRECATE} & Capability is unsafe for deployment \\
+High-risk behaviour & \texttt{EVIDENCE} + lowered confidence & Flagged for manual review \\
+Red-team validation passed & \texttt{VALIDATE} + confidence boost & Capability meets safety criteria \\
+Policy drift detected & \texttt{EVIDENCE} + status unchanged & Record drift for community audit \\
+\bottomrule
+\end{tabular}
+\end{table}

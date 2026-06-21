@@ -93,12 +93,50 @@ Set union is commutative and associative; deduplication by \textit{event\_id} is
 %-------------------------------------------------------------------------------
 
 \begin{corollary}[Event-Level G-Set CRDT]\label{cor:gset-crdt}
-Each ADL Lite event is immutable (hash-locked), so the EventChain $C$ as an append-only log is a grow-only set (G-Set) CRDT: the merge of two chains is the union of their event sets, with no concurrent updates to resolve.
+Each ADL Lite event is immutable (hash-locked), so the EventChain $C$ as an append-only log is a grow-only set (G-Set) CRDT: the merge of two chains is the union of their event sets, with no concurrent updates to resolve. Formally, let $B_1, B_2$ be well-formed concurrent branches from the same genesis. Then $\text{Merge}(B_1, B_2) = B_1 \cup B_2$ (deduplicated by \textit{event\_id}) is a G-Set CRDT satisfying:
+\begin{enumerate}[label=(\roman*)]
+    \item \textbf{Commutativity:} $\text{Merge}(B_1, B_2) = \text{Merge}(B_2, B_1)$ because set union is commutative.
+    \item \textbf{Associativity:} $\text{Merge}(B_1, \text{Merge}(B_2, B_3)) = \text{Merge}(\text{Merge}(B_1, B_2), B_3)$ because set union is associative.
+    \item \textbf{Idempotence:} $\text{Merge}(B_1, B_1) = B_1$ because $\Phi$ guarantees pairwise distinct \textit{event\_id} values within $B_1$, so deduplication is a no-op.
+\end{enumerate}
+Moreover, $\delta(\text{Merge}(B_1, B_2))$ is uniquely determined (Theorem~\ref{thm:determinism}), independent of merge order.
 \end{corollary}
 
 \begin{proof}[Proof Sketch]
-An event's hash $e.h$ covers all fields including \textit{event\_id} and payload; any modification changes the hash, breaking linkage. Hence events are write-once. The EventChain supports only $\text{append}$ ($C \oplus [e]$), so concurrent branches add disjoint events, and the merge is simply set union.
+An event's hash $e.h$ covers all fields including \textit{event\_id} and payload; any modification changes the hash, breaking linkage. Hence events are write-once. The EventChain supports only $\text{append}$ ($C \oplus [e]$), so concurrent branches add disjoint events, and the merge is simply set union. The G-Set properties follow directly from set-theoretic properties of union. Determinism of $\delta$ after merge follows because the merged set contains all lifecycle events from both branches; the LUB over the status lattice is uniquely determined (Theorem~\ref{thm:determinism}), so $\delta$ is independent of merge order.
 \end{proof}
+
+%-------------------------------------------------------------------------------
+\subsection{Algebraic Properties of Confidence Aggregation}
+%-------------------------------------------------------------------------------
+
+\begin{theorem}[Algebraic Properties of $\gamma_{\text{default}}$]\label{thm:gamma-default-algebraic}
+The default confidence aggregation $\gamma_{\text{default}}(C) = \max\{e.\text{payload}[\text{``confidence''}] \mid e \in V\}$ (where $V$ is the set of \textsc{Validate} events in $C$) is associative, commutative, and idempotent over the set of validation events. Formally, for any finite sets of validation events $V_1, V_2, V_3$:
+\begin{enumerate}[label=(\roman*)]
+    \item \textbf{Commutativity:} $\gamma_{\text{default}}(V_1 \cup V_2) = \gamma_{\text{default}}(V_2 \cup V_1)$.
+    \item \textbf{Associativity:} $\gamma_{\text{default}}((V_1 \cup V_2) \cup V_3) = \gamma_{\text{default}}(V_1 \cup (V_2 \cup V_3))$.
+    \item \textbf{Idempotence:} $\gamma_{\text{default}}(V_1 \cup V_1) = \gamma_{\text{default}}(V_1)$.
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}[Proof Sketch]
+All three properties follow from the corresponding properties of the $\max$ operator over finite sets of real numbers. $\max$ is commutative ($\max(a,b) = \max(b,a)$), associative ($\max(\max(a,b),c) = \max(a,\max(b,c))$), and idempotent ($\max(a,a) = a$). Since $\gamma_{\text{default}}$ is defined as $\max$ over a finite set of confidence values, it inherits these properties directly.
+\end{proof}
+
+\begin{theorem}[Algebraic Properties of $\gamma_{\text{agg}}$]\label{thm:gamma-agg-algebraic}
+The bonus-formula aggregate $\gamma_{\text{agg}}$ is commutative over the set of actors but not associative or idempotent with respect to the full chain history. Specifically:
+\begin{enumerate}[label=(\roman*)]
+    \item \textbf{Commutativity:} $\gamma_{\text{agg}}$ is commutative because the per-actor maxima $\phi(a, V)$ are computed over a set (unordered), and the mean of these maxima is independent of the order in which actors are processed.
+    \item \textbf{Non-associativity:} $\gamma_{\text{agg}}$ is not associative because the bonus term $0.05 \times (N_{\text{vals}} - 1)$ depends on the number of distinct validators in the merged set. Merging two sets with overlapping actors yields a different $N_{\text{vals}}$ than merging sequentially.
+    \item \textbf{Non-idempotence:} $\gamma_{\text{agg}}$ is not idempotent because merging a set with itself does not change the set (idempotence at the set level), but the bonus term depends on $N_{\text{vals}}$, which is preserved under set union. However, $\gamma_{\text{agg}}$ is not idempotent with respect to the chain append operation: appending a duplicate validation from the same actor does not change $\phi(a, V)$ (idempotence at the per-actor level), but appending a validation from a new actor increases $N_{\text{vals}}$ and the bonus.
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}[Proof Sketch]
+Commutativity follows from the set-based computation of per-actor maxima: $\phi(a, V)$ scans all events in $V$ to find the maximum confidence reported by actor $a$, regardless of event order. The mean of these maxima is a symmetric function of the actor set. Non-associativity follows from the bonus term: let $V_1$ have actors $\{a_1, a_2\}$ and $V_2$ have actors $\{a_2, a_3\}$. Then $\gamma_{\text{agg}}(V_1 \cup V_2)$ has $N_{\text{vals}} = 3$ and bonus $0.10$, but the sequential computation $\gamma_{\text{agg}}(\gamma_{\text{agg}}(V_1), V_2)$ would require an intermediate state that is not well-defined because $\gamma_{\text{agg}}$ is not a binary operator on chains but a function on sets of events. Non-idempotence with respect to chain append follows because appending a new validation from a new actor increases $N_{\text{vals}}$ and the bonus, while appending a duplicate from an existing actor only potentially increases $\phi(a, V)$.
+\end{proof}
+
+\textbf{Sybil vulnerability in Phase 1.} The current non-Byzantine model does not prevent Sybil attacks: a single actor can create multiple pseudonyms and append multiple \textsc{Validate} events, each with high confidence, driving $\gamma_{\text{agg}}$ to $0.99$ with as few as $10$ distinct pseudonyms (since $c_{\text{base}} \geq 0.5$ and $0.05 \times 9 = 0.45$). This is a known Phase 1 limitation (L3, Section~\ref{subsec:limitations}), explicitly demonstrated in adversarial experiment E14 (Table~\ref{tab:undetectable-attacks}). The mitigation is scoped to Phase 3: staking-based validation (FW9) and per-actor reputation calibration (Section~\ref{subsec:calibration}). Under the staking model, each validator must deposit a stake to register, and the cost of creating a Sybil identity is proportional to the stake amount. The calibration layer ($\gamma_{\text{cal}}$) weights each validator by a per-actor accuracy score, so a new Sybil identity with no history receives a low accuracy weight and contributes negligibly to the aggregate confidence.
 
 %-------------------------------------------------------------------------------
 \subsection{Theorem~\ref{thm:wf-preservation}: Well-Formedness Preservation}
@@ -159,3 +197,40 @@ $[0.5, 0.7, 0.9]$ (mixed)   & 0.76 & 0.80 & 0.86 \\
 \end{table}
 
 Theorems~\ref{thm:boundedness}--\ref{thm:consistency} hold for all entries because $\gamma_{\text{agg}}(C) \in [0,1]$ by the cap, monotonicity holds because $\beta > 0$, and status--confidence consistency holds because $c_{\min} \geq 0.3$ ensures any validated concept has $c_{\text{base}} \geq c_{\min}$. Strict monotonicity is preserved for all $\beta > 0$ under the precondition $c \geq c_{\text{base}}$.
+
+%-------------------------------------------------------------------------------
+\subsection{Small-Step Operational Semantics of Precondition Evaluation}
+%-------------------------------------------------------------------------------
+
+We present the complete small-step operational semantics for the precondition language. The semantics is defined over an evaluation context $\mathcal{E} = (\sigma, \rho)$ where $\sigma = \text{Snapshot}(C)$ is the derived snapshot (a finite map from field names to values in $\mathcal{D}$) and $\rho = \text{ActionRegistry}$ is the closed action registry (a finite map from action names to action definitions). The transition relation $\langle e, \mathcal{E} \rangle \Downarrow v$ means that expression $e$ evaluates to value $v$ in context $\mathcal{E}$.
+
+\textbf{Values and environments.} The domain of values is $\mathcal{D} = \text{Scalar} \cup \text{Set} \cup \{\text{null}\}$. The environment $\sigma$ is a partial function $\sigma: \text{Field} \rightharpoonup \mathcal{D}$. The action registry $\rho$ is a total function $\rho: \text{ActionName} \to \text{ActionDef}$. An action definition $\text{ActionDef} = (\text{allowed\_on}, \text{required\_params}, \text{preconditions})$ where $\text{preconditions}$ is a list of precondition rules.
+
+\textbf{Evaluation rules.} The judgment $\langle r, \sigma \rangle \Downarrow b$ (rule $r$ evaluates to boolean $b$ in snapshot $\sigma$) is defined by the following rules:
+
+\begin{align*}
+    \text{eval-rule: } & \frac{\sigma(f) = v \quad \text{apply}(\kappa, v, v') = b}{\langle \langle f, \kappa, v' \rangle, \sigma \rangle \Downarrow b} \\
+    \text{eval-lookup: } & \frac{f \notin \text{dom}(\sigma)}{\langle \langle f, \kappa, v' \rangle, \sigma \rangle \Downarrow \text{apply}(\kappa, \text{null}, v')} \\
+    \text{eval-conjunction: } & \frac{\langle r_1, \sigma \rangle \Downarrow \text{false}}{\langle [r_1, \ldots, r_k], \sigma \rangle \Downarrow \text{false}} \quad \text{(short-circuit)} \\
+    \text{eval-conjunction': } & \frac{\langle r_1, \sigma \rangle \Downarrow \text{true} \quad \langle [r_2, \ldots, r_k], \sigma \rangle \Downarrow b}{\langle [r_1, \ldots, r_k], \sigma \rangle \Downarrow b}
+\end{align*}
+
+\textbf{Comparator dispatch.} The function $\text{apply}(\kappa, x, y)$ is defined by explicit case analysis (no dynamic code execution):
+
+\begin{align*}
+    \text{apply}(\text{EQ}, x, y) &= (x = y) \\
+    \text{apply}(\text{NEQ}, x, y) &= \neg(x = y) \\
+    \text{apply}(\text{GT}, x, y) &= (x > y) \quad \text{if } x, y \in \text{Scalar} \\
+    \text{apply}(\text{GTE}, x, y) &= (x \geq y) \quad \text{if } x, y \in \text{Scalar} \\
+    \text{apply}(\text{LT}, x, y) &= (x < y) \quad \text{if } x, y \in \text{Scalar} \\
+    \text{apply}(\text{LTE}, x, y) &= (x \leq y) \quad \text{if } x, y \in \text{Scalar} \\
+    \text{apply}(\text{IN}, x, Y) &= (x \in Y) \quad \text{if } Y \in \text{Set} \\
+    \text{apply}(\text{EXISTS}, x, \text{null}) &= (x \neq \text{null}) \\
+    \text{apply}(\kappa, x, y) &= \text{false} \quad \text{otherwise (type mismatch)}
+\end{align*}
+
+\textbf{Type safety.} Type mismatches (e.g., comparing a string with GT) are handled by the `otherwise` clause: the comparison returns `false` rather than raising an exception. This is a deliberate design choice: the precondition language is a guard, not a general-purpose programming language, and a type mismatch is treated as a failed guard. The Pydantic payload validation layer (outside the precondition language) ensures that type-correct values are passed to the comparators; the `otherwise` clause is a defense-in-depth mechanism for direct API access that bypasses Pydantic.
+
+\textbf{No external references.} The precondition language is closed: `lookup(f, sigma)` references only the snapshot `sigma` derived from the local chain $C$. There is no rule for `lookup(f, sigma)` where $f$ references an external chain, database, or network resource. This local-scope restriction ensures that precondition evaluation is referentially transparent, deterministic, and executable without consensus or network access.
+
+\textbf{Complexity.} The evaluation rules above define a terminating rewrite system: each rule reduces the size of the expression (either by looking up a field, dispatching a comparator, or short-circuiting a conjunction). Since the precondition language contains no recursion, no quantification, and no external references, evaluation always terminates in $O(1)$ time per rule and $O(k)$ time for a list of $k$ rules (Theorem~8).

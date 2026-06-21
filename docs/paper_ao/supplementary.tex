@@ -1,0 +1,74 @@
+% ---------------------------------------------------------------------------
+% Supplementary Material for ADL Lite Paper
+% ---------------------------------------------------------------------------
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{microtype}
+\usepackage{natbib}
+\usepackage{enumitem}
+\usepackage{calc}
+\usepackage{multirow}
+\usepackage{tabularx}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}[section]
+
+\lstset{
+    basicstyle=\small\ttfamily,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!50!black},
+    stringstyle=\color{red},
+}
+
+\title{Supplementary Material: ADL Lite\\An Event-First Capability-Lifecycle Registry for LLM Agent Ecosystems}
+\author{Anonymous Authors}
+\date{}
+
+\begin{document}
+\maketitle
+
+\appendix
+
+\section{PROV-O Export Example}\label{app:prov-o}
+\input{sections/appendix_a}
+
+\section{SHACL Shape for L3 Relation Validation}\label{app:shacl}
+\input{sections/appendix_b}
+
+\section{Adversarial Integrity Test Suite}\label{app:adversarial}
+\input{sections/appendix_c}
+
+\section{Experiment Runner and Reproducibility}\label{app:reproduce}
+\input{sections/appendix_d}
+
+\section{Proof Sketches for Formal Theorems}\label{app:proofs}
+\input{sections/appendix_e}
+
+\section{RDF-star Interoperability Demonstration}\label{app:rdfstar}
+\input{sections/appendix_f}
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

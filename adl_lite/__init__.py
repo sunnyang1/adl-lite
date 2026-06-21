@@ -28,11 +28,6 @@ Quick Start:
 
 __version__ = "0.2.0"
 
-from .relation_validator import RelationValidator
-from .key_registry import KeyRegistry, GitSignatureVerifier, TransparencyAnchor
-from .did_resolver import resolve_did_key, verify_did_signature, is_did, create_did_key
-from .owl_import import parse_owl_turtle, parse_owl_rdfxml
-from .rdfstar_export import document_to_rdfstar_turtle, sparqlstar_query_template
 from .action_executor import ActionExecutor
 from .calibration import (
     CalibrationProfile,
@@ -42,6 +37,7 @@ from .calibration import (
 )
 from .consensus import ConsensusEngine, ForkManager, ForkResolution
 from .crdt import CRDTState, StatusOrder, merge_event_chains
+from .did_resolver import create_did_key, is_did, resolve_did_key, verify_did_signature
 from .exceptions import (
     ADLConfigError,
     ADLConsensusError,
@@ -53,10 +49,14 @@ from .exceptions import (
     ADLValidationError,
 )
 from .jsonld_export import export_jsonld
+from .key_registry import GitSignatureVerifier, KeyRegistry, TransparencyAnchor
 from .logging_config import get_logger
 from .memory import ADLMemory, HotIndex, WarmIndex
 from .near_duplicate import check_near_duplicate, suggest_merge
 from .owl_export import export_owl
+from .owl_import import parse_owl_rdfxml, parse_owl_turtle
+from .rdfstar_export import document_to_rdfstar_turtle, sparqlstar_query_template
+from .relation_validator import RelationValidator
 
 # FDE Platform extensions (optional — imports are safe even if modules don't exist yet)
 try:

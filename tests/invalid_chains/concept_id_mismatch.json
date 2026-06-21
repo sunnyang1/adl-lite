@@ -1,0 +1,31 @@
+{
+  "concept_id": "concept-id-mismatch",
+  "description": "Event concept_id doesn't match chain concept_id",
+  "expected_error": "ValueError: Event concept_id mismatch",
+  "events": [
+    {
+      "event_id": "4c4e1700c6ac4bc6ba3bd1c1995f5487",
+      "concept_id": "concept-id-mismatch",
+      "event_type": "register",
+      "actor": "a",
+      "timestamp": "2026-06-14T02:34:13.586509+00:00",
+      "payload": {},
+      "previous_event_id": null,
+      "hash": "",
+      "_prev_hash": ""
+    },
+    {
+      "event_id": "5d28edf6bd9d4df5ae4f809070797174",
+      "concept_id": "different-concept",
+      "event_type": "validate",
+      "actor": "b",
+      "timestamp": "2026-06-14T02:34:13.586512+00:00",
+      "payload": {
+        "confidence": 0.8
+      },
+      "previous_event_id": null,
+      "hash": "",
+      "_prev_hash": ""
+    }
+  ]
+}

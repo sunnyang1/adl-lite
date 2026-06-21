@@ -119,6 +119,7 @@ class EventType(str, Enum):
     RELATE = "relate"
     EVIDENCE = "evidence"
     SEAL = "seal"
+    REVOKE = "revoke"  # Explicit relation revocation (cessation semantics)
     # Communication events (L4 action blocks)
     ANNOUNCE = "announce"
     PUBLISH = "publish"

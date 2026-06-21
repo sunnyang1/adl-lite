@@ -1,0 +1,32 @@
+{
+  "concept_id": "expired-seal",
+  "description": "Seal event older than 180-day threshold",
+  "expected_error": "semantic: seal expired (timestamp > 180 days old)",
+  "events": [
+    {
+      "event_id": "7ff8f942eb304919b832eed1c5747498",
+      "concept_id": "expired-seal",
+      "event_type": "register",
+      "actor": "a",
+      "timestamp": "2026-06-14T02:34:13.586316+00:00",
+      "payload": {},
+      "previous_event_id": null,
+      "hash": "",
+      "_prev_hash": ""
+    },
+    {
+      "event_id": "a6e697611d004b5ea31fe4339868b8a3",
+      "concept_id": "expired-seal",
+      "event_type": "seal",
+      "actor": "a",
+      "timestamp": "2025-06-14T02:34:13.586308+00:00",
+      "payload": {
+        "seal_type": "human_expert",
+        "expires_at": "2025-06-14T02:34:13.586308+00:00"
+      },
+      "previous_event_id": null,
+      "hash": "",
+      "_prev_hash": ""
+    }
+  ]
+}

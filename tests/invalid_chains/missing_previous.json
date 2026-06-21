@@ -1,0 +1,31 @@
+{
+  "concept_id": "missing-previous",
+  "description": "Second event's previous_event_id points to non-existent event",
+  "expected_error": "previous_event_id mismatch: links to event not in chain",
+  "events": [
+    {
+      "event_id": "50116c2913d1420e9d6fbb0b0bd91d75",
+      "concept_id": "missing-previous",
+      "event_type": "register",
+      "actor": "a",
+      "timestamp": "2026-06-14T02:34:13.585796+00:00",
+      "payload": {},
+      "previous_event_id": null,
+      "hash": "",
+      "_prev_hash": ""
+    },
+    {
+      "event_id": "266337c5a40d4a938dfcdbcc15cdaafc",
+      "concept_id": "missing-previous",
+      "event_type": "validate",
+      "actor": "b",
+      "timestamp": "2026-06-14T02:34:13.585802+00:00",
+      "payload": {
+        "confidence": 0.8
+      },
+      "previous_event_id": "nonexistent_event_id_12345",
+      "hash": "",
+      "_prev_hash": ""
+    }
+  ]
+}

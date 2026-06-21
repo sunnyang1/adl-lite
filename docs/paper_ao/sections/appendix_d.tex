@@ -11,7 +11,7 @@ Individual reproduction scripts are provided in \texttt{scripts/reproduce/}:
     \item \texttt{reproduce\_all.sh}: Master orchestrator that runs all sub-scripts and prints a unified PASS/FAIL summary.
 \end{itemize}
 
-Hardware specifications for all reported timings are documented in \texttt{docs/experiments/HARDWARE\_SPECS.md}: Apple M2 (8P+4E cores), 16~GB RAM, Python 3.10, macOS 14.
+Hardware specifications for all reported timings are documented in \path{docs/experiments/HARDWARE_SPECS.md}: Apple M2 (8P+4E cores), 16~GB RAM, Python 3.10, macOS 14.
 
 \subsection{Reproducibility Package}
 
@@ -26,7 +26,7 @@ The complete reproducibility package is available at \url{[GitHub/DOI link]}. It
     \item \texttt{REPRODUCIBILITY.md}: Step-by-step instructions.
 \end{enumerate}
 
-\textbf{Artifact availability statement.} ``All code, data pipelines, and evaluation scripts are available at [GitHub/DOI link]. The Docker image reproduces all experiments in Table~\ref{tab:results} with one command: \texttt{docker run --rm adl-lite-repro}.''
+\textbf{Double-blind review replication package.} During the anonymous review period, the artifact is available via an anonymous GitHub repository (\path{anonymous-4-open-science/adl-lite-repro}) and a persistent Zenodo deposit (DOI: 10.5281/zenodo.XXXXXX) with the author identity redacted. The repository contains the complete source code, all experiment scripts, the pre-processed AML dataset, and the LaTeX source of this paper. The Docker image \path{anonymous-4-open-science/adl-lite-repro} on Docker Hub reproduces all experiments in Table~\ref{tab:results} with one command: \texttt{docker run --rm anonymous-4-open-science/adl-lite-repro}. After acceptance, the repository will be transferred to the authors' institutional GitHub organization with a permanent DOI redirect. The replication package excludes only the (empty) \texttt{.adl/} directory that stores per-user calibration profiles and API keys, which are created automatically on first run.
 
 \subsection{Docker Environment}
 

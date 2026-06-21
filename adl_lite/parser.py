@@ -28,7 +28,6 @@ try:
 except ImportError:  # pragma: no cover
     yaml = None  # type: ignore[assignment]
 
-from .exceptions import ADLTemplateError
 from .l2_template import L2TemplateValidator
 from .models import (
     ActionExecStatus,

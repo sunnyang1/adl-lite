@@ -1,0 +1,193 @@
+@prefix adl: <http://adl-lite.org/ontology#> .
+@prefix bfo: <http://purl.obolibrary.org/obo/BFO_> .
+@prefix iao: <http://purl.obolibrary.org/obo/IAO_> .
+@prefix ufo: <http://ufo-ontology.org/ontology#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+<http://adl-lite.org/ontology>
+    a owl:Ontology ;
+    rdfs:label "ADL Lite Core Ontology" ;
+    owl:versionInfo "0.2.0" ;
+    rdfs:comment "OWL 2 DL class definitions for the ADL Lite event-first operational ontology." .
+
+# ---------------------------------------------------------------------------
+# Classes
+# ---------------------------------------------------------------------------
+
+adl:Event
+    a owl:Class ;
+    rdfs:label "Event" ;
+    rdfs:comment "An occurrent in the ADL Lite model; a discrete change or happening in an event chain." ;
+    rdfs:subClassOf bfo:0000003 ;  # bfo:occurrent
+    rdfs:subClassOf prov:Entity .
+
+adl:EventChain
+    a owl:Class ;
+    rdfs:label "Event Chain" ;
+    rdfs:comment "An ordered sequence of events constituting a process and an information content entity." ;
+    rdfs:subClassOf bfo:0000015 ;  # bfo:process
+    rdfs:subClassOf iao:0000030 ;  # iao:information_content_entity
+    rdfs:subClassOf prov:Collection .
+
+adl:Concept
+    a owl:Class ;
+    rdfs:label "Concept" ;
+    rdfs:comment "A generically dependent continuant that is the subject of an event chain." ;
+    rdfs:subClassOf bfo:0000040 ;  # bfo:generically_dependent_continuant
+    rdfs:subClassOf prov:Entity .
+
+adl:Relation
+    a owl:Class ;
+    rdfs:label "Relation" ;
+    rdfs:comment "A relator that mediates between concepts in ADL Lite." ;
+    rdfs:subClassOf ufo:Relator ;
+    rdfs:subClassOf prov:Entity .
+
+# ---------------------------------------------------------------------------
+# Object Properties
+# ---------------------------------------------------------------------------
+
+adl:hasPreviousEvent
+    a owl:ObjectProperty ;
+    rdfs:label "has previous event" ;
+    rdfs:comment "Links an event to its immediate predecessor in the chain." ;
+    rdfs:domain adl:Event ;
+    rdfs:range adl:Event .
+
+adl:hasNextEvent
+    a owl:ObjectProperty ;
+    rdfs:label "has next event" ;
+    rdfs:comment "Links an event to its immediate successor in the chain." ;
+    rdfs:domain adl:Event ;
+    rdfs:range adl:Event ;
+    owl:inverseOf adl:hasPreviousEvent .
+
+adl:hasForkTarget
+    a owl:ObjectProperty ;
+    rdfs:label "has fork target" ;
+    rdfs:comment "Links a fork event to the concept or chain that is the target of the fork." ;
+    rdfs:domain adl:Event ;
+    rdfs:range adl:Concept .
+
+adl:wasValidatedBy
+    a owl:ObjectProperty ;
+    rdfs:label "was validated by" ;
+    rdfs:comment "Links a concept or event to the agent that validated it." ;
+    rdfs:subPropertyOf prov:wasAssociatedWith ;
+    rdfs:domain adl:Event ;
+    rdfs:range prov:Agent .
+
+adl:wasDeprecatedBy
+    a owl:ObjectProperty ;
+    rdfs:label "was deprecated by" ;
+    rdfs:comment "Links a concept or event to the agent that deprecated it." ;
+    rdfs:subPropertyOf prov:wasAssociatedWith ;
+    rdfs:domain adl:Event ;
+    rdfs:range prov:Agent .
+
+# ---------------------------------------------------------------------------
+# Data Properties
+# ---------------------------------------------------------------------------
+
+adl:hasHash
+    a owl:DatatypeProperty ;
+    rdfs:label "has hash" ;
+    rdfs:comment "SHA-256 hash of the canonicalised event representation." ;
+    rdfs:domain adl:Event ;
+    rdfs:range xsd:string .
+
+adl:hasEventID
+    a owl:DatatypeProperty ;
+    rdfs:label "has event ID" ;
+    rdfs:comment "Unique identifier for an event within a chain." ;
+    rdfs:domain adl:Event ;
+    rdfs:range xsd:string .
+
+adl:hasTimestamp
+    a owl:DatatypeProperty ;
+    rdfs:label "has timestamp" ;
+    rdfs:comment "ISO-8601 timestamp of when the event was authored." ;
+    rdfs:domain adl:Event ;
+    rdfs:range xsd:dateTime .
+
+adl:hasConfidence
+    a owl:DatatypeProperty ;
+    rdfs:label "has confidence" ;
+    rdfs:comment "Confidence score attached to a validation or evidence event." ;
+    rdfs:domain adl:Event ;
+    rdfs:range xsd:float .
+
+adl:hasPayload
+    a owl:DatatypeProperty ;
+    rdfs:label "has payload" ;
+    rdfs:comment "JSON-encoded payload string carried by the event." ;
+    rdfs:domain adl:Event ;
+    rdfs:range xsd:string .
+
+adl:eventType
+    a owl:DatatypeProperty ;
+    rdfs:label "event type" ;
+    rdfs:comment "The type of event drawn from the ADL Lite event-type enumeration." ;
+    rdfs:domain adl:Event ;
+    rdfs:range xsd:string .
+
+adl:hasEvent
+    a owl:ObjectProperty ;
+    rdfs:label "has event" ;
+    rdfs:comment "Links an event chain to one of its member events." ;
+    rdfs:domain adl:EventChain ;
+    rdfs:range adl:Event .
+
+adl:hasConceptID
+    a owl:DatatypeProperty ;
+    rdfs:label "has concept ID" ;
+    rdfs:comment "Unique identifier of the concept described by the event chain or concept." ;
+    rdfs:domain [ a owl:Class ; owl:unionOf (adl:EventChain adl:Concept) ] ;
+    rdfs:range xsd:string .
+
+adl:hasStatus
+    a owl:DatatypeProperty ;
+    rdfs:label "has status" ;
+    rdfs:comment "Discovery status derived from the event chain." ;
+    rdfs:domain adl:Concept ;
+    rdfs:range xsd:string .
+
+adl:hasGenesisHash
+    a owl:DatatypeProperty ;
+    rdfs:label "has genesis hash" ;
+    rdfs:comment "SHA-256 hash of the genesis event, anchoring the chain." ;
+    rdfs:domain adl:EventChain ;
+    rdfs:range xsd:string .
+
+# ---------------------------------------------------------------------------
+# Individuals (Action Types)
+# ---------------------------------------------------------------------------
+
+adl:registerAction
+    a owl:NamedIndividual, adl:Event ;
+    rdfs:label "Register Action" ;
+    rdfs:comment "Action type used to register a new concept or capability." .
+
+adl:validateAction
+    a owl:NamedIndividual, adl:Event ;
+    rdfs:label "Validate Action" ;
+    rdfs:comment "Action type used to validate a concept or capability." .
+
+adl:deprecateAction
+    a owl:NamedIndividual, adl:Event ;
+    rdfs:label "Deprecate Action" ;
+    rdfs:comment "Action type used to deprecate a concept or capability." .
+
+adl:forkAction
+    a owl:NamedIndividual, adl:Event ;
+    rdfs:label "Fork Action" ;
+    rdfs:comment "Action type used to fork an existing concept or capability." .
+
+adl:archiveAction
+    a owl:NamedIndividual, adl:Event ;
+    rdfs:label "Archive Action" ;
+    rdfs:comment "Action type used to archive a concept or capability." .

@@ -2,9 +2,9 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![AAMAS 2027 Target](https://img.shields.io/badge/Target-AAMAS%202027-blue.svg)](https://aamas2027.org/)
+[![ESWC/ISWC 2027 Backup](https://img.shields.io/badge/Backup-ESWC%2FISWC%202027-blue.svg)](https://2027.eswc-conferences.org/)
 [![Applied Ontology: under revision](https://img.shields.io/badge/Journal-Applied%20Ontology-orange.svg)](https://www.iospress.nl/journal/applied-ontology/)
-[![Tests: 716 PASS](https://img.shields.io/badge/tests-716%20PASS-brightgreen.svg)]()
+[![Tests: 723 PASS](https://img.shields.io/badge/tests-723%20PASS-brightgreen.svg)]()
 [![Paper: 39pp](https://img.shields.io/badge/paper-39pp-blue.svg)]()
 
 > **"The world is the totality of facts, not of things." — Wittgenstein, Tractatus Logico-Philosophicus §1.1**
@@ -140,7 +140,7 @@ assert chain.verify_integrity()  # SHA-256 hash verification
 - **Reproduce script** — `reproduce.sh` one-command reproduction (6 steps, 8–10 min, CI-friendly exit codes, `--quick` mode)
 
 ### Test & Experiment Coverage
-- **716 tests** — all passing (446 unit + 11 experiment + 32 adversarial + 32 invalid-chain + 128 theorem + 23 theorem T1/T2/T6 + 6 boundary + 38 near-duplicate)
+- **723 tests** — all passing (446 unit + 11 experiment + 32 adversarial + 32 invalid-chain + 128 theorem + 23 theorem T1/T2/T6 + 6 boundary + 38 near-duplicate)
 - **21 experiments** (E1–E21) — covering chain integrity, status derivation, snapshot round-trip, precondition enforcement, 5-agent audit, AML pipeline, real-time watcher, edge sync, git baseline, FDE pipeline, side-effect stress, and more
 
 ## Quick Start
@@ -159,7 +159,7 @@ python -m experiments.runner list
 # Run single
 python -m experiments.runner E2
 
-# Run tests (716 passed)
+# Run tests (723 passed)
 pytest tests/ -q
 ```
 

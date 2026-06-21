@@ -1,28 +1,28 @@
 \subsection{Agent Governance Landscape}\label{subsec:agent-governance}
 
-LLM agent proliferation has created an urgent need for governance beyond traditional ontology engineering. ADL Lite fills a gap that trust, safety, and provenance layers do not address: a lightweight, event-sourced, tamper-evident registry of agent capabilities and their lifecycle states.
+LLM agent proliferation has created an urgent need for governance beyond traditional ontology engineering. ADL Lite fills a gap that trust, safety, and provenance layers overlook: a lightweight, event-sourced, tamper-evident registry of agent capabilities and their lifecycle states.
 
-\textbf{AgentHub}~\cite{agenthub2025} proposes a registry layer for agent sharing with discovery, workflow integration, and lifecycle transparency, but it remains a research agenda without an implemented lifecycle state machine or deterministic derivation semantics. ADL Lite goes beyond AgentHub's agenda by offering an implemented registry with formal lifecycle semantics (register$\to$validate$\to$deprecate), cryptographic hash chaining, and deterministic status derivation.\par
+\textbf{AgentHub}~\cite{agenthub2025} proposes a registry layer for agent sharing with discovery, workflow integration, and lifecycle transparency, but it remains a research agenda without an implemented lifecycle state machine or deterministic derivation semantics. ADL Lite goes beyond AgentHub's agenda by offering an implemented registry with formal lifecycle semantics (register $\to$ validate $\to$ deprecate), cryptographic hash chaining, and deterministic status derivation.\par
 \textbf{KYA}~\cite{kya2025} verifies agent identity via HMAC chains but does not govern capability lifecycles. \textbf{AgentSafe}~\cite{agentsafe2025} offers comprehensive architecture governance but requires heavyweight infrastructure and lacks Markdown-native authoring. \textbf{From Agent Traces to Trust}~\cite{agenttraces2025} concludes that ``a unified trace schema is still needed''---ADL Lite provides exactly that. \textbf{Talukdar et al.}~\cite{talukdar2025} demonstrate multi-agent ontology engineering but produce static artifacts without lifecycle governance. \textbf{SafeAgent}~\cite{safeagent2025} operates at the interaction layer rather than the artifact layer. Runtime safety systems (SafeHarness~\cite{safeharness2026}, OpenClaw PRISM~\cite{openclaw_prism2026}) and runtime infrastructure (Institutional AI~\cite{institutional_ai2026}, GaaS~\cite{gaas2025}, COMPASS~\cite{compass2026}, UALM~\cite{ualm2026}) consume capability provenance for policy decisions; ADL Lite occupies the \emph{registry layer} between permissioning and runtime enforcement.
 
 Table~\ref{tab:agent-governance} compares these systems.
 
 \begin{table}[htbp]
 \centering
-\small
+\footnotesize
 \caption{Comparison of agent governance systems.}
 \label{tab:agent-governance}
-\begin{tabular}{@{}p{1.8cm}p{1.5cm}p{1.5cm}p{1.5cm}p{1.5cm}p{1.5cm}p{1.5cm}@{}}
+\begin{tabularx}{\textwidth}{@{}p{2.2cm}XXXXXX@{}}
 \toprule
 \textbf{Dimension} & \textbf{KYA} & \textbf{AgentSafe} & \textbf{Agent Traces} & \textbf{Talukdar et al.} & \textbf{SafeAgent} & \textbf{ADL Lite} \\
 \midrule
 Governance Scope & Trust / permissions & Architecture safety & Provenance / trace & Ontology production & Protocol safety & Capability lifecycle \\
-Lifecycle Awareness & None & Design-time only & None & None & None & Full (register$\to$validate$\to$deprecate) \\
+Lifecycle Awareness & None & Design-time only & None & None & None & Full (register $\to$\allowbreak validate $\to$\allowbreak deprecate) \\
 Deployment Weight & Lightweight & Heavyweight & Survey / framework & Research pipeline & Lightweight & Very lightweight (pip + Git) \\
 Tamper-evidence & HMAC chain & Audit logs & Trace schema (proposed) & Manual QA review & Sandbox checks & SHA-256 hash chain + preconditions \\
 Agent-Native & Yes (15+ adapters) & Yes (design-time) & Yes (provenance) & Yes (multi-agent) & Yes (runtime) & Yes (Markdown-native, multi-agent) \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 Runtime safety systems (SafeHarness~\cite{safeharness2026}, OpenClaw PRISM~\cite{openclaw_prism2026}) govern execution-time safety rather than capability registration; they complement ADL Lite by leveraging the capability metadata that ADL Lite produces.
@@ -34,28 +34,28 @@ We next review knowledge graph construction and ontology engineering systems tha
 
 \subsection{Knowledge Graph Construction and Ontology Engineering}\label{subsec:kg-ontology-engineering}
 
-The Semantic Web vision~\cite{bernerslee2001semanticweb} was operationalized through OWL~2~\cite{owl2}; toolchains enable ontology authoring at scale, but reasoners impose computational costs ill-suited to rapidly evolving knowledge bases~\cite{glimm2014hermit,hogan2021knowledge}. The OBO Foundry provides centralized versioning~\cite{obo_foundry}; lightweight alternatives (Schema.org~\cite{guha2016schemaorg}, JSON-LD~\cite{json_ld}, SHACL~\cite{w3c_shacl}) and Markdown tools~\cite{foam2020,dendron2020} lower the barrier to entry but remain bound to RDF or lack machine-checkable coordination. LLM4ACOE~\cite{llm4acoe}, Sim-HCOME~\cite{sim_hcome}, and Ontology-Constrained Neural Reasoning~\cite{tuan2026ontology} generate OWL automatically but without lifecycle governance. ADL Lite differs from these systems in three respects: (i)~\emph{authoring paradigm:} ADL Lite uses Markdown-native documents rather than OWL/RDF output; (ii)~\emph{governance scope:} ADL Lite provides built-in lifecycle state machines (register$\to$validate$\to$deprecate) rather than static ontology production; (iii)~\emph{deployment weight:} ADL Lite is pip-installable and operates on Git repositories, whereas LLM4ACOE and Sim-HCOME require multi-agent orchestration pipelines. These are complementary trade-offs, not competitive disadvantages: LLM4ACOE/Sim-HCOME excel at automated ontology generation with ReAct reasoning traces, while ADL Lite excels at lightweight, auditable governance of existing capabilities. Table~\ref{tab:llm-oe-comparison} presents the dimension-level comparison.
+The Semantic Web vision~\cite{bernerslee2001semanticweb} was operationalized through OWL~2~\cite{owl2}; toolchains enable ontology authoring at scale, but reasoners impose computational costs ill-suited to rapidly evolving knowledge bases~\cite{glimm2014hermit,hogan2021knowledge}. The OBO Foundry provides centralized versioning~\cite{obo_foundry}; lightweight alternatives (Schema.org~\cite{guha2016schemaorg}, JSON-LD~\cite{json_ld}, SHACL~\cite{w3c_shacl}) and Markdown tools~\cite{foam2020,dendron2020} lower the barrier to entry but remain bound to RDF or lack machine-checkable coordination. LLM4ACOE~\cite{llm4acoe}, Sim-HCOME~\cite{sim_hcome}, and Ontology-Constrained Neural Reasoning~\cite{tuan2026ontology} generate OWL automatically but without lifecycle governance. ADL Lite differs from these systems in three respects: (i)~\emph{authoring paradigm:} ADL Lite uses Markdown-native documents rather than OWL/RDF output; (ii)~\emph{governance scope:} ADL Lite provides built-in lifecycle state machines (register $\to$ validate $\to$ deprecate) rather than static ontology production; (iii)~\emph{deployment weight:} ADL Lite is pip-installable and operates on Git repositories, whereas LLM4ACOE and Sim-HCOME require multi-agent orchestration pipelines. These are complementary trade-offs, not competitive disadvantages: LLM4ACOE/Sim-HCOME excel at automated ontology generation with ReAct reasoning traces, while ADL Lite excels at lightweight, auditable governance of existing capabilities. Table~\ref{tab:llm-oe-comparison} presents the dimension-level comparison.
 
 \begin{table}[htbp]
 \centering
-\small
+\footnotesize
 \caption{Dimension-level comparison: ADL Lite vs. proximate systems.}
 \label{tab:llm-oe-comparison}
-\begin{tabular}{@{}p{3.2cm}p{2.8cm}p{2.8cm}p{2.8cm}@{}}
+\begin{tabularx}{\textwidth}{@{}p{3.2cm}XXX@{}}
 \toprule
 \textbf{Dimension} & \textbf{LLM4ACOE / Sim-HCOME} & \textbf{Blocklace (2024)} & \textbf{ADL Lite} \\
 \midrule
 Primary output & OWL~2~DL ontology & Generic BFT-CRDT DAG & Markdown-native capability registry \\
 LLM agent role & Multi-agent ReAct ontology generation & None (transport layer) & Actor in lifecycle events \\
-Lifecycle governance & None (static ontology) & None (application-agnostic) & Register$\to$validate$\to$deprecate \\
+Lifecycle governance & None (static ontology) & None (application-agnostic) & Register $\to$\allowbreak validate $\to$\allowbreak deprecate \\
 Cryptographic integrity & None (manual QA review) & SHA-256 + BFT consensus & SHA-256 hash chain \\
 Deterministic state & External reasoner required & None (raw data structure) & Built-in $\delta(C)$, $\gamma(C)$ \\
 Deployment & Research pipeline (multi-agent) & Library (distributed systems) & \texttt{pip install} + Git \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
-Blocklace~\cite{blocklace2024} is a general-purpose BFT-CRDT with a cryptographic hash DAG, providing Byzantine fault tolerance and equivocation detection at the transport layer. ADL Lite is complementary: Blocklace provides the \emph{transport} (distributed consensus over a DAG of events), while ADL Lite provides the \emph{application semantics} (deterministic status derivation $\delta(C)$, confidence aggregation $\gamma(C)$, and declarative preconditions). In the proposed Phase~3 architecture, Blocklace's DAG serves as the transport layer beneath ADL Lite's lifecycle semantics. SEO~2025~\cite{boldachev2025seo} uses causal DAGs with reactive guards for distributed multi-agent event contribution. ADL Lite's linear hash chain is less expressive but offers $O(1)$ per-event append latency and deterministic $O(n)$ verification. This represents a trade-off between expressivity and simplicity of audit.
+Blocklace~\cite{blocklace2024} is a general-purpose BFT-CRDT with a cryptographic hash DAG, providing Byzantine fault tolerance and equivocation detection at the transport layer. ADL Lite is complementary: Blocklace provides the \emph{transport} (distributed consensus over a DAG of events), while ADL Lite provides the \emph{application semantics} (deterministic status derivation $\delta(C)$, confidence aggregation $\gamma(C)$, and declarative preconditions). In the proposed Phase~3 architecture, Blocklace's DAG serves as the transport layer beneath ADL Lite's lifecycle semantics. SEO~2025~\cite{boldachev2025seo} uses causal DAGs with reactive guards for distributed multi-agent event contribution. ADL Lite's linear hash chain is less expressive but offers $O(1)$ per-event append latency and deterministic $O(n)$ verification. This represents a deliberate trade-off between expressivity and simplicity of audit.
 
 \subsection{Provenance, Trust, and Verifiable Publishing}\label{subsec:provenance-trust}
 
@@ -65,13 +65,39 @@ W3C PROV-O~\cite{w3c_prov_o}, Linked Data Proofs~\cite{linked_data_proofs}, and 
 
 CIDOC CRM~\cite{cidoc_crm}, SEM/LODE~\cite{vanhage2011sem,shaw2011lode}, and RDF Stream Processing~\cite{w3c_rsp,c_sparql,lephuoc2011cqels} provide event vocabularies but lack both constraint mechanisms and retrospective verification. Boldachev's SEO~\cite{boldachev2025seo}, Al-Fedaghi's occurrence-only paradigm~\cite{alfedaghi2024occurrence}, and Guizzardi's UFO-B~\cite{guizzardi2024ufob} offer alternative event models. CRDTs~\cite{crdts,automerge,yjs,crdt_rdf_2023,nieto2024crdt} and Blocklace~\cite{blocklace2024} reconcile concurrent updates; ADL Lite complements these with append-only event chains and deterministic lifecycle governance. Real-time collaborative ontology editing using distributed version control (OntoEditor, which uses Operational Transformation rather than CRDTs) provides a related but distinct approach to multi-author ontology development~\cite{hemid2024ontoeditor}. ADL Lite's EventChain extends the event-sourced aggregate root pattern~\cite{event_sourcing} with ontological analysis, SHA-256 chaining, and Markdown-native authoring.
 
-Table~\ref{tab:event-topology} compares these frameworks.
+\subsection{Transparency Logs and Software Supply Chain}\label{subsec:transparency-logs}
+
+Certificate Transparency~(CT)~
+\cite{rfc6962}, Sigstore~Rekor~
+\cite{sigstore2022}, in-toto~
+\cite{in_toto}, and SLSA~
+\cite{slsa} provide tamper-evident registries for software artifacts, certificates, and supply-chain provenance. These systems use Merkle-tree or hash-DAG structures to enable $O(\log n)$ inclusion proofs and $O(1)$ consistency proofs between log snapshots, making them highly scalable for globally distributed verification with millions of entries. ADL Lite's linear SHA-256 chain, by contrast, requires $O(n)$ sequential verification for full integrity checking. This represents a deliberate design trade-off: linear chains are simpler to implement in Markdown-native environments, produce human-readable audit trails (each event is a self-contained JSON record), and require no external gossiping or witness infrastructure for consistency monitoring. Merkle trees excel at proving that an entry exists in a large, append-only log; ADL Lite excels at governing the lifecycle of a single capability through deterministic status derivation and confidence aggregation. The two approaches are complementary: future Phase~3 integration (FW4, FW9) may adopt Merkle-tree batching for cross-repository verification while retaining ADL Lite's per-chain lifecycle semantics.\par
+\textbf{Quantitative comparison with nanopublications and Git-native provenance.} Table~\ref{tab:quantitative-baseline} compares ADL Lite with two related lightweight approaches on operational metrics relevant to capability-lifecycle governance.
 
 \begin{table}[htbp]
 \centering
+\small
+\caption{Quantitative baseline comparison: authoring burden, validation latency, and audit depth.}
+\label{tab:quantitative-baseline}
+\begin{tabular}{@{}p{3.5cm}p{3.5cm}p{3.5cm}p{3.5cm}@{}}
+\toprule
+\textbf{System} & \textbf{Authoring burden} & \textbf{Validation latency} & \textbf{Audit depth} \\
+\midrule
+Nanopublications + trusty URIs & Medium (RDF/Turtle syntax) & $O(1)$ hash verification & Statement-level (single assertion) \\
+Git-native (RO-Crate, DataLad) & Low (file-based) & $O(1)$ commit signature check & Commit-level (coarse-grained) \\
+ADL Lite & Low (Markdown-native) & $O(n)$ chain scan (linear) & Event-level (fine-grained lifecycle) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Nanopublications with trusty URIs~\cite{nanopub2023} provide $O(1)$ hash verification for individual assertions but lack lifecycle semantics: each nanopublication is a standalone, immutable statement with no formal status derivation or precondition-governed transitions. Git-native systems (RO-Crate, DataLad) provide commit-level provenance but treat the entire commit as a unit of change, making it impossible to trace the lifecycle of an individual capability within a repository containing many concepts. ADL Lite trades $O(1)$ verification for $O(n)$ chain scanning in exchange for per-event lifecycle governance: each event (REGISTER, VALIDATE, DEPRECATE, FORK) is individually typed, preconditioned, and auditable. The migration path to nanopublications is bidirectional: ADL Lite events export to RDF-star quoted triples (Appendix~F), and nanopublication assertions can be imported as RELATE events with SHA-256 content-addressed references. The migration path to Git-native provenance is direct: ADL Lite EventChains are stored as Markdown files in standard Git repositories, with commit signatures providing repository-level integrity and event hashes providing concept-level integrity.
+
+\begin{table}[htbp]
+\centering
+\small
 \caption{Comparison of event-centric frameworks: topology, integrity, and governance.}
 \label{tab:event-topology}
-\begin{tabular}{@{}p{2.8cm}p{2.5cm}p{3.5cm}p{3.5cm}@{}}
+\begin{tabular}{@{}p{2.2cm}p{2.2cm}p{3cm}p{3cm}@{}}
 \toprule
 \textbf{Framework} & \textbf{Event Topology} & \textbf{Integrity Mechanism} & \textbf{Governance Semantics} \\
 \midrule
@@ -79,6 +105,7 @@ CIDOC CRM & Descriptive event graph & None (documentation) & None \\
 SEM/LODE & Minimal event vocabulary & None (publishing) & None \\
 SEO (2025) & Causal DAG ($\prec$ relation) & Conformance tests (A1--A9) & Reactive guards \\
 Blocklace (2024) & Cryptographic hash DAG & SHA-256 + BFT consensus & Byzantine exclusion \\
+Transparency logs & Merkle tree / hash DAG & SHA-256 + inclusion proofs & Third-party audit \\
 ADL Lite & Linear SHA-256 chain & Sequential hash verification & Precondition rules + $\delta(C)$ \\
 \bottomrule
 \end{tabular}
