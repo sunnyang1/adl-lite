@@ -62,7 +62,7 @@ ADL Lite uses a \emph{dual-identifier} scheme that separates \emph{provenance id
 
 \textbf{Near-duplicate detection.} When a new \textsc{Register} event is appended, the system computes both $h_{\text{gen}}$ and $h_{\text{content}}$. If $h_{\text{content}}$ matches an existing concept (exact match or within a Levenshtein ratio threshold of 0.85), the ActionExecutor emits a warning: ``This concept may be a duplicate of [existing concept]. Consider appending a \textsc{Relate} event with predicate \texttt{isomorphic-to}.'' This recommendation is advisory, not mandatory: the agent may choose to register the concept as a separate entity (e.g., because the L2 description is substantially different, or because the agent is intentionally creating a fork). The content hash is stored in the event payload and is visible in the warm index for query purposes.
 
-\textbf{Relation to identity consolidation.} The dual-identifier scheme provides an \emph{automated} mechanism for detecting near-duplicates, which complements the manual \textsc{Relate} event workflow (\S\ref{subsec:formal-semantics}). When the system detects a content-hash match, it can suggest (but not enforce) the strongest applicable predicate: \texttt{isomorphic-to} for structural equivalence, \texttt{specialisation-of} for refinement, or \texttt{analogical-to} for metaphorical similarity. The content hash is computed in $O(|\text{L2}| + |\text{L3}|)$ time by the parser, which is a negligible overhead compared to the SHA-256 computation for the event chain. The content hash is \emph{not} part of the cryptographic chain: it is an advisory field, not a consensus field, so it does not affect the well-formedness or integrity of the EventChain.
+\textbf{Relation to identity consolidation.} The dual-identifier scheme provides an \emph{automated} mechanism for detecting near-duplicates, which complements the manual \textsc{Relate} event workflow (\S\ref{subsec:compact-formal-spec}). When the system detects a content-hash match, it can suggest (but not enforce) the strongest applicable predicate: \texttt{isomorphic-to} for structural equivalence, \texttt{specialisation-of} for refinement, or \texttt{analogical-to} for metaphorical similarity. The content hash is computed in $O(|\text{L2}| + |\text{L3}|)$ time by the parser, which is a negligible overhead compared to the SHA-256 computation for the event chain. The content hash is \emph{not} part of the cryptographic chain: it is an advisory field, not a consensus field, so it does not affect the well-formedness or integrity of the EventChain.
 
 \subsection{Precondition Language and Action Executor}\label{subsec:precondition-executor}
 
@@ -218,39 +218,30 @@ archived & $\times$ & $\times$ & $\times$ & $\times$ & $\times$ \\
 
 The ActionExecutor validates L4 action blocks against a closed action registry defined in \path{adl_core_ontology.yaml}. Each action definition specifies preconditions as a list of \texttt{PreconditionRule} objects. The ConsensusEngine governs the resulting status transitions by appending events to the chain; the final status is derived via the CRDT LUB over all lifecycle events (Theorem~1), not by a transition matrix. Forking creates a new child chain with a fresh \texttt{REGISTER} event while the original chain's status is the LUB of its previous status and \texttt{forked}; both evolve independently.
 
-\subsection{Formal Derivation Semantics}\label{subsec:formal-semantics}
+\subsection{Compact Formal Specification}\label{subsec:compact-formal-spec}
 
-This section provides the formal foundation for the derivation semantics. All definitions are self-contained; expanded proof sketches and sensitivity analysis appear in Appendix~E. We have drafted a TLA$^{+}$ specification of the EventChain state machine for lengths up to 20 events (FW10); extension to 100--1000 events is planned for the next revision. We establish Theorems~1--3 through rigorous natural-language argument in this paper.
+\textbf{Purpose.} This subsection presents a \emph{single-page, self-contained} formal specification of ADL Lite's derivation semantics. All definitions, theorems, and complexity claims are stated here; expanded proof sketches and sensitivity analysis appear in Appendix~E. The specification is organised as: (i)~the status lattice and derivation function~$\delta$; (ii)~the confidence aggregation function~$\gamma$ (three variants); (iii)~the precondition language; and (iv)~the fork and merge semantics. A worked example and distributed ordering assumptions follow.
 
-\begin{table}[htbp]
-\centering
-\footnotesize
-\caption{Formal notation for the derivation semantics.}
-\label{tab:formal-notation}
-\begin{tabularx}{\textwidth}{@{}p{3.5cm}X@{}}
-\toprule
-\textbf{Symbol} & \textbf{Definition} \\
-\midrule
-$\Sigma = \Sigma_{\text{life}} \cup \Sigma_{\text{comm}}$ & Event alphabet (lifecycle $\cup$ communication) \\
-$C = [e_1, \ldots, e_n]$ & Well-formed EventChain \\
-$\text{WF}(C)$ & Well-formedness predicate (12 axioms; see Appendix~E) \\
-$\delta(C) \in S$ & Status derivation function \\
-$\gamma(C) \in [0,1]$ & Confidence aggregation function \\
-$C_{\text{life}}$ & Lifecycle subsequence $\{e \in C \mid e.\tau \in \Sigma_{\text{life}}\}$ \\
-$S$ & Status space \{provisional, validated, deprecated, forked, archived\} \\
-$f: \Sigma_{\text{life}} \to S$ & Event-type-to-status mapping \\
-$\text{Fork}(C, a)$ & Fork operation producing $(C_{\text{fork}}, C')$ \\
-\bottomrule
-\end{tabularx}
-\end{table}
+\subsubsection{Status Lattice and Derivation Function $\delta$}\label{subsubsec:status-lattice}
 
-A chain $C = [e_1, \ldots, e_n]$ is well-formed, denoted $\text{WF}(C)$, if it satisfies 12 axioms (genesis anchoring, shared \texttt{concept\_id}, cryptographic linkage, hash correctness, distinct \texttt{event\_id}, non-empty actor, timestamp monotonicity, payload schema conformance, action preconditions, hash format, canonical fields, and valid event type). The full conjunctive formalisation is in Appendix~E.
+Let $\Sigma = \Sigma_{\text{life}} \cup \Sigma_{\text{comm}}$ be the event alphabet, with lifecycle events $\Sigma_{\text{life}} = \{\text{REGISTER},\; \text{VALIDATE},\; \text{DEPRECATE},\; \text{FORK},\; \text{ARCHIVE}\}$ and communication events $\Sigma_{\text{comm}} = \{\text{RELATE},\; \text{EVIDENCE},\; \text{SEAL},\; \text{ANNOUNCE},\; \text{PUBLISH},\; \text{SNAPSHOT},\; \text{CALIBRATE},\; \text{SYNC\_DASHBOARD},\; \text{LISTEN},\; \text{REVOKE}\}$. A chain $C = [e_1, \ldots, e_n]$ is well-formed, denoted $\text{WF}(C)$, if it satisfies 12 axioms (genesis anchoring, shared \texttt{concept\_id}, cryptographic linkage, hash correctness, distinct \texttt{event\_id}, non-empty actor, timestamp monotonicity, payload schema conformance, action preconditions, hash format, canonical fields, and valid event type; full list in Appendix~E).
 
-The status space is $S = \{\text{provisional},\; \text{validated},\; \text{deprecated},\; \text{forked},\; \text{archived}\}$. The status lattice is a join-semilattice with partial order:
-\begin{equation}
-    \text{provisional} < \text{forked} < \text{validated} < \text{deprecated} < \text{archived}
+The status space is $S = \{\text{provisional},\; \text{forked},\; \text{validated},\; \text{deprecated},\; \text{archived}\}$, equipped with the total order:
+\begin{equation}\label{eq:status-order}
+    \text{provisional} \;\prec\; \text{forked} \;\prec\; \text{validated} \;\prec\; \text{deprecated} \;\prec\; \text{archived}
 \end{equation}
-For a chain $C$, let $C_{\text{life}}$ denote the lifecycle subsequence and let $f: \Sigma_{\text{life}} \to S$ map event types to their corresponding status values. The status derivation function $\delta(C)$ is the least upper bound (LUB) of all lifecycle events in the chain, computed as the maximum over the lattice order:
+numbered $1, 2, 3, 4, 5$ respectively. This is a join-semilattice: the least upper bound (LUB) of any subset is its maximum element. The status map $f: \Sigma_{\text{life}} \to S$ assigns $f(\text{REGISTER}) = \text{provisional}$, $f(\text{VALIDATE}) = \text{validated}$, $f(\text{DEPRECATE}) = \text{deprecated}$, $f(\text{FORK}) = \text{forked}$, $f(\text{ARCHIVE}) = \text{archived}$.
+
+Let $C_{\text{life}} = \{e \in C \mid e.\tau \in \Sigma_{\text{life}}\}$ be the lifecycle subsequence. The status derivation function $\delta: \{C \mid \text{WF}(C)\} \to S$ is:
+\begin{equation}\label{eq:delta-def}
+    \delta(C) = \begin{cases}
+        \text{provisional} & \text{if } C_{\text{life}} = \emptyset \\
+        \max_{\prec}\{ f(e.\tau) \mid e \in C_{\text{life}} \} & \text{otherwise}
+    \end{cases}
+\end{equation}
+where $\max_{\prec}$ is the maximum over the integer order (Eq.~\ref{eq:status-order}). Complexity: $O(|C|)$ by single scan of $C$ (or $O(1)$ with an incremental LUB cache updated on every \texttt{append}).
+
+\textbf{Conflict resolution (CRDT LUB).} Under Eq.~\ref{eq:delta-def}, status is determined by the \emph{highest} lifecycle event in the lattice, not the last. Once $\text{deprecated}$ or $\text{archived}$ appears, no subsequent event can lower the status (monotonicity). Re-activation after deprecation requires a new genesis event on a new chain.
 \begin{equation}
     \delta(C) = \begin{cases}
         \text{provisional} & \text{if } C_{\text{life}} = [] \\
@@ -259,81 +250,87 @@ For a chain $C$, let $C_{\text{life}}$ denote the lifecycle subsequence and let 
 \end{equation}
 where $\max_{\prec}$ is the maximum over the integer order of the lattice (1~provisional, 2~forked, 3~validated, 4~deprecated, 5~archived). This is computed in $O(|C_{\text{life}}|)$ time by a single scan of the lifecycle subsequence.
 
-\textbf{Conflict resolution for $\delta$.} Under the CRDT LUB semantics, status is determined by the \emph{highest} lifecycle event in the lattice, not by the \emph{last} event. Once a chain reaches $\text{deprecated}$, no subsequent $\text{VALIDATE}$ or $\text{REGISTER}$ event can change the status back to $\text{validated}$ or $\text{provisional}$---the LUB of $\text{deprecated}$ with any lower status is always $\text{deprecated}$. Similarly, once a chain reaches $\text{archived}$, the status is permanently $\text{archived}$. This guarantees that status \emph{never regresses}, which is a fundamental property of monotonic CRDTs. Re-activation after deprecation requires a new $\text{REGISTER}$ event on a \emph{new} chain (creating a new genesis hash), not a reversal of the existing chain.
+\textbf{Conflict resolution (CRDT LUB).} Under Eq.~\ref{eq:delta-def}, status is determined by the \emph{highest} lifecycle event in the lattice, not the last. Once $\text{deprecated}$ or $\text{archived}$ appears, no subsequent event can lower the status (monotonicity). Re-activation after deprecation requires a new genesis event on a new chain.
 
 \subsubsection{Confidence Aggregation: Three Variants}
 
 Let $V = [e \in C \mid e.\tau = \text{VALIDATE}]$ denote the validation subsequence. ADL Lite provides three confidence aggregation strategies.
 
 \textbf{Variant 1: Default (G-Counter max).} The simplest strategy, used by default, takes the maximum confidence across all \texttt{VALIDATE} events (or \texttt{SNAPSHOT} if no validation has occurred):
-\begin{equation}
+\begin{equation}\label{eq:gamma-default}
     \gamma_{\text{default}}(C) = \begin{cases}
         0.0 & \text{if } V = [] \\
         \text{clamp}_{[0,1]}\bigl(\max\{ e.\text{payload}[\text{``confidence''}] \mid e \in V \}\bigr) & \text{otherwise}
     \end{cases}
 \end{equation}
-where $\max$ is the maximum over all validation events in the chain (G-Counter semantics), and $\text{clamp}_{[0,1]}(x) = \max(0, \min(1, x))$. Evaluated in $O(1)$ time by an incremental cache (\texttt{\_cached\_confidence}) that is updated on every \texttt{append()}: when a new \textsc{Validate} or \textsc{Snapshot} event with confidence $c$ is appended, the cache is updated to $\max(\text{cache}, \text{clamp}_{[0,1]}(c))$. A defensive recompute (full $O(|V|)$ scan) is triggered only if the cache is stale (e.g., after direct mutation of the internal event list). This G-Counter semantics ensures that once a high-confidence validation is recorded, subsequent lower-confidence assertions cannot decrease the aggregate; this prevents malicious or erroneous validators from downgrading a concept after it has been validated. The $O(1)$ claim applies to \emph{reading} $\gamma_{\text{default}}$; \emph{appending} an event is $O(1)$ for the cache update and $O(1)$ for the well-formedness check (hash computation).
+where $\max$ is the maximum over all validation events in the chain (G-Counter semantics), and $\text{clamp}_{[0,1]}(x) = \max(0, \min(1, x))$. Evaluated in $O(1)$ time by an incremental cache (\texttt{\_cached\_confidence}) that updates on every \texttt{append} to $\max(\text{cache}, \text{clamp}(c))$. The G-Counter semantics ensure that once a high-confidence validation is recorded, subsequent lower-confidence assertions cannot decrease the aggregate.
 
 \textbf{Variant 2: Bonus-formula aggregate ($\gamma_{\text{agg}}$).} This variant mitigates collusion by aggregating per-actor maxima and adding a bonus for cross-validation:
-\begin{equation}
+\begin{equation}\label{eq:gamma-agg}
     \gamma_{\text{agg}}(C) = \begin{cases}
         0.0 & \text{if } V = [] \\
-        \min\!\left(1.0,\; c_{\text{base}} + 0.05 \times (N_{\text{vals}} - 1)\right) & \text{otherwise}
+        \min\!\bigl(1.0,\; c_{\text{base}} + 0.05 \times (N_{\text{vals}} - 1)\bigr) & \text{otherwise}
     \end{cases}
 \end{equation}
-where $N_{\text{vals}} = |\text{actors}(V)|$ is the number of distinct validators, and:
-\begin{equation}
-    c_{\text{base}} = \max\!\left(0.5,\; \frac{1}{N_{\text{vals}}} \sum_{a \in \text{actors}(V)} \phi(a, V)\right)
-\end{equation}
-with $\phi(a, V) = \max\{e.\text{payload}[\text{``confidence''}] \mid e \in V \land e.\text{actor} = a\}$ being the maximum confidence reported by actor $a$. The $\min(1.0, \cdot)$ cap ensures boundedness; the $0.05$ bonus per distinct validator rewards cross-validation. Sensitivity analysis for different $(\beta, c_{\min})$ parameters appears in Appendix~E.
+where $N_{\text{vals}} = |\text{actors}(V)|$ and $c_{\text{base}} = \max(0.5, \frac{1}{N_{\text{vals}}} \sum_{a \in \text{actors}(V)} \phi(a, V))$, with $\phi(a, V) = \max\{e.\text{payload}[\text{``confidence''}] \mid e \in V \land e.\text{actor} = a\}$. The $0.05$ bonus per distinct validator rewards cross-validation; the $0.5$ floor prevents a single low-confidence validator from dominating. Sensitivity analysis in Appendix~E.
 
 \textbf{Variant 3: Calibrated confidence ($\gamma_{\text{cal}}$).} This variant weights each validator's confidence by a per-actor accuracy score:
-\begin{equation}
+\begin{equation}\label{eq:gamma-cal}
     \gamma_{\text{cal}}(C) = \begin{cases}
         0.0 & \text{if } V = [] \\
-        \text{clamp}_{[0,1]}\!\left(\frac{\sum_{a \in \text{actors}(V)} \text{accuracy}_a \cdot \phi(a, V)}{\sum_{a \in \text{actors}(V)} \text{accuracy}_a}\right) & \text{otherwise}
+        \text{clamp}_{[0,1]}\!\Bigl(\frac{\sum_{a \in \text{actors}(V)} \text{accuracy}_a \cdot \phi(a, V)}{\sum_{a \in \text{actors}(V)} \text{accuracy}_a}\Bigr) & \text{otherwise}
     \end{cases}
 \end{equation}
-where $\text{accuracy}_a \in [0,1]$ is the accuracy score of actor $a$. This requires an external calibration profile (\texttt{.adl/calibration.yaml}).
+where $\text{accuracy}_a \in [0,1]$ is a per-actor accuracy score from an external calibration profile. Complexity: $O(|V|)$. All three variants are bounded in $[0,1]$ by construction (Theorem~4).
 
-\textbf{Disclaimer: calibration in the collaborative-audit model.} The $\text{accuracy}_a$ scores in $\gamma_{\text{cal}}$ are themselves self-reported in the Phase~1 collaborative-audit model (there is no external ground-truth source for validator accuracy). Consequently, $\gamma_{\text{cal}}$ provides a \emph{heuristic calibration} that redistributes confidence among validators, but it does \emph{not} prevent collusion: a colluding actor can report $\text{accuracy}_a = 1.0$ and drive the aggregate to any value in $[0,1]$. Full collusion resistance requires the authenticated identity and staking mechanisms planned for Phase~2/3 (FW4, FW9).
+\textbf{Concurrent event resolution.} For $\delta$: concurrent lifecycle events commute because the LUB is independent of order (Eq.~\ref{eq:delta-def}). For $\gamma_{\text{default}}$: concurrent \textsc{Validate} events commute because $\max$ is associative and commutative. For $\gamma_{\text{agg}}$ and $\gamma_{\text{cal}}$: per-actor maxima are computed first, then aggregated; concurrent events from the same actor commute because $\max$ is idempotent. The G-Counter semantics guarantee that once a high-confidence validation is recorded, subsequent lower-confidence assertions cannot decrease the aggregate.
 
-\textbf{Sybil vulnerability in Phase~1.} The current non-Byzantine model does not prevent Sybil attacks: a single actor can create multiple pseudonyms and append multiple \textsc{Validate} events, each with high confidence, driving $\gamma_{\text{agg}}$ to $0.99$ with as few as $10$ distinct pseudonyms (since $c_{\text{base}} \geq 0.5$ and $0.05 \times 9 = 0.45$). This is a known Phase~1 limitation (L3, Section~\ref{subsec:limitations}), explicitly demonstrated in adversarial experiment E14 (Table~\ref{tab:undetectable-attacks}). The mitigation is scoped to Phase~3: staking-based validation (FW9) and per-actor reputation calibration (Section~\ref{subsec:calibration}). Under the staking model, each validator must deposit a stake to register, and the cost of creating a Sybil identity is proportional to the stake amount. The calibration layer ($\gamma_{\text{cal}}$) weights each validator by a per-actor accuracy score, so a new Sybil identity with no history receives a low accuracy weight and contributes negligibly to the aggregate confidence.
+\textbf{Phase~1 limitations.} The current collaborative-audit model lacks authenticated identity, so $\gamma_{\text{cal}}$ accuracy scores are self-reported and do not prevent collusion (a single actor can report $\text{accuracy}_a = 1.0$). Sybil attacks are possible: a single actor with $10$ pseudonyms can drive $\gamma_{\text{agg}}$ to $0.99$ (since $c_{\text{base}} \geq 0.5$ and $0.05 \times 9 = 0.45$). These are known limitations (L3, \S\ref{subsec:limitations}), demonstrated in adversarial experiment E14 (Table~\ref{tab:undetectable-attacks}). Mitigation requires authenticated identities and staking (Phase~3, FW9).
 
-\textbf{Conflict resolution for $\gamma$.} All three variants resolve multiple \texttt{VALIDATE} events by computing per-actor maxima and then aggregating. For $\gamma_{\text{default}}$, the G-Counter ($\max$) over all \texttt{VALIDATE} events prevails. For $\gamma_{\text{agg}}$ and $\gamma_{\text{cal}}$, per-actor maxima are computed first, then aggregated. If two validators append \texttt{VALIDATE} events with different confidence values, each contributes its own maximum.\par
-\textbf{Conflicting validators and time decay.} When validators disagree (e.g., \texttt{agent\_1} reports confidence 0.9 while \texttt{agent\_2} reports 0.5), the three variants resolve the conflict differently. $\gamma_{\text{default}}$ ignores the disagreement and takes the maximum value (0.9). $\gamma_{\text{agg}}$ preserves both values (via per-actor maxima) and rewards cross-validation with the bonus term. $\gamma_{\text{cal}}$ weights each validator by their accuracy score, so a high-accuracy validator's 0.9 dominates a low-accuracy validator's 0.5. Time decay is implemented via an optional EWMA (exponentially weighted moving average) layer with smoothing factor $\alpha = 0.3$: older validations receive geometrically decreasing weight, preventing stale confidence from dominating the aggregate. The EWMA layer is independent of the three variants and can be combined with any of them.
+\textbf{Conflict resolution for $\gamma$.} All three variants resolve multiple \texttt{VALIDATE} events by computing per-actor maxima and then aggregating. For $\gamma_{\text{default}}$, the G-Counter ($\max$) over all \texttt{VALIDATE} events prevails. For $\gamma_{\text{agg}}$ and $\gamma_{\text{cal}}$, per-actor maxima are computed first, then aggregated. Time decay is implemented via an optional EWMA layer with smoothing factor $\alpha = 0.3$.
 
-A fork operation $\text{Fork}(C, a)$ appends a $\textsc{Fork}$ event to the parent chain and creates a child chain with a fresh $\textsc{Register}$ event and a deterministic fork suffix appended to \texttt{concept\_id}. Child chains are independent: each child's derived state depends only on its own event sequence.
+\subsubsection{Fork and Merge Semantics}\label{subsubsec:fork-merge}
 
-\textbf{Total order $\prec$ for conflict resolution.} Within a single chain, events are totally ordered by the cryptographic linkage (each event points to its predecessor via \texttt{previous\_event\_id}). For concurrent events across branches, we define a total order $\prec$ as:
-\begin{equation}
-\begin{split}
-    e_i \prec e_j \iff & \; e_i.\text{timestamp} < e_j.\text{timestamp} \; \lor \\
-    & \; (e_i.\text{timestamp} = e_j.\text{timestamp} \; \land \\
-    & \; e_i.\text{event\_id} <_{\text{lex}} e_j.\text{event\_id})
-\end{split}
+A fork $\text{Fork}(C, a)$ appends a $\textsc{Fork}$ event to the parent chain and creates a child chain $C'$ with a fresh $\textsc{Register}$ event. The parent and child evolve independently:
+\begin{align}
+    \delta(C_{\text{fork}}) &= \max(\delta(C), \text{forked}) \quad \text{(parent status, LUB)} \\
+    \delta(C') &= \text{provisional} \quad \text{(child status, fresh genesis)}
+\end{align}
+where $C_{\text{fork}} = C \oplus [e_{\text{FORK}}]$. For merge: given concurrent branches $B_1, B_2$, the merged event set is $B_1 \cup B_2$ (LWW-Set, deduplicated by \texttt{event\_id}). The linearization sorts by total order $\prec$ (timestamp, then lexicographic \texttt{event\_id}), producing a consistent chain. The CRDT properties (commutativity, associativity, idempotence) are satisfied by set union; the LUB semantics guarantee that $\delta$ and $\gamma$ are deterministic under merge (Theorem~9).
+
+\textbf{Total order $\prec$.} For events $e_i, e_j$:
+\begin{equation}\label{eq:total-order}
+    e_i \prec e_j \iff e_i.\text{timestamp} < e_j.\text{timestamp} \;\lor\; (e_i.\text{timestamp} = e_j.\text{timestamp} \;\land\; e_i.\text{event\_id} <_{\text{lex}} e_j.\text{event\_id})
 \end{equation}
-where $<_{\text{lex}}$ is lexicographic comparison of UUID strings. This order is total because timestamps are comparable and \texttt{event\_id} provides a tiebreaker. The append-only property of EventChains ensures that $\prec$ is consistent with the chain's internal order: if $e_i$ precedes $e_j$ in the chain, then $e_i.\text{timestamp} \leq e_j.\text{timestamp}$ (with equality possible only for simultaneous appends, resolved by \texttt{event\_id}).
+where $<_{\text{lex}}$ is lexicographic comparison of UUID strings. This order is total, consistent with the chain's internal cryptographic linkage, and provides a deterministic tiebreaker for simultaneous appends. Within a single chain, events are totally ordered by cryptographic linkage (each event points to its predecessor via \texttt{previous\_event\_id}). Across chains, events are initially partially ordered; the merge operation linearizes the merged set by sorting on $\prec$, producing a consistent total order.
 
-\textbf{Within-chain total order versus across-chain partial order.} Within a single chain, events are totally ordered by the cryptographic linkage (each event points to its predecessor via \texttt{previous\_event\_id}). This is a \emph{total order}: every pair of events in the chain is comparable. Across chains (e.g., in a distributed merge scenario), events are initially \emph{partially ordered}: events from different chains have no predecessor relationship until they are merged. The merge operation (Phase~3, future work) linearizes the merged set by sorting all events according to $\prec$, producing a consistent total order. This design is standard for CRDTs: individual replicas maintain a total order, while the global state is a partial order that is linearized at merge time. The linearization is deterministic because $\prec$ is a total order on the set of all events.
+\textbf{Concurrent conflict resolution.} For $\delta$: under CRDT LUB semantics, the status is the maximum over all lifecycle events in the chain, independent of append order. A \textsc{Deprecate} event always dominates a \textsc{Validate} event (since $\text{deprecated} > \text{validated}$ in the lattice), and an \textsc{Archive} event dominates all other lifecycle events. For $\gamma$: the G-Counter ($\max$) over all \textsc{Validate} events determines the confidence, independent of append order. When a \textsc{Validate} and a \textsc{Deprecate} conflict, the \textsc{Deprecate} prevails in status but the confidence remains the maximum of all validations. Equivocation (the same actor appending contradictory events) is retained as auditable evidence, not resolved by the ordering.
 
-\textbf{Concurrent conflict resolution.} When multiple agents append events to the same concept concurrently, the resulting events are ordered by $\prec$. For $\delta$: under the CRDT LUB semantics, the status is the maximum over all lifecycle events in the chain, independent of append order. A \textsc{Deprecate} event always dominates a \textsc{Validate} event (since $\text{deprecated} > \text{validated}$ in the lattice), and an \textsc{Archive} event dominates all other lifecycle events. For $\gamma$: the G-Counter ($\max$) over all \textsc{Validate} events determines the confidence, independent of append order. When a \textsc{Validate} and a \textsc{Deprecate} conflict, the \textsc{Deprecate} prevails in status but the confidence remains the maximum of all validations. Equivocation (the same actor appending contradictory events) is retained as auditable evidence, not resolved by the ordering.
+\subsubsection{Theorems: Summary of Proven Properties}\label{subsubsec:theorems-summary}
 
-\textbf{Theorem~1 (Determinism).} For any well-formed chain $C$, $\delta(C)$ is unique and equals the least upper bound of all lifecycle events in $C$. \emph{Proof:} LUB over a finite join-semilattice is unique; full argument in Appendix~E.
+\begin{table}[htbp]
+\centering
+\small
+\caption{Summary of nine core theorems. All proofs are in Appendix~E; proof strategies are indicated.}
+\label{tab:theorems-summary}
+\begin{tabularx}{\textwidth}{@{}p{1.2cm}p{3.8cm}p{2.2cm}p{4.5cm}@{}}
+\toprule
+\textbf{Thm} & \textbf{Statement} & \textbf{Strategy} & \textbf{Complexity / Note} \\
+\midrule
+T1 & $\delta(C)$ is unique (LUB over finite lattice) & Direct & $O(|C|)$ scan, $O(1)$ cached \\
+T2 & Fork: $\delta(C') = \text{provisional}$, $\delta(C_{\text{fork}}) = \max(s, \text{forked})$ & Direct & By LUB definition \\
+T3 & Transition monotonicity: valid iff $e_{\text{new}}.\tau \in \Sigma_{\text{life}}$ & Induction & Base: genesis; Step: append \\
+T4 & $\gamma_{\text{default}}, \gamma_{\text{agg}}, \gamma_{\text{cal}} \in [0,1]$ & Case analysis & Clamp + convex combination \\
+T5 & $\gamma_{\text{default}}(C \oplus [e]) \geq \gamma_{\text{default}}(C)$ for \textsc{Validate} $e$ & Direct & G-Counter $\max$ semantics \\
+T6 & If $\delta(C) = \text{validated}$ then $\gamma(C) \geq 0.5$ & Direct & Precondition requires $\geq 0.5$ \\
+T7 & Appending valid event preserves $\text{WF}(C)$ & Induction & Axiom-by-axiom check \\
+T8 & Precondition eval is $O(k)$ for $k$ rules & Direct & $O(1)$ per rule, short-circuit AND \\
+T9 & CRDT merge: commutative, associative, idempotent & Direct & Set union + LUB/G-Counter \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
-\textbf{Theorem~2 (Fork Determinism).} Let $C$ fork to $(C_{\text{fork}}, C')$. Then $\delta(C') = \text{provisional}$ and $\delta(C_{\text{fork}}) = \max(s, \text{forked})$. \emph{Proof:} By CRDT LUB semantics; see Appendix~E.
-
-\textbf{Theorem~3 (Transition Monotonicity).} For any well-formed $C$ and event $e_{\text{new}}$, the transition is valid iff $e_{\text{new}}.\tau \in \Sigma_{\text{life}}$. \emph{Proof:} By structural induction on $|C|$; see Appendix~E.
-
-\textbf{Theorem~4 (Confidence Boundedness).} For any well-formed $C$, all three $\gamma$ variants are in $[0,1]$. \emph{Proof:} By Pydantic clamping and convex combination properties; see Appendix~E.
-
-\textbf{Theorem~5 (Confidence Monotonicity).} Appending a new \textsc{Validate} never decreases $\gamma_{\text{default}}$. \emph{Proof:} G-Counter $\max$ semantics; see Appendix~E.
-
-\textbf{Theorem~6 (Status--Confidence Consistency).} If $\delta(C) = \text{validated}$, then $\gamma(C) \geq 0.5$. \emph{Proof:} Precondition requires confidence $\geq 0.5$; see Appendix~E.
-
-\textbf{Theorem~7 (Well-Formedness Preservation).} Appending a valid event preserves well-formedness. \emph{Proof:} Axiom-by-axiom check; see Appendix~E.
-
-We provide proof sketches for all seven core theorems (Theorems 1--7) through rigorous natural-language arguments over the closed alphabet $\Sigma$; full details are in Appendix~E. Table~\ref{tab:proof-status} clarifies the proof status of each theorem. Machine-checked proofs for unbounded chains are planned for future work (FW10, FW12).
+\textbf{Proof status.} All nine properties are proven by rigorous natural-language argument (Table~\ref{tab:theorems-summary}). Machine-checked proofs (TLA$^+$/Coq) are in progress (FW10); a randomized trace checker (E25, 10,000 traces, length 2--100, 100\% pass rate) provides independent property-based validation.
 
 \begin{table}[htbp]
 \centering
@@ -344,20 +341,20 @@ We provide proof sketches for all seven core theorems (Theorems 1--7) through ri
 \toprule
 \textbf{Theorem} & \textbf{Proof Method} & \textbf{Status} & \textbf{Evidence} \\
 \midrule
-T1 Determinism & Natural-language argument & Proven in text & LUB over finite lattice (\S\ref{subsec:formal-semantics}) \\
-T2 Fork Determinism & Natural-language argument & Proven in text & Append-only semantics (\S\ref{subsec:formal-semantics}) \\
-T3 Transition Monotonicity & Structural induction & Proven in text & Base + inductive step (\S\ref{subsec:formal-semantics}) \\
+T1 Determinism & Natural-language argument & Proven in text & LUB over finite lattice (\S\ref{subsec:compact-formal-spec}) \\
+T2 Fork Determinism & Natural-language argument & Proven in text & Append-only semantics (\S\ref{subsec:compact-formal-spec}) \\
+T3 Transition Monotonicity & Structural induction & Proven in text & Base + inductive step (\S\ref{subsec:compact-formal-spec}) \\
 T4 Boundedness & Case analysis & Proven in text & Clamp + Pydantic (\S\ref{subsec:calibration}) \\
 T5 Confidence Monotonicity & Direct proof & Proven in text & Max semantics (\S\ref{subsec:calibration}) \\
 T6 Status--Confidence Consistency & Direct proof & Proven in text & Precondition enforcement (\S\ref{subsec:calibration}) \\
-T7 Well-Formedness Preservation & Structural induction & Proven in text & Axiom-by-axiom check (\S\ref{subsec:formal-semantics}) \\
+T7 Well-Formedness Preservation & Structural induction & Proven in text & Axiom-by-axiom check (\S\ref{subsec:compact-formal-spec}) \\
 T8 Precondition Complexity & Direct proof & Proven in text & $O(1)$ per rule (\S\ref{subsubsec:precondition-language}) \\
 T9 CRDT Convergence & Natural-language + executable assertions & Test-validated & E6, E13, E23; Corollary in Appendix~E \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\textbf{Machine-checked proofs.} None of Theorems 1--8 have been formally verified in a proof assistant (e.g., Coq, Isabelle, TLA$^+$). The TLA$^+$ specification (FW10) has been syntax-checked and model-checked for chains up to 20 events (all 2,204 length-3 sequences, 10,000 random sequences of length 4--10). The model-checking confirms that the invariants (determinism, boundedness, monotonicity) hold within the checked bounds, but this is not a formal proof for unbounded chains. Full machine-checked proofs are planned for future work (FW12). Theorem 9 (CRDT convergence) is validated by stress tests (E6: 201 chains, 9,300 events; E13: 50,000 events; E23: 20 concurrent agents) with zero integrity failures, together with the executable assertions in the test suite that verify commutativity, associativity, and idempotence for all tested cases. The G-Set CRDT corollary (Appendix~E) provides the natural-language proof sketch that underpins the empirical validation.
+\textbf{Machine-checked proofs.} None of Theorems 1--8 have been formally verified in a proof assistant. The TLA$^+$ specification (FW10) has been syntax-checked and model-checked for chains up to 20 events (all 2,204 length-3 sequences, 10,000 random sequences of length 4--10). Theorem 9 (CRDT convergence) is validated by stress tests (E6: 201 chains, 9,300 events; E13: 50,000 events; E23: 20 concurrent agents) with zero integrity failures. Full machine-checked proofs are planned for future work (FW12).
 
 \subsubsection{Formal Function Signatures and a Worked Example}
 
@@ -412,7 +409,7 @@ L3 relations (\textsc{Relate}, \textsc{Revoke}, \textsc{Evidence}) are events in
 
 \textbf{Conflicting \textsc{Revoke}/\textsc{Relate} across forks.} If chain~A has a \textsc{Relate} event to concept~X, and chain~B (a fork of~A) has a \textsc{Revoke} event to concept~X, these are not conflicting because they are in different chains. The relation to~X exists for concept~A but not for concept~B. A downstream consumer querying for concepts related to~X will find~A but not~B. If the consumer wants to track the lineage, they can query the \texttt{fork-of} relation in the parent chain.
 
-\textbf{Merge policy for relations (Phase~3).} When two branches of the same chain are merged, the L3 relations are merged by set union (LWW-Set semantics). If both branches contain a \textsc{Relate} event to the same target with the same predicate, the merged chain contains one \textsc{Relate} event (deduplicated by \texttt{event\_id}). If one branch contains a \textsc{Relate} and the other contains a \textsc{Revoke} to the same target, both events are preserved in the merged chain (they are not conflicting; they are sequential events in the same chain). The \texttt{HoldsAt} semantics (\S\ref{subsec:formal-semantics}) determines whether the relation is currently active: a \textsc{Relate} event followed by a \textsc{Revoke} event means the relation is no longer active, regardless of which branch produced the \textsc{Revoke}.
+\textbf{Merge policy for relations (Phase~3).} When two branches of the same chain are merged, the L3 relations are merged by set union (LWW-Set semantics). If both branches contain a \textsc{Relate} event to the same target with the same predicate, the merged chain contains one \textsc{Relate} event (deduplicated by \texttt{event\_id}). If one branch contains a \textsc{Relate} and the other contains a \textsc{Revoke} to the same target, both events are preserved in the merged chain (they are not conflicting; they are sequential events in the same chain). The \texttt{HoldsAt} semantics (\S\ref{subsec:compact-formal-spec}) determines whether the relation is currently active: a \textsc{Relate} event followed by a \textsc{Revoke} event means the relation is no longer active, regardless of which branch produced the \textsc{Revoke}.
 
 \textbf{Relation governance is not covered by fork determinism.} Fork determinism (Theorem~2) applies to the status and confidence of the forked chain, not to its relations. The child chain's relations are independent of the parent's relations. This is a deliberate design choice: relations are domain-level assertions that should be re-evaluated for each fork, not inherited mechanically. A child concept may have a different relation profile from its parent because it represents a different (possibly refined) capability.
 
