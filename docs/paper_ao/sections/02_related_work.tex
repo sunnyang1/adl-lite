@@ -111,6 +111,33 @@ ADL Lite & Linear SHA-256 chain & Sequential hash verification & Precondition ru
 \end{tabular}
 \end{table}
 
+\subsection{Ontology Registry Comparison}\label{subsec:registry-comparison}
+
+ADL Lite occupies a distinct position relative to mature ontology and semantic-artifact registries that provide curation, versioning, and governance for ontologies and vocabularies (Table~\ref{tab:registry-comparison}).
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Comparison of ADL Lite with established ontology registries.}
+\label{tab:registry-comparison}
+\begin{tabular}{@{}p{2.5cm}p{2.5cm}p{2.5cm}p{2.5cm}p{2.5cm}@{}}
+\toprule
+\textbf{Feature} & \textbf{BioPortal} & \textbf{OntoPortal} & \textbf{FAIRsharing} & \textbf{ADL Lite} \\
+\midrule
+Registry Scope & Ontologies & Ontologies & Standards / DBs & Capabilities (LLM agents) \\
+Lifecycle Events & Release-based & Release-based & Static metadata & Event-sourced (R$\to$V$\to$D$\to$F) \\
+Cryptographic Integrity & None & None & None & SHA-256 chain + preconditions \\
+Machine-Readable Axioms & OWL 2 DL (uploaded) & OWL 2 DL (uploaded) & YAML/JSON (curated) & YAML ontology + OWL export \\
+Multi-Agent Authorship & No (single submitter) & No (single submitter) & Curator-mediated & Native (multi-agent consensus) \\
+Content Addressability & URI-based & URI-based & DOI-based & Genesis hash + content hash \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+BioPortal and OntoPortal \cite{bioportal,ontoportal} are the de facto infrastructure for ontology hosting in the biomedical domain. They offer versioning via release tags, collaborative submission, and Web-based curation workflows, but they do not record the \emph{process} of validation: a submitter uploads an OWL file, a curator reviews it, and the ontology is published---the curation \emph{decision} is not itself an event in the ontology's lifecycle. FAIRsharing \cite{fairsharing} curates standards and databases but focuses on metadata discovery rather than lifecycle governance. ADL Lite complements these registries by providing (i) event-sourced lifecycle governance where each validation, deprecation, and fork is a cryptographically linked event; (ii) multi-agent native authoring with consensus semantics ($\delta$, $\gamma$); and (iii) content-addressability alongside provenance-based identity, enabling automated duplicate detection. The migration path is bidirectional: ADL Lite concepts export to OWL 2 DL (\S\ref{subsec:semantic-web-interop}), and existing BioPortal ontologies can be imported as initial \textsc{Register} events with their URI preserved as a \texttt{RELATE} target.
+
+\textbf{Release-based versus event-sourced versioning.} BioPortal and OntoPortal use \emph{release-based} versioning: an ontology is uploaded as a monolithic file, and each release is a snapshot with a version tag (e.g., ``v2024-01''). This model captures the \emph{state} of the ontology at discrete points but does not capture the \emph{process} by which that state was reached: who proposed a change, who validated it, and what evidence was provided. ADL Lite's \emph{event-sourced} model treats every lifecycle action (registration, validation, deprecation, fork) as an atomic event, enabling fine-grained provenance and deterministic state reconstruction from the event history. Release-based versioning is appropriate for mature, slowly evolving ontologies; event-sourced versioning is necessary for rapidly evolving, multi-agent capability ecosystems where governance decisions must be auditable and reversible.
+
 \subsection{Positioning}\label{subsec:related-positioning}
 
 Palantir Foundry unifies ``semantic elements'' (nouns) with ``kinetic elements'' (verbs)~\cite{palantir_fde}, but requires enterprise-scale deployment and proprietary tooling, and lacks LLM-native authorship. ADL Lite offers pip-installable deployment, Markdown-native authoring, and multi-agent consensus. Full comparison tables are in Appendix~F.
