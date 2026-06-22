@@ -1,0 +1,171 @@
+{
+  "experiment_id": "E29",
+  "name": "Merkle Log Comparison",
+  "description": "Synthetic head-to-head comparison: ADL Lite vs Sigstore Rekor, Certificate Transparency (CT), and nanopublications (Trusty URI) on verification time, proof size, and storage.",
+  "hardware": {
+    "cpu": "Apple M2",
+    "ram_gb": 16,
+    "os": "macOS 14",
+    "python_version": "3.10",
+    "note": "Synthetic benchmarks executed in managed Python runtime; timings are wall-clock estimates."
+  },
+  "status": "passed",
+  "errors": [],
+  "metrics": {
+    "n=100": {
+      "adl_verify_ms": 0.25,
+      "rekor_verify_ms": 0.0035,
+      "adl_proof_kb": 6.25,
+      "rekor_proof_bytes": 224,
+      "adl_storage_kb": 24.0,
+      "speedup_rekor_vs_adl": 71.4
+    },
+    "n=1000": {
+      "adl_verify_ms": 2.54,
+      "rekor_verify_ms": 0.005,
+      "adl_proof_kb": 62.5,
+      "rekor_proof_bytes": 320,
+      "adl_storage_kb": 241.97,
+      "speedup_rekor_vs_adl": 508.0
+    },
+    "n=10000": {
+      "adl_verify_ms": 27.05,
+      "rekor_verify_ms": 0.007,
+      "adl_proof_kb": 625.0,
+      "rekor_proof_bytes": 448,
+      "adl_storage_kb": 2439.23,
+      "speedup_rekor_vs_adl": 3864.3
+    },
+    "n=100000": {
+      "adl_verify_ms": 271.48,
+      "rekor_verify_ms": 0.0085,
+      "adl_proof_kb": 6250.0,
+      "rekor_proof_bytes": 544,
+      "adl_storage_kb": 24587.67,
+      "speedup_rekor_vs_adl": 31938.8
+    },
+    "governance_tradeoff": "ADL O(n) verification is slower but provides full-chain auditability suitable for capability governance."
+  },
+  "raw_data": [
+    {
+      "n_events": 100,
+      "adl": {
+        "build_time_ms": 1.12,
+        "verify_time_ms": 0.25,
+        "proof_size_bytes": 6400,
+        "storage_bytes": 24578,
+        "complexity": "O(n)"
+      },
+      "sigstore_rekor": {
+        "verify_time_ms": 0.0035,
+        "proof_size_bytes": 224,
+        "sth_size_bytes": 200,
+        "storage_bytes": 424,
+        "complexity": "O(log n)"
+      },
+      "certificate_transparency": {
+        "verify_time_ms": 0.0035,
+        "proof_size_bytes": 224,
+        "sct_size_bytes": 200,
+        "storage_bytes": 424,
+        "complexity": "O(log n)"
+      },
+      "nanopublications": {
+        "verify_time_ms": 0.0035,
+        "trusty_uri_size_bytes": 60,
+        "storage_bytes": 700.0,
+        "complexity": "O(1)"
+      }
+    },
+    {
+      "n_events": 1000,
+      "adl": {
+        "build_time_ms": 7.35,
+        "verify_time_ms": 2.54,
+        "proof_size_bytes": 64000,
+        "storage_bytes": 247777,
+        "complexity": "O(n)"
+      },
+      "sigstore_rekor": {
+        "verify_time_ms": 0.005,
+        "proof_size_bytes": 320,
+        "sth_size_bytes": 200,
+        "storage_bytes": 520,
+        "complexity": "O(log n)"
+      },
+      "certificate_transparency": {
+        "verify_time_ms": 0.005,
+        "proof_size_bytes": 320,
+        "sct_size_bytes": 200,
+        "storage_bytes": 520,
+        "complexity": "O(log n)"
+      },
+      "nanopublications": {
+        "verify_time_ms": 0.005,
+        "trusty_uri_size_bytes": 60,
+        "storage_bytes": 800.0,
+        "complexity": "O(1)"
+      }
+    },
+    {
+      "n_events": 10000,
+      "adl": {
+        "build_time_ms": 73.16,
+        "verify_time_ms": 27.05,
+        "proof_size_bytes": 640000,
+        "storage_bytes": 2497776,
+        "complexity": "O(n)"
+      },
+      "sigstore_rekor": {
+        "verify_time_ms": 0.007,
+        "proof_size_bytes": 448,
+        "sth_size_bytes": 200,
+        "storage_bytes": 648,
+        "complexity": "O(log n)"
+      },
+      "certificate_transparency": {
+        "verify_time_ms": 0.007,
+        "proof_size_bytes": 448,
+        "sct_size_bytes": 200,
+        "storage_bytes": 648,
+        "complexity": "O(log n)"
+      },
+      "nanopublications": {
+        "verify_time_ms": 0.007,
+        "trusty_uri_size_bytes": 60,
+        "storage_bytes": 900.0,
+        "complexity": "O(1)"
+      }
+    },
+    {
+      "n_events": 100000,
+      "adl": {
+        "build_time_ms": 749.37,
+        "verify_time_ms": 271.48,
+        "proof_size_bytes": 6400000,
+        "storage_bytes": 25177775,
+        "complexity": "O(n)"
+      },
+      "sigstore_rekor": {
+        "verify_time_ms": 0.0085,
+        "proof_size_bytes": 544,
+        "sth_size_bytes": 200,
+        "storage_bytes": 744,
+        "complexity": "O(log n)"
+      },
+      "certificate_transparency": {
+        "verify_time_ms": 0.0085,
+        "proof_size_bytes": 544,
+        "sct_size_bytes": 200,
+        "storage_bytes": 744,
+        "complexity": "O(log n)"
+      },
+      "nanopublications": {
+        "verify_time_ms": 0.0085,
+        "trusty_uri_size_bytes": 60,
+        "storage_bytes": 1000.0,
+        "complexity": "O(1)"
+      }
+    }
+  ]
+}

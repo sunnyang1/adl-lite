@@ -21,7 +21,7 @@ EventChain-record & \texttt{information content entity} & \texttt{information ob
 Concept & \texttt{generically dependent continuant} & \texttt{non-physical object}$\approx$ & \texttt{Conceptual Entity} & Depends on EventChain-record as ICE bearer (not occurrent) \\
 Relation (L3) & \texttt{relational quality} & \texttt{quality} & \texttt{Relator} & Mediates between concepts \\
 Action (L4) & \texttt{planned process} & \texttt{action} & \texttt{Action} & Intentional occurrent with preconditions \\
-Actor & \texttt{agent} & \texttt{physical agent}$\approx$ & \texttt{Agent} & Can be human or software agent; ``physical'' is approximate for LLMs \\
+Actor & \texttt{agent role} & \texttt{physical agent}$\approx$ & \texttt{Agent} & Role realized in material entity (human or software)\footnote{In BFO, agency is a role that inheres in a material entity (human or software process) and is realized in processes (events). We map ADL Lite Actor to BFO \texttt{agent role} because LLM agents are software processes that realize the agent role through event participation. This avoids the category error of treating software as a physical agent.} \\
 Payload & \texttt{information content entity} & \texttt{information object} & \texttt{Information Entity} & Structured data carried by event \\
 Hash & \texttt{generically dependent continuant} & --- & --- & Cryptographic identifier; no physical bearer \\
 \bottomrule
@@ -42,7 +42,7 @@ An EventChain is a \emph{process} in BFO: a complex occurrent with temporal part
 
 \subsubsection{Actor as Agent}
 
-ADL Lite's \texttt{Actor} is mapped to BFO \texttt{agent} and UFO \texttt{Agent}. The DOLCE mapping to \texttt{physical agent} is approximate: DOLCE lacks a dedicated ``software agent'' category, whereas UFO's \texttt{Agent} subsumes both human and software agents (including LLMs). Future work (FW1) may define a DOLCE extension for non-physical agents.
+ADL Lite's \texttt{Actor} is mapped to BFO \texttt{agent role} and UFO \texttt{Agent}. The DOLCE mapping to \texttt{physical agent} is approximate: DOLCE lacks a dedicated ``software agent'' category, whereas UFO's \texttt{Agent} subsumes both human and software agents (including LLMs). In BFO, agency is a role that inheres in a material entity (human or software process) and is realized in processes (events). We map ADL Lite Actor to BFO \texttt{agent role} because LLM agents are software processes that realize the agent role through event participation. This avoids the category error of treating software as a physical agent. Future work (FW1) may define a DOLCE extension for non-physical agents.
 
 \subsubsection{Relation as Relational Quality / Relator}\label{subsec:relation-relator}
 

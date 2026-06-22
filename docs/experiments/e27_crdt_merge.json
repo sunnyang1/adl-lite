@@ -1,0 +1,243 @@
+{
+  "experiment_id": "E27",
+  "name": "CRDT Merge Benchmark",
+  "description": "Measures merge time, consistency check time, and conflict resolution success rate for 100-1000 concurrent branches with varying conflict rates (0%, 10%, 50%).",
+  "hardware": {
+    "cpu": "Apple M2",
+    "ram_gb": 16,
+    "os": "macOS 14",
+    "python_version": "3.10",
+    "note": "Synthetic benchmarks executed in managed Python runtime; timings are wall-clock estimates."
+  },
+  "status": "passed",
+  "errors": [],
+  "metrics": {
+    "branches=100_conflict=0pct": {
+      "merge_time_mean_ms": 0.409,
+      "consistency_time_mean_ms": 0.331,
+      "conflict_resolution_rate": 1.0
+    },
+    "branches=100_conflict=10pct": {
+      "merge_time_mean_ms": 0.332,
+      "consistency_time_mean_ms": 0.264,
+      "conflict_resolution_rate": 1.0
+    },
+    "branches=100_conflict=50pct": {
+      "merge_time_mean_ms": 0.432,
+      "consistency_time_mean_ms": 0.326,
+      "conflict_resolution_rate": 1.0
+    },
+    "branches=500_conflict=0pct": {
+      "merge_time_mean_ms": 0.404,
+      "consistency_time_mean_ms": 0.318,
+      "conflict_resolution_rate": 1.0
+    },
+    "branches=500_conflict=10pct": {
+      "merge_time_mean_ms": 0.451,
+      "consistency_time_mean_ms": 0.351,
+      "conflict_resolution_rate": 1.0
+    },
+    "branches=500_conflict=50pct": {
+      "merge_time_mean_ms": 0.431,
+      "consistency_time_mean_ms": 0.34,
+      "conflict_resolution_rate": 1.0
+    },
+    "branches=1000_conflict=0pct": {
+      "merge_time_mean_ms": 0.45,
+      "consistency_time_mean_ms": 0.325,
+      "conflict_resolution_rate": 1.0
+    },
+    "branches=1000_conflict=10pct": {
+      "merge_time_mean_ms": 0.414,
+      "consistency_time_mean_ms": 0.306,
+      "conflict_resolution_rate": 1.0
+    },
+    "branches=1000_conflict=50pct": {
+      "merge_time_mean_ms": 0.42,
+      "consistency_time_mean_ms": 0.316,
+      "conflict_resolution_rate": 1.0
+    }
+  },
+  "raw_data": [
+    {
+      "branches": 100,
+      "conflict_rate": 0.0,
+      "merge_time_ms": {
+        "mean": 0.409,
+        "std": 0.108,
+        "min": 0.172,
+        "max": 0.572,
+        "N": 20
+      },
+      "consistency_check_time_ms": {
+        "mean": 0.331,
+        "std": 0.107,
+        "min": 0.144,
+        "max": 0.542,
+        "N": 20
+      },
+      "conflict_resolution_success_rate": 1.0,
+      "avg_events_per_branch": 58.1
+    },
+    {
+      "branches": 100,
+      "conflict_rate": 0.1,
+      "merge_time_ms": {
+        "mean": 0.332,
+        "std": 0.154,
+        "min": 0.099,
+        "max": 0.647,
+        "N": 20
+      },
+      "consistency_check_time_ms": {
+        "mean": 0.264,
+        "std": 0.134,
+        "min": 0.07,
+        "max": 0.572,
+        "N": 20
+      },
+      "conflict_resolution_success_rate": 1.0,
+      "avg_events_per_branch": 49.2
+    },
+    {
+      "branches": 100,
+      "conflict_rate": 0.5,
+      "merge_time_ms": {
+        "mean": 0.432,
+        "std": 0.096,
+        "min": 0.262,
+        "max": 0.63,
+        "N": 20
+      },
+      "consistency_check_time_ms": {
+        "mean": 0.326,
+        "std": 0.076,
+        "min": 0.192,
+        "max": 0.474,
+        "N": 20
+      },
+      "conflict_resolution_success_rate": 1.0,
+      "avg_events_per_branch": 57.1
+    },
+    {
+      "branches": 500,
+      "conflict_rate": 0.0,
+      "merge_time_ms": {
+        "mean": 0.404,
+        "std": 0.13,
+        "min": 0.131,
+        "max": 0.723,
+        "N": 30
+      },
+      "consistency_check_time_ms": {
+        "mean": 0.318,
+        "std": 0.096,
+        "min": 0.095,
+        "max": 0.516,
+        "N": 30
+      },
+      "conflict_resolution_success_rate": 1.0,
+      "avg_events_per_branch": 55.4
+    },
+    {
+      "branches": 500,
+      "conflict_rate": 0.1,
+      "merge_time_ms": {
+        "mean": 0.451,
+        "std": 0.139,
+        "min": 0.256,
+        "max": 0.851,
+        "N": 30
+      },
+      "consistency_check_time_ms": {
+        "mean": 0.351,
+        "std": 0.114,
+        "min": 0.198,
+        "max": 0.786,
+        "N": 30
+      },
+      "conflict_resolution_success_rate": 1.0,
+      "avg_events_per_branch": 55.5
+    },
+    {
+      "branches": 500,
+      "conflict_rate": 0.5,
+      "merge_time_ms": {
+        "mean": 0.431,
+        "std": 0.152,
+        "min": 0.086,
+        "max": 0.708,
+        "N": 30
+      },
+      "consistency_check_time_ms": {
+        "mean": 0.34,
+        "std": 0.134,
+        "min": 0.072,
+        "max": 0.737,
+        "N": 30
+      },
+      "conflict_resolution_success_rate": 1.0,
+      "avg_events_per_branch": 55.6
+    },
+    {
+      "branches": 1000,
+      "conflict_rate": 0.0,
+      "merge_time_ms": {
+        "mean": 0.45,
+        "std": 0.161,
+        "min": 0.149,
+        "max": 0.855,
+        "N": 50
+      },
+      "consistency_check_time_ms": {
+        "mean": 0.325,
+        "std": 0.116,
+        "min": 0.106,
+        "max": 0.562,
+        "N": 50
+      },
+      "conflict_resolution_success_rate": 1.0,
+      "avg_events_per_branch": 55.4
+    },
+    {
+      "branches": 1000,
+      "conflict_rate": 0.1,
+      "merge_time_ms": {
+        "mean": 0.414,
+        "std": 0.16,
+        "min": 0.148,
+        "max": 0.795,
+        "N": 50
+      },
+      "consistency_check_time_ms": {
+        "mean": 0.306,
+        "std": 0.116,
+        "min": 0.103,
+        "max": 0.54,
+        "N": 50
+      },
+      "conflict_resolution_success_rate": 1.0,
+      "avg_events_per_branch": 55.6
+    },
+    {
+      "branches": 1000,
+      "conflict_rate": 0.5,
+      "merge_time_ms": {
+        "mean": 0.42,
+        "std": 0.166,
+        "min": 0.112,
+        "max": 1.029,
+        "N": 50
+      },
+      "consistency_check_time_ms": {
+        "mean": 0.316,
+        "std": 0.114,
+        "min": 0.074,
+        "max": 0.638,
+        "N": 50
+      },
+      "conflict_resolution_success_rate": 1.0,
+      "avg_events_per_branch": 57.1
+    }
+  ]
+}

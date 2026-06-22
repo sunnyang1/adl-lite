@@ -1,0 +1,608 @@
+{
+  "experiment_id": "E28",
+  "name": "Expert Annotation Validation (Simulated)",
+  "description": "Simulates 3 annotators with varying accuracy (0.85, 0.75, 0.90) and bias on 50 concepts with known ground truth. Computes precision, recall, F1, inter-annotator agreement (Cohen's \u03ba, Fleiss' \u03ba), and compares annotator consensus vs ADL Lite \u03b4(C) derivation.",
+  "hardware": {
+    "cpu": "Apple M2",
+    "ram_gb": 16,
+    "os": "macOS 14",
+    "python_version": "3.10",
+    "note": "Synthetic benchmarks executed in managed Python runtime; timings are wall-clock estimates."
+  },
+  "status": "passed",
+  "errors": [],
+  "metrics": {
+    "expert_A": {
+      "precision": 0.9091,
+      "recall": 1.0,
+      "f1": 0.9524,
+      "accuracy": 0.94,
+      "accuracy_setting": 0.85,
+      "bias": 0.05
+    },
+    "expert_B": {
+      "precision": 0.8529,
+      "recall": 0.9667,
+      "f1": 0.9062,
+      "accuracy": 0.88,
+      "accuracy_setting": 0.75,
+      "bias": -0.1
+    },
+    "expert_C": {
+      "precision": 0.9091,
+      "recall": 1.0,
+      "f1": 0.9524,
+      "accuracy": 0.94,
+      "accuracy_setting": 0.9,
+      "bias": 0.0
+    },
+    "majority_consensus": {
+      "precision": 0.9677,
+      "recall": 1.0,
+      "f1": 0.9836,
+      "accuracy": 0.98
+    },
+    "adl_delta_C": {
+      "precision": 1.0,
+      "recall": 0.9667,
+      "f1": 0.9831,
+      "accuracy": 0.98
+    },
+    "cohens_kappa_expert_A_expert_B": 0.6835,
+    "cohens_kappa_expert_A_expert_C": 0.7326,
+    "cohens_kappa_expert_B_expert_C": 0.5931,
+    "fleiss_kappa": 0.67
+  },
+  "raw_data": [
+    {
+      "concept_id": "concept_0",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_1",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_2",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_3",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_4",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_5",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_6",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_7",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_8",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_9",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_10",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "deprecated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_11",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_12",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_13",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_14",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_15",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_16",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_17",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_18",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_19",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_20",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_21",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_22",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_23",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_24",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_25",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_26",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_27",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_28",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_29",
+      "ground_truth": "validated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "validated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "validated"
+    },
+    {
+      "concept_id": "concept_30",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "deprecated",
+        "expert_B": "deprecated",
+        "expert_C": "deprecated"
+      },
+      "consensus": "deprecated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_31",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "deprecated",
+        "expert_B": "deprecated",
+        "expert_C": "validated"
+      },
+      "consensus": "deprecated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_32",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "deprecated",
+        "expert_B": "deprecated",
+        "expert_C": "deprecated"
+      },
+      "consensus": "deprecated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_33",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "deprecated",
+        "expert_B": "deprecated",
+        "expert_C": "deprecated"
+      },
+      "consensus": "deprecated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_34",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "deprecated",
+        "expert_B": "deprecated",
+        "expert_C": "validated"
+      },
+      "consensus": "deprecated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_35",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "deprecated",
+        "expert_B": "validated",
+        "expert_C": "deprecated"
+      },
+      "consensus": "deprecated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_36",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "deprecated",
+        "expert_B": "deprecated",
+        "expert_C": "validated"
+      },
+      "consensus": "deprecated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_37",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "deprecated",
+        "expert_B": "deprecated",
+        "expert_C": "deprecated"
+      },
+      "consensus": "deprecated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_38",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "deprecated",
+        "expert_B": "validated",
+        "expert_C": "deprecated"
+      },
+      "consensus": "deprecated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_39",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "deprecated",
+        "expert_B": "validated",
+        "expert_C": "deprecated"
+      },
+      "consensus": "deprecated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_40",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "deprecated",
+        "expert_B": "validated",
+        "expert_C": "deprecated"
+      },
+      "consensus": "deprecated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_41",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "deprecated",
+        "expert_C": "deprecated"
+      },
+      "consensus": "deprecated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_42",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "deprecated",
+        "expert_B": "deprecated",
+        "expert_C": "deprecated"
+      },
+      "consensus": "deprecated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_43",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "deprecated",
+        "expert_B": "deprecated",
+        "expert_C": "deprecated"
+      },
+      "consensus": "deprecated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_44",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "validated",
+        "expert_C": "deprecated"
+      },
+      "consensus": "validated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_45",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "deprecated",
+        "expert_B": "deprecated",
+        "expert_C": "deprecated"
+      },
+      "consensus": "deprecated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_46",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "validated",
+        "expert_B": "deprecated",
+        "expert_C": "deprecated"
+      },
+      "consensus": "deprecated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_47",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "deprecated",
+        "expert_B": "deprecated",
+        "expert_C": "deprecated"
+      },
+      "consensus": "deprecated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_48",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "deprecated",
+        "expert_B": "deprecated",
+        "expert_C": "deprecated"
+      },
+      "consensus": "deprecated",
+      "adl_delta_C": "deprecated"
+    },
+    {
+      "concept_id": "concept_49",
+      "ground_truth": "deprecated",
+      "annotations": {
+        "expert_A": "deprecated",
+        "expert_B": "deprecated",
+        "expert_C": "deprecated"
+      },
+      "consensus": "deprecated",
+      "adl_delta_C": "deprecated"
+    }
+  ]
+}
