@@ -1,14 +1,6 @@
 \subsection{Summary of Contributions}\label{subsec:summary}
 
-This paper presented ADL Lite, an event-first capability-lifecycle registry, and evaluated it through ontological analysis, formal semantics, and empirical validation.
-
-\textbf{Ontological analysis.} We analysed ADL Lite's core categories through BFO, DOLCE, and UFO, formalizing identity conditions, relation lifecycle semantics, and three forms of ontological dependence. We resolved the apparent tension between the BFO constraint that generically dependent continuants cannot depend on occurrents and the causal origin of concepts by distinguishing historical causation from ontological dependence.
-
-\textbf{Formal derivation semantics.} We provided a complete formal foundation---event alphabet, well-formedness predicate, three confidence-aggregation variants ($\gamma_{\text{default}}$, $\gamma_{\text{agg}}$, $\gamma_{\text{cal}}$), fork determinism with a total order $\prec$ for conflict resolution, and seven core proven properties (Theorems 1--7). We further analysed expressive power in relation to Event Calculus and Description Logic.
-
-\textbf{Empirical validation.} We verified the architecture of the registry on 201 EventChains (9,300 events). The system achieved zero integrity failures, 100\% derivation accuracy, perfect precondition enforcement (P = R = F1 = 1.0), and linear scalability ($20{,}847$ events per second).
-
-ADL Lite is not a competing ontology production method; it is a complementary governance layer that records, validates, and governs the lifecycle of capabilities produced by any agent pipeline.\par
+This paper presented ADL Lite, an event-first, Markdown-native capability-lifecycle registry. We analyzed its core categories through BFO, DOLCE, and UFO (Section~\ref{sec:ontological-analysis}); formalized a compact derivation semantics with nine proven properties including determinism, fork determinism, and confidence boundedness (Section~\ref{sec:architecture}); and empirically verified the architecture on 201 EventChains (9,300 events) with zero integrity failures and linear scalability (Section~\ref{sec:empirical-validation}). ADL Lite is not a competing ontology production method; it is a complementary governance layer that records, validates, and governs the lifecycle of capabilities produced by any agent pipeline.\par
 The following clusters address the limitations identified in Section~\ref{subsec:limitations} and chart the next development phases.
 
 \subsection{Future Work}\label{subsec:future-work}

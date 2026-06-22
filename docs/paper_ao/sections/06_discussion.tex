@@ -16,10 +16,7 @@ The empirical results support the event-first design, but the deeper contributio
 
 \subsection{Capability Registry Contribution}\label{subsec:conceptual-modeling}
 
-ADL Lite contributes to capability governance in three respects, corresponding to the three axes in \S\ref{subsec:contributions}.\par
-\textbf{Ontological analysis contribution.} The L1--L4 document model and the two-level ontological account (EventChain-process vs. EventChain-record) provide a methodology for analyzing capability registries through foundational ontology lenses (BFO, DOLCE, UFO), applicable beyond multi-agent governance.\par
-\textbf{Formal semantics contribution.} Event-driven lifecycle modeling---where states are derived from event histories rather than stored as mutable attributes---enables deterministic, auditable governance with proven properties (Theorems 1--7).\par
-\textbf{Architectural verification contribution.} The precondition system and closed action registry provide a lightweight, declarative, and human-readable mechanism for governing capability evolution, lowering the barrier to collaborative authoring while maintaining machine-checkable constraints.
+The three contributions of this paper (Section~\ref{subsec:contributions})---ontological analysis, formal semantics, and architectural verification---position ADL Lite as a lightweight, deployment-ready governance layer for capability lifecycles. The ontological analysis (BFO, DOLCE, UFO) provides methodology applicable beyond multi-agent governance; the formal semantics (Theorems 1--9) guarantee deterministic, auditable state derivation; and the architectural verification (201 chains, 9,300 events) confirms linear scalability and zero integrity failures.
 
 \subsection{Limitations}\label{subsec:limitations}
 
@@ -79,40 +76,9 @@ Deployment & Expert curation & Expert curation & Model-driven engineering & Mark
 
 ADL Lite does not seek to replace foundational ontologies; it complements them by providing a lightweight, deployment-ready layer for capability governance that can be authored by non-experts. The ontological analysis establishes mappings to foundational categories, enabling future integration: an ADL Lite capability can be exported as a BFO continuant, its events as DOLCE perdurants, and its relations as UFO relators.
 
-\subsection{Complementary Systems and the Agent Governance Landscape}\label{subsec:complementary-systems}
+\subsection{Emerging Standards Integration}\label{subsec:complementary-systems}
 
-ADL Lite occupies a distinct layer in the broader agent governance landscape. KYA addresses permissions; AgentSafe addresses architecture safety; Talukdar et al.\ address ontology production; Agent Traces addresses provenance; SafeAgent addresses safety protocol. AgentHub~\cite{agenthub2025} proposes a registry research agenda but does not implement formal lifecycle state machines or deterministic derivation. Zhou~\cite{zhou2026governance} derives three governance requirements (G1: capability integrity; G2: behavioral verifiability; G3: interaction auditability) and proves structural results on chain verifiability. ADL Lite contributes strongly to G1 and G3 within a non-Byzantine assumption: G1 (capability integrity) is addressed by the cryptographic hash chain and precondition system; G3 (interaction auditability) is addressed by the append-only EventChain with actor attribution. However, ADL Lite does not address G2 (behavioral verifiability), which requires replay-based output comparison and is orthogonal to lifecycle governance. SafeHarness~\cite{safeharness2026} integrates four defense layers into the agent execution lifecycle, reducing unsafe behaviour by $\approx$38\% and attack success by $\approx$42\%, yet it targets execution-time safety rather than capability registration. OpenClaw PRISM~\cite{openclaw_prism2026} provides a zero-fork runtime security layer with ten lifecycle hooks and a tamper-evident audit plane, governing tool invocation and outbound messaging at the gateway level. ADL Lite addresses the question ``How do we record, validate, and govern capabilities?'' (lifecycle registry). These layers are complementary rather than competing: SafeHarness and PRISM consume capability metadata, whereas ADL Lite produces it. A complete ecosystem would employ KYA for permissions, AgentSafe for architecture safety, SafeHarness/PRISM for runtime protection, and ADL Lite for capability lifecycle governance. The research contribution of ADL Lite is to render the capability layer explicit, auditable, and event-first.
-
-\textbf{Quantitative comparison with tamper-evident publishing baselines.} Table~\ref{tab:baseline-comparison} compares ADL Lite with three proximate publishing systems on dimensions salient to capability governance: authoring friction, verification cost, storage overhead, lifecycle expressivity, and authentication.
-
-\begin{table}[htbp]
-\centering
-\small
-\caption{Quantitative comparison with tamper-evident publishing baselines.}
-\label{tab:baseline-comparison}
-\begin{tabularx}{\textwidth}{@{}p{2.8cm}XXXX@{}}
-\toprule
-\textbf{Dimension} & \textbf{Nanopublications} & \textbf{PROV-O} & \textbf{Git + signing} & \textbf{ADL Lite} \\
-\midrule
-Authoring friction & High (RDF/Turtle) & High (RDF/SPARQL) & Low (Git) & Very low (Markdown) \\
-Verification cost & Key lookup + signature & Hash + triple store & SHA-1 + GPG key & SHA-256 + $O(n)$ scan \\
-Per-event storage & $\approx$500--2000 bytes & $\approx$300--800 bytes & $\approx$200 bytes + commit & $\approx$150 bytes + hash \\
-Lifecycle expressivity & None (static assertion) & None (provenance only) & None (version control) & Full (register $\to$\allowbreak validate $\to$\allowbreak deprecate) \\
-Authentication & Trusty URIs + signatures & None (self-reported) & GPG/GitHub keys & Ed25519 + \texttt{did:key} \\
-Deployment weight & Heavy (triple store) & Heavy (triple store) & Light (Git only) & Very light (pip + Git) \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\textbf{Authoring friction.} Nanopublications require Turtle/RDF syntax and a publishing pipeline; PROV-O requires RDF/SPARQL tooling; Git signing requires only Git but lacks structured capability metadata. ADL Lite uses Markdown with YAML front matter, which is already the authoring format for most agent documentation.
-
-\textbf{Verification cost.} Nanopublication verification involves resolving Trusty URIs and checking signatures against a key registry; PROV-O verification requires SPARQL queries over a triple store; Git verification checks SHA-1 tree hashes and GPG signatures; ADL Lite verifies SHA-256 hashes and scans the chain in $O(n)$ time ($\approx$1 $\mu$s per event on modest hardware, E13).
-
-\textbf{Storage overhead.} Nanopublications carry full RDF triples and metadata (typically 500--2000 bytes per assertion); PROV-O requires triple-store overhead; Git commits include tree and parent references ($\approx$200 bytes minimum per commit); ADL Lite events are compact JSON objects with SHA-256 hashes ($\approx$150 bytes per event, including hash and linkage fields).
-
-\textbf{Lifecycle expressivity.} ADL Lite provides a total transition matrix governing all transitions between the five lifecycle states (provisional, validated, deprecated, forked, archived) with precondition rules for each transition. None of the baselines provide lifecycle state machines: nanopublications are static assertions; PROV-O records provenance but does not govern status transitions; Git tracks versions but does not distinguish validate/deprecate/fork semantics.
-
-\textbf{Authentication.} Nanopublications use Trusty URIs and RSA/ECDSA signatures; Git uses GPG or SSH signing; ADL Lite uses Ed25519 signatures with optional \texttt{did:key} resolution (\S\ref{subsec:trust-model}). All three provide tamper-evidence but differ in identity binding: GPG keys are self-asserted, Trusty URIs are anchored by publishers, and \texttt{did:key} embeds the public key in the identifier itself.
+The agent governance landscape and quantitative comparisons with nanopublications, PROV-O, and Git-native baselines are surveyed in Section~ef{subsec:agent-governance} and Experiment~E29 (Section~ef{subsec:e29}). Here we identify integration points with emerging industry standards.
 
 Several industry and standards initiatives are currently defining agent registry and communication protocols. The \emph{Model Context Protocol} (MCP, Anthropic) provides a standardized way for agents to expose capabilities to LLM context windows; ADL Lite could serve as the \emph{governance backend} for MCP servers, recording which capabilities were registered, validated, and deprecated. The \emph{Agent-to-Agent} (A2A, Google) protocol focuses on inter-agent communication and task delegation; ADL Lite EventChains could embed A2A message traces as \texttt{EVIDENCE} events, providing auditable provenance for delegated tasks. The \emph{AGNTCY} (Linux Foundation) and \emph{NANDA} (NANDA) standards define agent identity and capability ontologies; ADL Lite's L3 predicates could be aligned with their relation vocabularies (e.g., mapping \texttt{isomorphic-to} to AGNTCY equivalence relations). Microsoft \emph{Entra} provides enterprise identity and permissions; ADL Lite could use Entra-issued Verifiable Credentials as the identity layer for validators (planned for a future release). These integrations are not yet implemented; they are identified as high-priority future work (FW13).
 
