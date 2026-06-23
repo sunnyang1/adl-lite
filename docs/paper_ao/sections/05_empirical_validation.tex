@@ -184,27 +184,7 @@ To validate the CRDT merge semantics across independent repositories, we designe
 
 To evaluate the CRDT merge semantics under controlled contention, we conducted experiment E27. Results from E27 are shown in Table~\ref{tab:e27-results} (data: \texttt{docs/experiments/e27\_crdt\_merge.json}). The benchmark measures merge latency, integrity preservation, and status/confidence convergence across concurrent branches. Full methodology and interpretation are in Appendix~D.
 
-\begin{table}[htbp]
-\centering
-\footnotesize
-\caption{CRDT merge benchmark (E27). Merge latency and integrity check for 100--1000 concurrent branches at conflict rates 0\%--50\%. All values are mean wall-clock (ms).}
-\label{tab:e27-results}
-\begin{tabular}{@{}rrrrr@{}}
-\toprule
-\textbf{Branches} & \textbf{Conflict rate} & \textbf{Merge (ms)} & \textbf{Integrity (ms)} & \textbf{Resolution rate} \\
-\midrule
-100 & 0\% & 0.41 & 0.33 & 1.00 \\
-100 & 10\% & 0.33 & 0.26 & 1.00 \\
-100 & 50\% & 0.43 & 0.33 & 1.00 \\
-500 & 0\% & 0.40 & 0.32 & 1.00 \\
-500 & 10\% & 0.45 & 0.35 & 1.00 \\
-500 & 50\% & 0.43 & 0.34 & 1.00 \\
-1000 & 0\% & 0.45 & 0.33 & 1.00 \\
-1000 & 10\% & 0.42 & 0.33 & 1.00 \\
-1000 & 50\% & 0.42 & 0.33 & 1.00 \\
-\bottomrule
-\end{tabular}
-\end{table}
+\input{tables_auto/e27}
 
 \textbf{Findings.} CRDT merge latency remains sub-millisecond ($\approx$0.4~ms) regardless of branch count (100--1000) or conflict rate (0\%--50\%). Conflict resolution success rate is 100\% across all configurations, confirming that the LWW-Set merge with LUB/G-Counter semantics (Theorem~9) is empirically robust under concurrent contention.
 
@@ -212,42 +192,7 @@ To evaluate the CRDT merge semantics under controlled contention, we conducted e
 
 Experiment E28 provides a simulated proxy for human expert validation. Results from E28 are shown in Table~\ref{tab:e28-results} (data: \texttt{docs/experiments/e28\_expert\_validation.json}). The experiment evaluates inter-rater agreement and Likert-scale scoring of concept quality by simulated reviewers, as a preliminary stand-in for the planned human study (E5, FW15).
 
-\begin{table}[htbp]
-\centering
-\footnotesize
-\caption{Expert validation proxy (E28). Simulated 3 annotators with accuracy settings 0.85, 0.75, 0.90 on 50 concepts with known ground truth. ADL $\delta(C)$ precision is 1.0.}
-\label{tab:e28-results}
-\begin{tabular}{@{}lrrrr@{}}
-\toprule
-\textbf{Annotator} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{Accuracy} \\
-\midrule
-Expert A (acc=0.85, bias=+0.05) & 0.91 & 1.00 & 0.95 & 0.94 \\
-Expert B (acc=0.75, bias=-0.10) & 0.85 & 0.97 & 0.91 & 0.88 \\
-Expert C (acc=0.90, bias=0.00) & 0.91 & 1.00 & 0.95 & 0.94 \\
-\midrule
-Majority consensus & 0.97 & 1.00 & 0.98 & 0.98 \\
-ADL $\delta(C)$ derivation & 1.00 & 0.97 & 0.98 & 0.98 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{table}[htbp]
-\centering
-\footnotesize
-\caption{Inter-annotator agreement (E28). Cohen's $\kappa$ (pairwise) and Fleiss' $\kappa$ (three-way).}
-\label{tab:e28-agreement}
-\begin{tabular}{@{}lrr@{}}
-\toprule
-\textbf{Pair} & \textbf{Cohen's $\kappa$} & \textbf{Agreement} \\
-\midrule
-Expert A--B & 0.68 & substantial \\
-Expert A--C & 0.73 & substantial \\
-Expert B--C & 0.59 & moderate \\
-\midrule
-All three (Fleiss') & 0.67 & substantial \\
-\bottomrule
-\end{tabular}
-\end{table}
+\input{tables_auto/e28}
 
 \textbf{Findings.} ADL $\delta(C)$ achieves precision 1.0 and accuracy 0.98, matching or exceeding simple majority consensus (precision 0.97, accuracy 0.98). Inter-annotator agreement is substantial (Fleiss' $\kappa = 0.67$), confirming that the lifecycle governance semantics provide a reliable mechanism for aggregating heterogeneous validator judgments. This is a \emph{simulated} proxy; a full human study (E5, FW15) is planned.
 
@@ -255,22 +200,7 @@ All three (Fleiss') & 0.67 & substantial \\
 
 Experiment E29 compares ADL Lite's cryptographic hash chain with Merkle-tree-based tamper-evident logs on storage overhead, verification latency, and incremental auditability. Results from E29 are shown in Table~\ref{tab:e29-results} (data: \texttt{docs/experiments/e29\_merkle\_comparison.json}). The comparison quantifies the trade-offs between linear hash chains (simpler, $O(n)$ verification) and Merkle trees (more compact, $O(\log n)$ verification for sparse checks).
 
-\begin{table}[htbp]
-\centering
-\footnotesize
-\caption{Merkle log quantitative comparison (E29). ADL Lite ($O(n)$ hash chain) vs. Sigstore Rekor ($O(\log n)$ Merkle tree) at 100--100,000 events. Rekor values are analytical estimates; ADL values are measured.}
-\label{tab:e29-results}
-\begin{tabular}{@{}lrrrrr@{}}
-\toprule
-\textbf{Events} & \textbf{ADL verify (ms)} & \textbf{Rekor verify (ms)} & \textbf{Speedup} & \textbf{ADL proof (KB)} & \textbf{Rekor proof (B)} \\
-\midrule
-$10^2$ & 0.25 & 0.0035 & 71$\times$ & 6.25 & 224 \\
-$10^3$ & 2.54 & 0.0050 & 508$\times$ & 62.5 & 320 \\
-$10^4$ & 27.05 & 0.0070 & 3,864$\times$ & 625 & 448 \\
-$10^5$ & 271.48 & 0.0085 & 31,939$\times$ & 6,250 & 544 \\
-\bottomrule
-\end{tabular}
-\end{table}
+\input{tables_auto/e29}
 
 \textbf{Findings.} At $10^5$ events, ADL Lite verification latency is 271~ms (acceptable for capability-governance workloads, not high-frequency transaction logs), while a Merkle-based system would verify in $<$0.01~ms. The proof size for ADL Lite is 6.25~MB (full hash chain), versus 544~bytes for a Merkle inclusion proof. This trade-off is \emph{deliberate}: ADL Lite prioritizes full-chain auditability (every event cryptographically linked, no sparse verification) over compact proofs, which is appropriate for low-frequency governance events (registrations, validations, deprecations) rather than high-frequency transactions. For deployments requiring Merkle-tree verification, an adapter layer (FW16) could batch events into Merkle roots anchored to an external transparency log.
 

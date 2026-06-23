@@ -1,0 +1,109 @@
+{
+  "source_file": "docs/REVIEWER_RESPONSE_MR3.md",
+  "total_questions": 11,
+  "fully_addressed": 11,
+  "partially_addressed": 0,
+  "pending": 0,
+  "future_work": 3,
+  "questions": [
+    {
+      "id": "Q1",
+      "title": "Full formal definitions of δ(C), γ(C), precondition language grammar, and proof sketches for Theorems 1–7 (and assumptions for Theorem 9)",
+      "status": "DONE",
+      "evidence_found": true,
+      "commit_found": true,
+      "is_future_work": false,
+      "warnings": []
+    },
+    {
+      "id": "Q2",
+      "title": "How does the system handle unreliable timestamps, clock skew, or out-of-order event arrival in distributed authorship scenarios, and what are the effects on identity and fork-determinism?",
+      "status": "DONE",
+      "evidence_found": true,
+      "commit_found": true,
+      "is_future_work": false,
+      "warnings": []
+    },
+    {
+      "id": "Q3",
+      "title": "The linear chain topology limits concurrent authorship semantics; CRDT convergence is deferred and not evaluated.",
+      "status": "DONE",
+      "evidence_found": true,
+      "commit_found": true,
+      "is_future_work": false,
+      "warnings": []
+    },
+    {
+      "id": "Q4",
+      "title": "No domain-level validation with human curators or governance outcomes (e.g., reliability of validators, false-positive/false-negative lifecycle transitions).",
+      "status": "PARTIAL",
+      "evidence_found": true,
+      "commit_found": true,
+      "is_future_work": true,
+      "warnings": []
+    },
+    {
+      "id": "Q5",
+      "title": "Comparisons with nanopublications/PROV-O/CT/Sigstore are mostly qualitative; no end-to-end, cross-system empirical baselines (e.g., verification latency vs inclusion/consistency proofs at scale).",
+      "status": "PARTIAL",
+      "evidence_found": true,
+      "commit_found": true,
+      "is_future_work": true,
+      "warnings": []
+    },
+    {
+      "id": "Q6",
+      "title": "BFO \"agent\" mapping is potentially imprecise; BFO typically treats agency via roles and realizations in material entities.",
+      "status": "DONE",
+      "evidence_found": true,
+      "commit_found": true,
+      "is_future_work": false,
+      "warnings": []
+    },
+    {
+      "id": "Q7",
+      "title": "Security posture is limited to collaborative-audit; without signatures/attestation (DIDs/VCs) or Byzantine resilience, tamper-evidence is fragile.",
+      "status": "PARTIAL",
+      "evidence_found": true,
+      "commit_found": true,
+      "is_future_work": true,
+      "warnings": []
+    },
+    {
+      "id": "Q8",
+      "title": "No cross-repository or multi-branch conflict scenarios with merge/reconciliation.",
+      "status": "DONE",
+      "evidence_found": true,
+      "commit_found": true,
+      "is_future_work": false,
+      "warnings": []
+    },
+    {
+      "id": "Q9",
+      "title": "No concrete axiomatization in OWL/SHACL. How do you envision OWL 2 DL/SHACL exports capturing HoldsAt, REVOKE, and lifecycle transitions?",
+      "status": "DONE",
+      "evidence_found": true,
+      "commit_found": true,
+      "is_future_work": false,
+      "warnings": []
+    },
+    {
+      "id": "Q10",
+      "title": "(implied): Could you share quantitative comparisons with Merkle-based transparency logs (inclusion/consistency proof latency/size)?",
+      "status": "DONE",
+      "evidence_found": true,
+      "commit_found": true,
+      "is_future_work": false,
+      "warnings": []
+    },
+    {
+      "id": "Q11",
+      "title": "(implied): What is the precise concurrency model today? How will CRDT convergence interact with lifecycle preconditions to prevent invalid transitions after merges?",
+      "status": "DONE",
+      "evidence_found": true,
+      "commit_found": true,
+      "is_future_work": false,
+      "warnings": []
+    }
+  ]
+}

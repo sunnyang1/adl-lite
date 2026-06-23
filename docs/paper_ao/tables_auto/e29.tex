@@ -1,0 +1,16 @@
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Merkle log quantitative comparison (E29). ADL Lite ($O(n)$ hash chain) vs. Sigstore Rekor ($O(\log n)$ Merkle tree) at 100--100,000 events. Rekor values are analytical estimates; ADL values are measured.}
+\label{tab:e29-results}
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+\textbf{Events} & \textbf{ADL verify (ms)} & \textbf{Rekor verify (ms)} & \textbf{Speedup} & \textbf{ADL proof (KB)} & \textbf{Rekor proof (B)} \\
+\midrule
+$10^2$ & 0.25 & 0.0035 & 71$\times$ & 6.25 & 224 \\
+$10^3$ & 2.54 & 0.005 & 508$\times$ & 62.5 & 320 \\
+$10^4$ & 27.05 & 0.007 & 3,864$\times$ & 625 & 448 \\
+$10^5$ & 271.48 & 0.0085 & 31,939$\times$ & 6250 & 544 \\
+\bottomrule
+\end{tabular}
+\end{table}

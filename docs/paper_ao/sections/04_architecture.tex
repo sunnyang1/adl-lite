@@ -143,7 +143,7 @@ Recursive / self-referential & \texttt{no concept is its own ancestor} & $\times
 
 \textbf{Cross-chain predicates.} Not supported by design. The precondition language evaluates only the snapshot of the chain being modified. This ensures referential transparency and eliminates the need for distributed consensus during precondition evaluation. Cross-chain references would require external chain lookup, which introduces non-determinism (the target chain may change between evaluation and append). This is a deliberate design choice, not a limitation.
 
-\textbf{Theorem~8 (Precondition Evaluation Termination and Complexity).} For any well-formed EventChain $C$ and any precondition rule $r$, $\text{eval}(r, C)$ terminates in $\mathcal{O}(1)$ time (assuming the derived snapshot is cached). For a list of $k$ rules, total time is $\mathcal{O}(k)$ and space is $\mathcal{O}(1)$. \emph{Proof Sketch:} Both field lookup and comparator dispatch are $\mathcal{O}(1)$; the language contains no recursion or quantification. See Appendix~E for the full argument.
+\textbf{Theorem~8 (Precondition Evaluation Termination and Complexity).} For any well-formed EventChain $C$ and any precondition rule $r$, $\text{eval}(r, C)$ terminates in $\mathcal{O}(1)$ time (assuming the derived snapshot is cached). For a list of $k$ rules, total time is $\mathcal{O}(k)$ and space is $\mathcal{O}(1)$. \emph{Proof Sketch:} Both field lookup and comparator dispatch are $\mathcal{O}(1)$; the language contains no recursion or quantification. See Appendix~E for the full decidability proof (Theorem~\ref{thm:precondition-decidability}).
 
 Table~\ref{tab:complexity} summarizes the complexity; the decidability and complexity-class discussion (membership in \textbf{P}) is in Appendix~H.
 

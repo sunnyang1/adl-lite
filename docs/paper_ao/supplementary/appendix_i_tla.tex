@@ -1,14 +1,49 @@
 \section{TLA+ Specification of EventChain State Machine}\label{app:tla}
 
-% TODO: Include existing 147-line TLA+ specification (EventChain.tla)
-% Source: originally referenced in §4.5; locate in project root or adl_lite/.
-% Include: TLC model checker configuration and verification results.
+The TLA+ module is maintained as a source artifact at \texttt{specs/EventChain.tla}.
+It models a single ADL Lite concept as an append-only sequence of events and
+formalises the well-formedness axioms from Definition~5
+(\S\ref{subsec:compact-formal-spec}) together with the status lattice and confidence
+G-Counter used in Theorems T1, T3, T4, T5, and T7.
 
-% TODO: Paste full TLA+ module with:
-%   - VARIABLES: event_chain, status, confidence
-%   - Init, AppendEvent, Fork, Validate actions
-%   - Temporal properties: Determinism, Confluence, TransitionMonotonicity
-%   - TLC output: safety, liveness, determinism verified for length ≤ 20
+\paragraph{State variables.}
+\begin{itemize}
+  \item \texttt{events}: a sequence of event records
+    $(\text{event\_id}, \text{actor}, \text{event\_type}, \text{confidence}, \text{prev})$.
+  \item \texttt{next\_id}: monotonic counter guaranteeing distinct event identifiers.
+\end{itemize}
 
-% TODO: Add TLC model-checking statistics (states explored, diameter, time).
-% TODO: Note: length-20 bound is a model-checking limitation, not a system limitation.
+\paragraph{Actions.}
+\begin{itemize}
+  \item \texttt{AppendEvent(actor, etype, confidence)}: appends a new event whose
+    \texttt{prev} field points to the previous event id, or $0$ for the genesis event.
+\end{itemize}
+
+\paragraph{Derived operators.}
+\begin{itemize}
+  \item \texttt{LatticeOrder} and \texttt{LUB}: the lifecycle partial order
+    \texttt{provisional $<$ forked $<$ validated $<$ deprecated $<$ archived}.
+  \item \texttt{DerivedStatus}: LUB of lifecycle event statuses in the chain.
+  \item \texttt{DerivedConfidence}: maximum confidence among \texttt{VALIDATE} and
+    \texttt{SNAPSHOT} events (G-Counter semantics).
+\end{itemize}
+
+\paragraph{Invariants checked by TLC.}
+\begin{itemize}
+  \item \texttt{Inv\_WellFormednessPreserved}: genesis anchoring, distinct ids,
+    monotonic ids, non-empty actors, bounded confidence, valid event types.
+  \item \texttt{Inv\_StatusMonotonic}: derived status is always a valid lattice
+    element and confidence remains in $[0, \text{MaxConfidence}]$.
+  \item \texttt{Inv\_MonotonicAppend}: every reachable status dominates
+    \texttt{provisional} and confidence remains bounded.
+\end{itemize}
+
+\paragraph{Running TLC.}
+A Python wrapper is provided at \texttt{scripts/run\_tlc.py}:
+\begin{verbatim}
+python scripts/run_tlc.py --max-events 20 --max-confidence 100
+\end{verbatim}
+The module is intentionally bounded (\texttt{MaxEvents}, \texttt{MaxConfidence})
+because TLC exhaustively explores a finite state space; the bound is a
+model-checking limitation, not a system limitation. Unbounded correctness relies
+on the inductive argument given in Appendix~E.

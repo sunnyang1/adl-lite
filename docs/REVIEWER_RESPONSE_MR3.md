@@ -35,6 +35,9 @@ We have comprehensively addressed all 10 reviewer questions through structural, 
 - Precondition language BNF: `rule ::= ⟨field, comparator, value⟩` with closed comparator set `K = {EQ, NEQ, GT, GTE, LT, LTE, IN, EXISTS}`
 - Decidability proof: variable-free ground fragment, no quantification, no recursion → equivalent to propositional Horn-clause fragment, decidable in P
 
+**Status:** DONE
+**Commit:** 1ec0bdd
+
 ---
 
 ### Q2: How does the system handle unreliable timestamps, clock skew, or out-of-order event arrival in distributed authorship scenarios, and what are the effects on identity and fork-determinism?
@@ -49,6 +52,9 @@ We have comprehensively addressed all 10 reviewer questions through structural, 
 - **Determinism preservation:** `δ(C)` is independent of event order for lifecycle events (LUB over all events, not last). Even if Validate and Deprecate are reordered, LUB is still `deprecated` (since `deprecated > validated` in lattice).
 - **Fork determinism:** Unaffected by clock skew because fork appends `FORK` event locally; child chain gets fresh `REGISTER` with new genesis hash and local timestamp.
 - **Well-formedness under replay:** Replayed chain is well-formed iff original was; hash verification ensures no tampering. `load_from_events()` validates each event against WF axioms before appending.
+
+**Status:** DONE
+**Commit:** 1ec0bdd
 
 ---
 
@@ -66,6 +72,9 @@ We have comprehensively addressed all 10 reviewer questions through structural, 
 
 **Also:** §4.6.3 "CRDT Merge and Precondition Interaction" clarifies that merged events do not re-evaluate preconditions retroactively; append-time validation is local, merge-time reconciliation is set union + linearization.
 
+**Status:** DONE
+**Commit:** 1ec0bdd
+
 ---
 
 ### Q4: No domain-level validation with human curators or governance outcomes (e.g., reliability of validators, false-positive/false-negative lifecycle transitions).
@@ -82,6 +91,9 @@ We have comprehensively addressed all 10 reviewer questions through structural, 
 - **Finding:** ADL `δ(C)` matches or exceeds simple majority consensus, confirming lifecycle governance semantics as a reliable aggregation mechanism
 
 **Limitation acknowledged:** This is a simulated proxy; a full human study (E5, FW15) with 30 participants (10 AML experts, 10 LLM agents, 10 crowd workers) is planned for Q3 2025 and will be reported in a follow-up study.
+
+**Status:** PARTIAL
+**Commit:** 1ec0bdd
 
 ---
 
@@ -106,6 +118,9 @@ We have comprehensively addressed all 10 reviewer questions through structural, 
 - For deployments requiring Merkle-tree verification, an adapter layer (FW16) could batch events into Merkle roots anchored to an external transparency log
 - **Also:** E6b (§5.3) already provides measured head-to-head against nanopublications (rdflib), PROV-O (prov library), and Git-only at 10⁶ scale
 
+**Status:** PARTIAL
+**Commit:** 1ec0bdd
+
 ---
 
 ### Q6: BFO "agent" mapping is potentially imprecise; BFO typically treats agency via roles and realizations in material entities.
@@ -119,6 +134,9 @@ We have comprehensively addressed all 10 reviewer questions through structural, 
 - **After:** Actor → BFO **`agent role`** (BFO_0000023), with `realizedBy` object property linking to `material entity` (BFO_0000040)
 - **Rationale:** In BFO, agency is a role that inheres in a material entity (human or software process) and is realized in processes (events). LLM agents are software processes that realize the agent role through event participation. This avoids the category error of treating software as a physical agent.
 - **Footnote added:** Explaining that DOLCE `physical agent` is approximate (DOLCE lacks non-physical agent category), but UFO `Agent` subsumes both human and software agents.
+
+**Status:** DONE
+**Commit:** 1ec0bdd
 
 ---
 
@@ -134,6 +152,9 @@ We have comprehensively addressed all 10 reviewer questions through structural, 
 - **Threat model table (Table~\ref{tab:threat-model})** already covers: collusion (mitigated by `γ_agg` bonus, not prevented), Sybil (not mitigated in Phase 1), timestamp manipulation (detected by monotonicity check), hash collision (SHA-256, computationally infeasible)
 - **Experiment E14** (§5.4) quantifies the collusion vulnerability: 1 actor with k pseudonyms can drive γ to 0.99, confirming the limitation is real and measurable
 
+**Status:** PARTIAL
+**Commit:** 1ec0bdd
+
 ---
 
 ### Q8: No cross-repository or multi-branch conflict scenarios with merge/reconciliation.
@@ -145,6 +166,9 @@ We have comprehensively addressed all 10 reviewer questions through structural, 
 **E26 results:** 100 merge operations (20,000 events across 2 repos), zero integrity failures, 100% pass rate (95% CI: [97.0, 100.0]).
 
 **E27 results:** 100–1000 branches, 0%–50% conflict rate, 100% conflict resolution, sub-millisecond merge latency.
+
+**Status:** DONE
+**Commit:** 1ec0bdd
 
 ---
 
@@ -177,11 +201,17 @@ We have comprehensively addressed all 10 reviewer questions through structural, 
 
 **Limitation note:** Full operational encoding of δ and γ exceeds OWL 2 DL expressivity (NExpTime-complete) and requires SWRL rules or external computation. The OWL axioms are a conceptual alignment anchor, not a complete operational encoding.
 
+**Status:** DONE
+**Commit:** 1ec0bdd
+
 ---
 
 ### Q10 (implied): Could you share quantitative comparisons with Merkle-based transparency logs (inclusion/consistency proof latency/size)?
 
 **Addressed by E29 (see Q5 above).**
+
+**Status:** DONE
+**Commit:** 1ec0bdd
 
 ---
 
@@ -197,6 +227,9 @@ We have comprehensively addressed all 10 reviewer questions through structural, 
 - **Optimistic concurrency:** Multi-agent authoring uses CRDT merge (LWW-Set) without distributed consensus at append time; conflicts are resolved at merge time by set union + linearization
 - **Precondition interaction:** Merged events do not re-evaluate preconditions retroactively. Append-time validation is local (preconditions checked against the chain state at append time). Merge-time reconciliation is set union + linearization by `≺`. A `DEPRECATE` event in branch A dominates a `VALIDATE` in branch B because `deprecated > validated` in the LUB lattice, regardless of merge order.
 - **Invalid transitions after merge:** Cannot occur because the merged chain is just a union of valid events; each event was validated at append time. The LUB semantics ensure the final status is the maximum over all lifecycle events, which is always a valid state.
+
+**Status:** DONE
+**Commit:** 1ec0bdd
 
 ---
 
