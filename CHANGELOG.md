@@ -5,6 +5,186 @@ All notable changes to ADL Lite are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0-alpha] — 2026-06-25
+
+### Added
+
+- **Phase 5 formal-methods extension**:
+  - TLA+ bounded checking now covers CRDT merge and consensus/multi-agent
+    transitions in addition to the original single-chain spec:
+    - `specs/CRDTMerge.tla` models two concurrent branches sharing a genesis,
+      with invariants for commutativity, associativity, idempotence, and
+      status/confidence preservation (Theorem 9).
+    - `specs/ConsensusEngine.tla` models multi-agent appends governed by the
+      ontology lifecycle graph and an `N_min` distinct-validator guard
+      (Theorems 6/8).
+  - `scripts/run_tlc.py` extended with `--spec`, `--n-min`, and `--workers`
+    flags; it generates per-spec `MC.cfg` files and skips gracefully when TLC
+    is not installed.
+  - `tests/test_run_tlc.py` covers config generation, argument parsing, and
+    missing-TLC handling.
+  - Buildable Coq/Iris skeleton under `formal/coq/`:
+    - Core theories `Status.v`, `Event.v`, `Confidence.v`, `Chain.v`,
+      `Invariants.v`, and `CRDT.v` formalise the status lattice, event model,
+      confidence boundedness, well-formedness preservation (Theorem 7), and
+      branch-merge CRDT properties (Theorem 9).
+    - Optional Iris stubs `event_chain_ra.v` and `concurrent_append.v` set up
+      a resource-algebra placeholder and a Hoare-triple stub for split-lock
+      append.
+    - Build files: `_CoqProject`, `Makefile`, `dune-project`, `adl_lite.opam`,
+      and per-theory `dune` files.
+  - `docs/verification_status.md` and `docs/experiments/tlc_status.md` updated
+    to reflect the new specs and Coq skeleton.
+
+### Changed
+
+- Phase 5 formal skeletons advanced from stubs to closed proof scripts:
+  - `formal/coq/theories/CRDT.v` is now a fully closed Coq proof of
+    Theorem 9: all helper lemmas (`sort_nat_sorted`,
+    `sort_by_id_preserves_ids`, `dedup_preserves_ids`,
+    `merge_branch_eq_events_same_id` and its assoc/idem variants,
+    `all_events_valid_merge`, `distinct_ids_merge`,
+    `increasing_ids_merge`, and `all_same_id_equal_in_union3`) are
+    now `Qed`, leaving no `Admitted` lemmas in the file.
+  - `formal/coq/iris/concurrent_append.v` now proves the real Iris
+    ghost-state update for split-lock append.
+
+## [0.4.2-alpha] — 2026-06-24
+
+### Added
+
+- **Phase 4 vector index + LLM normalization**:
+  - Pluggable embedding backends in `adl_lite/embeddings.py`
+    (`SentenceTransformerBackend`, `OpenAIBackend`) with local-first defaults.
+  - FAISS-backed persisted vector index in `adl_lite/vector_index.py`
+    (`VectorIndex`) with add/update/delete/search, pre-filtering, save/load,
+    SQLite metadata backup, and thread-safe RLock access.
+  - LLM-driven canonicalization in `adl_lite/canonicalization.py`
+    (`CanonicalizationEngine`, `OpenAILLMBackend`) that clusters near-duplicates,
+    proposes canonical forms, and emits auditable ADL action blocks; dry-run by
+    default.
+  - Semantic search integration in `ADLMemory` using optional `VectorIndex`.
+  - New CLI subcommand `adl-lite normalize` for dry-run or executed LLM
+    normalization.
+  - New experiments `E29` (Vector Index Recall) and `E30` (LLM Normalization).
+
+### Changed
+
+- `near_duplicate.py` now extracts rich text (`_extract_embedding_text`) for
+  embedding comparison while keeping name-only text for Jaccard/Levenshtein.
+
+## [0.4.1-alpha] — 2026-06-23
+
+### Added
+
+- **Phase 3 scale architecture**:
+  - `EventChain` split-lock design (`_events_lock` + `_cache_lock`) to reduce
+    contention under high concurrency.
+  - Incremental `verify_integrity()` caches the verified prefix and only
+    validates newly appended events in the common append path.
+  - zstd+msgpack compressed cold storage in `adl_lite/cold_storage.py`
+    (`archive(..., compressed=True)`), with streaming decompression and a clear
+    error message when scale extras are missing.
+  - `ADLMemory` cold-tier integration with auto-archival:
+    `cold_threshold` triggers compressed archival of large chains during
+    `store_with_events()`; `retrieve_chain()` reconstructs the full chain from
+    Warm + Cold tiers.
+  - New scale experiments `E27` (1M event scale) and `E28` (10k concurrent
+    agents).
+
+## [0.4.0-alpha] — 2026-06-22
+
+### Breaking Changes
+
+- **`resolve_did_key()` now returns `DIDDocument` instead of `Ed25519PublicKey`.**
+  This aligns all DID methods behind a normalized document abstraction. Callers
+  that need the raw Ed25519 key should use `doc.key_for_purpose()` or the
+  internal helper `_ed25519_public_key_from_doc()`.
+
+### Added
+
+- **Runtime SHACL governance** (`adl_lite/shacl_validation.py`):
+  - `validate_adl_document(doc)` runs built-in SHACL shapes directly on an
+    `ADLDocument`, including Concept, Event, Agent, Relation, and CalibrateEvent
+    shapes.
+  - Relation shape enforces source/target presence, predicate, and confidence
+    bounds.
+  - CalibrateEvent shape enforces `observedAccuracy ∈ [0, 1]`.
+
+- **Auto domain-expert calibration** (`adl_lite/calibration.py`):
+  - `MARGINCalibrator.update_accuracy_ewma()` smooths new observations.
+  - `apply_calibration_event()` consumes `CALIBRATE` events.
+  - `update_from_feedback()` derives observed accuracy from predicted confidence
+    and ground truth.
+  - Built-in `CalibrationSideEffect` in `ActionExecutor` wires the `calibrate`
+    action to the calibrator.
+
+- **Relation governance closed loop** (`adl_lite/relation_validator.py`,
+  `adl_lite/validator.py`):
+  - `ADLValidator` now calls `RelationValidator` for Invariant 2 lifecycle
+    checks on every document.
+  - Strict mode adds predicate-semantic checks: required/allowed `mapping_type`,
+    no self-referential transitive/symmetric relations.
+  - Optional `status_resolver` callback for validating external relation
+    endpoints.
+
+- **Dynamic collusion resistance** (`adl_lite/ontology.py`,
+  `adl_lite/action_executor.py`, `adl_lite/consensus.py`):
+  - `OntologyManager.min_distinct_validators()` reads
+    `collusion_resistance.min_distinct_validators` from the ontology YAML.
+  - `ActionExecutor` and `ConsensusEngine` enforce the dynamic minimum when
+    processing `VALIDATE` transitions.
+
+- **Multi-method DID resolver** (`adl_lite/did_resolver.py`):
+  - `DIDResolver` dispatcher supporting `did:key`, `did:web`, and `did:ethr`.
+  - `did:web` resolution over HTTPS with support for JWK, multibase, base58, and
+    hex public-key encodings.
+  - `did:ethr` resolution and signature verification via `ecrecover`
+    (requires optional `[did]` extras: `web3`, `eth-account`, `coincurve`).
+  - Public API additions: `resolve_did`, `resolve_did_web`, `DIDDocument`,
+    `VerificationMethod`.
+
+- **Linked Data Proofs** (`adl_lite/ld_proof.py`):
+  - `Event.proof` field for W3C Data Integrity style proofs.
+  - `create_event_proof()` generates `Ed25519Signature2020` proofs tied to a DID
+    `verificationMethod`.
+  - `verify_event_proof()` verifies proofs against `did:key`, `did:web`, and
+    `did:ethr` during `EventChain.verify_integrity()`.
+  - Legacy `sign_event()` / `verify_event_signature()` API preserved.
+
+- **Merkle batch verification** (`adl_lite/merkle.py`):
+  - `MerkleTree` with SHA-256, inclusion proofs, and serialization.
+  - `TransparencyAnchor` now supports Merkle root anchors
+    (`anchor(..., use_merkle=True)`), per-chain inclusion proofs, and
+    verification.
+  - CLI additions: `adl-lite anchor --merkle --proofs-dir <dir>` and
+    `adl-lite verify-inclusion <adl_id> --proof <json>`.
+
+- **TLA+ formal specification skeleton** (`specs/EventChain.tla`):
+  - Models EventChain state, lifecycle LUB, G-Counter confidence, and
+    well-formedness invariants.
+  - `scripts/run_tlc.py` wrapper for bounded TLC model checking.
+  - `docs/paper_ao/supplementary/appendix_i_tla.tex` updated to reference the
+    real spec.
+
+- **New optional extras** in `pyproject.toml`:
+  - `[did]` — Ethereum / secp256k1 dependencies.
+  - `[gov]` — SHACL / RDFLib dependencies (preparation for Phase 2).
+  - `[scale]` — FAISS, zstd, msgpack (preparation for Phase 3).
+
+### Changed
+
+- `KeyRegistry.get_public_key()` now resolves `did:key` through the new
+  `DIDDocument` abstraction.
+
+### Fixed
+
+- `EventChain._lock` switched from `threading.Lock()` to `threading.RLock()` to
+  avoid a macOS deadlock when `cryptography` (OpenSSL) and `torch` /
+  `sentence-transformers` (OpenMP) are loaded in the same process.
+- `did:web` DID document parsing now percent-decodes method-specific IDs and
+  robustly handles base64url padding.
+
 ## [0.3.5] — 2025-06-20
 
 ### Breaking Changes
