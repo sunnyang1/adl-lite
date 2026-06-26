@@ -40,7 +40,7 @@ def demo_1_confidence_never_decreases():
         )
     )
     print(f"  After VALIDATE(0.5) → confidence = {chain.confidence}")
-    print(f"  → Old LWW would give 0.5; CRDT gives 0.9 (max)")
+    print("  → Old LWW would give 0.5; CRDT gives 0.9 (max)")
     assert chain.confidence == 0.9
 
 
@@ -59,9 +59,11 @@ def demo_2_status_never_regresses():
     chain.append(Event(concept_id="demo-status", event_type=EventType.DEPRECATE, actor="admin"))
     print(f"  After DEPRECATE     → status = {chain.status.value}")
 
-    chain.append(Event(concept_id="demo-status", event_type=EventType.VALIDATE, actor="new_reviewer"))
+    chain.append(
+        Event(concept_id="demo-status", event_type=EventType.VALIDATE, actor="new_reviewer")
+    )
     print(f"  After VALIDATE again → status = {chain.status.value}")
-    print(f"  → Old LWW would give 'validated'; CRDT gives 'deprecated'")
+    print("  → Old LWW would give 'validated'; CRDT gives 'deprecated'")
     assert chain.status.value == "deprecated"
 
 
@@ -79,7 +81,7 @@ def demo_3_archive_dominates_all():
 
     chain.append(Event(concept_id="demo-archive", event_type=EventType.VALIDATE, actor="b"))
     print(f"  After another VALIDATE → status = {chain.status.value}")
-    print(f"  → Once archived, nothing can change it back")
+    print("  → Once archived, nothing can change it back")
     assert chain.status.value == "archived"
 
 
@@ -103,7 +105,7 @@ def demo_4_fork_parent_stays_validated():
         )
     )
     print(f"  Parent after FORK     → status = {chain.status.value}")
-    print(f"  → Parent stays 'validated'; fork gets its own chain")
+    print("  → Parent stays 'validated'; fork gets its own chain")
     assert chain.status.value == "validated"
 
 
@@ -145,7 +147,7 @@ def demo_5_snapshot_counts_in_max():
         )
     )
     print(f"  After VALIDATE(0.6)  → confidence = {chain.confidence}")
-    print(f"  → max(0.7, 0.85, 0.6) = 0.85")
+    print("  → max(0.7, 0.85, 0.6) = 0.85")
     assert chain.confidence == 0.85
 
 
@@ -181,11 +183,11 @@ def demo_6_merge_two_chains():
     chain_b.append(Event(concept_id="merge-demo", event_type=EventType.DEPRECATE, actor="admin"))
 
     merged = merge_event_chains(chain_a, chain_b)
-    print(f"  Chain A: validated, confidence 0.85")
-    print(f"  Chain B: deprecated, confidence 0.75")
+    print("  Chain A: validated, confidence 0.85")
+    print("  Chain B: deprecated, confidence 0.75")
     print(f"  Merged  : {merged.status.value}, confidence {merged.confidence}")
-    print(f"  → LUB(VALIDATED, DEPRECATED) = DEPRECATED")
-    print(f"  → max(0.85, 0.75) = 0.85")
+    print("  → LUB(VALIDATED, DEPRECATED) = DEPRECATED")
+    print("  → max(0.85, 0.75) = 0.85")
     assert merged.status.value == "deprecated"
     assert merged.confidence == 0.85
 

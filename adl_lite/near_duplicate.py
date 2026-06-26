@@ -1,9 +1,9 @@
-"""
-Near-Duplicate Detection for ADL Lite.
+"""Near-Duplicate Detection for ADL Lite.
 
-Detects conceptually similar capabilities that may be near-duplicates
-of existing entries. Uses simple string similarity and optional embedding
-similarity (when sentence-transformers is available).
+Detects conceptually similar capabilities that may be near-duplicates of
+existing entries. Supports deterministic string similarity, embedding-based
+semantic similarity, and a FAISS-backed :class:`VectorIndex` for scalable
+search.
 
 Paper §6.2: "Near-duplicate detection is available for merge suggestions."
 """
@@ -11,18 +11,65 @@ Paper §6.2: "Near-duplicate detection is available for merge suggestions."
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from .models import ADLDocument, EventChain
+from .models import (
+    ADLActionBlock,
+    ADLDocument,
+    ADLEvidenceBlock,
+    ADLFormalSealBlock,
+    ADLRelationBlock,
+    EventChain,
+)
 
 
 def _normalize_name(name: str) -> str:
-    """Normalize a name for comparison: lowercase, remove punctuation, collapse whitespace."""
-    name = name.lower()
-    name = re.sub(r"[^a-z0-9\s]", "", name)
+    """Normalize a name for comparison: case-fold, remove punctuation, collapse whitespace.
+
+    Keeps Unicode letters and digits so that CJK and other non-ASCII scripts
+    are preserved.
+    """
+    name = name.casefold()
+    name = re.sub(r"[^\w\s]", "", name, flags=re.UNICODE)
     name = re.sub(r"\s+", " ", name).strip()
     return name
+
+
+def _extract_comparison_text(
+    candidate: ADLDocument | EventChain | str, max_chars: int = 2000
+) -> str:
+    """Extract a single comparable text string from a document, chain, or name."""
+    if isinstance(candidate, str):
+        return candidate
+
+    parts: list[str] = []
+
+    if isinstance(candidate, ADLDocument):
+        # ADLDocument path: prefer explicit names, fall back to adl_id
+        names = candidate.front_matter.provisional_names
+        if names:
+            if names.en:
+                parts.append(names.en)
+            if names.zh:
+                parts.append(names.zh)
+        if not parts:
+            parts.append(candidate.adl_id)
+    else:
+        # EventChain path: prefer names from SNAPSHOT-like payloads, fall back to concept_id
+        for event in candidate.events:
+            payload = event.payload or {}
+            names = payload.get("provisional_names", {})
+            if isinstance(names, dict):
+                if names.get("en"):
+                    parts.append(names["en"])
+                if names.get("zh"):
+                    parts.append(names["zh"])
+        if not parts:
+            parts.append(candidate.concept_id)
+
+    text = " ".join(p for p in parts if p).strip()
+    if len(text) > max_chars:
+        text = text[:max_chars]
+    return text
 
 
 def _jaccard_similarity(a: str, b: str) -> float:
@@ -49,47 +96,31 @@ def check_near_duplicate(
     threshold: float = 0.85,
     method: str = "jaccard",
 ) -> list[dict]:
-    """
-    Check if a candidate concept is a near-duplicate of any existing chain.
+    """Check if a candidate concept is a near-duplicate of any existing chain.
 
     Args:
-        candidate: New ADLDocument or concept name string to check
-        existing_chains: List of existing EventChains to compare against
-        threshold: Similarity threshold (0-1); above this = near-duplicate
-        method: "jaccard" or "levenshtein"
+        candidate: New ADLDocument or concept name string to check.
+        existing_chains: List of existing EventChains to compare against.
+        threshold: Similarity threshold (0-1); above this = near-duplicate.
+        method: "jaccard", "levenshtein", or "embedding".
 
     Returns:
-        List of match dicts: [{"concept_id": str, "similarity": float, "method": str}]
-        Sorted by similarity descending.
+        List of match dicts sorted by similarity descending:
+        ``{"concept_id": str, "similarity": float, "method": str}``.
     """
-    if isinstance(candidate, str):
-        candidate_name = candidate
-    else:
-        # Use English name if available, otherwise Chinese, otherwise concept_id
-        candidate_name = (
-            candidate.front_matter.provisional_names.en
-            or candidate.front_matter.provisional_names.zh
-            or candidate.adl_id
-        )
+    if method == "embedding":
+        return check_near_duplicate_embedding(candidate, existing_chains, threshold=threshold)
+
+    candidate_text = _extract_comparison_text(candidate)
 
     matches: list[dict] = []
     for chain in existing_chains:
-        existing_name = chain.concept_id
-        # Try to get a better name from the chain's markdown body or events
-        for event in chain.events:
-            if event.event_type.value == "snapshot":
-                payload = event.payload
-                if isinstance(payload, dict):
-                    names = payload.get("provisional_names", {})
-                    if isinstance(names, dict):
-                        existing_name = names.get("en") or names.get("zh") or existing_name
+        existing_text = _extract_comparison_text(chain)
 
-        if method == "jaccard":
-            similarity = _jaccard_similarity(candidate_name, existing_name)
-        elif method == "levenshtein":
-            similarity = _levenshtein_ratio(candidate_name, existing_name)
+        if method == "levenshtein":
+            similarity = _levenshtein_ratio(candidate_text, existing_text)
         else:
-            similarity = _jaccard_similarity(candidate_name, existing_name)
+            similarity = _jaccard_similarity(candidate_text, existing_text)
 
         if similarity >= threshold:
             matches.append(
@@ -109,8 +140,7 @@ def suggest_merge(
     existing_chains: list[EventChain],
     threshold: float = 0.85,
 ) -> dict | None:
-    """
-    Suggest a merge if a near-duplicate is detected.
+    """Suggest a merge if a near-duplicate is detected.
 
     Returns:
         Merge suggestion dict or None if no near-duplicate found.
@@ -132,62 +162,112 @@ def suggest_merge(
     }
 
 
-# Optional: embedding-based similarity when sentence-transformers is available
-try:
-    from sentence_transformers import SentenceTransformer, util
+def _extract_embedding_text(
+    candidate: ADLDocument | EventChain | str, max_chars: int = 2000
+) -> str:
+    """Extract a rich text representation for dense embedding comparison."""
+    if isinstance(candidate, str):
+        return candidate
 
-    _EMBEDDING_MODEL = None
+    parts: list[str] = []
 
-    def _get_embedding_model() -> SentenceTransformer:
-        global _EMBEDDING_MODEL
-        if _EMBEDDING_MODEL is None:
-            _EMBEDDING_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
-        return _EMBEDDING_MODEL
+    if isinstance(candidate, ADLDocument):
+        names = candidate.front_matter.provisional_names
+        if names:
+            if names.en:
+                parts.append(names.en)
+            if names.zh:
+                parts.append(names.zh)
 
-    def check_near_duplicate_embedding(
-        candidate: ADLDocument | str,
-        existing_chains: list[EventChain],
-        threshold: float = 0.90,
-    ) -> list[dict]:
-        """Near-duplicate detection using sentence embeddings (requires sentence-transformers)."""
-        if isinstance(candidate, str):
-            candidate_text = candidate
-        else:
-            candidate_text = (
-                candidate.front_matter.provisional_names.en
-                or candidate.front_matter.provisional_names.zh
-                or candidate.adl_id
-            )
+        body = candidate.markdown_body or ""
+        if body:
+            parts.append(body)
 
-        model = _get_embedding_model()
-        candidate_embedding = model.encode(candidate_text, convert_to_tensor=True)
+        for block in getattr(candidate, "adl_blocks", []) or []:
+            if isinstance(block, ADLRelationBlock):
+                parts.append(f"{block.source} {block.relation} {block.target}")
+            elif isinstance(block, ADLEvidenceBlock) and block.description:
+                parts.append(block.description)
+            elif isinstance(block, ADLFormalSealBlock) and block.assertion:
+                parts.append(block.assertion)
 
-        matches: list[dict] = []
-        for chain in existing_chains:
-            existing_text = chain.concept_id
-            for event in chain.events:
-                if event.event_type.value == "snapshot":
-                    payload = event.payload
-                    if isinstance(payload, dict):
-                        names = payload.get("provisional_names", {})
-                        if isinstance(names, dict):
-                            existing_text = names.get("en") or names.get("zh") or existing_text
+        for action in getattr(candidate, "action_blocks", []) or []:
+            if isinstance(action, ADLActionBlock) and action.reasoning:
+                parts.append(action.reasoning)
 
-            existing_embedding = model.encode(existing_text, convert_to_tensor=True)
-            similarity = float(util.pytorch_cos_sim(candidate_embedding, existing_embedding)[0][0])
+        if not parts:
+            parts.append(candidate.adl_id)
+    else:
+        # EventChain path: prefer names from SNAPSHOT-like payloads, fall back to concept_id
+        for event in candidate.events:
+            payload = event.payload or {}
+            names = payload.get("provisional_names", {})
+            if isinstance(names, dict):
+                if names.get("en"):
+                    parts.append(names["en"])
+                if names.get("zh"):
+                    parts.append(names["zh"])
+        if not parts:
+            parts.append(candidate.concept_id)
 
-            if similarity >= threshold:
-                matches.append(
-                    {
-                        "concept_id": chain.concept_id,
-                        "similarity": round(similarity, 4),
-                        "method": "embedding",
-                    }
-                )
+    text = " ".join(p for p in parts if p).strip()
+    if len(text) > max_chars:
+        text = text[:max_chars]
+    return text
 
-        matches.sort(key=lambda x: x["similarity"], reverse=True)
-        return matches
 
-except ImportError:
-    # sentence-transformers not installed; embedding-based detection unavailable
-    pass
+def check_near_duplicate_embedding(
+    candidate: ADLDocument | str,
+    existing_chains: list[EventChain] | None = None,
+    threshold: float = 0.90,
+    backend=None,
+    vector_index=None,
+    top_k: int = 10,
+) -> list[dict]:
+    """Near-duplicate detection using dense embeddings.
+
+    Args:
+        candidate: New ADLDocument or concept name string to check.
+        existing_chains: List of existing EventChains to compare against.
+            Required for the one-shot path; optional when ``vector_index`` is
+            provided.
+        threshold: Cosine similarity threshold.
+        backend: Optional EmbeddingBackend. If None, uses the default backend.
+        vector_index: Optional VectorIndex for repeated searches. If provided,
+            ``existing_chains`` is used only to bound ``top_k`` when no explicit
+            ``top_k`` is supplied.
+        top_k: Maximum number of results to return.
+
+    Returns:
+        List of match dicts sorted by similarity descending.
+    """
+    from .embeddings import get_default_embedding_backend
+    from .vector_index import VectorIndex
+
+    emb_backend = backend or get_default_embedding_backend()
+    candidate_text = _extract_embedding_text(candidate)
+
+    if vector_index is not None:
+        search_top_k = top_k
+        if existing_chains is not None:
+            search_top_k = max(top_k, len(existing_chains))
+        results = vector_index.search(candidate_text, top_k=search_top_k, threshold=threshold)
+        return [
+            {"concept_id": r["adl_id"], "similarity": r["similarity"], "method": "embedding"}
+            for r in results
+        ]
+
+    # One-shot path: build a temporary index from existing chains and search it.
+    if existing_chains is None:
+        return []
+    texts = {chain.concept_id: _extract_embedding_text(chain) for chain in existing_chains}
+    if not texts:
+        return []
+
+    index = VectorIndex(backend=emb_backend)
+    index.add_many(texts)
+    results = index.search(candidate_text, top_k=max(top_k, len(texts)), threshold=threshold)
+    return [
+        {"concept_id": r["adl_id"], "similarity": r["similarity"], "method": "embedding"}
+        for r in results
+    ]

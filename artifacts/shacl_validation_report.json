@@ -1,0 +1,52 @@
+[
+  {
+    "file": "matdo_original_rdfstar.ttl",
+    "conforms": true,
+    "report": "Valid"
+  },
+  {
+    "file": "matdo_fork_kinetic_rdfstar.ttl",
+    "conforms": true,
+    "report": "Valid"
+  },
+  {
+    "file": "attention_residual_discovery.ttl",
+    "conforms": true,
+    "report": "Valid"
+  },
+  {
+    "file": "matdo_fork_kinetic.ttl",
+    "conforms": true,
+    "report": "Valid"
+  },
+  {
+    "file": "attention_residual_discovery_rdfstar.ttl",
+    "conforms": true,
+    "report": "Valid"
+  },
+  {
+    "file": "matdo_original.ttl",
+    "conforms": true,
+    "report": "Valid"
+  },
+  {
+    "file": "gradient_explosion.ttl",
+    "conforms": true,
+    "report": "Valid"
+  },
+  {
+    "file": "capital_reflux_trap_rdfstar.ttl",
+    "conforms": true,
+    "report": "Valid"
+  },
+  {
+    "file": "capital_reflux_trap.ttl",
+    "conforms": true,
+    "report": "Valid"
+  },
+  {
+    "file": "gradient_explosion_rdfstar.ttl",
+    "conforms": true,
+    "report": "Valid"
+  }
+]

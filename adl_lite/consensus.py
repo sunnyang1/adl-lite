@@ -219,6 +219,16 @@ class ConsensusEngine:
                 payload=payload or {},
             )
             chain.append(event)
+
+            # Enforce dynamic minimum distinct validators for VALIDATE transitions
+            if to_status == DiscoveryStatus.VALIDATED:
+                n_min = self._ontology.min_distinct_validators()
+                if chain.validator_count < n_min:
+                    raise ADLConsensusError(
+                        f"VALIDATE transition requires at least {n_min} distinct validators, "
+                        f"but only {chain.validator_count} present"
+                    )
+
             return event
 
     def fork(

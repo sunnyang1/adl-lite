@@ -139,8 +139,7 @@ class TestRDFMapping:
             f"found {turtle.count('adl:RelationAssertion')}"
         )
         assert turtle.count("prov:Entity") >= len(doc.evidence), (
-            f"Expected {len(doc.evidence)} evidence entities, "
-            f"found {turtle.count('prov:Entity')}"
+            f"Expected {len(doc.evidence)} evidence entities, found {turtle.count('prov:Entity')}"
         )
 
         # Key fields preserved
@@ -199,10 +198,10 @@ class TestRDFMapping:
             f"{'TOTAL':<25} {'':<35} {total_rels_in:>3}/{total_rels_out:<3} {total_ev_in:>3}/{total_ev_out:<3}"
         )
         print(
-            f"Relation preservation: {total_rels_out}/{total_rels_in} ({100*total_rels_out//max(1,total_rels_in)}%)"
+            f"Relation preservation: {total_rels_out}/{total_rels_in} ({100 * total_rels_out // max(1, total_rels_in)}%)"
         )
         print(
-            f"Evidence preservation:  {total_ev_out}/{total_ev_in} ({100*total_ev_out//max(1,total_ev_in)}%)"
+            f"Evidence preservation:  {total_ev_out}/{total_ev_in} ({100 * total_ev_out // max(1, total_ev_in)}%)"
         )
         print("=" * 70)
 

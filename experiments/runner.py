@@ -33,14 +33,25 @@ from . import (
     e14_colluding_validators,  # noqa: F401
     e15_precondition_boundary,  # noqa: F401
     e16_multiagent_contention,  # noqa: F401
-    e19_governance_benchmark,  # noqa: F401
+    # e19 requires pygit2, which is not bundled with the core extras.
+    # It is imported opportunistically so the runner remains usable without it.
     e20_template_effectiveness,  # noqa: F401
     e20b_calibration_baseline,  # noqa: F401
     e21_100k_stress,  # noqa: F401
     e23_contention_stress,  # noqa: F401
     e25_microbenchmark,  # noqa: F401
+    e27_1m_event_scale,  # noqa: F401
+    e28_10k_concurrency,  # noqa: F401
+    e29_vector_index_recall,  # noqa: F401
+    e30_llm_normalization,  # noqa: F401
     proof_trace_checker,  # noqa: F401
 )
+
+try:
+    from . import e19_governance_benchmark  # noqa: F401
+except ImportError:
+    pass
+
 from .base import ExperimentResult
 from .registry import instantiate, list_all
 
@@ -181,9 +192,9 @@ def main(argv: list[str] | None = None) -> None:
 
     results: dict[str, ExperimentResult] = {}
     for eid in run_ids:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"  Running: {eid}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         result = run_one(eid, generate_tables, update_tracking, verify)
         results[eid] = result
         _print_result(result, verbose=args.verbose)

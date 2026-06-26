@@ -124,16 +124,16 @@ class TestAMLBenchmark:
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
         f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("AML PATTERN DETECTION BENCHMARK")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"  Ground-truth positives:   {len(gt_positive_accounts)}")
         print(f"  Predicted positives:      {len(predicted_positive_accounts)}")
         print(f"  TP={tp}  FP={fp}  FN={fn}")
         print(f"  Precision: {precision:.3f}")
         print(f"  Recall:    {recall:.3f}")
         print(f"  F1:        {f1:.3f}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         # The pattern detector is heuristic-based; we assert non-degenerate metrics
         assert precision >= 0, "Precision should be non-negative"

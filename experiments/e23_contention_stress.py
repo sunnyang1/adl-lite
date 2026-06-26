@@ -3,6 +3,7 @@
 10 agents concurrently append to 50 shared EventChains.
 Target: integrity_rate=1.0, conflict_rate<0.5, zero data races.
 """
+
 from __future__ import annotations
 
 import random
@@ -16,8 +17,18 @@ from .base import BaseExperiment, ExperimentResult
 from .registry import register
 
 _VALID = {
-    DiscoveryStatus.PROVISIONAL: {EventType.VALIDATE, EventType.DEPRECATE, EventType.FORK, EventType.EVIDENCE},
-    DiscoveryStatus.VALIDATED: {EventType.VALIDATE, EventType.DEPRECATE, EventType.FORK, EventType.EVIDENCE},
+    DiscoveryStatus.PROVISIONAL: {
+        EventType.VALIDATE,
+        EventType.DEPRECATE,
+        EventType.FORK,
+        EventType.EVIDENCE,
+    },
+    DiscoveryStatus.VALIDATED: {
+        EventType.VALIDATE,
+        EventType.DEPRECATE,
+        EventType.FORK,
+        EventType.EVIDENCE,
+    },
     DiscoveryStatus.DEPRECATED: {EventType.DEPRECATE, EventType.FORK, EventType.EVIDENCE},
     DiscoveryStatus.FORKED: {EventType.DEPRECATE, EventType.EVIDENCE},
     DiscoveryStatus.ARCHIVED: {EventType.EVIDENCE},
@@ -63,7 +74,14 @@ class E23ContentionStress(BaseExperiment):
                     if action == EventType.VALIDATE:
                         lrv += 1
                         if EventType.FORK in _VALID.get(status, set()):
-                            chain.append(_make_event(cid, f"agent-{agent_id}", EventType.FORK, {"converted_from": "validate"}))
+                            chain.append(
+                                _make_event(
+                                    cid,
+                                    f"agent-{agent_id}",
+                                    EventType.FORK,
+                                    {"converted_from": "validate"},
+                                )
+                            )
                             lcf += 1
                     continue
 
@@ -74,7 +92,14 @@ class E23ContentionStress(BaseExperiment):
                     if action == EventType.VALIDATE:
                         lrv += 1
                         if EventType.FORK in _VALID.get(new_status, set()):
-                            chain.append(_make_event(cid, f"agent-{agent_id}", EventType.FORK, {"converted_from": "validate"}))
+                            chain.append(
+                                _make_event(
+                                    cid,
+                                    f"agent-{agent_id}",
+                                    EventType.FORK,
+                                    {"converted_from": "validate"},
+                                )
+                            )
                             lcf += 1
                     continue
 
@@ -126,7 +151,12 @@ class E23ContentionStress(BaseExperiment):
                 "rounds": n_rounds,
             },
             raw_data=[
-                {"concept_id": cid, "chain_length": c.length, "final_status": c.status.value, "integrity": c.verify_integrity()}
+                {
+                    "concept_id": cid,
+                    "chain_length": c.length,
+                    "final_status": c.status.value,
+                    "integrity": c.verify_integrity(),
+                }
                 for cid, c in chains.items()
             ],
         )

@@ -1,0 +1,10 @@
+-R theories ADL
+-R iris ADL.Iris
+theories/Status.v
+theories/Event.v
+theories/Confidence.v
+theories/Chain.v
+theories/Invariants.v
+theories/CRDT.v
+iris/event_chain_ra.v
+iris/concurrent_append.v

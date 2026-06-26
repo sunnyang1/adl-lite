@@ -1,0 +1,114 @@
+@prefix adl: <https://adl-lite.org/ns/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+adl:disc-capital-trap a prov:Entity ;
+    rdfs:label "disc-capital-trap" ;
+    prov:wasGeneratedBy adl:evt-disc-capital-trap-evidence-003,
+        adl:evt-disc-capital-trap-evidence-004,
+        adl:evt-disc-capital-trap-evidence-005,
+        adl:evt-disc-capital-trap-relate-001,
+        adl:evt-disc-capital-trap-relate-002,
+        adl:evt-disc-capital-trap-seal-006,
+        adl:evt-disc-capital-trap-snapshot-000 ;
+    adl:conceptId "disc-capital-trap" ;
+    adl:confidence "0.84"^^xsd:float ;
+    adl:status "provisional" .
+
+adl:actor-parser a prov:Agent ;
+    rdfs:label "parser" .
+
+adl:evt-disc-capital-trap-seal-006 a prov:Activity,
+        adl:SealEvent ;
+    rdfs:label "seal disc-capital-trap" ;
+    prov:startedAtTime "2026-06-01T13:46:22.790133+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-author ;
+    prov:wasInformedBy adl:evt-disc-capital-trap-evidence-005 ;
+    adl:eventHash "3b2fd9fe5f51c45337558a8307e5b7258193bf554bbbbc20ebbffd53c90dad86" ;
+    adl:eventId "f464998250394c85ae06da3546dc08df" ;
+    adl:eventIndex 6 ;
+    adl:eventType "seal" ;
+    adl:payload "{\"assertion\": \"isomorphic_mapping_preserves_cycles\", \"block_type\": \"seal\", \"language\": \"lean4\", \"proof_ref\": \"\\\"https://github.com/ceiec-aml/formal-proofs/isomorphism_cycles.lean\\\"\", \"status\": \"pending\", \"verified_by\": \"null\"}"^^xsd:string ;
+    adl:previousEventHash "43a592daf247e2392a34f04c4ce775899d088bd3cedb1b66a66dfbc08ac7e032" .
+
+adl:evt-disc-capital-trap-evidence-003 a prov:Activity,
+        adl:EvidenceEvent ;
+    rdfs:label "evidence disc-capital-trap" ;
+    prov:startedAtTime "2026-06-01T13:46:22.790047+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-author ;
+    prov:wasInformedBy adl:evt-disc-capital-trap-relate-002 ;
+    adl:eventHash "fc8180d7f1c03aced058e23bec18a5647fd31bc50e292e737bd2d6cb400f1f33" ;
+    adl:eventId "fee6ed0cf92243b5b4092f1d5649ca3f" ;
+    adl:eventIndex 3 ;
+    adl:eventType "evidence" ;
+    adl:payload "{\"block_type\": \"evidence\", \"confidence\": 0.87, \"data_ref\": \"vecdb://clusters/8912\", \"description\": \"High-dimensional clustering reveals 3-sigma outliers in peripheral-node transaction flows\", \"evidence_type\": \"vector_cluster\", \"observed_at\": \"2024-03-15T09:23:00Z\"}"^^xsd:string ;
+    adl:previousEventHash "9af2aa3926774c9d75c7c051bc36462a5a65b930f1a7b65b781fdb8be5a9bab9" .
+
+adl:evt-disc-capital-trap-evidence-004 a prov:Activity,
+        adl:EvidenceEvent ;
+    rdfs:label "evidence disc-capital-trap" ;
+    prov:startedAtTime "2026-06-01T13:46:22.790075+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-author ;
+    prov:wasInformedBy adl:evt-disc-capital-trap-evidence-003 ;
+    adl:eventHash "16bec0879b0408133922e9566e44dd5ffd2395497ec5d244f14caa90ac5b3a49" ;
+    adl:eventId "4ad7bf2ce6be40d6ba91e40781a3de9e" ;
+    adl:eventIndex 4 ;
+    adl:eventType "evidence" ;
+    adl:payload "{\"block_type\": \"evidence\", \"confidence\": 0.82, \"data_ref\": \"tool://aml_simulator/v2\", \"description\": \"Monte Carlo simulation confirms trap formation under 78% of adversarial routing strategies\", \"evidence_type\": \"simulator_run\", \"observed_at\": \"2024-04-02T14:11:00Z\"}"^^xsd:string ;
+    adl:previousEventHash "fc8180d7f1c03aced058e23bec18a5647fd31bc50e292e737bd2d6cb400f1f33" .
+
+adl:evt-disc-capital-trap-evidence-005 a prov:Activity,
+        adl:EvidenceEvent ;
+    rdfs:label "evidence disc-capital-trap" ;
+    prov:startedAtTime "2026-06-01T13:46:22.790103+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-author ;
+    prov:wasInformedBy adl:evt-disc-capital-trap-evidence-004 ;
+    adl:eventHash "43a592daf247e2392a34f04c4ce775899d088bd3cedb1b66a66dfbc08ac7e032" ;
+    adl:eventId "6d1806dfc79b4407b334afd7426fca58" ;
+    adl:eventIndex 5 ;
+    adl:eventType "evidence" ;
+    adl:payload "{\"block_type\": \"evidence\", \"confidence\": 0.91, \"data_ref\": \"expert://aml_team/review_2024q2\", \"description\": \"Senior AML analyst confirmed pattern novelty against 5-year historical data\", \"evidence_type\": \"human_expert\", \"observed_at\": \"2024-05-10T11:00:00Z\"}"^^xsd:string ;
+    adl:previousEventHash "16bec0879b0408133922e9566e44dd5ffd2395497ec5d244f14caa90ac5b3a49" .
+
+adl:evt-disc-capital-trap-relate-001 a prov:Activity,
+        adl:RelateEvent ;
+    rdfs:label "relate disc-capital-trap" ;
+    prov:startedAtTime "2026-06-01T13:46:22.789983+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-author ;
+    prov:wasInformedBy adl:evt-disc-capital-trap-snapshot-000 ;
+    adl:eventHash "1f80feb7fb85f964a9548734dd2e7c4829afeb5e51537eb126e4b8a82730a538" ;
+    adl:eventId "683b462e1aae4b83948321024156e010" ;
+    adl:eventIndex 1 ;
+    adl:eventType "relate" ;
+    adl:payload "{\"block_type\": \"relation\", \"confidence\": 0.91, \"mapping_type\": \"topological\", \"relation\": \"isomorphic-to\", \"source\": \"Capital Attention Trap\", \"target\": \"adl://public/concepts/gradient_explosion\"}"^^xsd:string ;
+    adl:previousEventHash "6e3f5cdd390156e75bf0a0dd08852393c656f6154c4af28fe97e9bf28e9936f7" .
+
+adl:evt-disc-capital-trap-relate-002 a prov:Activity,
+        adl:RelateEvent ;
+    rdfs:label "relate disc-capital-trap" ;
+    prov:startedAtTime "2026-06-01T13:46:22.790017+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-author ;
+    prov:wasInformedBy adl:evt-disc-capital-trap-relate-001 ;
+    adl:eventHash "9af2aa3926774c9d75c7c051bc36462a5a65b930f1a7b65b781fdb8be5a9bab9" ;
+    adl:eventId "54203f951f304320bc95239a7a096f38" ;
+    adl:eventIndex 2 ;
+    adl:eventType "relate" ;
+    adl:payload "{\"block_type\": \"relation\", \"confidence\": 0.73, \"mapping_type\": \"ontological\", \"relation\": \"specialisation-of\", \"source\": \"Capital Attention Trap\", \"target\": \"adl://public/concepts/money_laundering_layering\"}"^^xsd:string ;
+    adl:previousEventHash "1f80feb7fb85f964a9548734dd2e7c4829afeb5e51537eb126e4b8a82730a538" .
+
+adl:evt-disc-capital-trap-snapshot-000 a prov:Activity,
+        adl:SnapshotEvent ;
+    rdfs:label "snapshot disc-capital-trap" ;
+    prov:startedAtTime "2026-06-01T13:46:22.789931+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-parser ;
+    adl:eventHash "6e3f5cdd390156e75bf0a0dd08852393c656f6154c4af28fe97e9bf28e9936f7" ;
+    adl:eventId "a128e6459f2f4bf6a168f22bddeda5e5" ;
+    adl:eventIndex 0 ;
+    adl:eventType "snapshot" ;
+    adl:payload "{\"adl_type\": \"discovery\", \"confidence\": 0.84, \"domain\": \"financial_aml\", \"novelty\": 0.91, \"provisional_names\": {\"en\": \"Capital Attention Trap\", \"zh\": \"\\u8d44\\u91d1\\u6ce8\\u610f\\u529b\\u9677\\u9631\"}, \"scope\": \"private/ceiec-aml\", \"synthetic\": true}"^^xsd:string ;
+    adl:previousEventHash "genesis" .
+
+adl:actor-author a prov:Agent ;
+    rdfs:label "author" .
+

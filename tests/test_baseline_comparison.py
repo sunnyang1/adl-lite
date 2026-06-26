@@ -155,9 +155,9 @@ class TestBaselineComparison:
         # JSON equivalent should be compact
         assert metrics["json_chars"] > 100
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("BASELINE: AUTHORING VERBOSITY")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"  ADL Markdown:  {metrics['chars']:>6} chars, {metrics['lines']:>4} lines")
         print(
             f"  JSON equiv:    {metrics['json_chars']:>6} chars, {metrics['json_lines']:>4} lines"
@@ -166,7 +166,7 @@ class TestBaselineComparison:
             f"  Nanopub equiv: {metrics['nanopub_chars']:>6} chars, {metrics['nanopub_lines']:>4} lines"
         )
         print(
-            f"  ADL/JSON ratio: {metrics['chars']/metrics['json_chars']:.1f}x (includes L2 prose)"
+            f"  ADL/JSON ratio: {metrics['chars'] / metrics['json_chars']:.1f}x (includes L2 prose)"
         )
 
     def test_syntax_validity(self):
@@ -184,9 +184,9 @@ class TestBaselineComparison:
             total_violations += result["pronoun_violations"]
 
         # Examples should have minimal pronoun violations (well-authored)
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("BASELINE: REFERENTIAL CONSISTENCY")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"  Total pronoun violations across 5 examples: {total_violations}")
         print("  Note: JSON format has no built-in pronoun checking.")
 
@@ -208,9 +208,9 @@ class TestBaselineComparison:
         has_builtin_audit = len(history) > 0
         bool(nanopub_provenance)
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("BASELINE: AUDIT TRAIL")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"  ADL EventChain:     built-in ({len(history)} events, cryptographic)")
         print("  JSON:               external (git log/manual)")
         print(f"  Nanopublication:    external ({list(nanopub_provenance.keys())})")
@@ -223,11 +223,11 @@ class TestBaselineComparison:
         metrics = measure_authoring_cost(ADL_REPRESENTATION)
         check_referential_consistency(ADL_REPRESENTATION)
 
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print("BASELINE COMPARISON SUMMARY")
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")
         print(f"{'Metric':<35} {'ADL Markdown':>15} {'JSON':>15}")
-        print(f"{'-'*65}")
+        print(f"{'-' * 65}")
         print(f"{'Authoring chars':<35} {metrics['chars']:>15d} {metrics['json_chars']:>15d}")
         print(f"{'Built-in syntax validation':<35} {'✅ (Pydantic)':>15} {'❌ (manual)':>15}")
         print(f"{'Pronoun/ambiguity check':<35} {'✅ (SSA)':>15} {'❌':>15}")
@@ -236,4 +236,4 @@ class TestBaselineComparison:
         print(f"{'Consensus primitives':<35} {'✅ (ForkManager)':>15} {'❌':>15}")
         print(f"{'Ontology registry':<35} {'✅ (YAML)':>15} {'❌':>15}")
         print(f"{'Human-readable prose':<35} {'✅ (L2 Markdown)':>15} {'❌':>15}")
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")

@@ -1,0 +1,4 @@
+(coq.theory
+ (name ADL)
+ (package adl-lite-formal)
+ (synopsis "ADL Lite core event-chain formalisation"))

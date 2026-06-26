@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
+from .calibration import MARGINCalibrator
 from .models import (
     ActionDef,
     ActionExecStatus,
@@ -41,6 +42,45 @@ class SideEffectResult:
     def __init__(self, success: bool, detail: str = "") -> None:
         self.success = success
         self.detail = detail
+
+
+# ---------------------------------------------------------------------------
+# Built-in side effects
+# ---------------------------------------------------------------------------
+
+
+class CalibrationSideEffect:
+    """Side effect for the 'calibrate' action: update actor accuracy profile."""
+
+    name = "calibrate_actor"
+
+    def __init__(self, calibrator: MARGINCalibrator | None = None) -> None:
+        self.calibrator = calibrator or MARGINCalibrator()
+
+    def execute(
+        self,
+        doc: ADLDocument,
+        action: ADLActionBlock,
+        params: dict[str, Any],
+    ) -> SideEffectResult:
+        observed = params.get("observed_accuracy")
+        if observed is None:
+            return SideEffectResult(False, "Missing observed_accuracy")
+        try:
+            observed_f = float(observed)
+        except (TypeError, ValueError):
+            return SideEffectResult(False, f"Invalid observed_accuracy: {observed}")
+        if not (0.0 <= observed_f <= 1.0):
+            return SideEffectResult(False, f"observed_accuracy must be in [0, 1], got {observed_f}")
+
+        context = str(params.get("context", "general"))
+        alpha = float(params.get("alpha", 0.3))
+        actor = action.actor or "system"
+        self.calibrator.update_accuracy_ewma(actor, observed_f, context=context, alpha=alpha)
+        return SideEffectResult(
+            True,
+            f"Updated {actor} accuracy in context '{context}' with observed {observed_f}",
+        )
 
 
 class SideEffect(Protocol):
@@ -105,11 +145,13 @@ class ActionExecutor:
         results = executor.execute_pending(doc)
     """
 
-    def __init__(self, ontology_manager) -> None:
+    def __init__(self, ontology_manager, calibrator: MARGINCalibrator | None = None) -> None:
         self._om = ontology_manager
         self._action_defs: dict[str, ActionDef] = {}
         self._side_effects: dict[str, SideEffect] = {}
+        self._calibrator = calibrator or MARGINCalibrator()
         self._load_registry()
+        self.register_effect(CalibrationSideEffect(self._calibrator))
 
     # ------------------------------------------------------------------
     # Registry
@@ -195,6 +237,28 @@ class ActionExecutor:
                 action.execution_log = log
                 return log
 
+        # 3b. Dynamic collusion-resistance check for validate actions
+        if action_def.name == "validate":
+            n_min = self._om.min_distinct_validators()
+            current_validators = set(doc.front_matter.validators)
+            effective_count = len(current_validators)
+            if action.actor and action.actor not in current_validators:
+                effective_count += 1
+            if effective_count < n_min:
+                action.exec_status = ActionExecStatus.FAILED
+                log.append(
+                    ExecutionEntry(
+                        side_effect="_collusion_resistance",
+                        result="failure",
+                        detail=(
+                            f"VALIDATE requires at least {n_min} distinct validators, "
+                            f"but only {effective_count} would be present"
+                        ),
+                    )
+                )
+                action.execution_log = log
+                return log
+
         # 4. Execute side effects
         all_ok = True
         for effect_name in action_def.side_effects:
@@ -223,14 +287,16 @@ class ActionExecutor:
 
         # 5. Trigger status transition if declared
         if action_def.triggers_transition:
-            self._apply_transition(doc, action_def)
+            self._apply_transition(doc, action, action_def)
 
         # 6. Update status
         action.exec_status = ActionExecStatus.EXECUTED if all_ok else ActionExecStatus.FAILED
         action.execution_log = log
         return log
 
-    def _apply_transition(self, doc: ADLDocument, action_def: ActionDef) -> None:
+    def _apply_transition(
+        self, doc: ADLDocument, action: ADLActionBlock, action_def: ActionDef
+    ) -> None:
         """Append a lifecycle Event to the capability's EventChain (NOT mutate front_matter)."""
         transition = action_def.triggers_transition
         if not transition or transition == "null":
@@ -263,9 +329,10 @@ class ActionExecutor:
             Event(
                 concept_id=doc.adl_id,
                 event_type=event_type,
-                actor="action-executor",
-                reasoning=f"Action '{action_def.name}' triggered transition {transition}",
-                payload={"new_status": new_status.value},
+                actor=action.actor or "action-executor",
+                reasoning=action.reasoning
+                or f"Action '{action_def.name}' triggered transition {transition}",
+                payload={"new_status": new_status.value, **action.params},
             )
         )
 
@@ -298,9 +365,31 @@ class ActionExecutor:
         missing = [p for p in action_def.required_params if p not in action.params]
         if missing:
             errors.append(f"Missing required params: {missing}")
+        # Evaluate preconditions in the context of the action's actor, who would
+        # become a validator if the action executes. This lets the first VALIDATE
+        # on a concept satisfy the validator_count >= N_min precondition.
+        fm_for_check = doc.front_matter
+        if action.actor and action.actor.strip() and action.actor not in fm_for_check.validators:
+            fm_for_check = fm_for_check.model_copy()
+            fm_for_check.validators = list(fm_for_check.validators) + [action.actor]
+
         for rule in action_def.preconditions:
-            if not rule.check(doc.front_matter):
+            if not rule.check(fm_for_check):
                 errors.append(
                     f"Precondition failed: {rule.field} {rule.comparator.value} {rule.value}"
                 )
+
+        # Dynamic collusion-resistance check for validate actions
+        if action_def.name == "validate":
+            n_min = self._om.min_distinct_validators()
+            current_validators = set(doc.front_matter.validators)
+            effective_count = len(current_validators)
+            if action.actor and action.actor not in current_validators:
+                effective_count += 1
+            if effective_count < n_min:
+                errors.append(
+                    f"VALIDATE requires at least {n_min} distinct validators, "
+                    f"but only {effective_count} would be present"
+                )
+
         return errors

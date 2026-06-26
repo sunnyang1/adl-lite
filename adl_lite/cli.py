@@ -317,6 +317,8 @@ def _cmd_ontology_validate(args: argparse.Namespace) -> int:
 
 
 def _cmd_anchor(args: argparse.Namespace) -> int:
+    import json as _json
+
     from .key_registry import TransparencyAnchor
 
     state_path = Path(args.state)
@@ -328,8 +330,19 @@ def _cmd_anchor(args: argparse.Namespace) -> int:
 
     chains = list(engine.chains.values())
     anchor = TransparencyAnchor(args.output)
-    value = anchor.anchor(chains)
-    print(f"anchored {len(chains)} chains -> {args.output} ({value})")
+    value = anchor.anchor(chains, use_merkle=args.merkle)
+    mode = "Merkle" if args.merkle else "flat"
+    print(f"anchored {len(chains)} chains -> {args.output} ({mode}: {value})")
+
+    if args.merkle and args.proofs_dir:
+        proofs_dir = Path(args.proofs_dir)
+        proofs_dir.mkdir(parents=True, exist_ok=True)
+        for chain in chains:
+            proof = anchor.prove_inclusion(chain)
+            if proof:
+                path = proofs_dir / f"{chain.concept_id}.proof.json"
+                path.write_text(_json.dumps(proof.__dict__, indent=2), encoding="utf-8")
+        print(f"wrote inclusion proofs -> {proofs_dir}")
     return 0
 
 
@@ -355,6 +368,109 @@ def _cmd_verify_anchor(args: argparse.Namespace) -> int:
         return 0
     print("anchor MISMATCH", file=sys.stderr)
     return 1
+
+
+def _cmd_verify_inclusion(args: argparse.Namespace) -> int:
+    import json as _json
+
+    from .key_registry import TransparencyAnchor
+    from .merkle import MerkleProof
+
+    state_path = Path(args.state)
+    engine = _load_engine(state_path)
+
+    if args.adl_id not in engine.chains:
+        print(f"not registered: {args.adl_id}", file=sys.stderr)
+        return 1
+
+    proof_path = Path(args.proof)
+    if not proof_path.exists():
+        print(f"proof file not found: {args.proof}", file=sys.stderr)
+        return 1
+
+    data = _json.loads(proof_path.read_text(encoding="utf-8"))
+    proof = MerkleProof(**data)
+    anchor = TransparencyAnchor(args.anchor)
+    ok = anchor.verify_inclusion(engine.chains[args.adl_id], proof)
+    if ok:
+        print(f"{args.adl_id}: inclusion proof OK")
+        return 0
+    print(f"{args.adl_id}: inclusion proof FAILED", file=sys.stderr)
+    return 1
+
+
+def _cmd_normalize(args: argparse.Namespace) -> int:
+    from .parser import parse_file
+
+    input_dir = Path(args.input_dir)
+    if not input_dir.is_dir():
+        print(f"input-dir not found: {input_dir}", file=sys.stderr)
+        return 1
+
+    try:
+        from .canonicalization import CanonicalizationEngine, OpenAILLMBackend
+        from .vector_index import VectorIndex
+    except ImportError as exc:
+        print(
+            f"VectorIndex/CanonicalizationEngine dependencies are missing: {exc}\n"
+            'Install embeddings extras with: pip install -e ".[embeddings]"',
+            file=sys.stderr,
+        )
+        return 1
+
+    backend = None
+    if args.llm_provider == "openai":
+        try:
+            backend = OpenAILLMBackend(model=args.llm_model)
+        except ImportError as exc:
+            print(
+                f"OpenAI backend is not available: {exc}\n"
+                'Install with: pip install -e ".[embeddings]"',
+                file=sys.stderr,
+            )
+            return 1
+
+    try:
+        vector_index = VectorIndex()
+    except ImportError as exc:
+        print(
+            f"Could not create VectorIndex: {exc}\n"
+            'Install embeddings extras with: pip install -e ".[embeddings]"',
+            file=sys.stderr,
+        )
+        return 1
+
+    memory = ADLMemory(vector_index=vector_index)
+
+    parsed = 0
+    for path in sorted(input_dir.glob("*.md")):
+        try:
+            doc = parse_file(path)
+        except Exception as exc:
+            print(f"{path}: parse error: {exc}", file=sys.stderr)
+            continue
+        memory.store_with_events(doc)
+        parsed += 1
+
+    engine = CanonicalizationEngine(
+        vector_index=vector_index,
+        llm=backend,
+        threshold=args.threshold,
+    )
+    results = engine.normalize(dry_run=not args.execute)
+
+    if args.json:
+        print(json.dumps(results, indent=2, default=str))
+    else:
+        print(f"Parsed {parsed} documents; found {len(results)} candidate cluster(s).")
+        for r in results:
+            cluster = ", ".join(r["cluster"])
+            print(f"\nCluster: {cluster}")
+            print(f"  canonical: {r['proposal'].get('canonical_adl_id')}")
+            print(f"  actions: {len(r['actions'])}")
+            print(f"  executed: {r.get('executed', False)}")
+
+    return 0
 
 
 def _cmd_consensus_verify(args: argparse.Namespace) -> int:
@@ -509,12 +625,63 @@ def _build_parser() -> argparse.ArgumentParser:
     p_anchor = sub.add_parser("anchor", help="Compute transparency anchor over consensus chains")
     p_anchor.add_argument("--state", default=None, help="Consensus state JSON path")
     p_anchor.add_argument("--output", default="ANCHOR.md", help="Anchor file path")
+    p_anchor.add_argument("--merkle", action="store_true", help="Use Merkle tree root anchor")
+    p_anchor.add_argument(
+        "--proofs-dir",
+        default=None,
+        help="Directory to write per-chain inclusion proofs (Merkle only)",
+    )
     p_anchor.set_defaults(func=_cmd_anchor)
 
     p_verify_anchor = sub.add_parser("verify-anchor", help="Verify transparency anchor")
     p_verify_anchor.add_argument("--file", default="ANCHOR.md", help="Anchor file path")
     p_verify_anchor.add_argument("--commit", default=None, help="Git commit hash")
     p_verify_anchor.set_defaults(func=_cmd_verify_anchor)
+
+    p_verify_inclusion = sub.add_parser("verify-inclusion", help="Verify a Merkle inclusion proof")
+    p_verify_inclusion.add_argument("adl_id", help="Capability adl_id")
+    p_verify_inclusion.add_argument("--proof", required=True, help="Path to proof JSON file")
+    p_verify_inclusion.add_argument("--anchor", default="ANCHOR.md", help="Anchor file path")
+    p_verify_inclusion.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_verify_inclusion.set_defaults(func=_cmd_verify_inclusion)
+
+    p_normalize = sub.add_parser(
+        "normalize",
+        help="LLM-driven canonicalization of near-duplicate concepts",
+    )
+    p_normalize.add_argument(
+        "--input-dir",
+        required=True,
+        help="Directory of ADL Markdown files to canonicalize",
+    )
+    p_normalize.add_argument(
+        "--threshold",
+        type=float,
+        default=0.92,
+        help="Cosine similarity threshold for clustering (default: 0.92)",
+    )
+    p_normalize.add_argument(
+        "--llm-provider",
+        choices=["mock", "openai"],
+        default="mock",
+        help="LLM provider for proposals (default: mock)",
+    )
+    p_normalize.add_argument(
+        "--llm-model",
+        default="gpt-4o-mini",
+        help="Model name when using --llm-provider=openai",
+    )
+    p_normalize.add_argument(
+        "--execute",
+        action="store_true",
+        help="Actually execute generated actions (default is dry-run)",
+    )
+    p_normalize.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit JSON output",
+    )
+    p_normalize.set_defaults(func=_cmd_normalize)
 
     return parser
 

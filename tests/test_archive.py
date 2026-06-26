@@ -110,6 +110,7 @@ class TestColdStorageArchive:
         chain = _build_chain("disc-test", 5)
         storage = ColdStorage(base_dir=tmp_path / "archives")
         archive_event = storage.archive(chain, keep_last_n=10)
+        assert archive_event is not None
         assert archive_event.payload["archived_count"] == 0
         assert len(chain) == 6
         assert chain.verify_integrity(full=True) is True

@@ -77,7 +77,9 @@ class ExperimentResult:
         if eid_lower in known_generators and known_generators[eid_lower] is not None:
             tmp_json = output_dir.parent / "experiments" / f"{eid_lower}_tmp.json"
             tmp_json.parent.mkdir(parents=True, exist_ok=True)
-            tmp_json.write_text(json.dumps(self.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
+            tmp_json.write_text(
+                json.dumps(self.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8"
+            )
             try:
                 known_generators[eid_lower](tmp_json, output_dir)
                 tex_path = output_dir / f"{eid_lower}.tex"
@@ -99,9 +101,11 @@ class ExperimentResult:
             return None
 
         tex = make_tabular(
-            columns, align, rows,
+            columns,
+            align,
+            rows,
             f"tab:{eid_lower}-results",
-            f"Experiment {escape_latex(self.experiment_id)} results"
+            f"Experiment {escape_latex(self.experiment_id)} results",
         )
         tex_path = output_dir / f"{eid_lower}.tex"
         tex_path.write_text(tex, encoding="utf-8")

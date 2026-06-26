@@ -105,7 +105,14 @@ class E8EdgeSync(BaseExperiment):
         # Edge-B diverged after event #1
         edge_b = EventChain(concept_id="merge-test")
         edge_b.append(Event(concept_id="merge-test", event_type=EventType.REGISTER, actor="center"))
-        edge_b.append(Event(concept_id="merge-test", event_type=EventType.ANNOUNCE, actor="edge-b"))
+        edge_b.append(
+            Event(
+                concept_id="merge-test",
+                event_type=EventType.ANNOUNCE,
+                actor="edge-b",
+                payload={"action": "announce"},
+            )
+        )
 
         mgr = SyncManager(concept_id="merge-test")
         merged = mgr.merge(edge_a, edge_b, base_chain=center)

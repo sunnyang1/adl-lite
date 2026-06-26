@@ -1,0 +1,87 @@
+@prefix adl: <https://adl-lite.org/ns/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+adl:disc-attention-residual a prov:Entity ;
+    rdfs:label "disc-attention-residual" ;
+    prov:wasGeneratedBy adl:evt-disc-attention-residual-evidence-003,
+        adl:evt-disc-attention-residual-evidence-004,
+        adl:evt-disc-attention-residual-relate-001,
+        adl:evt-disc-attention-residual-relate-002,
+        adl:evt-disc-attention-residual-snapshot-000 ;
+    adl:conceptId "disc-attention-residual" ;
+    adl:confidence "0.79"^^xsd:float ;
+    adl:status "provisional" .
+
+adl:actor-parser a prov:Agent ;
+    rdfs:label "parser" .
+
+adl:evt-disc-attention-residual-evidence-004 a prov:Activity,
+        adl:EvidenceEvent ;
+    rdfs:label "evidence disc-attention-residual" ;
+    prov:startedAtTime "2026-06-01T13:46:23.289669+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-author ;
+    prov:wasInformedBy adl:evt-disc-attention-residual-evidence-003 ;
+    adl:eventHash "65101818ada0eca6d9be0e16ed7881e414a79339b52ff7d6f95d19b574a84dae" ;
+    adl:eventId "33ccb5ec2b2c40fe8be0edc239607e37" ;
+    adl:eventIndex 4 ;
+    adl:eventType "evidence" ;
+    adl:payload "{\"block_type\": \"evidence\", \"confidence\": 0.77, \"data_ref\": \"tool://transformer_probe/v1\", \"description\": \"Synthetic 12-layer transformer reproduces coupling under 68% of init seeds\", \"evidence_type\": \"simulator_run\", \"observed_at\": \"2026-05-21T14:30:00Z\"}"^^xsd:string ;
+    adl:previousEventHash "d1ec02eae741384a904555035591b007816937ea1d4100901da2551b53a13469" .
+
+adl:evt-disc-attention-residual-evidence-003 a prov:Activity,
+        adl:EvidenceEvent ;
+    rdfs:label "evidence disc-attention-residual" ;
+    prov:startedAtTime "2026-06-01T13:46:23.289637+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-author ;
+    prov:wasInformedBy adl:evt-disc-attention-residual-relate-002 ;
+    adl:eventHash "d1ec02eae741384a904555035591b007816937ea1d4100901da2551b53a13469" ;
+    adl:eventId "743d12eed33f48a991eb2606fcdb08c7" ;
+    adl:eventIndex 3 ;
+    adl:eventType "evidence" ;
+    adl:payload "{\"block_type\": \"evidence\", \"confidence\": 0.8, \"data_ref\": \"vecdb://embeddings/attn_residual_v3\", \"description\": \"Embedding cluster shows co-movement of attn entropy and residual L2\", \"evidence_type\": \"vector_cluster\", \"observed_at\": \"2026-05-20T10:00:00Z\"}"^^xsd:string ;
+    adl:previousEventHash "420913938388b15e525993d5fa75a152fae094236ed60094f067e59cb030503b" .
+
+adl:evt-disc-attention-residual-relate-001 a prov:Activity,
+        adl:RelateEvent ;
+    rdfs:label "relate disc-attention-residual" ;
+    prov:startedAtTime "2026-06-01T13:46:23.289564+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-author ;
+    prov:wasInformedBy adl:evt-disc-attention-residual-snapshot-000 ;
+    adl:eventHash "c2bbbd2e0d9d06e261bcb15dab7c7a3f37524ed55082a6d095047532dc20ec19" ;
+    adl:eventId "5163205225934e2989af101ece5ab417" ;
+    adl:eventIndex 1 ;
+    adl:eventType "relate" ;
+    adl:payload "{\"block_type\": \"relation\", \"confidence\": 0.81, \"mapping_type\": \"structural\", \"relation\": \"analogical-to\", \"source\": \"Attention Residual Coupling\", \"target\": \"adl://public/concepts/gradient_explosion\"}"^^xsd:string ;
+    adl:previousEventHash "f11b113626f79f19bbf2ae61a9a3286b82868489fb5a33a0917093ac00cacd01" .
+
+adl:evt-disc-attention-residual-relate-002 a prov:Activity,
+        adl:RelateEvent ;
+    rdfs:label "relate disc-attention-residual" ;
+    prov:startedAtTime "2026-06-01T13:46:23.289603+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-author ;
+    prov:wasInformedBy adl:evt-disc-attention-residual-relate-001 ;
+    adl:eventHash "420913938388b15e525993d5fa75a152fae094236ed60094f067e59cb030503b" ;
+    adl:eventId "fa4032dc33744f78823a40d420b0f12e" ;
+    adl:eventIndex 2 ;
+    adl:eventType "relate" ;
+    adl:payload "{\"block_type\": \"relation\", \"confidence\": 0.74, \"mapping_type\": \"engineering\", \"relation\": \"mitigated-by\", \"source\": \"Attention Residual Coupling\", \"target\": \"adl://public/concepts/layer_normalization\"}"^^xsd:string ;
+    adl:previousEventHash "c2bbbd2e0d9d06e261bcb15dab7c7a3f37524ed55082a6d095047532dc20ec19" .
+
+adl:evt-disc-attention-residual-snapshot-000 a prov:Activity,
+        adl:SnapshotEvent ;
+    rdfs:label "snapshot disc-attention-residual" ;
+    prov:startedAtTime "2026-06-01T13:46:23.289468+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-parser ;
+    adl:eventHash "f11b113626f79f19bbf2ae61a9a3286b82868489fb5a33a0917093ac00cacd01" ;
+    adl:eventId "46e7dbab5caa4b17b610396e080d14e4" ;
+    adl:eventIndex 0 ;
+    adl:eventType "snapshot" ;
+    adl:payload "{\"adl_type\": \"discovery\", \"confidence\": 0.79, \"domain\": \"deep_learning\", \"novelty\": 0.86, \"provisional_names\": {\"en\": \"Attention Residual Coupling\", \"zh\": \"\\u6ce8\\u610f\\u529b\\u6b8b\\u5dee\\u8026\\u5408\"}, \"scope\": \"private/research-lab\", \"synthetic\": true}"^^xsd:string ;
+    adl:previousEventHash "genesis" .
+
+adl:actor-author a prov:Agent ;
+    rdfs:label "author" .
+
+# RDF-star quoted triples for L3 relation assertions

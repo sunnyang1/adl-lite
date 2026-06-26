@@ -95,7 +95,9 @@ def run():
     print("=" * 70)
     print(" ADL Lite — CRDT Cached vs LWW Scan Benchmark ".center(70))
     print("=" * 70)
-    print(f"\n{'Chain length':>12} | {'Query':>18} | {'CRDT (μs)':>12} | {'LWW (μs)':>12} | {'Speedup':>10}")
+    print(
+        f"\n{'Chain length':>12} | {'Query':>18} | {'CRDT (μs)':>12} | {'LWW (μs)':>12} | {'Speedup':>10}"
+    )
     print("-" * 70)
 
     for length in (1000, 5000, 10000, 50000):
@@ -112,10 +114,14 @@ def run():
 
         # LWW scan query
         lww_status_us = _benchmark(
-            "status_scan", lambda chain=_chain: _lww_status_scan(chain), repeats=max(100, 50000 // length)
+            "status_scan",
+            lambda chain=_chain: _lww_status_scan(chain),
+            repeats=max(100, 50000 // length),
         )
         lww_conf_us = _benchmark(
-            "conf_scan", lambda chain=_chain: _lww_confidence_scan(chain), repeats=max(100, 50000 // length)
+            "conf_scan",
+            lambda chain=_chain: _lww_confidence_scan(chain),
+            repeats=max(100, 50000 // length),
         )
 
         status_speedup = lww_status_us / crdt_status_us if crdt_status_us > 0 else float("inf")

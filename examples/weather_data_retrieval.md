@@ -40,7 +40,7 @@ a full multi-agent lifecycle: registration, validation, dispute, fork, and depre
 source: weather-data-retrieval
 relation: co-occurs-with
 target: weather-data-retrieval-v2
-mapping_type: ontological
+mapping_type: statistical
 confidence: 0.9
 ```
 

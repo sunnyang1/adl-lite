@@ -15,14 +15,17 @@ References:
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 
 from .models import (
     ADLDocument,
     ADLFrontMatter,
     ADLRelationBlock,
     ADLType,
+    DiscoveryStatus,
 )
 from .ontology import OntologyManager, default_ontology
+from .relation_validator import RelationValidator
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -180,9 +183,14 @@ class ADLValidator:
         self,
         strict: bool = False,
         ontology: OntologyManager | None = None,
+        shacl: bool = False,
+        status_resolver: Callable[[str], DiscoveryStatus] | None = None,
     ) -> None:
         self.strict = strict
+        self.shacl = shacl
         self._ontology = ontology
+        self._status_resolver = status_resolver
+        self._relation_validator = RelationValidator(ontology=self.ontology)
 
     @property
     def ontology(self) -> OntologyManager | None:
@@ -207,7 +215,61 @@ class ADLValidator:
         for block in doc.adl_blocks:
             if isinstance(block, ADLRelationBlock):
                 errors.extend(self._validate_relation_block(block))
+
+        errors.extend(self._validate_relation_governance(doc))
+
+        if self.shacl:
+            errors.extend(self._validate_shacl(doc))
+
         return errors
+
+    def _validate_relation_governance(self, doc: ADLDocument) -> list[str]:
+        """Enforce Invariant 2 and predicate semantics on L3 relations."""
+        if not doc.relations:
+            return []
+
+        status_lookup: dict[str, DiscoveryStatus] = {
+            doc.adl_id: doc.front_matter.status,
+        }
+        if self._status_resolver is not None:
+            for rel in doc.relations:
+                for cid in (rel.source, rel.target):
+                    if cid != doc.adl_id and cid not in status_lookup:
+                        try:
+                            status_lookup[cid] = self._status_resolver(cid)
+                        except Exception:
+                            status_lookup[cid] = DiscoveryStatus.PROVISIONAL
+
+        errors = self._relation_validator.check_invariant_violations(doc.relations, status_lookup)
+
+        if self.strict:
+            errors.extend(
+                self._relation_validator.check_semantic_violations(doc.relations, status_lookup)
+            )
+
+        return errors
+
+    def _validate_shacl(self, doc: ADLDocument) -> list[str]:
+        """Run runtime SHACL validation and return human-readable errors."""
+        try:
+            from .shacl_validation import validate_adl_document
+        except ImportError as exc:
+            return [f"SHACL validation unavailable: {exc}"]
+
+        try:
+            conforms, report = validate_adl_document(doc)
+        except Exception as exc:  # noqa: BLE001
+            return [f"SHACL validation error: {exc}"]
+
+        if not conforms:
+            lines = [line.strip() for line in report.splitlines() if line.strip()]
+            # Keep only the most informative validation-result lines.
+            return [
+                f"SHACL violation: {line}"
+                for line in lines
+                if any(token in line for token in ("Violation", "Constraint", "Value", "Path"))
+            ][:10]
+        return []
 
     def validate_scope_access(self, doc_scope: str, requester_scope: str) -> bool:
         """

@@ -40,6 +40,9 @@ miaoxiang/
 *.synctex.gz
 *.toc
 docs/paper_ao/main.pdf
+# TLC model checker state dumps (can be 100MB+, not needed in repo)
+specs/states/
+
 # Work buddy / tool artifacts
 .workbuddy/
 .codebuddy/
@@ -47,3 +50,20 @@ docs/paper_ao/main.pdf
 plan.md
 polish_sections/
 archive/
+# Coq build artifacts
+*.vo
+*.vok
+*.vos
+*.glob
+.coqdeps.d
+Makefile.coq
+Makefile.coq.conf
+formal/coq/html/
+formal/coq/_build/
+*.cmi
+*.cmo
+*.cmx
+*.cmxs
+*.o
+*.a
+*.so

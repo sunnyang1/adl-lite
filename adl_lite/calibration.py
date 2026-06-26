@@ -15,13 +15,11 @@ and .calibrated_confidence() respectively.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import yaml
 from pydantic import BaseModel, Field, field_validator
 
-if TYPE_CHECKING:
-    from .models import Event
+from .models import Event
 
 DEFAULT_ACCURACY = 0.5
 BONUS_INCREMENT = 0.05
@@ -117,6 +115,61 @@ class MARGINCalibrator:
                 actor=actor, accuracy_score=observed_accuracy
             )
         self.save_profiles()
+
+    def update_accuracy_ewma(
+        self,
+        actor: str,
+        observed_accuracy: float,
+        context: str = "general",
+        alpha: float = 0.3,
+    ) -> None:
+        """
+        Update actor accuracy with EWMA smoothing.
+
+        new_accuracy = α * observed + (1 - α) * current
+
+        This avoids a single ground-truth observation overwriting a long
+        calibration history, and allows gradual adaptation to concept drift.
+        """
+        current = self.get_accuracy(actor, context=context)
+        new_accuracy = alpha * observed_accuracy + (1 - alpha) * current
+        self.update_accuracy(actor, new_accuracy, context=context)
+
+    def apply_calibration_event(self, event: Event) -> None:
+        """
+        Apply a CALIBRATE event to update the actor's accuracy profile.
+
+        Expected payload fields:
+          - observed_accuracy: float in [0, 1]
+          - context: optional domain tag (default "general")
+          - alpha: optional EWMA smoothing factor (default 0.3)
+        """
+        if event.event_type.value != "calibrate":
+            raise ValueError(f"Expected CALIBRATE event, got {event.event_type.value}")
+        payload = event.payload or {}
+        observed = float(payload.get("observed_accuracy", 0.5))
+        context = str(payload.get("context", "general"))
+        alpha = float(payload.get("alpha", 0.3))
+        actor = event.actor or "system"
+        self.update_accuracy_ewma(actor, observed, context=context, alpha=alpha)
+
+    def update_from_feedback(
+        self,
+        actor: str,
+        predicted_confidence: float,
+        ground_truth: float,
+        context: str = "general",
+        alpha: float = 0.3,
+    ) -> None:
+        """
+        Update accuracy from a single prediction vs. ground-truth observation.
+
+        observed_accuracy is computed as 1 - |predicted - ground_truth|, clamped
+        to [0, 1]. This rewards calibrated confidence estimates and penalises
+        over-/under-confidence.
+        """
+        observed = max(0.0, 1.0 - abs(float(predicted_confidence) - float(ground_truth)))
+        self.update_accuracy_ewma(actor, observed, context=context, alpha=alpha)
 
 
 # ---------------------------------------------------------------------------

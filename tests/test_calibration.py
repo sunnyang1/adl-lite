@@ -116,6 +116,7 @@ def test_event_type_calibrate_exists():
 # EWMA confidence tests
 # ---------------------------------------------------------------------------
 
+
 def test_ewma_confidence_single_event():
     """Single VALIDATE event returns its own confidence."""
     events = [
@@ -392,3 +393,56 @@ def test_yaml_load_missing_file(tmp_path):
     calibrator.load_profiles()
     assert calibrator._profiles == {}
     assert calibrator._context_profiles == {}
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: auto-calibration from events and feedback
+# ---------------------------------------------------------------------------
+
+
+def test_update_accuracy_ewma_smooths_over_time(tmp_path):
+    calibrator = MARGINCalibrator(path=tmp_path / "cal.yaml")
+    calibrator.update_accuracy("agent_1", 0.5)
+    # EWMA(alpha=0.3): new = 0.3*0.8 + 0.7*0.5 = 0.59
+    calibrator.update_accuracy_ewma("agent_1", 0.8, alpha=0.3)
+    assert calibrator.get_accuracy("agent_1") == pytest.approx(0.59)
+
+
+def test_apply_calibration_event_updates_profile(tmp_path):
+    calibrator = MARGINCalibrator(path=tmp_path / "cal.yaml")
+    event = Event(
+        concept_id="test",
+        event_type=EventType.CALIBRATE,
+        actor="agent_1",
+        payload={"observed_accuracy": 0.9, "context": "aml", "alpha": 0.5},
+    )
+    calibrator.apply_calibration_event(event)
+    # Default 0.5 -> 0.5*0.5 + 0.5*0.9 = 0.7
+    assert calibrator.get_accuracy("agent_1", context="aml") == pytest.approx(0.7)
+
+
+def test_apply_calibration_event_rejects_non_calibrate():
+    calibrator = MARGINCalibrator()
+    event = Event(
+        concept_id="test",
+        event_type=EventType.VALIDATE,
+        actor="agent_1",
+        payload={"observed_accuracy": 0.9},
+    )
+    with pytest.raises(ValueError):
+        calibrator.apply_calibration_event(event)
+
+
+def test_update_from_feedback_computes_observed_accuracy(tmp_path):
+    calibrator = MARGINCalibrator(path=tmp_path / "cal.yaml")
+    # predicted 0.9, ground_truth 1.0 -> observed = 0.9
+    calibrator.update_from_feedback("agent_1", predicted_confidence=0.9, ground_truth=1.0)
+    # Default 0.5 -> EWMA(alpha=0.3): 0.3*0.9 + 0.7*0.5 = 0.62
+    assert calibrator.get_accuracy("agent_1") == pytest.approx(0.62)
+
+
+def test_update_from_feedback_clamps_negative(tmp_path):
+    calibrator = MARGINCalibrator(path=tmp_path / "cal.yaml")
+    # predicted 0.9, ground_truth 0.0 -> observed = 0.1
+    calibrator.update_from_feedback("agent_1", predicted_confidence=0.9, ground_truth=0.0)
+    assert calibrator.get_accuracy("agent_1") == pytest.approx(0.5 * 0.7 + 0.1 * 0.3)

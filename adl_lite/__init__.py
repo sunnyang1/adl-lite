@@ -35,9 +35,21 @@ from .calibration import (
     aggregated_confidence,
     calibrated_confidence,
 )
+from .canonicalization import CanonicalizationEngine, LLMBackend, OpenAILLMBackend
 from .consensus import ConsensusEngine, ForkManager, ForkResolution
 from .crdt import CRDTState, StatusOrder, merge_event_chains
-from .did_resolver import create_did_key, is_did, resolve_did_key, verify_did_signature
+from .did_resolver import (
+    DIDDocument,
+    DIDResolver,
+    VerificationMethod,
+    create_did_key,
+    is_did,
+    resolve_did,
+    resolve_did_key,
+    resolve_did_web,
+    verify_did_signature,
+)
+from .embeddings import EmbeddingBackend, OpenAIBackend, SentenceTransformerBackend
 from .exceptions import (
     ADLConfigError,
     ADLConsensusError,
@@ -50,13 +62,21 @@ from .exceptions import (
 )
 from .jsonld_export import export_jsonld
 from .key_registry import GitSignatureVerifier, KeyRegistry, TransparencyAnchor
+from .ld_proof import create_event_proof, sign_event, verify_event_proof
 from .logging_config import get_logger
 from .memory import ADLMemory, HotIndex, WarmIndex
-from .near_duplicate import check_near_duplicate, suggest_merge
+from .merkle import MerkleProof, MerkleTree, compute_chain_merkle_root
+from .near_duplicate import (
+    check_near_duplicate,
+    check_near_duplicate_embedding,
+    suggest_merge,
+)
 from .owl_export import export_owl
 from .owl_import import parse_owl_rdfxml, parse_owl_turtle
 from .rdfstar_export import document_to_rdfstar_turtle, sparqlstar_query_template
 from .relation_validator import RelationValidator
+from .shacl_validation import validate_adl_document
+from .vector_index import VectorIndex
 
 # FDE Platform extensions (optional — imports are safe even if modules don't exist yet)
 try:
@@ -134,10 +154,21 @@ __all__ = [
     "KeyRegistry",
     "GitSignatureVerifier",
     "TransparencyAnchor",
+    "DIDDocument",
+    "DIDResolver",
+    "VerificationMethod",
+    "resolve_did",
     "resolve_did_key",
+    "resolve_did_web",
     "verify_did_signature",
     "is_did",
     "create_did_key",
+    "create_event_proof",
+    "sign_event",
+    "verify_event_proof",
+    "MerkleProof",
+    "MerkleTree",
+    "compute_chain_merkle_root",
     # Relation Validator
     "RelationValidator",
     # OWL Import
@@ -146,12 +177,22 @@ __all__ = [
     # RDF-star Export
     "document_to_rdfstar_turtle",
     "sparqlstar_query_template",
+    # SHACL
+    "validate_adl_document",
     # Export
     "export_owl",
     "export_jsonld",
     # Near-duplicate
     "check_near_duplicate",
+    "check_near_duplicate_embedding",
     "suggest_merge",
+    "EmbeddingBackend",
+    "SentenceTransformerBackend",
+    "OpenAIBackend",
+    "CanonicalizationEngine",
+    "LLMBackend",
+    "OpenAILLMBackend",
+    "VectorIndex",
     # L2 Template
     "L2Template",
     "L2TemplateValidator",

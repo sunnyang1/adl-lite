@@ -9,7 +9,16 @@ from __future__ import annotations
 
 import pytest
 
-from adl_lite.models import ADLDocument, ADLFrontMatter, Event, EventChain, EventType
+from adl_lite.models import (
+    ADLDocument,
+    ADLFrontMatter,
+    ADLType,
+    DiscoveryStatus,
+    Event,
+    EventChain,
+    EventType,
+    ProvisionalNames,
+)
 from adl_lite.near_duplicate import (
     _jaccard_similarity,
     _levenshtein_ratio,
@@ -244,18 +253,17 @@ class TestCheckNearDuplicateDocument:
         self, concept_id: str, en_name: str | None = None, zh_name: str | None = None
     ) -> ADLDocument:
         front_matter = ADLFrontMatter(
-            adl_type="discovery",
+            adl_type=ADLType.DISCOVERY,
             adl_id=concept_id,
-            status="provisional",
+            status=DiscoveryStatus.PROVISIONAL,
             confidence=0.0,
-            provisional_names={"en": en_name or concept_id, "zh": zh_name},
+            provisional_names=ProvisionalNames(en=en_name, zh=zh_name),
         )
         return ADLDocument(
             front_matter=front_matter,
             markdown_body="Test body",
-            l3_blocks=[],
-            l4_blocks=[],
-            event_chain=EventChain(concept_id=concept_id),
+            adl_blocks=[],
+            action_blocks=[],
         )
 
     def test_document_with_english_name(self):
@@ -265,14 +273,12 @@ class TestCheckNearDuplicateDocument:
         assert len(matches) == 1
 
     def test_document_with_chinese_name(self):
-        # Note: _normalize_name uses ASCII-only regex [^a-z0-9\s], which strips
-        # CJK characters. Chinese-name near-duplicate detection is a known limitation.
-        # This test verifies the current behavior (returns empty, no match).
+        # CJK characters are now preserved by Unicode-aware normalization.
         chains = [self._make_chain("disc-grad", "梯度爆炸")]
         doc = self._make_doc("disc-new", zh_name="梯度爆炸")
         matches = check_near_duplicate(doc, chains, threshold=0.85)
-        # CJK characters are stripped, so both names become empty → similarity = 0.0
-        assert matches == []
+        assert len(matches) == 1
+        assert matches[0]["concept_id"] == "disc-grad"
 
     def test_document_with_english_name_matches(self):
         chains = [self._make_chain("disc-grad", "Gradient Explosion")]
@@ -357,9 +363,8 @@ class TestSuggestMerge:
         doc = ADLDocument(
             front_matter=front_matter,
             markdown_body="Test",
-            l3_blocks=[],
-            l4_blocks=[],
-            event_chain=EventChain(concept_id="disc-new"),
+            adl_blocks=[],
+            action_blocks=[],
         )
         chains = [self._make_chain("disc-grad", "Gradient Explosion")]
         result = suggest_merge(doc, chains, threshold=0.85)

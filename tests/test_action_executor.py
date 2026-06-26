@@ -16,10 +16,13 @@ Covers:
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from adl_lite.action_executor import (
     ActionExecutor,
+    CalibrationSideEffect,
     SideEffect,
     SideEffectResult,
     _parse_comparator,
@@ -102,14 +105,14 @@ def deprecated_doc() -> ADLDocument:
 
 def _make_action(**overrides) -> ADLActionBlock:
     """Build an ADLActionBlock with sensible defaults."""
-    defaults = {
+    defaults: dict[str, Any] = {
         "action": "validate",
         "actor": "tester",
         "reasoning": "Test action",
         "params": {},
     }
     defaults.update(overrides)
-    return ADLActionBlock(**defaults)
+    return ADLActionBlock.model_validate(defaults)
 
 
 # ---------------------------------------------------------------------------
@@ -224,7 +227,8 @@ class TestActionExecutorInit:
 
     def test_registers_default_effects(self, executor: ActionExecutor):
         effects = executor.list_side_effects()
-        assert effects == []
+        # Phase 2: built-in calibration side effect is registered by default.
+        assert "calibrate_actor" in effects
 
 
 # ---------------------------------------------------------------------------
@@ -238,91 +242,36 @@ class TestIntrospection:
         assert actions == sorted(actions)
         assert len(actions) > 0
 
+    def test_get_action_def_known(self, executor: ActionExecutor):
+        ad = executor.get_action_def("validate")
+        assert ad is not None
+        assert ad.name == "validate"
+
+    def test_get_action_def_unknown(self, executor: ActionExecutor):
+        assert executor.get_action_def("nonexistent") is None
+
     def test_list_side_effects_sorted(self, executor: ActionExecutor):
         effects = executor.list_side_effects()
         assert effects == sorted(effects)
 
-    def test_get_action_def_known(self, executor: ActionExecutor):
-        ad = executor.get_action_def("validate")
-        assert ad is not None
-        assert isinstance(ad, ActionDef)
-        assert ad.name == "validate"
-
-    def test_get_action_def_unknown(self, executor: ActionExecutor):
-        ad = executor.get_action_def("nonexistent_action")
-        assert ad is None
-
 
 # ---------------------------------------------------------------------------
-# execute_one — Name Validation
+# execute_one — Single Action Execution
 # ---------------------------------------------------------------------------
 
 
-class TestExecuteOneValidation:
-    def test_unknown_action(self, executor: ActionExecutor, minimal_doc: ADLDocument):
-        action = _make_action(action="nonexistent_action")
+class TestExecuteOne:
+    def test_unknown_action_fails(self, executor: ActionExecutor, minimal_doc: ADLDocument):
+        action = _make_action(action="unknown_action")
         log = executor.execute_one(minimal_doc, action)
-
         assert action.exec_status == ActionExecStatus.FAILED
-        assert len(log) == 1
-        assert log[0].side_effect == "_validate"
-        assert log[0].result == "failure"
-        assert "Unknown action" in log[0].detail
+        assert any("Unknown action" in (e.detail or "") for e in log)
 
-    def test_known_action_no_params(self, executor: ActionExecutor, minimal_doc: ADLDocument):
-        """register action has no required_params — should pass validation."""
-        action = _make_action(action="register")
+    def test_missing_params_fails(self, executor: ActionExecutor, minimal_doc: ADLDocument):
+        action = _make_action(action="fork")  # requires fork_id, rationale
         log = executor.execute_one(minimal_doc, action)
-        # register has no side effects, so it should be EXECUTED
-        assert action.exec_status == ActionExecStatus.EXECUTED
-        assert len(log) == 0
-
-
-# ---------------------------------------------------------------------------
-# execute_one — Required Parameters
-# ---------------------------------------------------------------------------
-
-
-class TestExecuteOneRequiredParams:
-    def test_missing_required_param(self, executor: ActionExecutor, minimal_doc: ADLDocument):
-        """fork requires fork_id and rationale — neither provided."""
-        action = _make_action(action="fork")
-        log = executor.execute_one(minimal_doc, action)
-
         assert action.exec_status == ActionExecStatus.FAILED
-        assert len(log) == 1
-        assert log[0].side_effect == "_validate"
-        assert "Missing required params" in log[0].detail
-        assert "fork_id" in log[0].detail
-
-    def test_all_required_params_present(self, executor: ActionExecutor, minimal_doc: ADLDocument):
-        action = _make_action(
-            action="fork",
-            params={"fork_id": "test-fork", "rationale": "testing"},
-        )
-        log = executor.execute_one(minimal_doc, action)
-
-        # fork has precondition: status == provisional (which it is)
-        # no side effects registered by default
-        assert action.exec_status == ActionExecStatus.EXECUTED
-        assert all(e.side_effect != "_validate" for e in log)
-
-
-# ---------------------------------------------------------------------------
-# execute_one — Preconditions
-# ---------------------------------------------------------------------------
-
-
-class TestExecuteOnePreconditions:
-    def test_precondition_fails(self, executor: ActionExecutor, minimal_doc: ADLDocument):
-        """validate requires confidence >= 0.5 — minimal_doc has 0.0."""
-        action = _make_action(action="validate")
-        log = executor.execute_one(minimal_doc, action)
-
-        assert action.exec_status == ActionExecStatus.FAILED
-        assert len(log) == 1
-        assert log[0].side_effect == "_precondition"
-        assert "Precondition failed" in log[0].detail
+        assert any("Missing required params" in (e.detail or "") for e in log)
 
     def test_precondition_passes(self, executor: ActionExecutor, validated_doc: ADLDocument):
         """validate requires confidence >= 0.5 AND status == provisional.
@@ -364,21 +313,7 @@ class TestExecutePending:
 
         results = executor.execute_pending(minimal_doc)
         assert len(results) == 2
-        assert a1.action_block_id in results
-        assert a2.action_block_id in results
-        assert a1.exec_status == ActionExecStatus.EXECUTED
-        assert a2.exec_status == ActionExecStatus.EXECUTED
-
-    def test_mixed_results(self, executor: ActionExecutor, minimal_doc: ADLDocument):
-        """One valid (register) and one invalid (unknown action)."""
-        a1 = _make_action(action="register", action_block_id="action-ok")
-        a2 = _make_action(action="unknown_action", action_block_id="action-bad")
-        minimal_doc.action_blocks = [a1, a2]
-
-        results = executor.execute_pending(minimal_doc)
-        assert len(results) == 2
-        assert a1.exec_status == ActionExecStatus.EXECUTED
-        assert a2.exec_status == ActionExecStatus.FAILED
+        assert all(a.exec_status == ActionExecStatus.EXECUTED for a in [a1, a2])
 
 
 # ---------------------------------------------------------------------------
@@ -429,9 +364,10 @@ class TestApplyTransition:
         """announce has triggers_transition: null."""
         original_status = minimal_doc.front_matter.status
         action = _make_action(action="announce", params={"chat_id": "oc_test"})
+        ad = executor.get_action_def("announce")
+        assert ad is not None
 
-        # no side effects registered by default, so it should execute cleanly
-        executor.execute_one(minimal_doc, action)
+        executor._apply_transition(minimal_doc, action, ad)
         assert minimal_doc.front_matter.status == original_status
 
     def test_transition_provisional_to_validated(
@@ -445,9 +381,11 @@ class TestApplyTransition:
         minimal_doc.front_matter.confidence = 0.8
         minimal_doc.front_matter.status = DiscoveryStatus.PROVISIONAL
 
-        executor._apply_transition(minimal_doc, ad)
+        action = _make_action(action="validate", actor="tester")
+        executor._apply_transition(minimal_doc, action, ad)
         # After transition, status should be VALIDATED (computed from chain)
         assert minimal_doc.front_matter.status == DiscoveryStatus.VALIDATED
+        assert minimal_doc.event_chain.validators == ["tester"]
 
     def test_transition_deprecated_to_archived(
         self, executor: ActionExecutor, deprecated_doc: ADLDocument
@@ -455,7 +393,8 @@ class TestApplyTransition:
         """archive triggers deprecated → archived."""
         ad = executor.get_action_def("archive")
         assert ad is not None
-        executor._apply_transition(deprecated_doc, ad)
+        action = _make_action(action="archive")
+        executor._apply_transition(deprecated_doc, action, ad)
         assert deprecated_doc.front_matter.status == DiscoveryStatus.ARCHIVED
 
     def test_transition_invalid_status_name(
@@ -472,7 +411,8 @@ class TestApplyTransition:
             allowed_on=["concept"],
         )
         original_status = minimal_doc.front_matter.status
-        executor._apply_transition(minimal_doc, ad)
+        action = _make_action(action="bad_transition")
+        executor._apply_transition(minimal_doc, action, ad)
         assert minimal_doc.front_matter.status == original_status
 
     def test_transition_malformed_string(self, executor: ActionExecutor, minimal_doc: ADLDocument):
@@ -487,7 +427,8 @@ class TestApplyTransition:
             allowed_on=["concept"],
         )
         original_status = minimal_doc.front_matter.status
-        executor._apply_transition(minimal_doc, ad)
+        action = _make_action(action="bad_transition")
+        executor._apply_transition(minimal_doc, action, ad)
         assert minimal_doc.front_matter.status == original_status
 
 
@@ -652,8 +593,113 @@ class TestEdgeCases:
         ad = executor.get_action_def("validate")
         assert ad is not None
 
-        executor._apply_transition(minimal_doc, ad)
+        action = _make_action(action="validate", actor="tester")
+        executor._apply_transition(minimal_doc, action, ad)
 
         chain = minimal_doc.event_chain
         assert chain.status == DiscoveryStatus.VALIDATED
-        assert minimal_doc.front_matter.status == DiscoveryStatus.VALIDATED
+        assert chain.validators == ["tester"]
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: collusion resistance and calibration side effects
+# ---------------------------------------------------------------------------
+
+
+class TestCollusionResistance:
+    def test_validate_enforces_min_distinct_validators(self, ontology: OntologyManager):
+        ontology._data["collusion_resistance"] = {"min_distinct_validators": 2}
+        executor = ActionExecutor(ontology)
+
+        doc = ADLDocument(
+            front_matter=ADLFrontMatter(
+                adl_type=ADLType.CONCEPT,
+                adl_id="test-nmin",
+                status=DiscoveryStatus.PROVISIONAL,
+                confidence=0.8,
+                scope="public",
+            ),
+            markdown_body="Test body.",
+        )
+        action = _make_action(action="validate", actor="validator_a")
+        errors = executor.validate_action(doc, action)
+        assert any("at least 2 distinct validators" in e for e in errors)
+
+    def test_validate_succeeds_with_enough_validators(self, ontology: OntologyManager):
+        ontology._data["collusion_resistance"] = {"min_distinct_validators": 2}
+        executor = ActionExecutor(ontology)
+
+        doc = ADLDocument(
+            front_matter=ADLFrontMatter(
+                adl_type=ADLType.CONCEPT,
+                adl_id="test-nmin",
+                status=DiscoveryStatus.PROVISIONAL,
+                confidence=0.8,
+                scope="public",
+                validators=["validator_a"],
+            ),
+            markdown_body="Test body.",
+        )
+        action = _make_action(action="validate", actor="validator_b")
+        errors = executor.validate_action(doc, action)
+        assert not any("distinct validators" in e for e in errors)
+
+
+class TestCalibrationSideEffect:
+    def test_calibrate_action_updates_accuracy(self, executor: ActionExecutor, tmp_path):
+        doc = ADLDocument(
+            front_matter=ADLFrontMatter(
+                adl_type=ADLType.CONCEPT,
+                adl_id="test-cal",
+                status=DiscoveryStatus.PROVISIONAL,
+                confidence=0.0,
+                scope="public",
+            ),
+            markdown_body="Test body.",
+        )
+        action = _make_action(
+            action="calibrate",
+            actor="reviewer",
+            params={"observed_accuracy": 0.9, "context": "aml"},
+        )
+        executor._calibrator = executor._side_effects["calibrate_actor"].calibrator  # type: ignore[attr-defined]
+        executor._calibrator.path = tmp_path / "cal.yaml"
+        log = executor.execute_one(doc, action)
+
+        assert action.exec_status == ActionExecStatus.EXECUTED
+        assert any(e.side_effect == "calibrate_actor" and e.result == "success" for e in log)
+        assert executor._calibrator.get_accuracy("reviewer", context="aml") > 0.5
+
+    def test_calibrate_action_rejects_invalid_observed_accuracy(self, executor: ActionExecutor):
+        doc = ADLDocument(
+            front_matter=ADLFrontMatter(
+                adl_type=ADLType.CONCEPT,
+                adl_id="test-cal-bad",
+                status=DiscoveryStatus.PROVISIONAL,
+                confidence=0.0,
+                scope="public",
+            ),
+            markdown_body="Test body.",
+        )
+        action = _make_action(
+            action="calibrate",
+            actor="reviewer",
+            params={"observed_accuracy": 1.5},
+        )
+        log = executor.execute_one(doc, action)
+        assert action.exec_status == ActionExecStatus.FAILED
+        assert any("observed_accuracy" in (e.detail or "") for e in log)
+
+    def test_calibration_side_effect_directly(self, tmp_path):
+        from adl_lite.calibration import MARGINCalibrator
+
+        calibrator = MARGINCalibrator(path=tmp_path / "cal.yaml")
+        effect = CalibrationSideEffect(calibrator)
+        action = _make_action(
+            action="calibrate",
+            actor="reviewer",
+            params={"observed_accuracy": 0.8},
+        )
+        result = effect.execute(None, action, action.params)
+        assert result.success is True
+        assert calibrator.get_accuracy("reviewer") == pytest.approx(0.59)

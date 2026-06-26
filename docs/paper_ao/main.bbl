@@ -42,11 +42,6 @@ Alexander Boldachev.
   Execution Semantics}.
 \newblock In \emph{arXiv preprint arXiv:2510.18040}, 2025.
 
-\bibitem[Crosby and Wallach(2009)]{crosby_wallach}
-Scott~A. Crosby and Dan~S. Wallach.
-\newblock {Efficient Data Structures for Tamper-Evident Logging}.
-\newblock \emph{USENIX Security}, 2009.
-
 \bibitem[Denker et~al.(2022)]{sigstore2022}
 M.~Denker et~al.
 \newblock Sigstore: Software signing for everybody.
@@ -195,6 +190,13 @@ Aidan Hogan, Eva Blomqvist, Michael Cochez, Claudia d'Amato, Gerard de~Melo,
 \newblock {CIDOC Conceptual Reference Model}.
 \newblock ISO 21127:2014, 2014.
 
+\bibitem[Jonquet et~al.(2018)]{ontoportal}
+Cl{\'e}ment Jonquet et~al.
+\newblock {OntoPortal}: A collaborative ontology repository and semantic
+  services platform.
+\newblock In \emph{Proceedings of the International Conference on Biomedical
+  Ontology}, pages 1--5. IOS Press, 2018.
+
 \bibitem[Khan et~al.(2025)Khan, Joyce, and Habiba]{agentsafe2025}
 Rafflesia Khan, Declan Joyce, and Mansura Habiba.
 \newblock {AGENTSAFE: A Unified Framework for Ethical Assurance and Governance
@@ -281,13 +283,6 @@ Abel Nieto et~al.
 \newblock {Formally Verified CRDTs in Iris Separation Logic}.
 \newblock In \emph{POPL 2024}, 2024.
 
-\bibitem[{Obsidian Team}(2024)]{obsidian2024}
-{Obsidian Team}.
-\newblock {Obsidian: A Knowledge Base on Top of a Local Folder of Plain Text
-  Markdown Files}.
-\newblock \url{https://obsidian.md/}, 2024.
-\newblock Accessed: 2025-01-15.
-
 \bibitem[{Palantir Technologies}(2024)]{palantir_fde}
 {Palantir Technologies}.
 \newblock {Palantir Foundry Data Engine}.
@@ -313,6 +308,12 @@ Kolawole Quadri.
 \newblock \emph{arXiv preprint arXiv:2605.25376}, 2026.
 \newblock Framework-agnostic trust layer with HMAC chain, ~1,800 ops/sec, 15+
   adapters, veldt-kya on PyPI.
+
+\bibitem[Sansone et~al.(2022)]{fairsharing}
+Susanna-Assunta Sansone et~al.
+\newblock Fairsharing as a resource for finding standards and databases for use
+  with {FAIR} data.
+\newblock \emph{Nature Scientific Data}, 9\penalty0 (1):\penalty0 1--9, 2022.
 
 \bibitem[Shapiro et~al.(2011)Shapiro, Pregui{\c c}a, Baquero, and
   Zawirski]{crdts}
@@ -468,6 +469,14 @@ Yiqi Wang, Jiaqi Zhang, Taotao Cai, Zirui Liu, Qingqiang Sun, Zequn Sun,
 \newblock Unified provenance framework; explicitly states unified trace schema
   is still needed.
 
+\bibitem[Whetzel et~al.(2011)]{bioportal}
+Patricia~L Whetzel et~al.
+\newblock {BioPortal}: enhanced functionality via new {Web} services from the
+  {National Center for Biomedical Ontology} to access and use ontologies in
+  software applications.
+\newblock \emph{Nucleic Acids Research}, 39\penalty0 (Web Server
+  issue):\penalty0 W541--W545, 2011.
+
 \bibitem[Wittgenstein(1922)]{wittgenstein_tractatus}
 Ludwig Wittgenstein.
 \newblock \emph{{Tractatus Logico-Philosophicus}}.
@@ -477,12 +486,5 @@ Ludwig Wittgenstein.
 Greg Young.
 \newblock {Event Sourcing: State from Events}.
 \newblock \emph{CodeBetter}, 2010.
-
-\bibitem[Zhou(2026)]{zhou2026governance}
-Ziling Zhou.
-\newblock Cryptographic binding and reproducibility verification for {AI} agent
-  tool use.
-\newblock \emph{arXiv preprint arXiv:2603.14332}, 2026.
-\newblock URL \url{https://arxiv.org/abs/2603.14332}.
 
 \end{thebibliography}

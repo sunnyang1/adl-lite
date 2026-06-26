@@ -1,8 +1,8 @@
 \section{TLA+ Specification of EventChain State Machine}\label{app:tla}
 
-The TLA+ module is maintained as a source artifact at \texttt{specs/EventChain.tla}.
-It models a single ADL Lite concept as an append-only sequence of events and
-formalises the well-formedness axioms from Definition~5
+The TLA+ modules are maintained as source artifacts under \texttt{specs/}.
+\texttt{specs/EventChain.tla} models a single ADL Lite concept as an append-only
+sequence of events and formalises the well-formedness axioms from Definition~5
 (\S\ref{subsec:compact-formal-spec}) together with the status lattice and confidence
 G-Counter used in Theorems T1, T3, T4, T5, and T7.
 
@@ -39,11 +39,43 @@ G-Counter used in Theorems T1, T3, T4, T5, and T7.
 \end{itemize}
 
 \paragraph{Running TLC.}
-A Python wrapper is provided at \texttt{scripts/run\_tlc.py}:
+A Python wrapper is provided at \texttt{scripts/run\_tlc.py}.  The default spec is
+\texttt{EventChain}; the other supported specs are selected with \texttt{{-}-spec}:
 \begin{verbatim}
-python scripts/run_tlc.py --max-events 20 --max-confidence 100
+python scripts/run_tlc.py --spec EventChain --max-events 20 --max-confidence 100
+python scripts/run_tlc.py --spec CRDTMerge --max-events 10 --max-confidence 10
+python scripts/run_tlc.py --spec ConsensusEngine --max-events 10 --max-confidence 10 --n-min 2
 \end{verbatim}
-The module is intentionally bounded (\texttt{MaxEvents}, \texttt{MaxConfidence})
+The modules are intentionally bounded (\texttt{MaxEvents}, \texttt{MaxConfidence})
 because TLC exhaustively explores a finite state space; the bound is a
 model-checking limitation, not a system limitation. Unbounded correctness relies
-on the inductive argument given in Appendix~E.
+on the inductive argument given in Appendix~E and on the Coq skeleton described
+in \S\ref{app:coq}.
+
+\paragraph{CRDT merge spec.}
+\texttt{specs/CRDTMerge.tla} models two concurrent branches of a single concept
+that share a common genesis.  The \texttt{Merge} operator takes the set union of
+both branches, applies last-writer-wins by \texttt{event\_id}, sorts by
+\texttt{event\_id}, and re-anchors \texttt{prev} pointers.  TLC checks that the
+merged chain is well-formed, that its status and confidence equal the LUB and
+max of the branch values, and that merge is commutative, associative, and
+idempotent (Theorem~9).
+
+\paragraph{Consensus engine spec.}
+\texttt{specs/ConsensusEngine.tla} models multiple agents appending to a shared
+chain.  \texttt{Register} is allowed only on an empty chain; \texttt{Validate}
+is guarded by distinct validators and an \texttt{N\_min} threshold; and
+\texttt{Deprecate}/\texttt{Fork}/\texttt{Archive} are guarded by the ontology
+lifecycle transition graph.  TLC checks well-formedness, valid transitions, the
+minimum-validator requirement, and status/confidence boundedness.
+
+\paragraph{Coq/Iris skeleton.}\label{app:coq}
+A buildable Coq skeleton is maintained under \texttt{formal/coq/}.  Core theories
+(in \texttt{theories/}) formalise the status lattice (\texttt{Status.v}), event
+model (\texttt{Event.v}), confidence boundedness (\texttt{Confidence.v}), and
+well-formedness preservation under valid append (\texttt{Chain.v}).  Top-level
+theorems for T3, T4, and T7 are stated and proved in \texttt{Invariants.v}; the
+CRDT merge properties required for T9 are stated (and currently admitted) in
+\texttt{CRDT.v}.  Optional Iris stubs in \texttt{iris/} provide a placeholder
+resource algebra and a Hoare-triple skeleton for the split-lock \texttt{append}
+operation.

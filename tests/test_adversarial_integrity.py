@@ -64,9 +64,9 @@ class TestReplayAttack:
 
         # The replayed event's previous_event_id and _prev_hash point to chain_a's
         # genesis state, not e2, so the linkage check fails.
-        assert (
-            not chain_b.verify_integrity()
-        ), "Replaying an event from a different chain should break integrity"
+        assert not chain_b.verify_integrity(), (
+            "Replaying an event from a different chain should break integrity"
+        )
 
 
 class TestPayloadTampering:
@@ -116,9 +116,9 @@ class TestPayloadTampering:
         chain._events[0].hash = chain._events[0]._compute_hash()
         # e1's own hash now matches its new content
         # BUT e2._prev_hash still points to the ORIGINAL e1.hash
-        assert (
-            not chain.verify_integrity()
-        ), "Hash chain break should be detected — e2._prev_hash ≠ recomputed e1.hash"
+        assert not chain.verify_integrity(), (
+            "Hash chain break should be detected — e2._prev_hash ≠ recomputed e1.hash"
+        )
 
 
 class TestTimestampTampering:
@@ -144,9 +144,9 @@ class TestTimestampTampering:
 
         # Tamper timestamp
         chain._events[0].timestamp = "2025-12-25T00:00:00+00:00"
-        assert (
-            not chain.verify_integrity()
-        ), "Timestamp tampering should break integrity because timestamp is in hash input"
+        assert not chain.verify_integrity(), (
+            "Timestamp tampering should break integrity because timestamp is in hash input"
+        )
 
     def test_timestamp_modification_with_hash_recomputation_still_detected(self):
         chain = EventChain(concept_id="ts-tamper2")
@@ -170,9 +170,9 @@ class TestTimestampTampering:
         chain._events[0].timestamp = "2025-12-25T00:00:00+00:00"
         chain._events[0].hash = chain._events[0]._compute_hash()
         # e2._prev_hash still points to original e1.hash
-        assert (
-            not chain.verify_integrity()
-        ), "Timestamp tampering with hash recomputation should still be detected"
+        assert not chain.verify_integrity(), (
+            "Timestamp tampering with hash recomputation should still be detected"
+        )
 
 
 class TestDeletionAttack:

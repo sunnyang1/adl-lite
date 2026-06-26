@@ -30,6 +30,7 @@ import inspect
 import os
 import tempfile
 import time
+from collections.abc import Callable
 from typing import Any
 
 import pygit2
@@ -286,7 +287,7 @@ class E19GovernanceBenchmark(BaseExperiment):
         start = time.perf_counter()
         errors = 0
         completed = False
-        audit_info = 0
+        audit_info: float = 0.0
 
         try:
             if system_id == "S1":
@@ -629,7 +630,7 @@ class E19GovernanceBenchmark(BaseExperiment):
     def _count_loc(self, system_id: str, task_id: str) -> int:
         """Count actual source lines for the implementation of a task."""
         if system_id == "S1":
-            func_map = {
+            func_map: dict[str, Callable[..., Any]] = {
                 "T1": self._s1_adl_accept,
                 "T2": self._s1_adl_retract,
                 "T3": self._s1_adl_audit,
@@ -637,7 +638,7 @@ class E19GovernanceBenchmark(BaseExperiment):
             }
             func = func_map.get(task_id, self._run_s1_adl)
         elif system_id == "S2":
-            func_map = {
+            func_map = {  # type: ignore[assignment]
                 "T1": _s2_nanopub_register,
                 "T2": _s2_nanopub_validate,
                 "T3": _s2_nanopub_status,
@@ -645,7 +646,7 @@ class E19GovernanceBenchmark(BaseExperiment):
             }
             func = func_map.get(task_id, _s2_nanopub_register)
         elif system_id == "S3":
-            func_map = {
+            func_map = {  # type: ignore[assignment]
                 "T1": _s3_prov_register,
                 "T2": _s3_prov_deprecate,
                 "T3": _s3_prov_status,
@@ -653,7 +654,7 @@ class E19GovernanceBenchmark(BaseExperiment):
             }
             func = func_map.get(task_id, _s3_prov_register)
         elif system_id == "S4":
-            func_map = {
+            func_map = {  # type: ignore[assignment]
                 "T1": _s4_git_commit,
                 "T2": _s4_git_commit,
                 "T3": _s4_git_status,
@@ -665,7 +666,11 @@ class E19GovernanceBenchmark(BaseExperiment):
 
         try:
             source = inspect.getsource(func)
-            lines = [line for line in source.splitlines() if line.strip() and not line.strip().startswith("#")]
+            lines = [
+                line
+                for line in source.splitlines()
+                if line.strip() and not line.strip().startswith("#")
+            ]
             return len(lines)
         except (OSError, TypeError):
             return 0

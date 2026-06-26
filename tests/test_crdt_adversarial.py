@@ -59,9 +59,9 @@ class TestCRDTReplayResistance:
         confidence_after_first = s.confidence
 
         s = s.apply_event(EventType.VALIDATE.value, {"actor": "a1", "confidence": 0.85})  # Replay
-        assert (
-            s.confidence == confidence_after_first
-        ), "Replayed validate should not increase confidence (same confidence value)"
+        assert s.confidence == confidence_after_first, (
+            "Replayed validate should not increase confidence (same confidence value)"
+        )
         # Note: validator_count increments on every VALIDATE event in this simplified
         # G-Counter model. Full actor-deduplication requires a G-Set over actor IDs,
         # which is Phase 3 work (cryptographic identity binding).

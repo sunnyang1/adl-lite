@@ -50,9 +50,9 @@ class TestPayloadTampering:
 
         # Verification should detect the tampering because hash chain now breaks
         # (e2's _prev_hash references original e1.hash, but e1's content changed)
-        assert (
-            chain.verify_integrity() is False
-        ), "Tampered event should be detected by hash chain verification!"
+        assert chain.verify_integrity() is False, (
+            "Tampered event should be detected by hash chain verification!"
+        )
 
     def test_tampered_payload_with_hash_recomputation_still_detected(self):
         """Even if attacker recomputes e1's hash, e2's _prev_hash still points to old h1."""
@@ -209,9 +209,9 @@ class TestTimestampCollisions:
 
         # Same input → same ordering (deterministic)
         sorted_again = sorted([e1, e2], key=lambda e: (e.timestamp, e.hash))
-        assert (
-            sorted_events[0].event_id == sorted_again[0].event_id
-        ), "Same-timestamp ordering should be deterministic"
+        assert sorted_events[0].event_id == sorted_again[0].event_id, (
+            "Same-timestamp ordering should be deterministic"
+        )
 
     def test_merge_preserves_determinism(self):
         """Merged chain from same inputs should produce identical results."""
@@ -260,9 +260,9 @@ class TestSSACircumvention:
                 "this is an acknowledged heuristic limitation"
             )
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("ADVERSARIAL: SSA CIRCUMVENTION CONFIRMED")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print("  Creative circumlocutions bypass SSA pronoun detection.")
         print("  This is a documented limitation (§3.4, §7.3).")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")

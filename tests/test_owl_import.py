@@ -9,33 +9,13 @@ from adl_lite.models import (
     ADLFrontMatter,
     ADLType,
     DiscoveryStatus,
-    Event,
-    EventChain,
-    EventType,
 )
 from adl_lite.owl_export import document_to_owl_rdfxml, document_to_owl_turtle
 from adl_lite.owl_import import parse_owl_rdfxml, parse_owl_turtle
 
 
 def _make_sample_doc() -> ADLDocument:
-    """Build a sample ADLDocument with two events for round-trip testing."""
-    chain = EventChain(concept_id="disc-test")
-    chain.append(
-        Event(
-            concept_id="disc-test",
-            event_type=EventType.VALIDATE,
-            actor="agent_1",
-            payload={"confidence": 0.85},
-        )
-    )
-    chain.append(
-        Event(
-            concept_id="disc-test",
-            event_type=EventType.VALIDATE,
-            actor="agent_2",
-            payload={"confidence": 0.75},
-        )
-    )
+    """Build a sample ADLDocument for round-trip testing."""
     fm = ADLFrontMatter(
         adl_type=ADLType.DISCOVERY,
         adl_id="disc-test",
@@ -45,7 +25,7 @@ def _make_sample_doc() -> ADLDocument:
         domain="aml",
         scope="public",
     )
-    return ADLDocument(front_matter=fm, markdown_body="", event_chain=chain)
+    return ADLDocument(front_matter=fm, markdown_body="")
 
 
 # ---------------------------------------------------------------------------

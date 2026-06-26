@@ -5,6 +5,7 @@ Quantifies:
   (ii) confidence aggregation time: γ_default, γ_agg, γ_cal vs |V|
   (iii) per-event storage overhead comparison
 """
+
 from __future__ import annotations
 
 import statistics
@@ -12,7 +13,9 @@ import time
 from typing import Any
 
 from adl_lite import (
+    ADLType,
     Comparator,
+    DiscoveryStatus,
     Event,
     EventChain,
     EventType,
@@ -95,10 +98,11 @@ class E25Microbenchmark(BaseExperiment):
             rules = _build_precondition_rules(k)
             # Warm-up: evaluate rules against a synthetic front matter
             from adl_lite.models import ADLFrontMatter
+
             fm = ADLFrontMatter(
-                adl_type="discovery",
+                adl_type=ADLType.DISCOVERY,
                 adl_id="bench",
-                status="deprecated",
+                status=DiscoveryStatus.DEPRECATED,
                 confidence=0.85,
                 scope="public",
             )
@@ -114,12 +118,14 @@ class E25Microbenchmark(BaseExperiment):
                 t1 = time.perf_counter()
                 times.append((t1 - t0) * 1e6)  # μs
             precond_times[f"k={k}"] = round(statistics.mean(times), 1)
-            raw_data.append({
-                "benchmark": "precondition_eval",
-                "k": k,
-                "mean_us": precond_times[f"k={k}"],
-                "std_us": round(statistics.stdev(times), 1) if len(times) > 1 else 0.0,
-            })
+            raw_data.append(
+                {
+                    "benchmark": "precondition_eval",
+                    "k": k,
+                    "mean_us": precond_times[f"k={k}"],
+                    "std_us": round(statistics.stdev(times), 1) if len(times) > 1 else 0.0,
+                }
+            )
 
         metrics["precondition_eval_us"] = precond_times
 
@@ -166,13 +172,15 @@ class E25Microbenchmark(BaseExperiment):
                 times_c.append((t1 - t0) * 1e6)
             gamma_cal_times[f"|V|={n}"] = round(statistics.mean(times_c), 1)
 
-            raw_data.append({
-                "benchmark": "confidence_aggregation",
-                "|V|": n,
-                "gamma_default_us": gamma_default_times[f"|V|={n}"],
-                "gamma_agg_us": gamma_agg_times[f"|V|={n}"],
-                "gamma_cal_us": gamma_cal_times[f"|V|={n}"],
-            })
+            raw_data.append(
+                {
+                    "benchmark": "confidence_aggregation",
+                    "|V|": n,
+                    "gamma_default_us": gamma_default_times[f"|V|={n}"],
+                    "gamma_agg_us": gamma_agg_times[f"|V|={n}"],
+                    "gamma_cal_us": gamma_cal_times[f"|V|={n}"],
+                }
+            )
 
         metrics["gamma_default_us"] = gamma_default_times
         metrics["gamma_agg_us"] = gamma_agg_times
@@ -192,9 +200,7 @@ class E25Microbenchmark(BaseExperiment):
         # k=1 should be ~0.8 μs, k=50 should be ~12.3 μs
         if precond_times["k=1"] > 5.0 or precond_times["k=50"] > 50.0:
             status = "partial"
-            errors.append(
-                f"Precondition times ({precond_times}) deviate from expected range."
-            )
+            errors.append(f"Precondition times ({precond_times}) deviate from expected range.")
 
         return ExperimentResult(
             experiment_id=self.experiment_id,

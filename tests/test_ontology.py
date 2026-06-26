@@ -36,9 +36,9 @@ class TestOntologyYAML:
         for path in EXAMPLES.glob("*.md"):
             doc = parse_file(path)
             for rel in doc.relations:
-                assert mgr.validate_predicate(
-                    rel.relation
-                ), f"{path.name}: unknown predicate {rel.relation!r}"
+                assert mgr.validate_predicate(rel.relation), (
+                    f"{path.name}: unknown predicate {rel.relation!r}"
+                )
 
     @pytest.mark.skipif(not AML.is_dir(), reason="AML corpus not present")
     def test_all_aml_predicates_registered(self):
@@ -46,9 +46,9 @@ class TestOntologyYAML:
         for path in AML.glob("*.md"):
             doc = parse_file(path)
             for rel in doc.relations:
-                assert mgr.validate_predicate(
-                    rel.relation
-                ), f"{path.name}: unknown predicate {rel.relation!r}"
+                assert mgr.validate_predicate(rel.relation), (
+                    f"{path.name}: unknown predicate {rel.relation!r}"
+                )
 
 
 class TestOntologyTransitions:
@@ -60,9 +60,9 @@ class TestOntologyTransitions:
             for target in DiscoveryStatus:
                 engine_ok = engine._is_valid_transition(status, target)  # noqa: SLF001
                 yaml_ok = target.value in yaml_targets
-                assert (
-                    engine_ok == yaml_ok
-                ), f"{status.value} -> {target.value}: engine={engine_ok}, yaml={yaml_ok}"
+                assert engine_ok == yaml_ok, (
+                    f"{status.value} -> {target.value}: engine={engine_ok}, yaml={yaml_ok}"
+                )
 
 
 class TestOntologyManagerAPI:

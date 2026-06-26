@@ -17,7 +17,6 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-
 # ANSI color codes
 RED = "\033[91m"
 YELLOW = "\033[93m"
@@ -54,14 +53,13 @@ def strip_latex_commands(text):
 def extract_paragraphs(tex_path):
     """Extract text paragraphs from a .tex file."""
     paragraphs = []
-    with open(tex_path, "r", encoding="utf-8", errors="ignore") as f:
+    with open(tex_path, encoding="utf-8", errors="ignore") as f:
         lines = f.readlines()
 
     skip_envs = {"equation", "align", "figure", "table", "lstlisting", "verbatim"}
     current_para = []
     current_start_line = 0
     in_skip = 0  # nesting level for skip environments
-    skip_env_name = None
 
     for i, line in enumerate(lines, start=1):
         stripped = line.strip()
@@ -81,23 +79,31 @@ def extract_paragraphs(tex_path):
 
         if begin_match:
             env_name = begin_match.group(1).split("*")[0]  # handle align*, equation*
-            if env_name in skip_envs or env_name.startswith("figure") or env_name.startswith("table"):
+            if (
+                env_name in skip_envs
+                or env_name.startswith("figure")
+                or env_name.startswith("table")
+            ):
                 in_skip += 1
-                skip_env_name = env_name
 
         if end_match and in_skip > 0:
             env_name = end_match.group(1).split("*")[0]
-            if env_name in skip_envs or env_name.startswith("figure") or env_name.startswith("table"):
+            if (
+                env_name in skip_envs
+                or env_name.startswith("figure")
+                or env_name.startswith("table")
+            ):
                 in_skip -= 1
-                if in_skip == 0:
-                    skip_env_name = None
                 continue
 
         if in_skip > 0:
             continue
 
         # Skip lines with only structural commands
-        if re.fullmatch(r"\\(section|subsection|subsubsection|paragraph|subparagraph|label|ref|cite|bibitem|item|hspace|vspace|newpage|clearpage|pagebreak|noindent|indent|centering|raggedright|raggedleft).*", stripped):
+        if re.fullmatch(
+            r"\\(section|subsection|subsubsection|paragraph|subparagraph|label|ref|cite|bibitem|item|hspace|vspace|newpage|clearpage|pagebreak|noindent|indent|centering|raggedright|raggedleft).*",
+            stripped,
+        ):
             continue
 
         # Skip empty lines - they break paragraphs
@@ -105,11 +111,13 @@ def extract_paragraphs(tex_path):
             if current_para:
                 para_text = " ".join(current_para).strip()
                 if para_text and len(para_text) > 30:  # skip very short fragments
-                    paragraphs.append({
-                        "text": para_text,
-                        "file": str(tex_path),
-                        "start_line": current_start_line,
-                    })
+                    paragraphs.append(
+                        {
+                            "text": para_text,
+                            "file": str(tex_path),
+                            "start_line": current_start_line,
+                        }
+                    )
                 current_para = []
             continue
 
@@ -122,11 +130,13 @@ def extract_paragraphs(tex_path):
     if current_para:
         para_text = " ".join(current_para).strip()
         if para_text and len(para_text) > 30:
-            paragraphs.append({
-                "text": para_text,
-                "file": str(tex_path),
-                "start_line": current_start_line,
-            })
+            paragraphs.append(
+                {
+                    "text": para_text,
+                    "file": str(tex_path),
+                    "start_line": current_start_line,
+                }
+            )
 
     return paragraphs
 
@@ -147,14 +157,115 @@ def bow_vector(text):
     words = text.split()
     # Filter out very short words and stop words
     stop_words = {
-        "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by",
-        "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did",
-        "will", "would", "could", "should", "may", "might", "can", "shall", "this", "that", "these", "those",
-        "we", "our", "us", "it", "its", "they", "them", "their", "he", "she", "his", "her", "him", "i", "me", "my",
-        "from", "as", "into", "through", "during", "before", "after", "above", "below", "between", "under",
-        "again", "further", "then", "once", "here", "there", "when", "where", "why", "how", "all", "any", "both",
-        "each", "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own", "same", "so",
-        "than", "too", "very", "s", "t", "don", "now", "d", "ll", "m", "o", "re", "ve", "y", "ain", "aren",
+        "a",
+        "an",
+        "the",
+        "and",
+        "or",
+        "but",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "with",
+        "by",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "can",
+        "shall",
+        "this",
+        "that",
+        "these",
+        "those",
+        "we",
+        "our",
+        "us",
+        "it",
+        "its",
+        "they",
+        "them",
+        "their",
+        "he",
+        "she",
+        "his",
+        "her",
+        "him",
+        "i",
+        "me",
+        "my",
+        "from",
+        "as",
+        "into",
+        "through",
+        "during",
+        "before",
+        "after",
+        "above",
+        "below",
+        "between",
+        "under",
+        "again",
+        "further",
+        "then",
+        "once",
+        "here",
+        "there",
+        "when",
+        "where",
+        "why",
+        "how",
+        "all",
+        "any",
+        "both",
+        "each",
+        "few",
+        "more",
+        "most",
+        "other",
+        "some",
+        "such",
+        "no",
+        "nor",
+        "not",
+        "only",
+        "own",
+        "same",
+        "so",
+        "than",
+        "too",
+        "very",
+        "s",
+        "t",
+        "don",
+        "now",
+        "d",
+        "ll",
+        "m",
+        "o",
+        "re",
+        "ve",
+        "y",
+        "ain",
+        "aren",
     }
     words = [w for w in words if len(w) > 2 and w not in stop_words]
     return Counter(words)
@@ -176,8 +287,12 @@ def cosine_similarity(vec1, vec2):
 def main():
     parser = argparse.ArgumentParser(description="Detect redundant paragraphs in LaTeX files.")
     parser.add_argument("directory", help="Directory to scan for .tex files")
-    parser.add_argument("--threshold", type=float, default=0.6, help="Similarity threshold (default 0.6)")
-    parser.add_argument("--min-length", type=int, default=30, help="Minimum paragraph length in characters")
+    parser.add_argument(
+        "--threshold", type=float, default=0.6, help="Similarity threshold (default 0.6)"
+    )
+    parser.add_argument(
+        "--min-length", type=int, default=30, help="Minimum paragraph length in characters"
+    )
     args = parser.parse_args()
 
     root = Path(args.directory)
@@ -219,11 +334,13 @@ def main():
 
             sim = cosine_similarity(pi["bow"], pj["bow"])
             if sim >= args.threshold:
-                results.append({
-                    "sim": sim,
-                    "p1": pi,
-                    "p2": pj,
-                })
+                results.append(
+                    {
+                        "sim": sim,
+                        "p1": pi,
+                        "p2": pj,
+                    }
+                )
 
     results.sort(key=lambda x: x["sim"], reverse=True)
 
@@ -231,7 +348,9 @@ def main():
         print(color("No redundant paragraphs found above threshold.", GREEN))
         sys.exit(0)
 
-    print(f"Found {color(str(len(results)), YELLOW)} pair(s) with similarity >= {args.threshold}:\n")
+    print(
+        f"Found {color(str(len(results)), YELLOW)} pair(s) with similarity >= {args.threshold}:\n"
+    )
 
     for r in results:
         sim = r["sim"]

@@ -103,9 +103,9 @@ class TestConcurrentAppends:
 
         total_writes = n_agents * 3
         # Every agent writes unique events (different event_ids)
-        assert (
-            merged.length == total_writes
-        ), f"Expected {total_writes} events in merged chain, got {merged.length}"
+        assert merged.length == total_writes, (
+            f"Expected {total_writes} events in merged chain, got {merged.length}"
+        )
         assert merged.verify_integrity() is True
 
         print(
@@ -157,9 +157,9 @@ class TestNetworkPartition:
 
         total_agents = partition_size * 3
         total_writes = total_agents * 2  # register + one typed event
-        assert (
-            merged.length == total_writes
-        ), f"Partition merge: expected {total_writes}, got {merged.length}"
+        assert merged.length == total_writes, (
+            f"Partition merge: expected {total_writes}, got {merged.length}"
+        )
         assert merged.verify_integrity() is True
 
         # Merge determinism: merging in different order yields same result
@@ -211,7 +211,7 @@ class TestClockSkew:
         e2 = [e.event_id for e in merged2.events]
         assert e1 == e2, "Merge must be deterministic even with skewed clocks"
 
-        print(f"\n  S3: Clock skew (10 agents, ±5hr skew): " f"merge deterministic={e1 == e2}")
+        print(f"\n  S3: Clock skew (10 agents, ±5hr skew): merge deterministic={e1 == e2}")
 
 
 # ---------------------------------------------------------------------------
@@ -252,9 +252,9 @@ class TestAdversarialInjection:
 
         honest_writes = 9 * 2  # 9 honest × 2 events each
         poison_writes = 50
-        assert (
-            merged.length == honest_writes + poison_writes
-        ), f"Expected {honest_writes + poison_writes}, got {merged.length}"
+        assert merged.length == honest_writes + poison_writes, (
+            f"Expected {honest_writes + poison_writes}, got {merged.length}"
+        )
         assert merged.verify_integrity() is True
 
         # CRDT state: confidence from honest agents survives poison
@@ -296,8 +296,7 @@ class TestAdversarialInjection:
         tree = engine.fork_manager.get_fork_tree(base_id)
         assert tree["count"] >= 1  # At least one fork registered
         print(
-            f"\n  S4b: 100-fork attack on ConsensusEngine: "
-            f"forks={tree['count']}, all integrity OK"
+            f"\n  S4b: 100-fork attack on ConsensusEngine: forks={tree['count']}, all integrity OK"
         )
 
 
@@ -310,9 +309,9 @@ class TestDistributedSummary:
     """Aggregate results from all distributed scenarios."""
 
     def test_convergence_summary(self):
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print("DISTRIBUTED DEPLOYMENT SIMULATION SUMMARY")
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")
         print("  S1: Concurrent appends (10-100 agents)         ✅ All events survive merge")
         print(
             "  S2: Network partition (3×10/33/100 agents)     ✅ Deterministic merge across partitions"
@@ -324,8 +323,8 @@ class TestDistributedSummary:
         print(
             "  S4b: Fork bombing (100 forks)                  ✅ All chains independently verifiable"
         )
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")
         print("  Conclusion: ADL Lite maintains convergence, integrity,")
         print("  and deterministic ordering across all tested fault scenarios")
         print("  at scales of 10-100 agents.")
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")

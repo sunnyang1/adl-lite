@@ -28,11 +28,7 @@ def gamma(chain: EventChain, beta: float = BETA) -> float:
     actors = {e.actor for e in validations}
 
     def phi(actor: str) -> float:
-        confidences = [
-            e.payload.get("confidence", 0.0)
-            for e in validations
-            if e.actor == actor
-        ]
+        confidences = [e.payload.get("confidence", 0.0) for e in validations if e.actor == actor]
         return max(confidences) if confidences else 0.0
 
     mean_phi = sum(phi(a) for a in actors) / len(actors) if actors else 0.0

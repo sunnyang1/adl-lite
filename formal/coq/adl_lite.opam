@@ -1,0 +1,25 @@
+opam-version: "2.0"
+name: "adl-lite-formal"
+version: "0.2.0"
+synopsis: "Coq formalisation skeleton for ADL Lite event chains"
+description: """
+ADL Lite is an event-first capability-lifecycle registry for LLM agent ecosystems.
+This package contains a Coq/MathComp/Iris skeleton formalising the core event-chain
+status lattice, confidence derivation, well-formedness axioms, and CRDT merge
+semantics.  Iris proofs are optional stubs.
+"""
+maintainer: "ADL Lite Contributors"
+authors: "ADL Lite Contributors"
+license: "MIT"
+homepage: "https://github.com/sunnyang1/adl-lite"
+bug-reports: "https://github.com/sunnyang1/adl-lite/issues"
+depends: [
+  "coq" {>= "8.18"}
+  "coq-mathcomp-ssreflect" {>= "2.0" & optional}
+]
+build: [
+  [make]
+]
+install: [
+  [make "install"]
+]

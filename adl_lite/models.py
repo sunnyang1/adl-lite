@@ -171,6 +171,10 @@ class Event(BaseModel):
     signature: str = Field(
         default="", description="Optional Ed25519 signature (base64) for DID-authenticated events"
     )
+    proof: dict[str, Any] | None = Field(
+        default=None,
+        description="Optional W3C Linked Data Proof object (type, verificationMethod, proofValue)",
+    )
     _prev_hash: str = PrivateAttr(default="")
 
     def model_post_init(self, __context) -> None:
@@ -237,8 +241,14 @@ class EventChain:
         source_path: str | None = None,
     ) -> None:
         self.concept_id = concept_id
-        self._events: list[Event] = []
-        self._lock = threading.Lock()
+        # Split lock design for Phase 3 scale:
+        #   _events_lock protects the append-only _events list.
+        #   _cache_lock protects CRDT caches and the integrity verification cache.
+        # Always acquire in the order _events_lock -> _cache_lock to avoid deadlock.
+        # RLock avoids a macOS deadlock when cryptography (OpenSSL) and torch/
+        # sentence-transformers (OpenMP) are loaded in the same process.
+        self._events_lock = threading.RLock()
+        self._cache_lock = threading.RLock()
         self.markdown_body = markdown_body
         self.source_path = source_path
 
@@ -247,9 +257,35 @@ class EventChain:
         self._cached_status_order: int = 0
         self._cached_confidence: float = 0.0
 
+        # Incremental integrity verification cache (Definition 5, 12 axioms)
+        self._verified_index: int = -1
+        self._verified_hash: str = ""
+        self._verified_seen: set[str] = set()
+        self._verified_event_ids: list[str] = []
+        self._verified_last_dt: datetime | None = None
+
+        # Set _events last so that caches are already in place when __setattr__
+        # resets the integrity verification cache.
+        self._events: list[Event] = []
+
         if events:
             for e in events:
                 self.append(e)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Reset the integrity cache when the _events list is replaced directly."""
+        if name == "_events":
+            try:
+                with self._cache_lock:
+                    self._verified_index = -1
+                    self._verified_hash = ""
+                    self._verified_seen.clear()
+                    self._verified_event_ids.clear()
+                    self._verified_last_dt = None
+            except AttributeError:
+                # Caches are not yet initialized during the early stages of __init__.
+                pass
+        object.__setattr__(self, name, value)
 
     # ------------------------------------------------------------------
     # Core operations
@@ -257,14 +293,20 @@ class EventChain:
 
     def append(self, event: Event) -> None:
         """Append an event, linking to the previous tail. Thread-safe."""
-        with self._lock:
+        with self._events_lock:
             if event.concept_id != self.concept_id:
                 raise ValueError(
                     f"Event concept_id {event.concept_id} != chain concept_id {self.concept_id}"
                 )
             if self._events:
-                event.previous_event_id = self._events[-1].event_id
-                event._prev_hash = self._events[-1].hash
+                prev_event = self._events[-1]
+                event.previous_event_id = prev_event.event_id
+                event._prev_hash = prev_event.hash
+                # Preserve weak timestamp monotonicity under contention: if the
+                # event was created before the current tail, inherit the tail
+                # timestamp.  The hash is recomputed below.
+                if event.timestamp < prev_event.timestamp:
+                    event.timestamp = prev_event.timestamp
                 event.hash = ""  # Force re-computation with new chaining
                 event.model_post_init(None)
             else:
@@ -280,49 +322,80 @@ class EventChain:
     def _update_crdt_caches(self, event: Event) -> None:
         """Update _cached_status and _cached_confidence incrementally.
 
-        Must be called inside the _lock.
+        Must be called while already holding _events_lock; this method acquires
+        _cache_lock internally.
         """
-        # Status LUB: max over lifecycle lattice
-        type_to_status = {
-            EventType.REGISTER: DiscoveryStatus.PROVISIONAL,
-            EventType.VALIDATE: DiscoveryStatus.VALIDATED,
-            EventType.DEPRECATE: DiscoveryStatus.DEPRECATED,
-            EventType.FORK: DiscoveryStatus.FORKED,
-            EventType.ARCHIVE: DiscoveryStatus.ARCHIVED,
-        }
-        if event.event_type in type_to_status:
-            status = type_to_status[event.event_type]
-            order = StatusOrder[status.name.upper()].value
-            if order > self._cached_status_order:
-                self._cached_status_order = order
-                self._cached_status = DiscoveryStatus[StatusOrder(order).name]
+        with self._cache_lock:
+            # Status LUB: max over lifecycle lattice
+            type_to_status = {
+                EventType.REGISTER: DiscoveryStatus.PROVISIONAL,
+                EventType.VALIDATE: DiscoveryStatus.VALIDATED,
+                EventType.DEPRECATE: DiscoveryStatus.DEPRECATED,
+                EventType.FORK: DiscoveryStatus.FORKED,
+                EventType.ARCHIVE: DiscoveryStatus.ARCHIVED,
+            }
+            if event.event_type in type_to_status:
+                status = type_to_status[event.event_type]
+                order = StatusOrder[status.name.upper()].value
+                if order > self._cached_status_order:
+                    self._cached_status_order = order
+                    self._cached_status = DiscoveryStatus[StatusOrder(order).name]
 
-        # Confidence G-Counter: max over VALIDATE / SNAPSHOT
-        if event.event_type in (EventType.VALIDATE, EventType.SNAPSHOT):
-            val = min(1.0, max(0.0, float(event.payload.get("confidence", 0.0))))
-            if val > self._cached_confidence:
-                self._cached_confidence = val
+            # Confidence G-Counter: max over VALIDATE / SNAPSHOT
+            if event.event_type in (EventType.VALIDATE, EventType.SNAPSHOT):
+                val = min(1.0, max(0.0, float(event.payload.get("confidence", 0.0))))
+                if val > self._cached_confidence:
+                    self._cached_confidence = val
+
+    def _invalidate_caches(self) -> None:
+        """Reset CRDT and integrity caches after direct _events mutation.
+
+        Must be called while already holding _events_lock; this method acquires
+        _cache_lock internally.
+        """
+        with self._cache_lock:
+            self._cached_status = DiscoveryStatus.PROVISIONAL
+            self._cached_status_order = 0
+            self._cached_confidence = 0.0
+            self._verified_index = -1
+            self._verified_hash = ""
+            self._verified_seen.clear()
+            self._verified_event_ids.clear()
+            self._verified_last_dt = None
+
+    def _rebuild_crdt_caches(self) -> None:
+        """Rebuild CRDT caches from the full _events list.
+
+        Must be called while already holding _events_lock; this method acquires
+        _cache_lock internally.
+        """
+        with self._cache_lock:
+            self._cached_status = DiscoveryStatus.PROVISIONAL
+            self._cached_status_order = 0
+            self._cached_confidence = 0.0
+            for event in self._events:
+                self._update_crdt_caches(event)
 
     @property
     def events(self) -> list[Event]:
-        with self._lock:
+        with self._events_lock:
             return list(self._events)
 
     @property
     def length(self) -> int:
-        with self._lock:
+        with self._events_lock:
             return len(self._events)
 
     def __len__(self) -> int:
-        with self._lock:
+        with self._events_lock:
             return len(self._events)
 
     def __iter__(self):
-        with self._lock:
+        with self._events_lock:
             return iter(list(self._events))
 
     def __getitem__(self, index: int) -> Event:
-        with self._lock:
+        with self._events_lock:
             return self._events[index]
 
     # ------------------------------------------------------------------
@@ -340,13 +413,14 @@ class EventChain:
 
         O(1) — reads from the incremental cache updated on every append.
         """
-        with self._lock:
-            # Defensive: if _events was mutated directly (bypassing append()),
-            # the cache may be stale. Recompute when events exist but cache
-            # is still at its default (order == 0).
-            if self._events and self._cached_status_order == 0:
-                return self._compute_status_from_events()
-            return self._cached_status
+        with self._events_lock:
+            with self._cache_lock:
+                # Defensive: if _events was mutated directly (bypassing append()),
+                # the cache may be stale. Recompute when events exist but cache
+                # is still at its default (order == 0).
+                if self._events and self._cached_status_order == 0:
+                    return self._compute_status_from_events()
+                return self._cached_status
 
     def _compute_status_from_events(self) -> DiscoveryStatus:
         """Recompute status from all events (fallback when cache is stale)."""
@@ -380,11 +454,12 @@ class EventChain:
 
         O(1) — reads from the incremental cache updated on every append.
         """
-        with self._lock:
-            # Defensive: if _events was mutated directly, recompute.
-            if self._events and self._cached_confidence == 0.0:
-                return self._compute_confidence_from_events()
-            return self._cached_confidence
+        with self._events_lock:
+            with self._cache_lock:
+                # Defensive: if _events was mutated directly, recompute.
+                if self._events and self._cached_confidence == 0.0:
+                    return self._compute_confidence_from_events()
+                return self._cached_confidence
 
     def _compute_confidence_from_events(self) -> float:
         """Recompute confidence from all events (fallback when cache is stale)."""
@@ -442,7 +517,7 @@ class EventChain:
     @property
     def validators(self) -> list[str]:
         """Distinct actors who have performed VALIDATE events."""
-        with self._lock:
+        with self._events_lock:
             return list(
                 dict.fromkeys(e.actor for e in self._events if e.event_type == EventType.VALIDATE)
             )
@@ -450,13 +525,13 @@ class EventChain:
     @property
     def validator_count(self) -> int:
         """Number of distinct validators."""
-        with self._lock:
+        with self._events_lock:
             return len(self.validators)
 
     @property
     def created_at(self) -> str:
         """Capability creation time = first event timestamp."""
-        with self._lock:
+        with self._events_lock:
             if self._events:
                 return self._events[0].timestamp
             return datetime.now(timezone.utc).isoformat()
@@ -464,7 +539,7 @@ class EventChain:
     @property
     def updated_at(self) -> str:
         """Last modification = last event timestamp."""
-        with self._lock:
+        with self._events_lock:
             if self._events:
                 return self._events[-1].timestamp
             return self.created_at
@@ -558,115 +633,223 @@ class EventChain:
         """Axiom 12: event_type must be a known EventType enum member."""
         return [e.event_id for e in self._events if not isinstance(e.event_type, EventType)]
 
+    def _parse_event_dt(self, ts: str) -> datetime:
+        """Parse an ISO timestamp, returning a minimal datetime on failure."""
+        try:
+            return datetime.fromisoformat(ts)
+        except (ValueError, TypeError):
+            return datetime.min.replace(tzinfo=timezone.utc)
+
+    def _verify_prefix(self, registry=None) -> bool:
+        """Incrementally verify events from _verified_index+1 to the tail.
+
+        Assumes both _events_lock and _cache_lock are already held.
+
+        - If the chain has grown since the last check, only the newly appended
+          events are verified, giving O(k) cost for k new events.
+        - If the chain length is unchanged, the whole chain is revalidated so
+          that tampering with any previously verified event is still detected.
+          This keeps the security guarantees identical to the non-incremental
+          implementation for the "no new events" case.
+        - If events were inserted, deleted, or replaced in the verified prefix,
+          the cache is invalidated and a full verification is performed.
+        """
+        events = self._events
+        n = len(events)
+        verified_ids = self._verified_event_ids
+
+        # Check whether the previously verified prefix still matches the current
+        # events in both length and event_id order.  A mismatch means the chain
+        # was modified in the middle (insert/delete/replace), so we fall back to
+        # a full verification.
+        prefix_match = True
+        prefix_len = min(len(verified_ids), n)
+        for i in range(prefix_len):
+            if verified_ids[i] != events[i].event_id:
+                prefix_match = False
+                break
+
+        if not prefix_match or len(verified_ids) > n:
+            # External direct modification of the prefix: invalidate cache.
+            self._verified_index = -1
+            self._verified_hash = ""
+            self._verified_seen.clear()
+            verified_ids.clear()
+            self._verified_last_dt = None
+            start = 0
+        elif len(verified_ids) == n:
+            # No new events: revalidate everything to detect tampering.
+            self._verified_index = -1
+            self._verified_hash = ""
+            self._verified_seen.clear()
+            verified_ids.clear()
+            self._verified_last_dt = None
+            start = 0
+        else:
+            # Normal append path: trust the verified prefix and verify the suffix.
+            start = len(verified_ids)
+
+        last_dt = self._verified_last_dt
+        if start > 0 and start <= n:
+            last_dt = self._parse_event_dt(events[start - 1].timestamp)
+
+        action_types = {
+            EventType.ANNOUNCE,
+            EventType.PUBLISH,
+            EventType.SYNC_DASHBOARD,
+            EventType.LISTEN,
+        }
+
+        for i in range(start, n):
+            event = events[i]
+
+            if i == 0:
+                # Axiom 1: genesis anchoring
+                if event.previous_event_id is not None:
+                    has_archive = any(e.event_type == EventType.ARCHIVE for e in events)
+                    if not has_archive:
+                        return False
+            else:
+                prev_event = events[i - 1]
+                # Axiom 3: cryptographic linkage
+                if event.previous_event_id == prev_event.event_id:
+                    if event._prev_hash != prev_event.hash:
+                        return False
+                else:
+                    # An archive is the only allowed discontinuity, and it may
+                    # only appear between the genesis event and the first hot event.
+                    if i != 1 or not any(e.event_type == EventType.ARCHIVE for e in events):
+                        return False
+
+            # Axiom 2: shared concept_id
+            if event.concept_id != self.concept_id:
+                return False
+
+            # Axiom 4: hash correctness
+            if event.hash != event._compute_hash():
+                return False
+
+            # Optional signature / LD-Proof verification
+            if registry is not None:
+                if event.signature:
+                    message = event.hash.encode("utf-8")
+                    sig_bytes = base64.b64decode(event.signature)
+                    if not registry.verify_signature(event.actor, message, sig_bytes):
+                        return False
+                if event.proof:
+                    from .ld_proof import verify_event_proof
+
+                    if not verify_event_proof(event, resolver=registry):
+                        return False
+
+            # Axiom 5: distinct event_ids
+            if event.event_id in self._verified_seen:
+                return False
+            self._verified_seen.add(event.event_id)
+            self._verified_event_ids.append(event.event_id)
+
+            # Axiom 6: non-empty actor
+            if not event.actor or not str(event.actor).strip():
+                return False
+
+            # Axiom 7: weakly monotonic timestamps
+            ts = self._parse_event_dt(event.timestamp)
+            if last_dt is not None and ts < last_dt:
+                return False
+            last_dt = ts
+
+            # Axiom 8: payload is a dict
+            if not isinstance(event.payload, dict):
+                return False
+
+            # Axiom 9: L4 action events carry an action field
+            if event.event_type in action_types:
+                if not event.payload.get("action"):
+                    return False
+
+            # Axiom 10: hash algorithm (64-char hex)
+            if event.hash and len(event.hash) != 64:
+                return False
+
+            # Axiom 11: canonical fields for non-genesis events
+            if i > 0 and not event.previous_event_id:
+                return False
+            if not event.hash:
+                return False
+
+            # Axiom 12: valid event type
+            if not isinstance(event.event_type, EventType):
+                return False
+
+        self._verified_index = n - 1
+        if events:
+            self._verified_hash = events[-1].hash
+        self._verified_last_dt = last_dt
+        return True
+
     def verify_integrity(self, full: bool = False, registry=None) -> bool:
         """
         Verify that the chain is well-formed per Definition 5 (12 axioms).
+
+        This method is incremental: after a full verification, subsequent calls
+        only examine events appended since the last check, giving O(k) cost for
+        k new events and O(1) cost when nothing has changed.
 
         Args:
             full: If True, also verify archive file hashes and archived subchain integrity.
             registry: Optional KeyRegistry for Ed25519 signature verification on events
                       that carry a non-empty signature field (paper §4.3).
         """
-        with self._lock:
-            if not self._events:
-                return True
+        with self._events_lock:
+            with self._cache_lock:
+                if not self._events:
+                    return True
 
-            # Axiom 1: genesis anchoring (first event has no previous_event_id)
-            has_archive = any(e.event_type == EventType.ARCHIVE for e in self._events)
-            if not has_archive and self._events[0].previous_event_id is not None:
-                return False
-
-            # Axiom 2: all events share same concept_id
-            for event in self._events:
-                if event.concept_id != self.concept_id:
+                if not self._verify_prefix(registry):
                     return False
 
-            # Axiom 3: cryptographic linkage (previous_event_id chain)
-            for i in range(1, len(self._events)):
-                prev_event = self._events[i - 1]
-                curr_event = self._events[i]
-                if curr_event.previous_event_id == prev_event.event_id:
-                    if curr_event._prev_hash != prev_event.hash:
-                        return False
-                else:
-                    if not (i == 1 and has_archive):
-                        return False
+                if not full:
+                    return True
 
-            # Axiom 4: hash correctness (each event's hash matches _compute_hash)
-            for event in self._events:
-                if event.hash != event._compute_hash():
-                    return False
+                # full=True: verify archive file hashes and archived subchain integrity
+                from pathlib import Path
 
-            # Optional: Ed25519 signature verification (paper §4.3, reviewer Q2)
-            if registry is not None:
+                from .cold_storage import ColdStorage
+
                 for event in self._events:
-                    if event.signature:
-                        # Reconstruct the canonical message that was signed
-                        message = event.hash.encode("utf-8")
-                        sig_bytes = base64.b64decode(event.signature)
-                        if not registry.verify_signature(event.actor, message, sig_bytes):
-                            return False
-
-            # Axioms 5-12: full well-formedness checks
-            if self._check_wf5_distinct_event_ids():
-                return False
-            if self._check_wf6_non_empty_actor():
-                return False
-            if self._check_wf7_timestamp_monotonicity():
-                return False
-            if self._check_wf8_payload_schema():
-                return False
-            if self._check_wf9_action_preconditions():
-                return False
-            if self._check_wf10_hash_algorithm():
-                return False
-            if self._check_wf11_canonical_fields():
-                return False
-            if self._check_wf12_event_type_valid():
-                return False
-
-            if not full:
-                return True
-
-            # full=True: verify archive file hashes and subchain integrity
-            from pathlib import Path
-
-            from .cold_storage import ColdStorage
-
-            for event in self._events:
-                if event.event_type != EventType.ARCHIVE:
-                    continue
-                pointer = event.payload.get("archive_pointer", "")
-                file_path = event.payload.get("archive_file", "")
-                if not pointer or not file_path:
-                    continue
-                if not ColdStorage.verify_archive(pointer, file_path):
-                    return False
-                archived_events = ColdStorage._read_events(Path(file_path))
-                for i, ae in enumerate(archived_events):
-                    if i > 0:
-                        if ae.previous_event_id != archived_events[i - 1].event_id:
-                            return False
-                        if ae._prev_hash != archived_events[i - 1].hash:
-                            return False
-                    if ae.hash != ae._compute_hash():
+                    if event.event_type != EventType.ARCHIVE:
+                        continue
+                    pointer = event.payload.get("archive_pointer", "")
+                    file_path = event.payload.get("archive_file", "")
+                    if not pointer or not file_path:
+                        continue
+                    if not ColdStorage.verify_archive(pointer, file_path):
                         return False
-                if len(self._events) > 1:
-                    hot_next = self._events[1]
-                    if hot_next.event_type != EventType.ARCHIVE and archived_events:
-                        last_archived = archived_events[-1]
-                        if hot_next.previous_event_id != last_archived.event_id:
+                    archived_events = ColdStorage._read_events(Path(file_path))
+                    for i, ae in enumerate(archived_events):
+                        if i > 0:
+                            if ae.previous_event_id != archived_events[i - 1].event_id:
+                                return False
+                            if ae._prev_hash != archived_events[i - 1].hash:
+                                return False
+                        if ae.hash != ae._compute_hash():
                             return False
-                        if hot_next._prev_hash != last_archived.hash:
-                            return False
-            return True
+                    if len(self._events) > 1:
+                        hot_next = self._events[1]
+                        if hot_next.event_type != EventType.ARCHIVE and archived_events:
+                            last_archived = archived_events[-1]
+                            if hot_next.previous_event_id != last_archived.event_id:
+                                return False
+                            if hot_next._prev_hash != last_archived.hash:
+                                return False
+                return True
 
     def well_formedness_report(self) -> dict[str, list[str]]:
         """
         Return a detailed report of which axioms pass/fail.
         Useful for debugging integrity violations.
         """
-        with self._lock:
+        with self._events_lock:
             return {
                 "axiom_1_genesis_anchoring": [],
                 "axiom_2_shared_concept": [],
@@ -693,7 +876,7 @@ class EventChain:
 
     def history(self) -> list[dict[str, Any]]:
         """Full chain history as a list of dicts. Synthetic events flagged. Thread-safe."""
-        with self._lock:
+        with self._events_lock:
             return [
                 {
                     "event_id": e.event_id,
@@ -709,11 +892,11 @@ class EventChain:
                 for e in self._events
             ]
 
-    def archive(self, keep_last_n: int = 10) -> Event | None:
+    def archive(self, keep_last_n: int = 10, compressed: bool = False) -> Event | None:
         """Migrate historical events to cold storage and append an ARCHIVE event."""
         from .cold_storage import ColdStorage
 
-        return ColdStorage().archive(self, keep_last_n=keep_last_n)
+        return ColdStorage().archive(self, keep_last_n=keep_last_n, compressed=compressed)
 
     def unarchive(self) -> list[Event]:
         """Return archived events from cold storage."""
@@ -1055,7 +1238,18 @@ class PreconditionRule(BaseModel):
             Comparator.LT: lambda a, v: bool(a < v),
             Comparator.LTE: lambda a, v: bool(a <= v),
         }
-        return _ops[self.comparator](actual, self.value)
+        op = _ops[self.comparator]
+
+        # Guard against non-scalar / incompatible comparisons that would either
+        # raise (e.g. dict > int) or produce confusing NEQ truths (e.g. dict != 0).
+        if self.comparator in {Comparator.EQ, Comparator.NEQ}:
+            if isinstance(actual, dict | list | tuple | set | frozenset):
+                return False
+
+        try:
+            return op(actual, self.value)
+        except TypeError:
+            return False
 
 
 class ActionDef(BaseModel):

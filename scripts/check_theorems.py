@@ -2,8 +2,8 @@
 Scan all .tex files for theorem definitions and verify consistency.
 
 Checks:
-  - Every \begin{theorem} has a \label
-  - Every theorem label has a proof (\begin{proof} or \paragraph{Proof})
+  - Every \begin{theorem} has a \\label
+  - Every theorem label has a proof (\begin{proof} or \\paragraph{Proof})
   - Every theorem is cited by at least one \ref
   - Theorem numbering is consistent (no gaps, no duplicates)
   - Theorem summary table (tab:theorems-summary) covers all theorems
@@ -11,22 +11,23 @@ Checks:
 Usage:
     python scripts/check_theorems.py docs/paper_ao
 """
-import sys
+
 import re
-from pathlib import Path
+import sys
 from collections import defaultdict
+from pathlib import Path
 
 # Map theorem labels to their expected T-number (from summary table)
 CORE_THEOREM_MAP = {
-    'thm:determinism': 1,
-    'thm:confluence': 2,
-    'thm:monotonicity-status': 3,
-    'thm:boundedness': 4,
-    'thm:monotonicity-confidence': 5,
-    'thm:consistency': 6,
-    'thm:wf-preservation': 7,
-    'thm:precondition-decidability': 8,
-    'thm:crdt-convergence-appendix': 9,
+    "thm:determinism": 1,
+    "thm:confluence": 2,
+    "thm:monotonicity-status": 3,
+    "thm:boundedness": 4,
+    "thm:monotonicity-confidence": 5,
+    "thm:consistency": 6,
+    "thm:wf-preservation": 7,
+    "thm:precondition-decidability": 8,
+    "thm:crdt-convergence-appendix": 9,
 }
 
 
@@ -41,33 +42,33 @@ def main():
         sys.exit(1)
 
     # Patterns
-    theorem_env_pat = re.compile(r'\\begin\{theorem\}(?:\[[^\]]*\])?\s*\\label\{([^}]*)\}')
-    theorem_env_no_label_pat = re.compile(r'\\begin\{theorem\}(?:\[[^\]]*\])?(?!\s*\\label)')
-    inline_theorem_pat = re.compile(r'Theorem~([0-9]+)')
-    proof_env_pat = re.compile(r'\\begin\{proof\}')
-    proof_paragraph_pat = re.compile(r'\\paragraph\{Proof\}')
-    proof_emph_pat = re.compile(r'\\emph\{Proof')
-    ref_pat = re.compile(r'\\(?:ref|cref)\{([^}]*)\}')
-    theorem_ref_pat = re.compile(r'Theorem~\\ref\{([^}]*)\}')
-    summary_table_pat = re.compile(r'T([0-9])\s*&')
+    theorem_env_pat = re.compile(r"\\begin\{theorem\}(?:\[[^\]]*\])?\s*\\label\{([^}]*)\}")
+    theorem_env_no_label_pat = re.compile(r"\\begin\{theorem\}(?:\[[^\]]*\])?(?!\s*\\label)")
+    inline_theorem_pat = re.compile(r"Theorem~([0-9]+)")
+    proof_env_pat = re.compile(r"\\begin\{proof\}")
+    proof_paragraph_pat = re.compile(r"\\paragraph\{Proof\}")
+    proof_emph_pat = re.compile(r"\\emph\{Proof")
+    ref_pat = re.compile(r"\\(?:ref|cref)\{([^}]*)\}")
+    theorem_ref_pat = re.compile(r"Theorem~\\ref\{([^}]*)\}")
+    summary_table_pat = re.compile(r"T([0-9])\s*&")
 
     # Data structures
-    theorems = {}          # label -> (file, line, theorem_number or None)
+    theorems = {}  # label -> (file, line, theorem_number or None)
     theorem_envs_no_label = []  # (file, line)
-    inline_theorems = {}   # number -> list of (file, line)
+    inline_theorems = {}  # number -> list of (file, line)
     proofs = defaultdict(list)  # file -> list of line numbers
-    refs = defaultdict(list)    # label -> list of (file, line)
+    refs = defaultdict(list)  # label -> list of (file, line)
     theorem_refs = defaultdict(list)  # label -> list of (file, line)
     summary_entries = set()  # T-numbers found in summary table
 
-    tex_files = list(root.rglob('*.tex'))
+    tex_files = list(root.rglob("*.tex"))
 
     for tex_file in tex_files:
-        content = tex_file.read_text(encoding='utf-8')
+        content = tex_file.read_text(encoding="utf-8")
         lines = content.splitlines()
         for line_no, raw_line in enumerate(lines, start=1):
             line = raw_line.strip()
-            if line.startswith('%'):
+            if line.startswith("%"):
                 continue
 
             # Theorem environments with label
@@ -81,7 +82,7 @@ def main():
                 # Check if there's a label on the next line
                 has_label = False
                 for i in range(line_no, min(line_no + 3, len(lines) + 1)):
-                    if '\\label' in lines[i - 1]:
+                    if "\\label" in lines[i - 1]:
                         has_label = True
                         break
                 if not has_label:
@@ -162,18 +163,22 @@ def main():
         print(f"=== UNREFERENCED THEOREMS ({len(unreferenced)}) ===")
         for label, file, line, t_num in unreferenced:
             t_str = f"T{t_num}" if t_num else "unnumbered"
-            print(f"  {file}:{line}  \\label{{{label}}} ({t_str}) — no \\ref or Theorem~\\ref found")
+            print(
+                f"  {file}:{line}  \\label{{{label}}} ({t_str}) — no \\ref or Theorem~\\ref found"
+            )
         print()
 
     # Check 4: Numbering consistency (T1-T9)
     core_numbers = {t_num for _, _, t_num in theorems.values() if t_num is not None}
     expected = set(range(1, 10))
     missing_numbers = expected - core_numbers
-    duplicate_numbers = [n for n in range(1, 10) if sum(1 for _, _, t_num in theorems.values() if t_num == n) > 1]
+    duplicate_numbers = [
+        n for n in range(1, 10) if sum(1 for _, _, t_num in theorems.values() if t_num == n) > 1
+    ]
 
     if missing_numbers or duplicate_numbers:
         issues += len(missing_numbers) + len(duplicate_numbers)
-        print(f"=== NUMBERING ISSUES ===")
+        print("=== NUMBERING ISSUES ===")
         if missing_numbers:
             print(f"  Missing theorem numbers: {sorted(missing_numbers)}")
         if duplicate_numbers:
@@ -186,7 +191,7 @@ def main():
 
     if missing_in_summary or extra_in_summary:
         issues += len(missing_in_summary) + len(extra_in_summary)
-        print(f"=== SUMMARY TABLE (tab:theorems-summary) ISSUES ===")
+        print("=== SUMMARY TABLE (tab:theorems-summary) ISSUES ===")
         if missing_in_summary:
             print(f"  Missing in summary: T{', T'.join(map(str, sorted(missing_in_summary)))}")
         if extra_in_summary:
@@ -196,14 +201,14 @@ def main():
     # Check 6: Extra theorems (not in T1-T9)
     extra_theorems = [label for label, (_, _, t_num) in theorems.items() if t_num is None]
     if extra_theorems:
-        print(f"=== EXTRA THEOREMS (not in T1-T9 core set) ===")
+        print("=== EXTRA THEOREMS (not in T1-T9 core set) ===")
         for label in extra_theorems:
             file, line, _ = theorems[label]
             print(f"  {file}:{line}  \\label{{{label}}}")
         print()
 
     # Summary
-    print(f"=== SUMMARY ===")
+    print("=== SUMMARY ===")
     print(f"  Total theorem environments: {len(theorems)}")
     print(f"  Core theorems (T1-T9): {len([t for t in theorems.values() if t[2] is not None])}")
     print(f"  Theorems without labels: {len(theorem_envs_no_label)}")
@@ -221,5 +226,5 @@ def main():
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

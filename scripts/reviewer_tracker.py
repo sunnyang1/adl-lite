@@ -15,21 +15,20 @@ Usage:
 import json
 import re
 import sys
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
 
 
 @dataclass
 class QuestionResult:
     id: str
     title: str = ""
-    status: Optional[str] = None
+    status: str | None = None
     evidence_found: bool = False
     commit_found: bool = False
     is_future_work: bool = False
     content: str = ""
-    warnings: List[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     def to_dict(self):
         return {
@@ -75,9 +74,9 @@ QUESTION_HEADING_PATTERN = re.compile(
 )
 
 
-def parse_questions(text: str) -> List[QuestionResult]:
+def parse_questions(text: str) -> list[QuestionResult]:
     matches = list(QUESTION_HEADING_PATTERN.finditer(text))
-    results: List[QuestionResult] = []
+    results: list[QuestionResult] = []
 
     # Precompute line start positions for context-aware splitting
     lines = text.splitlines(keepends=True)
@@ -96,7 +95,7 @@ def parse_questions(text: str) -> List[QuestionResult]:
             candidates.append(pos + next_sep.start())
         return min(candidates) if candidates else len(text)
 
-    for i, match in enumerate(matches):
+    for match in matches:
         q_id = match.group(2)
         title = match.group(3).strip()
         start = match.end()
@@ -122,7 +121,7 @@ def parse_questions(text: str) -> List[QuestionResult]:
         commit_found = bool(COMMIT_PATTERN.search(content))
         is_future_work = bool(FUTURE_WORK_PATTERN.search(content))
 
-        warnings: List[str] = []
+        warnings: list[str] = []
         if not status:
             warnings.append("Missing status marker (DONE/IN PROGRESS/PARTIAL/PENDING)")
         if not evidence_found and not is_future_work:
@@ -146,12 +145,18 @@ def parse_questions(text: str) -> List[QuestionResult]:
     return results
 
 
-def generate_report(results: List[QuestionResult]) -> str:
-    lines: List[str] = []
+def generate_report(results: list[QuestionResult]) -> str:
+    lines: list[str] = []
     total = len(results)
     fully = sum(1 for r in results if not r.warnings)
-    partial = sum(1 for r in results if r.warnings and r.status and (r.evidence_found or r.commit_found))
-    pending = sum(1 for r in results if r.warnings and (not r.status or not (r.evidence_found or r.commit_found)))
+    partial = sum(
+        1 for r in results if r.warnings and r.status and (r.evidence_found or r.commit_found)
+    )
+    pending = sum(
+        1
+        for r in results
+        if r.warnings and (not r.status or not (r.evidence_found or r.commit_found))
+    )
     future_work = sum(1 for r in results if r.is_future_work)
 
     lines.append("=" * 60)
@@ -232,7 +237,9 @@ def main() -> int:
             1 for r in results if r.warnings and r.status and (r.evidence_found or r.commit_found)
         ),
         "pending": sum(
-            1 for r in results if r.warnings and (not r.status or not (r.evidence_found or r.commit_found))
+            1
+            for r in results
+            if r.warnings and (not r.status or not (r.evidence_found or r.commit_found))
         ),
         "future_work": sum(1 for r in results if r.is_future_work),
         "questions": [r.to_dict() for r in results],

@@ -214,14 +214,15 @@ class TestTheorem7WellFormedness:
                 timestamp="2024-01-02T00:00:00+00:00",
             )
         )
-        chain.append(
-            Event(
-                concept_id="test",
-                event_type=EventType.VALIDATE,
-                actor="a",
-                timestamp="2024-01-01T00:00:00+00:00",  # Earlier timestamp
-            )
+        # Bypass append() so that the backdated timestamp is preserved, testing
+        # that verify_integrity detects the monotonicity violation.
+        backdated = Event(
+            concept_id="test",
+            event_type=EventType.VALIDATE,
+            actor="a",
+            timestamp="2024-01-01T00:00:00+00:00",  # Earlier timestamp
         )
+        chain._events.append(backdated)
         assert not chain.verify_integrity()
         assert chain._check_wf7_timestamp_monotonicity()
 
@@ -385,6 +386,7 @@ class TestCanonVersion:
         import json
 
         from adl_lite.models import CANON_VERSION, _round_floats
+
         hash_content = {
             "event_id": e.event_id,
             "concept_id": e.concept_id,

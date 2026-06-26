@@ -82,7 +82,7 @@ class E9GitBaseline(BaseExperiment):
 
     def run(self) -> ExperimentResult:
         results = []
-        errors = []
+        errors: list[str] = []
 
         # Generate 10 corrupt chains (same patterns as E1)
         corruptions = []

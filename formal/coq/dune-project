@@ -1,0 +1,10 @@
+(lang dune 3.8)
+
+(name adl-lite-formal)
+
+(using coq 0.8)
+
+(generate_opam_files false)
+
+(maintainers "ADL Lite Contributors")
+(source (github sunnyang1/adl-lite))

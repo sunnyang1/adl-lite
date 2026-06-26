@@ -53,7 +53,7 @@ class E10FullFDEPipeline(BaseExperiment):
         executor = ActionExecutor(mgr)
         engine = ConsensusEngine()
         results = []
-        errors = []
+        errors: list[str] = []
 
         # Phase 1: Import data
         chains = importer.import_csv(
@@ -140,9 +140,9 @@ class E10FullFDEPipeline(BaseExperiment):
             if not val_errors:
                 validated += 1
                 # Append validate event to chain
-                chain = chains.get(doc.adl_id)
-                if chain:
-                    chain.append(
+                val_chain = chains.get(doc.adl_id)
+                if val_chain:
+                    val_chain.append(
                         Event(
                             concept_id=doc.adl_id,
                             event_type=EventType.VALIDATE,
@@ -151,13 +151,13 @@ class E10FullFDEPipeline(BaseExperiment):
                             payload={"confidence": 0.8},
                         )
                     )
-                    doc.refresh_snapshot(chain)
+                    doc.refresh_snapshot(val_chain)
 
         # Phase 6: Verify integrity
         integrity_ok = 0
         for doc in concepts:
-            chain = chains.get(doc.adl_id)
-            if chain and chain.verify_integrity():
+            verify_chain = chains.get(doc.adl_id)
+            if verify_chain and verify_chain.verify_integrity():
                 integrity_ok += 1
 
         results.append(

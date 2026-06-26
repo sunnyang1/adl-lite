@@ -400,7 +400,7 @@ class E24ProofTraceChecker(BaseExperiment):
                 ("T7", check_theorem_7_wellformedness_preservation(chain)),
             ]
 
-            trace_record = {"trace_id": i, "length": chain.length, "results": {}}
+            trace_record: dict[str, Any] = {"trace_id": i, "length": chain.length, "results": {}}
             for key, ok in checks:
                 trace_record["results"][key] = ok
                 if ok:

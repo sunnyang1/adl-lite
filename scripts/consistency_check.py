@@ -32,8 +32,7 @@ def check_paper_no_lww_residue(paper_dir: Path) -> list[str]:
         for match in re.finditer(r"\b[Ll]ast[-\s]?write[-\s]?wins\b|\bLWW\b(?!-Set)", content):
             line_num = content[: match.start()].count("\n") + 1
             errors.append(
-                f"  {tex_file.relative_to(paper_dir.parent)}:{line_num}: "
-                f"found '{match.group()}'"
+                f"  {tex_file.relative_to(paper_dir.parent)}:{line_num}: found '{match.group()}'"
             )
     return errors
 
@@ -73,9 +72,34 @@ def check_paper_experiments_exist(paper_dir: Path, experiments_dir: Path) -> lis
             eid = match.group(1)
             if eid not in registered:
                 # Whitelist common false positives
-                if eid in {"E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10",
-                           "E11", "E12", "E13", "E14", "E15", "E16", "E17", "E18", "E19",
-                           "E20", "E20b", "E21", "E22", "E23", "E24", "E25"}:
+                if eid in {
+                    "E1",
+                    "E2",
+                    "E3",
+                    "E4",
+                    "E5",
+                    "E6",
+                    "E7",
+                    "E8",
+                    "E9",
+                    "E10",
+                    "E11",
+                    "E12",
+                    "E13",
+                    "E14",
+                    "E15",
+                    "E16",
+                    "E17",
+                    "E18",
+                    "E19",
+                    "E20",
+                    "E20b",
+                    "E21",
+                    "E22",
+                    "E23",
+                    "E24",
+                    "E25",
+                }:
                     line_num = content[: match.start()].count("\n") + 1
                     errors.append(
                         f"  {tex_file.relative_to(paper_dir.parent)}:{line_num}: "
@@ -136,7 +160,7 @@ def check_status_order_consistency(repo_root: Path) -> list[str]:
         ("FORK", "FORKED"),
         ("ARCHIVE", "ARCHIVED"),
     ]:
-        if f'EventType.{event_type}: DiscoveryStatus.{status_name}' not in models_content:
+        if f"EventType.{event_type}: DiscoveryStatus.{status_name}" not in models_content:
             errors.append(
                 f"  models.py _update_crdt_caches missing mapping {event_type} -> {status_name}"
             )
@@ -214,7 +238,9 @@ def main() -> int:
     # Summary
     print("\n" + "=" * 60)
     if all_errors:
-        print(f" RESULT: {len(all_errors)} issue(s) found — please fix before submission ".center(60))
+        print(
+            f" RESULT: {len(all_errors)} issue(s) found — please fix before submission ".center(60)
+        )
         print("=" * 60)
         return 1
     else:

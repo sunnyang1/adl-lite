@@ -22,6 +22,25 @@ from .models import Event, EventChain, EventType
 class DataImporter:
     """Ingest raw structured data as ADL Events for capability registry."""
 
+    @staticmethod
+    def _ensure_aware_timestamp(ts: str) -> str:
+        """Parse a timestamp string and ensure it is timezone-aware (UTC).
+
+        Naive timestamps are treated as UTC.  Aware timestamps are converted to
+        UTC and emitted with a trailing ``Z`` to preserve the canonical form
+        expected by tests and downstream consumers.  Unparseable strings fall
+        back to the current time.
+        """
+        try:
+            dt = datetime.fromisoformat(ts)
+        except (ValueError, TypeError):
+            return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+        return dt.isoformat().replace("+00:00", "Z")
+
     def import_csv(
         self,
         path: str | Path,
@@ -61,6 +80,8 @@ class DataImporter:
                 ts = row.get(timestamp_field, "") if timestamp_field else ""
                 if not ts:
                     ts = datetime.now(timezone.utc).isoformat()
+                else:
+                    ts = self._ensure_aware_timestamp(ts)
 
                 event = Event(
                     concept_id=concept_id,

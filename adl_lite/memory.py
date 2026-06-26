@@ -20,7 +20,14 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
+from .cold_storage import ColdStorage
+
+if TYPE_CHECKING:
+    from .vector_index import VectorIndex
+from .exceptions import ADLMemoryError
 from .models import (
     ADLDocument,
     ADLRelationBlock,
@@ -473,6 +480,10 @@ class ADLMemory:
     """
     Unified three-tier memory for ADL Lite.
 
+    Hot  : in-memory skeleton index
+    Warm : SQLite full documents + relation graph
+    Cold : file-backed compressed archive (zstd+msgpack) for large chains
+
     Usage:
         mem = ADLMemory(db_path="adl_memory.db")
         mem.store(doc)
@@ -481,10 +492,34 @@ class ADLMemory:
         related = mem.warm.get_related("disc-7f3a9b", depth=2)
     """
 
-    def __init__(self, db_path: str = ":memory:", tenant_id: str | None = None) -> None:
+    def __init__(
+        self,
+        db_path: str = ":memory:",
+        tenant_id: str | None = None,
+        cold_threshold: int | None = 100_000,
+        cold_base_dir: str | Path | None = None,
+        vector_index: VectorIndex | None = None,
+    ) -> None:
         self.hot = HotIndex()
         self.warm = WarmIndex(db_path)
         self.tenant_id = tenant_id
+        self.cold_threshold = cold_threshold
+        self.cold = ColdStorage(cold_base_dir) if cold_base_dir else ColdStorage()
+        self.vector_index = vector_index
+
+    def _index_vector(self, doc: ADLDocument) -> None:
+        """Add the document's semantic text to the optional vector index."""
+        if self.vector_index is None:
+            return
+        try:
+            from .near_duplicate import _extract_embedding_text
+
+            text = _extract_embedding_text(doc)
+            if text:
+                self.vector_index.add(doc.adl_id, text)
+        except Exception:
+            # Vector indexing is best-effort; document storage must not fail.
+            pass
 
     def store(self, doc: ADLDocument) -> None:
         """Store a document in all tiers."""
@@ -495,19 +530,99 @@ class ADLMemory:
         self.hot.put(doc.to_skeleton())
         # Warm: full document + relations
         self.warm.insert_document(doc)
+        # Vector tier (optional)
+        self._index_vector(doc)
+
+    def _maybe_archive(self, doc: ADLDocument, chain: EventChain) -> bool:
+        """Archive *chain* to cold storage if it exceeds the configured threshold.
+
+        Falls back to uncompressed JSONL if compressed zstd+msgpack is unavailable.
+        Returns True if an archive was performed.
+        """
+        if not self.cold_threshold or len(chain) <= self.cold_threshold:
+            return False
+
+        try:
+            archive_event = self.cold.archive(chain, keep_last_n=10, compressed=True)
+        except ImportError:
+            # Scale extras missing — fall back to standard-library JSONL archive.
+            archive_event = self.cold.archive(chain, keep_last_n=10, compressed=False)
+
+        if archive_event is not None:
+            doc.refresh_snapshot(chain)
+            return True
+        return False
 
     def store_with_events(self, doc: ADLDocument) -> None:
         """Store document snapshot *and* its full event chain for audit."""
         if self.tenant_id is not None and not hasattr(doc, "_tenant_id"):
             object.__setattr__(doc, "_tenant_id", self.tenant_id)
+        chain = doc.event_chain
+        self._maybe_archive(doc, chain)
         self.hot.put(doc.to_skeleton())
         self.warm.insert_document(doc)
-        chain = doc.event_chain
         self.warm._store_events(chain)
+        # Vector tier (optional)
+        self._index_vector(doc)
+
+    def _load_hot_events_raw(self, concept_id: str) -> list[Event]:
+        """Load the hot events from Warm storage without re-linking hashes."""
+        rows = self.warm.conn.execute(
+            """
+            SELECT event_id, event_type, actor, reasoning, timestamp,
+                   previous_event_id, prev_hash, hash, payload_json
+            FROM events
+            WHERE concept_id = ?
+            ORDER BY timestamp ASC
+            """,
+            (concept_id,),
+        ).fetchall()
+
+        events: list[Event] = []
+        for row in rows:
+            event = Event(
+                event_id=row["event_id"],
+                concept_id=concept_id,
+                event_type=EventType(row["event_type"]),
+                actor=row["actor"] or "system",
+                reasoning=row["reasoning"] or "",
+                timestamp=row["timestamp"],
+                previous_event_id=row["previous_event_id"],
+                hash=row["hash"] or "",
+                payload=json.loads(row["payload_json"]) if row["payload_json"] else {},
+            )
+            object.__setattr__(event, "_prev_hash", row["prev_hash"] or "")
+            events.append(event)
+        return events
 
     def retrieve_chain(self, adl_id: str) -> EventChain | None:
-        """Retrieve the full event chain from Warm layer."""
-        return self.warm.load_event_chain(adl_id)
+        """Retrieve the full event chain, merging Warm hot events with Cold archive."""
+        hot_events = self._load_hot_events_raw(adl_id)
+        if not hot_events:
+            return None
+
+        try:
+            archived = self.cold.unarchive(adl_id)
+        except FileNotFoundError:
+            archived = []
+
+        if not archived:
+            chain = EventChain(concept_id=adl_id)
+            with chain._events_lock:
+                chain._events = list(hot_events)
+                chain._invalidate_caches()
+                chain._rebuild_crdt_caches()
+            return chain
+
+        # Reconstruct full chronological order:
+        # genesis + archived middle + hot tail (which ends with the ARCHIVE event)
+        full_events = [hot_events[0]] + archived + hot_events[1:]
+        chain = EventChain(concept_id=adl_id)
+        with chain._events_lock:
+            chain._events = full_events
+            chain._invalidate_caches()
+            chain._rebuild_crdt_caches()
+        return chain
 
     def history(self, adl_id: str) -> list[dict]:
         """Return full event history for a capability."""
@@ -525,6 +640,11 @@ class ADLMemory:
         """Remove from all tiers."""
         self.hot.remove(adl_id)
         self.warm.delete_document(adl_id)
+        if self.vector_index is not None:
+            try:
+                self.vector_index.delete(adl_id)
+            except Exception:
+                pass
 
     def find_related(self, adl_id: str, depth: int = 1) -> list[tuple[str, str, float]]:
         """Graph traversal for related capabilities."""
@@ -568,6 +688,43 @@ class ADLMemory:
                 results.append(sk)
         return results
 
+    def semantic_search(
+        self,
+        query: str,
+        top_k: int = 10,
+        threshold: float | None = None,
+        status: DiscoveryStatus | None = None,
+        domain: str | None = None,
+        scope_prefix: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Semantic search over the vector index with optional pre-filtering.
+
+        Returns a list of dicts sorted by similarity descending:
+        ``{"adl_id": str, "similarity": float, "text": str}``.
+        """
+        if self.vector_index is None:
+            raise ADLMemoryError(
+                "VectorIndex is not configured. Create ADLMemory with vector_index=VectorIndex(...)"
+            )
+
+        prefilter_ids = None
+        if status is not None or domain is not None or scope_prefix is not None:
+            skeletons = self.prefilter(status, domain, scope_prefix)
+            prefilter_ids = {s.adl_id for s in skeletons}
+
+        return self.vector_index.search(
+            query, top_k=top_k, threshold=threshold, prefilter_ids=prefilter_ids
+        )
+
     def close(self) -> None:
         self.hot.clear()
         self.warm.close()
+        if self.vector_index is not None:
+            try:
+                self.vector_index.save()
+            except Exception:
+                pass
+            try:
+                self.vector_index.close()
+            except Exception:
+                pass

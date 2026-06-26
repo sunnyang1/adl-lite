@@ -18,6 +18,7 @@ Properties proven:
   3. Idempotence: merge(A, A) = A
   4. Monotonicity: state only grows (never shrinks) with event appends
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -28,6 +29,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .models import EventChain
+
 
 class StatusOrder(IntEnum):
     """Lattice-ordered status — higher = more progressed."""

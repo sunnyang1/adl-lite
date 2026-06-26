@@ -172,8 +172,16 @@ class TestTheorem2ConfluenceUnderFork:
         chain.append(Event(concept_id="t2-last-fork", event_type=EventType.FORK, actor="a"))
 
         # No later lifecycle events exist by construction
-        lifecycle_events = [e for e in chain._events if e.event_type in {
-            EventType.REGISTER, EventType.VALIDATE, EventType.DEPRECATE,
-            EventType.FORK, EventType.ARCHIVE
-        }]
+        lifecycle_events = [
+            e
+            for e in chain._events
+            if e.event_type
+            in {
+                EventType.REGISTER,
+                EventType.VALIDATE,
+                EventType.DEPRECATE,
+                EventType.FORK,
+                EventType.ARCHIVE,
+            }
+        ]
         assert lifecycle_events[-1].event_type == EventType.FORK

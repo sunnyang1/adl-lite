@@ -1,0 +1,104 @@
+@prefix adl: <https://adl-lite.org/ns/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+adl:disc-matdo-original a prov:Entity ;
+    rdfs:label "disc-matdo-original" ;
+    prov:wasGeneratedBy adl:evt-disc-matdo-original-evidence-004,
+        adl:evt-disc-matdo-original-evidence-005,
+        adl:evt-disc-matdo-original-fork-001,
+        adl:evt-disc-matdo-original-relate-002,
+        adl:evt-disc-matdo-original-relate-003,
+        adl:evt-disc-matdo-original-snapshot-000 ;
+    adl:conceptId "disc-matdo-original" ;
+    adl:confidence "0.72"^^xsd:float ;
+    adl:status "forked" .
+
+adl:actor-parser a prov:Agent ;
+    rdfs:label "parser" .
+
+adl:actor-unknown a prov:Agent ;
+    rdfs:label "unknown" .
+
+adl:evt-disc-matdo-original-evidence-005 a prov:Activity,
+        adl:EvidenceEvent ;
+    rdfs:label "evidence disc-matdo-original" ;
+    prov:startedAtTime "2026-06-01T13:46:23.304360+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-author ;
+    prov:wasInformedBy adl:evt-disc-matdo-original-evidence-004 ;
+    adl:eventHash "626fa8e06fd79afb1857476a7319dfa8f018a527ff4afdc53a2b876a8634d4ee" ;
+    adl:eventId "c256fdd3cd1d46b3a12aca72850aba34" ;
+    adl:eventIndex 5 ;
+    adl:eventType "evidence" ;
+    adl:payload "{\"block_type\": \"evidence\", \"confidence\": 0.7, \"data_ref\": \"tool://xrd_simulator/v1\", \"description\": \"Monte Carlo grain growth reproduces ordering at 71% of seeds\", \"evidence_type\": \"simulator_run\", \"observed_at\": \"2026-04-15T12:00:00Z\"}"^^xsd:string ;
+    adl:previousEventHash "8c8e8c274a15a7b20a9bc0c914feed4031a1f1bce0f99b617f025373a275768c" .
+
+adl:evt-disc-matdo-original-evidence-004 a prov:Activity,
+        adl:EvidenceEvent ;
+    rdfs:label "evidence disc-matdo-original" ;
+    prov:startedAtTime "2026-06-01T13:46:23.304334+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-author ;
+    prov:wasInformedBy adl:evt-disc-matdo-original-relate-003 ;
+    adl:eventHash "8c8e8c274a15a7b20a9bc0c914feed4031a1f1bce0f99b617f025373a275768c" ;
+    adl:eventId "7a6253af5de348ab8090dfd064b3b4f0" ;
+    adl:eventIndex 4 ;
+    adl:eventType "evidence" ;
+    adl:payload "{\"block_type\": \"evidence\", \"confidence\": 0.74, \"data_ref\": \"vecdb://materials/matdo_cluster_42\", \"description\": \"XRD peak sharpening correlates with thermal gradient magnitude\", \"evidence_type\": \"vector_cluster\", \"observed_at\": \"2026-04-10T08:00:00Z\"}"^^xsd:string ;
+    adl:previousEventHash "3f1a2b2e2a078d07a02c422d33f3928c7bdafee66c09fe527c164eef1b5ed4a6" .
+
+adl:evt-disc-matdo-original-fork-001 a prov:Activity,
+        adl:ForkEvent ;
+    rdfs:label "fork disc-matdo-original" ;
+    prov:startedAtTime "2026-06-01T13:46:23.304255+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-unknown ;
+    prov:wasInformedBy adl:evt-disc-matdo-original-snapshot-000 ;
+    adl:eventHash "3223a66f833642a9b1f8f13b86d0a013e32fad0e1cdaf7a8e88e57ff2ce27c97" ;
+    adl:eventId "fbac56078d294c42b8a6451f7e4f012d" ;
+    adl:eventIndex 1 ;
+    adl:eventType "fork" ;
+    adl:payload "{\"confidence\": 0.72, \"synthetic\": true}"^^xsd:string ;
+    adl:previousEventHash "529707bf81fec89e1db1035c64de7f562076b3cdc5165fac3e04ecbcf27d977a" .
+
+adl:evt-disc-matdo-original-relate-002 a prov:Activity,
+        adl:RelateEvent ;
+    rdfs:label "relate disc-matdo-original" ;
+    prov:startedAtTime "2026-06-01T13:46:23.304281+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-author ;
+    prov:wasInformedBy adl:evt-disc-matdo-original-fork-001 ;
+    adl:eventHash "a31f1ed1f18e403dcb0be526ca47bded42573a4013a92712542f8372c40b9a9e" ;
+    adl:eventId "222e7e404d1146ea960d8366446eb9b5" ;
+    adl:eventIndex 2 ;
+    adl:eventType "relate" ;
+    adl:payload "{\"block_type\": \"relation\", \"confidence\": 0.65, \"mapping_type\": \"structural\", \"relation\": \"analogical-to\", \"source\": \"Matrix Domain Ordering\", \"target\": \"adl://public/concepts/gradient_explosion\"}"^^xsd:string ;
+    adl:previousEventHash "3223a66f833642a9b1f8f13b86d0a013e32fad0e1cdaf7a8e88e57ff2ce27c97" .
+
+adl:evt-disc-matdo-original-relate-003 a prov:Activity,
+        adl:RelateEvent ;
+    rdfs:label "relate disc-matdo-original" ;
+    prov:startedAtTime "2026-06-01T13:46:23.304308+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-author ;
+    prov:wasInformedBy adl:evt-disc-matdo-original-relate-002 ;
+    adl:eventHash "3f1a2b2e2a078d07a02c422d33f3928c7bdafee66c09fe527c164eef1b5ed4a6" ;
+    adl:eventId "4e5d89b583a948128d186c73b6f17cb3" ;
+    adl:eventIndex 3 ;
+    adl:eventType "relate" ;
+    adl:payload "{\"block_type\": \"relation\", \"confidence\": 0.78, \"mapping_type\": \"ontological\", \"relation\": \"specialisation-of\", \"source\": \"Matrix Domain Ordering\", \"target\": \"adl://public/concepts/phase_transition\"}"^^xsd:string ;
+    adl:previousEventHash "a31f1ed1f18e403dcb0be526ca47bded42573a4013a92712542f8372c40b9a9e" .
+
+adl:evt-disc-matdo-original-snapshot-000 a prov:Activity,
+        adl:SnapshotEvent ;
+    rdfs:label "snapshot disc-matdo-original" ;
+    prov:startedAtTime "2026-06-01T13:46:23.304220+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-parser ;
+    adl:eventHash "529707bf81fec89e1db1035c64de7f562076b3cdc5165fac3e04ecbcf27d977a" ;
+    adl:eventId "738eb7c9d7a64265ad7ff05f9f3242b7" ;
+    adl:eventIndex 0 ;
+    adl:eventType "snapshot" ;
+    adl:payload "{\"adl_type\": \"discovery\", \"confidence\": 0.72, \"domain\": \"materials_science\", \"novelty\": 0.88, \"provisional_names\": {\"en\": \"Matrix Domain Ordering\", \"zh\": \"\\u77e9\\u9635\\u57df\\u6709\\u5e8f\\u5316\"}, \"scope\": \"private/materials-lab\", \"synthetic\": true}"^^xsd:string ;
+    adl:previousEventHash "genesis" .
+
+adl:actor-author a prov:Agent ;
+    rdfs:label "author" .
+
+# RDF-star quoted triples for L3 relation assertions

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
+from typing import Any
 
 from adl_lite import ConsensusEngine, DiscoveryStatus
 from adl_lite.action_executor import ActionExecutor
@@ -95,7 +96,7 @@ class E20TemplateEffectiveness(BaseExperiment):
                     ),
                     markdown_body=body,
                 )
-                params = (
+                params: dict[str, Any] = (
                     {"confidence": 0.8}
                     if action == EventType.VALIDATE
                     else {"fork_id": f"{concept}-fork", "rationale": "alt"}

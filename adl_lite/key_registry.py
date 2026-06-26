@@ -26,6 +26,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
 from .did_resolver import is_did, resolve_did_key, verify_did_signature
+from .merkle import MerkleProof, MerkleTree
 from .models import Event, EventChain
 
 
@@ -55,7 +56,10 @@ class KeyRegistry:
     def get_public_key(self, actor: str) -> ed25519.Ed25519PublicKey | None:
         """Return public key for actor or DID. For DID, resolve locally."""
         if is_did(actor):
-            return resolve_did_key(actor)
+            from .did_resolver import _ed25519_public_key_from_doc
+
+            doc = resolve_did_key(actor)
+            return _ed25519_public_key_from_doc(doc)
         entry = self._data.get(actor)
         if not entry or entry.get("revoked"):
             return None
@@ -201,24 +205,65 @@ class TransparencyAnchor:
     def __init__(self, anchor_path: str = "ANCHOR.md") -> None:
         self.anchor_path = Path(anchor_path)
         self._last_chains: list[EventChain] = []
+        self._last_tree: MerkleTree | None = None
+
+    def _chain_summary_hash(self, chain: EventChain) -> str:
+        return hashlib.sha256("".join(e.hash for e in chain.events).encode("utf-8")).hexdigest()
 
     def _compute_anchor(self, chains: list[EventChain]) -> str:
-        hashes = [
-            hashlib.sha256("".join(e.hash for e in c.events).encode("utf-8")).hexdigest()
-            for c in sorted(chains, key=lambda x: x.concept_id)
-        ]
+        hashes = [self._chain_summary_hash(c) for c in sorted(chains, key=lambda x: x.concept_id)]
         return hashlib.sha256("".join(hashes).encode("utf-8")).hexdigest()
 
-    def anchor(self, chains: list[EventChain]) -> str:
+    def _compute_merkle_anchor(self, chains: list[EventChain]) -> MerkleTree:
+        hashes = [self._chain_summary_hash(c) for c in sorted(chains, key=lambda x: x.concept_id)]
+        if not hashes:
+            # Single empty-leaf tree is invalid; use a zero hash as placeholder.
+            hashes = [hashlib.sha256(b"").hexdigest()]
+        return MerkleTree(hashes)
+
+    def anchor(self, chains: list[EventChain], *, use_merkle: bool = False) -> str:
         self._last_chains = chains
-        value = self._compute_anchor(chains)
-        self.anchor_path.write_text(f"# ADL Transparency Anchor\n\n`{value}`\n", encoding="utf-8")
+        if use_merkle:
+            tree = self._compute_merkle_anchor(chains)
+            self._last_tree = tree
+            value = tree.root_hex
+            body = f"# ADL Transparency Anchor (Merkle)\n\nRoot: `{value}`\n"
+        else:
+            self._last_tree = None
+            value = self._compute_anchor(chains)
+            body = f"# ADL Transparency Anchor\n\n`{value}`\n"
+        self.anchor_path.write_text(body, encoding="utf-8")
         return value
+
+    def merkle_root(self, chains: list[EventChain]) -> str:
+        """Return the Merkle root over the given chains without writing ANCHOR.md."""
+        return self._compute_merkle_anchor(chains).root_hex
+
+    def prove_inclusion(self, chain: EventChain) -> MerkleProof | None:
+        """Return a Merkle inclusion proof for *chain* in the last anchored tree."""
+        if self._last_tree is None or not self._last_chains:
+            return None
+        summary = self._chain_summary_hash(chain)
+        try:
+            index = self._last_tree.leaves.index(summary)
+        except ValueError:
+            return None
+        return self._last_tree.proof(index)
+
+    def verify_inclusion(self, chain: EventChain, proof: MerkleProof) -> bool:
+        """Verify that *proof* demonstrates inclusion of *chain* in a Merkle root."""
+        summary = self._chain_summary_hash(chain)
+        if proof.leaf_hash != summary:
+            return False
+        return MerkleTree.verify_proof(proof)
 
     def verify_anchor(self) -> bool:
         if not self.anchor_path.exists():
             return False
         content = self.anchor_path.read_text(encoding="utf-8")
+        if self._last_tree is not None:
+            expected = self._last_tree.root_hex
+            return f"`{expected}`" in content
         expected = self._compute_anchor(self._last_chains)
         return f"`{expected}`" in content
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 import gc
 import resource
 import time
+from typing import Any
 
 from adl_lite.cold_storage import ColdStorage
 from adl_lite.models import Event, EventChain, EventType
@@ -127,7 +128,7 @@ class E21HundredKStress(BaseExperiment):
     def _build_chain(self, n: int) -> tuple[EventChain, float, list[float]]:
         chain = EventChain(concept_id="stress-100k")
         append_times: list[float] = []
-        base_payload = {"data": "x" * 200, "meta": {"seq": 0, "tag": "stress"}}
+        base_payload: dict[str, Any] = {"data": "x" * 200, "meta": {"seq": 0, "tag": "stress"}}
 
         t0 = time.perf_counter()
         for i in range(n):

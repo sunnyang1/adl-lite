@@ -194,6 +194,14 @@ actions:
     preconditions: []
     side_effects: []
 
+  calibrate:
+    description: Update a validator's accuracy profile from ground-truth feedback
+    allowed_on: [discovery, concept]
+    triggers_transition: null
+    required_params: [observed_accuracy]
+    preconditions: []
+    side_effects: [calibrate_actor]
+
   revoke:
     description: Explicitly revoke a relation between concepts
     allowed_on: [concept, relation]

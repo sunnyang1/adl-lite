@@ -1,0 +1,76 @@
+@prefix adl: <https://adl-lite.org/ns/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+adl:concept-gradient-explosion a prov:Entity ;
+    rdfs:label "concept-gradient-explosion" ;
+    prov:wasGeneratedBy adl:evt-concept-gradient-explosion-evidence-003,
+        adl:evt-concept-gradient-explosion-relate-002,
+        adl:evt-concept-gradient-explosion-snapshot-000,
+        adl:evt-concept-gradient-explosion-validate-001 ;
+    adl:conceptId "concept-gradient-explosion" ;
+    adl:confidence "0.95"^^xsd:float ;
+    adl:status "validated" .
+
+adl:actor-parser a prov:Agent ;
+    rdfs:label "parser" .
+
+adl:actor-unknown a prov:Agent ;
+    rdfs:label "unknown" .
+
+adl:evt-concept-gradient-explosion-evidence-003 a prov:Activity,
+        adl:EvidenceEvent ;
+    rdfs:label "evidence concept-gradient-explosion" ;
+    prov:startedAtTime "2026-06-01T13:46:23.300535+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-author ;
+    prov:wasInformedBy adl:evt-concept-gradient-explosion-relate-002 ;
+    adl:eventHash "dd117f40df89118ba5b6eeb486e318110e62dcad57a9da2cec32f7b220a6b9d5" ;
+    adl:eventId "4f2835a30bcb4df29a06aece3ebbe941" ;
+    adl:eventIndex 3 ;
+    adl:eventType "evidence" ;
+    adl:payload "{\"block_type\": \"evidence\", \"confidence\": 0.92, \"data_ref\": \"file://papers/bengio1994_gradient_issues\", \"description\": \"Classic treatment of recurrent and deep net gradient pathology\", \"evidence_type\": \"cross_reference\", \"observed_at\": \"1994-01-01T00:00:00Z\"}"^^xsd:string ;
+    adl:previousEventHash "327381827dbd8f4216415a37706cce610f3007a669f14aa6f09c84084a20fb0c" .
+
+adl:actor-author a prov:Agent ;
+    rdfs:label "author" .
+
+adl:evt-concept-gradient-explosion-relate-002 a prov:Activity,
+        adl:RelateEvent ;
+    rdfs:label "relate concept-gradient-explosion" ;
+    prov:startedAtTime "2026-06-01T13:46:23.300507+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-author ;
+    prov:wasInformedBy adl:evt-concept-gradient-explosion-validate-001 ;
+    adl:eventHash "327381827dbd8f4216415a37706cce610f3007a669f14aa6f09c84084a20fb0c" ;
+    adl:eventId "fb9bcc4e3cfb44b6a222e42219b0c679" ;
+    adl:eventIndex 2 ;
+    adl:eventType "relate" ;
+    adl:payload "{\"block_type\": \"relation\", \"confidence\": 0.88, \"mapping_type\": \"ontological\", \"relation\": \"dual-of\", \"source\": \"Gradient Explosion\", \"target\": \"adl://public/concepts/vanishing_gradient\"}"^^xsd:string ;
+    adl:previousEventHash "b91c3448ab04f5a0e6aafce8c0bfad3b8cdc646f5beb0a5734fbc71e0561f92d" .
+
+adl:evt-concept-gradient-explosion-snapshot-000 a prov:Activity,
+        adl:SnapshotEvent ;
+    rdfs:label "snapshot concept-gradient-explosion" ;
+    prov:startedAtTime "2026-06-01T13:46:23.300443+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-parser ;
+    adl:eventHash "4ad07bf94b0b8411415a4aa0adab8e4f81c1cd52ab06d9b9c7cec0f9c0649dca" ;
+    adl:eventId "db248bee153847388d3be1faad1bdcd6" ;
+    adl:eventIndex 0 ;
+    adl:eventType "snapshot" ;
+    adl:payload "{\"adl_type\": \"concept\", \"confidence\": 0.95, \"domain\": \"deep_learning\", \"novelty\": 0.4, \"provisional_names\": {\"en\": \"Gradient Explosion\", \"zh\": \"\\u68af\\u5ea6\\u7206\\u70b8\"}, \"scope\": \"public\", \"synthetic\": true}"^^xsd:string ;
+    adl:previousEventHash "genesis" .
+
+adl:evt-concept-gradient-explosion-validate-001 a prov:Activity,
+        adl:ValidateEvent ;
+    rdfs:label "validate concept-gradient-explosion" ;
+    prov:startedAtTime "2026-06-01T13:46:23.300480+00:00"^^xsd:dateTime ;
+    prov:wasAssociatedWith adl:actor-unknown ;
+    prov:wasInformedBy adl:evt-concept-gradient-explosion-snapshot-000 ;
+    adl:eventHash "b91c3448ab04f5a0e6aafce8c0bfad3b8cdc646f5beb0a5734fbc71e0561f92d" ;
+    adl:eventId "00801306d24b402082dca1b8108d9e78" ;
+    adl:eventIndex 1 ;
+    adl:eventType "validate" ;
+    adl:payload "{\"confidence\": 0.95, \"synthetic\": true}"^^xsd:string ;
+    adl:previousEventHash "4ad07bf94b0b8411415a4aa0adab8e4f81c1cd52ab06d9b9c7cec0f9c0649dca" .
+
+# RDF-star quoted triples for L3 relation assertions

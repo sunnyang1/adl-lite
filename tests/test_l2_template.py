@@ -30,7 +30,7 @@ class TestL2TemplateModel:
 
     def test_create_invalid_missing_field(self) -> None:
         with pytest.raises(ValueError):
-            L2Template(observation="obs", reasoning="rea")
+            L2Template(observation="obs", reasoning="rea")  # type: ignore[call-arg]
 
     def test_from_markdown_full(self) -> None:
         body = "# Observation\nWe saw X.\n# Reasoning\nTherefore Y.\n# Conclusion\nDo Z."

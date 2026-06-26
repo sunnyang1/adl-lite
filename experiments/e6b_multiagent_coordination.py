@@ -45,9 +45,7 @@ class Agent:
         if was_correct:
             self.validations_correct += 1
         self.calibration_score = (
-            self.validations_correct / self.validations_made
-            if self.validations_made > 0
-            else 0.5
+            self.validations_correct / self.validations_made if self.validations_made > 0 else 0.5
         )
 
 
@@ -188,7 +186,8 @@ class MultiAgentSimulation:
 
         # Phase 2: Validation — sequential: each concept selects one validator
         provisional = [
-            r for r in self.concepts.values()
+            r
+            for r in self.concepts.values()
             if r.chain.status == DiscoveryStatus.PROVISIONAL and r.resolved_at_cycle is None
         ]
 
@@ -201,7 +200,11 @@ class MultiAgentSimulation:
 
         for record in provisional:
             proposer = record.chain.events[0].actor if record.chain.events else ""
-            candidates = [a for a in self.agents if a.agent_id != proposer and agent_used[a.agent_id] < max_per_agent]
+            candidates = [
+                a
+                for a in self.agents
+                if a.agent_id != proposer and agent_used[a.agent_id] < max_per_agent
+            ]
             if not candidates:
                 continue
 
@@ -220,7 +223,10 @@ class MultiAgentSimulation:
             unique_validators = set(validators)
             # Weighted quorum: high-reliability validators (>0.7) count as 4.0
             weighted_count = sum(
-                6.0 if next((a for a in self.agents if a.agent_id == v_id), Agent("", 0.5)).reliability > 0.7 else 1.0
+                6.0
+                if next((a for a in self.agents if a.agent_id == v_id), Agent("", 0.5)).reliability
+                > 0.7
+                else 1.0
                 for v_id in unique_validators
             )
 
@@ -228,19 +234,18 @@ class MultiAgentSimulation:
                 record.resolved_at_cycle = self.current_cycle
                 deserved = record.quality >= 0.5
                 for v_id in unique_validators:
-                    agent = next((a for a in self.agents if a.agent_id == v_id), None)
-                    if agent:
-                        agent.record_validation(was_correct=deserved)
+                    matches = [a for a in self.agents if a.agent_id == v_id]
+                    if matches:
+                        matches[0].record_validation(was_correct=deserved)
 
             elif self.current_cycle - record.proposed_at_cycle > 20:
-                self._deprecate_concept(
-                    self.agents[0] if self.agents else Agent("system"), record
-                )
+                self._deprecate_concept(self.agents[0] if self.agents else Agent("system"), record)
                 record.resolved_at_cycle = self.current_cycle
 
         # Phase 4: Challenges — reliability-dependent challenge probability
         validated = [
-            r for r in self.concepts.values()
+            r
+            for r in self.concepts.values()
             if r.chain.status == DiscoveryStatus.VALIDATED and r.resolved_at_cycle is None
         ]
         for record in validated:
@@ -273,7 +278,8 @@ class MultiAgentSimulation:
         for _ in range(self.max_cycles):
             self._run_cycle()
             base = [
-                r for cid, r in self.concepts.items()
+                r
+                for cid, r in self.concepts.items()
                 if cid.startswith("concept-") and "-fork-" not in cid
             ]
             if len(base) >= self.n_concepts and all(r.resolved_at_cycle is not None for r in base):
@@ -282,13 +288,18 @@ class MultiAgentSimulation:
 
     def _compute_metrics(self) -> dict[str, Any]:
         base = [
-            r for cid, r in self.concepts.items()
+            r
+            for cid, r in self.concepts.items()
             if cid.startswith("concept-") and "-fork-" not in cid
         ]
         if not base:
             return {}
 
-        ttc_values = [r.resolved_at_cycle - r.proposed_at_cycle for r in base if r.resolved_at_cycle is not None]
+        ttc_values = [
+            r.resolved_at_cycle - r.proposed_at_cycle
+            for r in base
+            if r.resolved_at_cycle is not None
+        ]
         time_to_consensus = sum(ttc_values) / len(ttc_values) if ttc_values else 0
 
         forked_count = sum(1 for r in base if r.was_forked)
@@ -296,14 +307,25 @@ class MultiAgentSimulation:
 
         total_transitions = 0
         for r in base:
-            le = [e for e in r.chain.events if e.event_type in (
-                EventType.REGISTER, EventType.VALIDATE, EventType.DEPRECATE, EventType.FORK, EventType.ARCHIVE
-            )]
+            le = [
+                e
+                for e in r.chain.events
+                if e.event_type
+                in (
+                    EventType.REGISTER,
+                    EventType.VALIDATE,
+                    EventType.DEPRECATE,
+                    EventType.FORK,
+                    EventType.ARCHIVE,
+                )
+            ]
             total_transitions += max(0, len(le) - 1)
 
         accepted = [r for r in base if r.chain.status == DiscoveryStatus.VALIDATED]
         total_review = sum(
-            1 for r in base for e in r.chain.events
+            1
+            for r in base
+            for e in r.chain.events
             if e.event_type in (EventType.VALIDATE, EventType.DEPRECATE)
         )
         reviewer_overhead = total_review / len(accepted) if accepted else 0
@@ -319,7 +341,9 @@ class MultiAgentSimulation:
             "time_to_consensus_mean": round(time_to_consensus, 2),
             "time_to_consensus_std": round(
                 (sum((x - time_to_consensus) ** 2 for x in ttc_values) / len(ttc_values)) ** 0.5, 2
-            ) if ttc_values else 0,
+            )
+            if ttc_values
+            else 0,
             "time_to_consensus_min": min(ttc_values) if ttc_values else 0,
             "time_to_consensus_max": max(ttc_values) if ttc_values else 0,
             "conflict_rate": round(conflict_rate, 3),
@@ -328,7 +352,9 @@ class MultiAgentSimulation:
             "total_transitions": total_transitions,
             "reviewer_overhead": round(reviewer_overhead, 2),
             "accepted_concepts": len(accepted),
-            "deprecated_concepts": sum(1 for r in base if r.chain.status == DiscoveryStatus.DEPRECATED),
+            "deprecated_concepts": sum(
+                1 for r in base if r.chain.status == DiscoveryStatus.DEPRECATED
+            ),
             "calibration_mean": round(sum(cal) / len(cal), 3) if cal else 0,
             "reliability_mean": round(sum(rel) / len(rel), 3) if rel else 0,
             "total_events": sum(r.chain.length for r in self.concepts.values()),
@@ -344,8 +370,13 @@ class E6bMultiAgentCoordination(BaseExperiment):
 
     def run(self) -> ExperimentResult:
         conditions = [
-            (1, "random"), (3, "random"), (5, "random"), (10, "random"),
-            (3, "gamma_guided"), (5, "gamma_guided"), (10, "gamma_guided"),
+            (1, "random"),
+            (3, "random"),
+            (5, "random"),
+            (10, "random"),
+            (3, "gamma_guided"),
+            (5, "gamma_guided"),
+            (10, "gamma_guided"),
         ]
 
         all_results: list[dict[str, Any]] = []
@@ -354,7 +385,10 @@ class E6bMultiAgentCoordination(BaseExperiment):
             trial_results: list[dict[str, Any]] = []
             for trial in range(100):
                 sim = MultiAgentSimulation(
-                    n_concepts=50, k_agents=k, strategy=strategy, max_cycles=150,
+                    n_concepts=50,
+                    k_agents=k,
+                    strategy=strategy,
+                    max_cycles=150,
                     seed=42 + k * 100 + hash(strategy) % 1000 + trial * 7,
                 )
                 trial_results.append(sim.run())
@@ -389,7 +423,9 @@ class E6bMultiAgentCoordination(BaseExperiment):
             experiment_id=self.experiment_id, status="passed", metrics=flat, raw_data=all_results
         )
 
-    def _average_results(self, trial_results: list[dict[str, Any]], k: int, strategy: str) -> dict[str, Any]:
+    def _average_results(
+        self, trial_results: list[dict[str, Any]], k: int, strategy: str
+    ) -> dict[str, Any]:
         if not trial_results:
             return {}
 
@@ -413,7 +449,9 @@ class E6bMultiAgentCoordination(BaseExperiment):
             "time_to_consensus_mean": round(avg_ttc, 2),
             "time_to_consensus_std": round(
                 (sum((x - avg_ttc) ** 2 for x in all_ttc) / len(all_ttc)) ** 0.5, 2
-            ) if all_ttc else 0,
+            )
+            if all_ttc
+            else 0,
             "time_to_consensus_min": min(all_ttc) if all_ttc else 0,
             "time_to_consensus_max": max(all_ttc) if all_ttc else 0,
             "conflict_rate": round(avg_conflict, 3),

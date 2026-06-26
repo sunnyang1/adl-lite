@@ -95,6 +95,15 @@ class OntologyManager:
         actions: dict[str, Any] = self._data.get("actions", {})
         return actions.get(name)
 
+    def min_distinct_validators(self) -> int:
+        """Minimum distinct validators required for a VALIDATE transition."""
+        cfg = self._data.get("collusion_resistance", {})
+        value = cfg.get("min_distinct_validators", 1)
+        try:
+            return max(1, int(value))
+        except (TypeError, ValueError):
+            return 1
+
     def allowed_actions_for_class(self, adl_class: str) -> list[str]:
         """Which actions are allowed on a given ADL class."""
         actions = self._data.get("actions", {})
@@ -154,7 +163,6 @@ class OntologyManager:
             result["is_valid_transition"] = self.is_valid_transition(from_status, to_status)
 
         return result
-
 
 
 class UnityCriterion:

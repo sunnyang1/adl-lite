@@ -1,0 +1,4 @@
+(coq.theory
+ (name ADL.Iris)
+ (package adl-lite-formal)
+ (synopsis "ADL Lite Iris separation-logic stubs"))

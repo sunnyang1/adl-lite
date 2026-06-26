@@ -1,19 +1,20 @@
 """
-Scan all .tex files for \label{...} and \ref{...}/\cref{...}/\eqref{...}.
+Scan all .tex files for \\label{...} and \ref{...}/\\cref{...}/\\eqref{...}.
 Report:
-  - Broken references: \ref with no matching \label
-  - Dead labels: \label with no matching \ref
-  - Duplicate labels: same \label in multiple files
+  - Broken references: \ref with no matching \\label
+  - Dead labels: \\label with no matching \ref
+  - Duplicate labels: same \\label in multiple files
   - File rename orphans: \ref pointing to non-existent file
 
 Usage:
     python scripts/check_refs.py docs/paper_ao
     # Returns: 0 if clean, 1 if issues found, with printed report
 """
-import sys
+
 import re
-from pathlib import Path
+import sys
 from collections import defaultdict
+from pathlib import Path
 
 
 def main():
@@ -27,23 +28,23 @@ def main():
         sys.exit(1)
 
     # Regex patterns
-    label_pat = re.compile(r'\\label\{([^}]*)\}')
-    ref_pat = re.compile(r'\\(?:ref|cref|eqref|pageref)\{([^}]*)\}')
+    label_pat = re.compile(r"\\label\{([^}]*)\}")
+    ref_pat = re.compile(r"\\(?:ref|cref|eqref|pageref)\{([^}]*)\}")
 
     # Data structures
-    labels = {}           # label -> (file, line)
+    labels = {}  # label -> (file, line)
     all_labels = defaultdict(list)  # label -> list of (file, line)
-    refs = []             # list of (ref_key, file, line)
+    refs = []  # list of (ref_key, file, line)
     issues = 0
 
-    tex_files = list(root.rglob('*.tex'))
+    tex_files = list(root.rglob("*.tex"))
 
     for tex_file in tex_files:
-        content = tex_file.read_text(encoding='utf-8')
+        content = tex_file.read_text(encoding="utf-8")
         lines = content.splitlines()
         for line_no, raw_line in enumerate(lines, start=1):
             line = raw_line.strip()
-            if line.startswith('%'):
+            if line.startswith("%"):
                 continue
 
             # Find labels
@@ -108,5 +109,5 @@ def main():
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

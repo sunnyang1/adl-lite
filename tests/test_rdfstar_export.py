@@ -2,14 +2,12 @@
 Tests for RDF-star / SPARQL-star export (FW8).
 """
 
-
 from adl_lite.models import (
     ADLDocument,
     ADLFrontMatter,
     ADLType,
     DiscoveryStatus,
     Event,
-    EventChain,
     EventType,
 )
 from adl_lite.rdfstar_export import (
@@ -20,15 +18,6 @@ from adl_lite.rdfstar_export import (
 
 
 def _make_sample_doc() -> ADLDocument:
-    chain = EventChain(concept_id="disc-test")
-    chain.append(
-        Event(
-            concept_id="disc-test",
-            event_type=EventType.VALIDATE,
-            actor="agent_1",
-            payload={"confidence": 0.85},
-        )
-    )
     fm = ADLFrontMatter(
         adl_type=ADLType.DISCOVERY,
         adl_id="disc-test",
@@ -38,7 +27,7 @@ def _make_sample_doc() -> ADLDocument:
         domain="aml",
         scope="public",
     )
-    return ADLDocument(front_matter=fm, markdown_body="", event_chain=chain)
+    return ADLDocument(front_matter=fm, markdown_body="")
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,24 @@
+{
+  "public_key": "llbG5x6sfpRzuxyjULHDGWz7Ocepfk9UGJhK4UBtZGI=",
+  "signed_event": {
+    "event_id": "95f6bc3f51334941bd50f104cae3870c",
+    "concept_id": "artifact-demo",
+    "event_type": "register",
+    "actor": "demo_agent",
+    "reasoning": "",
+    "timestamp": "2024-06-01T00:00:00+00:00",
+    "payload": {
+      "domain": "test"
+    },
+    "previous_event_id": null,
+    "hash": "51f46227c24f3d2cc4f8ee642f7fcb1edca749e2a4cb575200bc3aec241f4905",
+    "proof": {
+      "type": "Ed25519Signature2020",
+      "created": "2026-06-01T13:46:23.040582+00:00",
+      "proofPurpose": "assertionMethod",
+      "verificationMethod": "llbG5x6sfpRzuxyjULHDGWz7Ocepfk9UGJhK4UBtZGI=",
+      "proofValue": "9m2ziwM+DIUTQlxCp79rj6pqvcoz3RUHCPvsBC0zALM6AZm5AEJf7S3P/AJ12w2TD33YHVVK8q+CN//Uc+haCQ=="
+    }
+  },
+  "verification": "PASS"
+}

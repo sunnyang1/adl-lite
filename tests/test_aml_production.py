@@ -49,9 +49,9 @@ class TestAMLProductionEval:
         total_events = sum(c.length for c in chains.values())
         total_accounts = len(chains)
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("IBM AML DATASET STATISTICS")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print("  Transactions:  9,300 (3.2% laundering)")
         print("  Unique accounts (senders):  201")
         print("  Unique accounts (receivers): 200")
@@ -80,9 +80,9 @@ class TestAMLProductionEval:
         recall = len(tp) / len(GROUND_TRUTH_CLASSES)
         f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("ONTOLOGY DISCOVERY: DEFAULT vs SMART HEURISTIC")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"  Ground truth:   {sorted(GROUND_TRUTH_CLASSES)}")
         print(f"  Default (_id):  {sorted(default_discovered)}")
         print(f"  Smart mode:     {sorted(smart_discovered)}")
@@ -91,7 +91,7 @@ class TestAMLProductionEval:
         print(f"  Precision: {precision:.3f}")
         print(f"  Recall:    {recall:.3f}")
         print(f"  F1:        {f1:.3f}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         assert precision > 0, "Smart heuristic should find at least some classes"
         assert f1 > 0, "Smart mode should achieve non-zero F1"
@@ -124,15 +124,15 @@ class TestAMLProductionEval:
         """Summary metrics for the paper."""
         s = DataImporter.summary(chains)
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("AML PIPELINE SUMMARY")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"  Total chains (accounts): {s['total_chains']}")
         print(f"  Total events:            {s['total_events']}")
         print(f"  Avg chain length:        {s['avg_chain_length']}")
         print(f"  Discovered classes:      {s['classes']}")
         print(f"  Discovered links:        {len(s['links'])}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         assert s["total_chains"] == 201
         assert s["total_events"] == 9300
