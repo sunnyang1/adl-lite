@@ -46,6 +46,10 @@ specs/states/
 # Work buddy / tool artifacts
 .workbuddy/
 .codebuddy/
+coverage.xml
+test-results.xml
+test-output.log
+artifacts/
 # Planning artifacts
 plan.md
 polish_sections/
