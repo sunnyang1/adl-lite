@@ -1,8 +1,23 @@
 #!/bin/bash
 # Local TLC wrapper for the project-bundled TLA+ Tools jar.
 # The jar is downloaded from https://github.com/tlaplus/tlaplus/releases
+# It may be located in tools/tla+/ or release-assets/
 set -euo pipefail
 # Resolve symlinks so the jar is found next to this script's real location.
 SELF="$(readlink "$0" || echo "$0")"
 SCRIPT_DIR="$(cd "$(dirname "$SELF")" && pwd)"
-exec java -XX:+UseParallelGC -cp "${SCRIPT_DIR}/tla2tools.jar" tlc2.TLC "$@"
+
+# Check for jar in multiple locations
+JAR_PATHS=(
+  "${SCRIPT_DIR}/tla2tools.jar"
+  "$(cd "$SCRIPT_DIR/../.." && pwd)/release-assets/tla2tools.jar"
+)
+
+for JAR in "${JAR_PATHS[@]}"; do
+  if [ -f "$JAR" ]; then
+    exec java -XX:+UseParallelGC -cp "$JAR" tlc2.TLC "$@"
+  fi
+done
+
+echo "Error: tla2tools.jar not found. Download it from https://github.com/tlaplus/tlaplus/releases and place it in tools/tla+/ or release-assets/"
+exit 1

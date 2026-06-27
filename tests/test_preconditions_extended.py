@@ -366,6 +366,7 @@ def _fm_and_mutation() -> st.SearchStrategy[tuple[ADLFrontMatter, ADLFrontMatter
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 class TestPreconditionPropertyBased:
     """Property-based evaluation and timing guarantees."""
 

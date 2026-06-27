@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import pytest
+
 import experiments.e21_100k_stress  # noqa: F401
 from experiments.e21_100k_stress import E21HundredKStress
 from experiments.registry import instantiate
 
 
+@pytest.mark.slow
 class TestE21HundredKStress:
     def test_experiment_registered(self):
         exp = instantiate("E21")

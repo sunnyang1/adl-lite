@@ -59,6 +59,7 @@ def _detect_patterns(suspicious: dict[str, EventChain]) -> dict[str, list[str]]:
     return patterns
 
 
+@pytest.mark.slow
 class TestAMLBenchmark:
     """Standard P/R/F1 benchmark against ground-truth laundering labels."""
 
