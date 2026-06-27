@@ -4,7 +4,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![ESWC/ISWC 2027 Backup](https://img.shields.io/badge/Backup-ESWC%2FISWC%202027-blue.svg)](https://2027.eswc-conferences.org/)
 [![Applied Ontology: under revision](https://img.shields.io/badge/Journal-Applied%20Ontology-orange.svg)](https://www.iospress.nl/journal/applied-ontology/)
-[![Tests: 723 PASS](https://img.shields.io/badge/tests-723%20PASS-brightgreen.svg)]()
+[![Tests: 1057 PASS](https://img.shields.io/badge/tests-1057%20PASS-brightgreen.svg)]()
+[![Coverage: 87.8%](https://img.shields.io/badge/coverage-87.8%25-brightgreen.svg)]()
+[![Release Readiness: GO](https://img.shields.io/badge/release%20readiness-GO-brightgreen.svg)]()
 [![Paper: 39pp](https://img.shields.io/badge/paper-39pp-blue.svg)]()
 
 > **"The world is the totality of facts, not of things." — Wittgenstein, Tractatus Logico-Philosophicus §1.1**
@@ -110,38 +112,65 @@ assert chain.verify_integrity()  # SHA-256 hash verification
 | E20 | Template effectiveness | 100% section coverage |
 | E20b | Calibration baseline | ECE reduction 4.10× |
 | E21 | 100k event stress | Linear scaling, memory < 1GB |
+| E23 | Concurrent agent contention | 50 agents, 0 integrity failures |
+| E24 | Proof trace checker (randomized) | 10,000 synthetic chains: T1–T7 validated |
+| E25 | Microbenchmark | Precondition eval + confidence aggregation |
+| E27 | 1M event scale test | Split-lock + incremental verify + zstd cold storage |
+| E28 | 10k concurrent agent contention | Split-lock throughput under 10k agents |
+| E29 | Vector index recall | FAISS ANN recall vs brute-force cosine |
+| E30 | LLM normalization | Dry-run LLM canonicalization of near-duplicates |
 
-## New in v0.2.0 (This Release)
+## New in v0.5.0-alpha (This Release)
 
-### Confidence & Calibration
-- **Aggregated confidence (`γ_agg`)** — bonus-formula with per-actor maxima and quorum bonuses (Appendix E)
-- **Calibrated confidence (`γ_cal`)** — per-actor accuracy-weighted, collusion-mitigating
-- **EWMA confidence (`γ_ewma`)** — time-decay weighted calibration with configurable α (0.3 default)
-- **Context-calibrated confidence (`γ_ctx`)** — per-domain accuracy profiles (e.g., AML vs fraud vs general)
-- **Band-calibrated confidence (`γ_band`)** — epistemic-band correction (+0.15 low, −0.10 high)
+### Test & Coverage Improvement (v0.5.0-alpha)
+- **Test count**: 796 → **1057** (+261 tests, +32.8%)
+- **Code coverage**: 75.5% → **87.8%** (+12.3pp, GO release readiness)
+- **FDE module coverage**: 0% → **96.9%** (rule_engine, pipeline_engine, agent_runner, importers, transformers)
+- **Zero-coverage modules eliminated**: 7 → 0
+- **CI coverage gate**: configured (min 75%, target 85%)
+- **Slow test markers**: `@pytest.mark.slow` on 17 long-running tests (3.3× fast-test speedup)
 
-### Security & Trust
-- **Minimal DID integration** — `did:key` local resolution (no network), Ed25519 signature verification, `KeyRegistry` with YAML persistence and Git commit soft-checks
-- **EventChain signature verification** — `verify_integrity(registry=KeyRegistry)` optionally validates Ed25519 signatures
-- **Transparency anchor** — `TransparencyAnchor` class for deterministic chain-hash anchors in `ANCHOR.md`
+### Formal Methods & Verification
+- **TLA+ bounded specifications** — `specs/EventChain.tla` (single chain: T1/T2/T3/T4/T5/T7), `specs/CRDTMerge.tla` (two-branch merge: T9), `specs/ConsensusEngine.tla` (multi-agent with `N_min` validators: T6/T8)
+- **Buildable Coq/Iris skeleton** — `formal/coq/` with closed proofs for `Status.v`, `Event.v`, `Confidence.v`, `Chain.v`, `Invariants.v`, `CRDT.v` (Theorem 9 fully closed); Iris ghost-state stubs for split-lock concurrency
+- **Proof trace checker** — `proof_trace_checker.py` randomized property-based validation of Theorems 1–7 over 10,000 synthetic chains (E24)
+
+### Scale & Performance
+- **Split-lock EventChain** — `_events_lock` + `_cache_lock` (RLock) targeting 10k concurrent agents
+- **Incremental integrity verification** — caches verified prefix, only validates newly appended events
+- **zstd+msgpack cold storage** — compressed archival in `cold_storage.py` with streaming decompression
+- **1M event scale** — linear append/verify throughput with memory < 2 GB (E27)
+- **10K concurrent agent contention** — split-lock throughput under 10k logical agents (E28)
+- **Microbenchmark** — precondition eval time vs rule count and confidence aggregation time vs validator count (E25)
+
+### Vector Index & LLM Normalization
+- **Pluggable embedding backends** — `SentenceTransformerBackend` (local-first) and `OpenAIBackend`
+- **FAISS-backed vector index** — persisted semantic search with pre-filtering, SQLite metadata backup, thread-safe RLock
+- **LLM-driven canonicalization** — `CanonicalizationEngine` clusters near-duplicates, proposes canonical forms, emits auditable ADL action blocks; dry-run by default (E30)
+- **Vector index recall** — FAISS ANN recall against brute-force cosine (E29)
+- **New CLI**: `adl-lite normalize --input-dir ./concepts --threshold 0.92 --dry-run`
+
+### Security, Trust & Identity
+- **Multi-method DID resolver** — `did:key`, `did:web` (HTTPS), `did:ethr` (ecrecover via optional `[did]` extras)
+- **Linked Data Proofs** — `create_event_proof()` / `verify_event_proof()` with `Ed25519Signature2020` and `EcdsaSecp256k1Signature2019`; `Event.proof` field stores W3C Data Integrity proofs
+- **Merkle batch verification** — `MerkleTree` with SHA-256, inclusion proofs, and per-chain transparency anchors
+- **Transparency anchor** — flat and Merkle root anchors with inclusion proofs; CLI: `adl-lite anchor --merkle --proofs-dir <dir>` and `adl-lite verify-inclusion <adl_id>`
+
+### Governance & Validation
+- **Runtime SHACL validation** — `validate_adl_document()` runs built-in shapes on ADLDocument (Concept, Event, Agent, Relation, CalibrateEvent)
+- **Auto domain-expert calibration** — `MARGINCalibrator.update_accuracy_ewma()` + `apply_calibration_event()` + `update_from_feedback()`; `calibrate` action wired to `ActionExecutor` side effects
+- **Dynamic collusion resistance** — `OntologyManager.min_distinct_validators()` reads from ontology YAML; enforced by `ConsensusEngine` and `ActionExecutor`
+- **L3 Relation governance** — `RelationValidator` enforces Invariant 2 (lifecycle-based validity) with optional strict predicate-semantic checks and `status_resolver` callback
 
 ### Semantic Web Interoperability
 - **OWL 2 bidirectional** — `export_owl()` + `parse_owl_turtle()` / `parse_owl_rdfxml()` for round-trip Protégé interoperability
 - **RDF-star / SPARQL-star** — `document_to_rdfstar_turtle()` and `sparqlstar_query_template()` for annotated triple provenance
 - **JSON-LD export** — `export_jsonld()` for semantic-web APIs and graph databases
-
-### Governance & Validation
-- **L3 Relation Reconciliation** — `RelationValidator` enforcing Invariant 2: relations invalid when either endpoint is archived or both deprecated; fork inheritance rules
-- **12-axiom well-formedness** — full `verify_integrity()` with distinct event_ids, timestamp monotonicity, payload schema, hash format, canonical fields, action preconditions, valid event_type checks
-- **CRDT EventChain merge** — LWW-Set merge: union, deduplicate, sort, recompute hashes (Theorem 9)
-- **Near-duplicate detection** — `check_near_duplicate()` with Jaccard/Levenshtein + optional sentence embeddings
-- **Canon version** — `CANON_VERSION = "1.0"` in event hash for future algorithm change detection
-- **N_min validator threshold** — `validator_count >= 1` precondition in ontology YAML (configurable `min_distinct_validators`)
-- **Reproduce script** — `reproduce.sh` one-command reproduction (6 steps, 8–10 min, CI-friendly exit codes, `--quick` mode)
+- **PROV-O export** — `prov_export.py` for provenance serialization
 
 ### Test & Experiment Coverage
-- **723 tests** — all passing (446 unit + 11 experiment + 32 adversarial + 32 invalid-chain + 128 theorem + 23 theorem T1/T2/T6 + 6 boundary + 38 near-duplicate)
-- **21 experiments** (E1–E21) — covering chain integrity, status derivation, snapshot round-trip, precondition enforcement, 5-agent audit, AML pipeline, real-time watcher, edge sync, git baseline, FDE pipeline, side-effect stress, and more
+- **1057 tests** — all passing (pytest suite, 87.8% coverage)
+- **28 registered experiments** (E1–E30, excluding E17/E18/E22/E26) — covering chain integrity, status derivation, snapshot round-trip, precondition enforcement, 5-agent audit, AML pipeline, real-time watcher, edge sync, git baseline, FDE pipeline, side-effect stress, governance benchmark, long-chain stress, collusion, contention, proof trace, microbenchmark, 1M scale, 10k concurrency, vector index recall, and LLM normalization
 
 ## Quick Start
 
@@ -159,8 +188,8 @@ python -m experiments.runner list
 # Run single
 python -m experiments.runner E2
 
-# Run tests (723 passed)
-pytest tests/ -q
+# Run tests (1057 passed, 87.8% coverage)
+pytest tests/ -v --cov=adl_lite --cov-report=term-missing
 ```
 
 ### CLI
@@ -169,6 +198,7 @@ pytest tests/ -q
 # Validate
 adl-lite validate examples/*.md
 adl-lite validate --strict examples/*.md
+adl-lite validate --strict-template examples/*.md
 
 # Parse
 adl-lite parse examples/capital_reflux_trap.md
@@ -179,6 +209,16 @@ adl-lite consensus transition disc-capital-trap --to validated --actor agent_1
 
 # Ontology query
 adl-lite ontology query --json
+
+# Transparency anchor
+adl-lite anchor
+adl-lite anchor --merkle --proofs-dir ./proofs
+adl-lite verify-anchor
+adl-lite verify-inclusion <adl_id> --proof ./proofs/<adl_id>.json
+
+# Normalization (dry-run by default)
+adl-lite normalize --input-dir ./concepts --threshold 0.92
+adl-lite normalize --input-dir ./concepts --threshold 0.92 --execute
 ```
 
 ### Python API
@@ -192,7 +232,7 @@ from adl_lite.ontology import OntologyManager
 doc = parse_file("examples/capital_reflux_trap.md")
 chain = doc.event_chain
 print(chain.status)           # Derived from chain
-print(chain.confidence)       # O(1) — last VALIDATE event
+print(chain.confidence)       # O(1) — G-Counter max over VALIDATE events
 print(chain.aggregated_confidence())  # Bonus-formula aggregate
 print(chain.history())        # Full audit log
 
@@ -207,7 +247,7 @@ chains = DataImporter().import_csv("HI-Small_Trans.csv",
     event_type=EventType.REGISTER, concept_id_field="Account")
 
 # Calibration (4 strategies)
-print(chain.confidence)                  # O(1) — last VALIDATE
+print(chain.confidence)                  # O(1) — G-Counter max
 print(chain.aggregated_confidence())       # γ_agg — bonus-formula
 print(chain.ewma_confidence(alpha=0.3))   # γ_ewma — time-decay
 print(chain.band_calibrated_confidence())  # γ_band — epistemic correction
@@ -215,13 +255,17 @@ print(chain.band_calibrated_confidence())  # γ_band — epistemic correction
 # DID signature verification
 from adl_lite import KeyRegistry
 registry = KeyRegistry()
-chain.verify_integrity(registry=registry)  # Verify Ed25519 signatures
+chain.verify_integrity(registry=registry)  # Verify Ed25519 / secp256k1 signatures
 
 # OWL / JSON-LD / RDF-star export
 from adl_lite import export_owl, export_jsonld, document_to_rdfstar_turtle
 owl_ttl = export_owl(doc, format="turtle")
 jsonld = export_jsonld(doc)
 rdfstar = document_to_rdfstar_turtle(doc)
+
+# SHACL validation
+from adl_lite import validate_adl_document
+shacl_errors = validate_adl_document(doc)
 
 # L3 Relation validation
 from adl_lite import RelationValidator
@@ -232,6 +276,28 @@ valid = validator.valid(relation, source_status, target_status)
 from adl_lite import check_near_duplicate, suggest_merge
 matches = check_near_duplicate(doc, existing_chains, threshold=0.85)
 merge_suggestion = suggest_merge(doc, existing_chains)
+
+# Vector semantic search
+from adl_lite import VectorIndex, SentenceTransformerBackend
+index = VectorIndex(backend=SentenceTransformerBackend())
+index.add(doc.adl_id, doc.markdown_body)
+results = index.search("gradient explosion", top_k=5, threshold=0.8)
+
+# LLM normalization (dry-run)
+from adl_lite import CanonicalizationEngine, OpenAILLMBackend
+engine = CanonicalizationEngine(index, llm=OpenAILLMBackend())
+proposals = engine.normalize(threshold=0.92, dry_run=True)
+
+# Merkle transparency anchor
+from adl_lite import MerkleTree, compute_chain_merkle_root
+root = compute_chain_merkle_root(chain)
+proof = MerkleTree.generate_proof(chain.events, target_event_hash)
+
+# Linked Data Proofs
+from adl_lite import create_event_proof, verify_event_proof
+event = chain.events[-1]
+proof = create_event_proof(event, did="did:key:z6Mk...", registry=registry)
+assert verify_event_proof(event, proof, registry=registry)
 ```
 
 ## Project Structure
@@ -242,45 +308,65 @@ adl-lite/
 │   ├── __init__.py        # Public API exports
 │   ├── models.py          # Event, EventChain, ADLDocument, PreconditionRule
 │   ├── parser.py          # L1/L2/L3/L4 parser
-│   ├── validator.py       # SSA validation + scope ACL
-│   ├── consensus.py       # Consensus chain + fork
-│   ├── action_executor.py # Action execution + precondition checking
+│   ├── validator.py       # SSA validation + scope ACL + relation governance
+│   ├── consensus.py       # Consensus chain + fork + dynamic N_min
+│   ├── action_executor.py # Action execution + precondition checking + side effects
 │   ├── data_importer.py   # CSV/JSON → Event import
 │   ├── ontology.py        # OntologyManager (predicates/actions/transitions)
-│   ├── memory.py          # Hot/Warm/Cold index
+│   ├── memory.py          # Hot/Warm/Cold index with optional VectorIndex
 │   ├── tools.py           # Agent tool wrappers
 │   ├── crdt.py            # CRDT merge semantics + LWW-Set EventChain merge
-│   ├── calibration.py     # MARGINCalibrator + γ_agg / γ_cal
+│   ├── calibration.py     # MARGINCalibrator + γ_agg / γ_cal / γ_ewma / γ_band
+│   ├── embeddings.py      # Pluggable embedding backends (SentenceTransformer / OpenAI)
+│   ├── vector_index.py    # FAISS-backed persisted vector index + semantic search
+│   ├── canonicalization.py # LLM-driven normalization: cluster → propose → emit ADL actions
 │   ├── owl_export.py      # OWL 2 DL export (RDF/XML + Turtle)
+│   ├── owl_import.py      # OWL 2 DL import (Turtle + RDF/XML round-trip)
 │   ├── jsonld_export.py   # JSON-LD export
-│   ├── near_duplicate.py  # Near-duplicate detection
+│   ├── rdfstar_export.py  # RDF-star / SPARQL-star export for annotated triples
+│   ├── prov_export.py     # PROV-O provenance serialization
+│   ├── shacl_validation.py # Runtime SHACL validation over ADLDocument
+│   ├── near_duplicate.py  # Near-duplicate detection (Jaccard / Levenshtein / embeddings)
 │   ├── realtime.py        # Real-time event watcher
 │   ├── sync_manager.py    # Edge-to-core sync coordination
-│   ├── did_resolver.py    # Minimal did:key resolution (local, no network)
-│   ├── key_registry.py    # Key registry + transparency anchor + DID support
+│   ├── did_resolver.py    # Multi-method DID resolver (did:key / did:web / did:ethr)
+│   ├── key_registry.py    # Key registry + transparency anchor + Git signatures
+│   ├── ld_proof.py        # W3C Linked Data Proofs (Ed25519 / secp256k1)
+│   ├── merkle.py          # SHA-256 Merkle trees with inclusion proofs
 │   ├── relation_validator.py # L3 Relation Reconciliation (Invariant 2)
-│   ├── owl_import.py      # OWL 2 DL import (Turtle + RDF/XML round-trip)
-│   ├── rdfstar_export.py  # RDF-star / SPARQL-star export for annotated triples
-│   ├── cold_storage.py    # Cold storage + archive
+│   ├── cold_storage.py    # zstd+msgpack compressed cold storage + archive
+│   ├── l2_template.py     # L2 template schema + validation
 │   ├── cli.py             # adl-lite CLI entry point
+│   ├── logging_config.py  # Structured logging
+│   ├── exceptions.py      # ADL exception hierarchy
+│   ├── fde/               # MVP FDE platform (pipeline, importer, tenant, rule engine, agent runner)
 │   └── adl_core_ontology.yaml # v0.2: classes + predicates + actions + collusion_resistance
 ├── experiments/
 │   ├── base.py            # BaseExperiment + ExperimentResult
 │   ├── registry.py        # @register("E1") decorator
 │   ├── runner.py          # python -m experiments.runner all
 │   ├── harness.py         # 5-agent simulation harness
-│   └── e*.py              # 21 registered experiments
-├── tests/                 # pytest suite (716 tests)
+│   ├── proof_trace_checker.py # Randomized property-based theorem validation
+│   └── e*.py              # 28 registered experiments (E1–E30, excluding E17/E18/E22/E26)
+├── tests/                 # pytest suite (1057 tests, 87.8% coverage)
 ├── examples/              # Capability file examples
 ├── data/aml/              # AML domain stress test data
 ├── docs/
-│   ├── paper_ao/          # Applied Ontology journal submission (39pp)
-│   ├── paper_v3/          # ESWC/ISWC 2027 LNCS version
-│   ├── proposals/         # Design proposals
-│   └── *.md               # Operational docs (see AGENTS.md for current guide)
+│   ├── paper_ao/          # Applied Ontology journal submission (51pp)
+│   ├── experiments/       # Current experiment results
+│   ├── incident-management/ # Runbooks & SLOs
+│   ├── ontology/          # Current ontology artifacts
+│   ├── AGENT_WORKFLOW.md  # 8-step agent workflow
+│   ├── CODE_REVIEW_STANDARDS.md
+│   ├── CRDT_MIGRATION_GUIDE.md
+│   └── verification_status.md # Theorem/Coq/TLA+ verification status
+├── specs/                 # TLA+ formal specifications
+├── formal/coq/            # Buildable Coq/Iris proof skeleton
+├── scripts/               # Utility scripts (TLC wrapper, etc.)
 ├── reproduce.sh           # One-command reproduction script
-├── archive/               # Deprecated files
+├── archive/               # Deprecated files (excluded from lint)
 ├── pyproject.toml         # Package config, ruff, mypy
+├── Dockerfile             # Reproducibility environment
 ├── .github/workflows/ci.yml
 └── .pre-commit-config.yaml
 ```
@@ -294,16 +380,19 @@ adl-lite/
 | **Event-first** | Status/confidence/validators derived from chain, no mutable fields stored |
 | **Capability** | A claim an agent makes: "I can retrieve weather data", "I can execute SQL" |
 | **$\delta(C)$** | Deterministic status derivation function (O(1)) |
-| **$\gamma(C)$** | O(1) confidence from last VALIDATE event |
+| **$\gamma(C)$** | G-Counter max confidence over all VALIDATE / SNAPSHOT events |
 | **$\gamma_{agg}(C)$** | Bonus-formula aggregate: per-actor maxima + quorum bonuses |
 | **$\gamma_{cal}(C)$** | Per-actor accuracy-weighted calibrated confidence |
 | **$\gamma_{ewma}(C)$** | EWMA-calibrated confidence with time-decay (α configurable, default 0.3) |
 | **$\gamma_{ctx}(C)$** | Per-domain context-calibrated confidence (e.g., AML vs fraud vs general) |
 | **$\gamma_{band}(C)$** | Epistemic-band calibrated confidence (over/under-correction) |
 | **Action Type** | L4 blocks: declarative actions + Comparator preconditions (no eval()) |
-| **Trust Model** | Hash chain integrity + canonicalization version + Ed25519/DIDs (minimal did:key) |
+| **Trust Model** | Hash chain integrity + canonicalization version + Ed25519/DIDs + Merkle proofs |
 | **Relation Validator** | Invariant 2: L3 relation validity based on endpoint lifecycle status |
 | **RDF-star** | Embedded triple annotations for event provenance in triple stores |
+| **SHACL** | Runtime shape validation over ADLDocument concepts, events, and relations |
+| **Vector Index** | FAISS-backed semantic search over ADL Markdown bodies |
+| **Canonicalization** | LLM-driven clustering and normalization of near-duplicate concepts |
 
 ## Agent Governance Positioning
 
@@ -334,13 +423,16 @@ A complete agent ecosystem uses **KYA** for permissions, **AgentSafe** for archi
 | ✅ v0.2.0 | DID & signatures | did:key, Ed25519, KeyRegistry, transparency anchors |
 | ✅ v0.2.0 | Semantic Web | OWL bidirectional, RDF-star, SPARQL-star, JSON-LD |
 | ✅ v0.2.0 | L3 governance | RelationValidator, Invariant 2, fork inheritance |
-| 🔄 Active | Paper revision | Major revision for Applied Ontology (39pp, 9 theorems) |
-| 📋 Planned | Full DID suite | did:web, did:ethr, LD-Proofs, Merkle trees |
-| 📋 Planned | Expert validation | AML/financial-crimes expert calibration |
-| 📋 Planned | SHACL validation | Runtime shape validation |
-| 📋 Planned | LLM discovery | Embedding-based canonicalisation |
-| 📋 Planned | Machine-checked proofs | TLA⁺, Coq/Iris formal verification |
-| 📋 Planned | Scale target | 1M events, 10K concurrent agents |
+| 🔄 Active | Paper revision | Major revision for Applied Ontology (51pp, 9 theorems, TLA⁺ + Coq) |
+| ✅ v0.5.0-alpha | Formal methods | TLA⁺ bounded specs, Coq/Iris skeleton, proof trace checker |
+| ✅ v0.5.0-alpha | Scale architecture | Split-lock, incremental verify, zstd+msgpack cold storage |
+| ✅ v0.4.2-alpha | Vector + LLM | Embeddings, FAISS vector index, LLM canonicalization (E29/E30) |
+| ✅ v0.4.1-alpha | Cold storage | zstd+msgpack compressed archival, auto-archival in ADLMemory |
+| ✅ v0.4.0-alpha | Full DID suite | did:web, did:ethr, LD-Proofs, Merkle trees |
+| ✅ v0.4.0-alpha | SHACL validation | Runtime shape validation |
+| ✅ v0.4.0-alpha | Expert calibration | Auto domain-expert calibration, EWMA accuracy tracking |
+| ✅ v0.4.0-alpha | Dynamic collusion | Ontology-driven N_min enforcement |
+| ✅ v0.3.5 | CRDT migration | LUB status + G-Counter confidence (status never regresses) |
 
 ---
 
