@@ -518,3 +518,42 @@ The calibration layer mitigates overconfidence in the default $\gamma(C)$ aggreg
 
 ADL Lite implements two Semantic Web export pathways. \textbf{Bidirectional OWL~2 DL import/export} (\texttt{owl\_export.py} / \texttt{owl\_import.py}) converts \texttt{ADLDocument} to OWL~2 DL in Turtle or RDF/XML, mapping concepts to \texttt{NamedIndividual}s, status to annotation properties, and events to typed individuals. Round-trip validation preserves concept identity, status, confidence, and event count. \textbf{RDF-star / SPARQL-star} (\texttt{rdfstar\_export.py}) converts events to embedded triples, enabling provenance queries such as ``find all concepts validated by agent X with confidence $>0.8$ in the last 30 days.'' Three additional pathways remain future work (FW8): SHACL validation, PROV-O mapping, and JSON-LD serialization.
 
+\subsection{Split-Lock Concurrency Model}\label{subsec:split-lock}
+
+As of v0.5.0-alpha, the \texttt{EventChain} class employs a dual-lock concurrency design to support high-contention multi-agent scenarios. Two independent \texttt{threading.RLock} instances protect distinct shared state:
+\begin{itemize}[leftmargin=2em]
+    \item \texttt{\_events\_lock}: guards the append-only \texttt{\_events} list, ensuring that concurrent appends from multiple threads do not interleave or produce duplicate \texttt{event\_id}s.
+    \item \texttt{\_cache\_lock}: guards the CRDT-derived caches (\texttt{\_cached\_status}, \texttt{\_cached\_confidence}) and the incremental verification cursor (\texttt{\_verified\_up\_to}).
+\end{itemize}
+The strict acquisition order (\texttt{\_events\_lock} $\to$ \texttt{\_cache\_lock}) prevents deadlocks. This separation allows status and confidence queries (which only need \texttt{\_cache\_lock}) to proceed concurrently with event appends (which require both locks in sequence), improving throughput under contention. The incremental verification cache tracks the index up to which the hash chain has been verified, enabling $O(1)$ verification for single-event appends rather than re-scanning the entire chain.
+
+\subsection{Vector Index for Semantic Search}\label{subsec:vector-index}
+
+The \texttt{vector\_index.py} module provides a FAISS-backed approximate nearest-neighbour (ANN) index for semantic search over concept embeddings. Each concept's textual content (name, description, L2 body) is embedded via a configurable backend (\texttt{embeddings.py}, supporting SentenceTransformer or OpenAI APIs) and stored alongside metadata in a SQLite database. The index supports:
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{Add:} batch insertion of concept embeddings via \texttt{add\_many()}.
+    \item \textbf{Search:} top-$k$ ANN retrieval with configurable cosine similarity threshold.
+    \item \textbf{Persistence:} FAISS index files and SQLite metadata are co-located and can be saved/loaded atomically.
+\end{itemize}
+The vector index is optional (requires the \texttt{[embeddings]} extra) and is used primarily by the canonicalization pipeline (\S\ref{subsec:canonicalization}) to cluster near-duplicate concepts before proposing merges.
+
+\subsection{Merkle Transparency Anchors}\label{subsec:merkle-anchors}
+
+The \texttt{merkle.py} module implements SHA-256 Merkle trees over event hashes, providing $O(\log n)$ inclusion proofs for batch integrity verification. A \texttt{MerkleTree} is constructed from a list of leaf hashes (typically event \texttt{hash} values from an EventChain), producing a root digest that can be anchored to external transparency logs or blockchain-based timestamping services. The module provides:
+\begin{itemize}[leftmargin=2em]
+    \item \texttt{MerkleTree}: builds the tree and generates inclusion proofs (\texttt{proof(index)}).
+    \item \texttt{MerkleTree.verify\_proof}: statically verifies an inclusion proof against its embedded root.
+    \item \texttt{compute\_chain\_merkle\_root}: convenience function for computing the root over a list of hex hashes.
+\end{itemize}
+Merkle anchors complement the linear hash chain: while the chain provides sequential integrity (each event linked to its predecessor), the Merkle tree enables efficient batch verification and external anchoring without requiring full-chain re-verification. This is particularly useful for long chains ($>10^5$ events) where full verification is costly.
+
+\subsection{LLM-Driven Canonicalization}\label{subsec:canonicalization}
+
+The \texttt{canonicalization.py} module implements a pipeline for detecting and merging near-duplicate concepts using LLM-assisted normalization. The workflow is:
+\begin{enumerate}
+    \item \textbf{Clustering:} the vector index (\S\ref{subsec:vector-index}) groups concepts by embedding similarity above a configurable threshold.
+    \item \textbf{LLM Proposal:} for each cluster, an LLM backend (pluggable via the \texttt{LLMBackend} protocol; default implementations include OpenAI and a deterministic mock for testing) proposes a canonical form, including a canonical \texttt{adl\_id}, multilingual name, and a set of \texttt{isomorphic-to} relations linking cluster members to the canonical concept.
+    \item \textbf{Action Generation:} the engine translates the LLM proposal into auditable ADL action blocks (\texttt{REGISTER} for the canonical concept, \texttt{RELATE} for isomorphic links, optionally \texttt{DEPRECATE} for duplicates).
+    \item \textbf{Dry-Run Safety:} by default, the pipeline runs in dry-run mode (\texttt{dry\_run=True}), generating actions without mutating any EventChains. Callers must explicitly execute the actions after review.
+\end{enumerate}
+This design ensures that concept deduplication is both semantically informed (via LLM reasoning) and auditable (via the EventChain), while preserving human oversight through the dry-run gate.
