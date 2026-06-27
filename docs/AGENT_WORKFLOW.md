@@ -24,6 +24,7 @@ flowchart LR
 | 6. Transition | Reviewer / Skeptic | `provisional` → `validated` or `forked` | `adl-lite consensus transition` |
 | 7. Index | Librarian | Persist to hybrid memory | `adl-lite store --db` |
 | 8. Query | Any agent | Graph neighbors with scope ACL | `adl-lite related` |
+| 9. Normalize | Librarian | LLM-driven deduplication of near-duplicates | `adl-lite normalize --input-dir ./concepts` |
 
 ### Method E → Method D convergence
 
@@ -88,6 +89,14 @@ result = adl_validate("examples/capital_reflux_trap.md")
 if result["ok"]:
     adl_consensus_register(path="examples/capital_reflux_trap.md")
     adl_store("examples/capital_reflux_trap.md", db="/tmp/adl.db")
+
+# Optional: vector semantic search + LLM normalization
+from adl_lite import VectorIndex, SentenceTransformerBackend, CanonicalizationEngine, OpenAILLMBackend
+index = VectorIndex(backend=SentenceTransformerBackend())
+index.add(doc.adl_id, doc.markdown_body)
+related = index.search("gradient explosion", top_k=5, threshold=0.8)
+engine = CanonicalizationEngine(index, llm=OpenAILLMBackend())
+proposals = engine.normalize(threshold=0.92, dry_run=True)
 ```
 
 ## Scope rules
@@ -116,4 +125,5 @@ pip install -e ".[dev]"
 pytest tests/ -v
 adl-lite validate examples/*.md
 adl-lite validate --strict examples/*.md
+adl-lite normalize --input-dir examples/ --threshold 0.92 --dry-run
 ```

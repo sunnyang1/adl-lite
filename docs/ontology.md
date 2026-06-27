@@ -1,6 +1,6 @@
 # ADL Lite Ontology Specification
 
-> **⚠️ 已废弃 (Obsolete):** 本文档是静态 OWL/SHACL 概念规范，已被操作本体 `adl_lite/adl_core_ontology.yaml` (由 `OntologyManager` 加载) 取代。当前项目使用 YAML 注册表定义类、谓词、动作和转换规则。如需查看最新的操作本体定义，请直接查阅 `adl_lite/adl_core_ontology.yaml`。如需了解语义网导出，请参考 `adl_lite/owl_export.py` 和 `adl_lite/rdfstar_export.py`。
+> **⚠️ 已废弃 (Obsolete):** 本文档是静态 OWL/SHACL 概念规范，已被操作本体 `adl_lite/adl_core_ontology.yaml` (由 `OntologyManager` 加载) 取代。当前项目使用 YAML 注册表定义类、谓词、动作和转换规则。如需查看最新的操作本体定义，请直接查阅 `adl_lite/adl_core_ontology.yaml`。如需了解语义网导出，请参考 `adl_lite/owl_export.py`、`adl_lite/owl_import.py`、`adl_lite/rdfstar_export.py` 和 `adl_lite/jsonld_export.py`。如需运行时 SHACL 验证，请参考 `adl_lite/shacl_validation.py`。
 
 This document provides the machine-readable ontology specification for ADL Lite, comprising OWL 2 DL class definitions and SHACL shape constraints.
 

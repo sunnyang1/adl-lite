@@ -9,7 +9,7 @@ docker build -t adl-lite-repro .
 docker run --rm adl-lite-repro
 ```
 
-Expected output: a JSON summary of all experiments (E1–E23) with PASS/FAIL status.
+Expected output: a JSON summary of all experiments (E1–E30) with PASS/FAIL status.
 
 ## Manual Reproduction
 
@@ -54,7 +54,12 @@ If automatic download fails, manually download from [IBM Data Asset eXchange](ht
 | E20 (Template effectiveness) | `python -m experiments.runner E20` | ~1s | 100% section coverage |
 | E20b (Calibration baseline) | `python -m experiments.runner E20b` | ~1s | ECE reduction 4.10× |
 | E21 (100k event stress) | `python -m experiments.runner E21` | ~10s | linear scaling, <1GB |
-| E23 (Contention stress) | `python -m experiments.runner E23` | ~10s | 50 agents, 0 integrity failures |
+| E24 (Proof trace) | `python -m experiments.runner E24` | ~5s | 10,000 chains: T1–T7 validated |
+| E25 (Microbenchmark) | `python -m experiments.runner E25` | ~2s | precondition + confidence latency |
+| E27 (1M event scale) | `python -m experiments.runner E27` | ~30s | linear throughput, zstd compression |
+| E28 (10k concurrency) | `python -m experiments.runner E28` | ~20s | split-lock throughput |
+| E29 (Vector recall) | `python -m experiments.runner E29` | ~5s | FAISS ANN recall ≥ 0.95 |
+| E30 (LLM normalization) | `python -m experiments.runner E30` | ~3s | dry-run clusters + proposals |
 
 ### Full Suite
 
@@ -70,7 +75,7 @@ Expected runtime: ~5 minutes on Apple M2, 16 GB RAM.
 pytest tests/ -q
 ```
 
-Expected: 716 tests passed, 0 failed.
+Expected: 944 tests passed, 0 failed.
 
 ### One-Command Reproduction
 
@@ -95,12 +100,12 @@ latexmk -pdf -interaction=nonstopmode main.tex
 
 ## Verification Checklist
 
-- [ ] All experiments pass (E1–E11)
+- [ ] All experiments pass (E1–E30)
 - [ ] Adversarial suite detects all 7 attack scenarios
 - [ ] Invalid-chain tests catch 10/10 failure modes
 - [ ] E6 throughput is within ±10% of reported 20,847 events/sec
-- [ ] 716 tests pass with 0 failures
-- [ ] Paper compiles without errors (39 pages)
+- [ ] 944 tests pass with 0 failures
+- [ ] Paper compiles without errors (51 pages)
 - [ ] All referenced tables and proofs are visible in main text or supplementary
 
 ## Contact

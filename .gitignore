@@ -54,7 +54,9 @@ artifacts/
 plan.md
 polish_sections/
 archive/
-# Coq build artifacts
+# Release assets (large binaries, tools)
+release-assets/
+tools/tla+/
 *.vo
 *.vok
 *.vos

@@ -262,7 +262,9 @@ adl-lite normalize --input-dir ./concepts --threshold 0.92 --execute
 
 # Transparency anchor
 adl-lite anchor
+adl-lite anchor --merkle --proofs-dir ./proofs
 adl-lite verify-anchor
+adl-lite verify-inclusion <adl_id> --proof ./proofs/<adl_id>.json
 ```
 
 ## Agent Tools (Python)
@@ -351,7 +353,7 @@ Closed sets:
 
 - **Framework**: pytest with `pytest-cov`, `pytest-asyncio`, `pytest-benchmark`
 - **Test files**: ~65 Python files under `tests/`
-- **Test count**: 794 passed + 2 skipped in the current Python 3.12 environment
+- **Test count**: 944 passed + 1 skipped in the current Python 3.12 environment
 - **Fixtures**: Minimal shared fixtures in `tests/conftest.py` (path setup only); 3 Markdown fixtures in `tests/fixtures/`
 - **FDE fixtures**: `tests/conftest_fde.py.bak` exists but is **not** auto-loaded by pytest, keeping the main suite lightweight
 - **Theorem tests**:
@@ -369,7 +371,7 @@ pytest tests/ -v
 python -m experiments.runner all
 ```
 
-## Experiments (26 registered, E1–E30)
+## Experiments (28 registered in runner, E1–E30)
 
 ```bash
 python -m experiments.runner all
