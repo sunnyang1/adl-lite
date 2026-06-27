@@ -48,6 +48,8 @@ specs/states/
 .codebuddy/
 coverage.xml
 test-results.xml
+test-results-after.xml
+test-results-final.xml
 test-output.log
 artifacts/
 # Planning artifacts
