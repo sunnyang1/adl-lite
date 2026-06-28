@@ -4,9 +4,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![ESWC/ISWC 2027 Backup](https://img.shields.io/badge/Backup-ESWC%2FISWC%202027-blue.svg)](https://2027.eswc-conferences.org/)
 [![Applied Ontology: under revision](https://img.shields.io/badge/Journal-Applied%20Ontology-orange.svg)](https://www.iospress.nl/journal/applied-ontology/)
-[![Tests: 1057 PASS](https://img.shields.io/badge/tests-1057%20PASS-brightgreen.svg)]()
+[![Tests: 1039 PASS](https://img.shields.io/badge/tests-1039%20PASS-brightgreen.svg)]()
 [![Coverage: 87.8%](https://img.shields.io/badge/coverage-87.8%25-brightgreen.svg)]()
 [![Release Readiness: GO](https://img.shields.io/badge/release%20readiness-GO-brightgreen.svg)]()
+[![API: FastAPI](https://img.shields.io/badge/API-FastAPI%20REST-009688.svg)]()
 [![Paper: 39pp](https://img.shields.io/badge/paper-39pp-blue.svg)]()
 
 > **"The world is the totality of facts, not of things." — Wittgenstein, Tractatus Logico-Philosophicus §1.1**
@@ -24,13 +25,18 @@ ADLParser → ADLDocument + EventChain
         ↓
 OntologyManager ← adl_core_ontology.yaml (classes / predicates / actions / transitions)
         ↓
-ActionExecutor (precondition validation + side effects)
+ActionExecutor (precondition validation + side effects + EWMA calibration)
         ↓
-ConsensusEngine (append-only transition chain + ForkManager)
+ConsensusEngine (append-only transition chain + ForkManager + dev_mode / production N_min)
         ↓
 ADLMemory (Hot skeleton / Warm SQLite+NetworkX / Cold archive)
+  ┌─────┴──────────────────────────────────────────────┐
+  │  WarmIndex degradation (BD-02): SQLite timeout >5s → HotIndex fallback │
+  └─────────────────────────────────────────────────────┘
         ↓
 RelationValidator (L3 relation integrity + Invariant 2)
+        ↓
+FastAPI REST API (/api/v1/consensus/) ← uvicorn → external clients
 ```
 
 ### Four-Layer Document Model
@@ -122,9 +128,17 @@ assert chain.verify_integrity()  # SHA-256 hash verification
 
 ## New in v0.5.0-alpha (This Release)
 
+### Architecture-Driven Development
+- **FastAPI REST API** (`adl_lite/api.py`) — `/api/v1/consensus/` endpoints: register, transition, status, history, fork, verify, list, mode (dev/production)
+- **ConsensusEngine dev_mode** — `dev_mode=True` default (N_min=1 for development); `set_production_mode()` switches to N_min≥2 for collusion resistance
+- **EWMA calibration side-effect** — VALIDATE transition automatically triggers `MARGINCalibrator.update_accuracy_ewma()` for continuous confidence calibration
+- **WarmIndex degradation** (BD-02) — SQLite I/O timeout >5s → degrade to HotIndex (ConceptSkeleton only), with auto-recovery
+- **CLI bug fixes** — `ADLOntologyError` catch in ontology query/validate; `verify-anchor --state` loads chains from state file for integrity verification
+- **Optional-dep test guards** — graceful `pytest.mark.skipif` for sentence-transformers, faiss, zstandard, msgpack
+
 ### Test & Coverage Improvement (v0.5.0-alpha)
-- **Test count**: 796 → **1057** (+261 tests, +32.8%)
-- **Code coverage**: 75.5% → **87.8%** (+12.3pp, GO release readiness)
+- **Test count**: 796 → **1057** → **1039 fast suite** (+261 tests, +32.8%; 22 skipped for optional deps)
+- **Code coverage**: 75.5% → **87.8%** (full suite), **83%** (fast suite)
 - **FDE module coverage**: 0% → **96.9%** (rule_engine, pipeline_engine, agent_runner, importers, transformers)
 - **Zero-coverage modules eliminated**: 7 → 0
 - **CI coverage gate**: configured (min 75%, target 85%)
@@ -169,7 +183,7 @@ assert chain.verify_integrity()  # SHA-256 hash verification
 - **PROV-O export** — `prov_export.py` for provenance serialization
 
 ### Test & Experiment Coverage
-- **1057 tests** — all passing (pytest suite, 87.8% coverage)
+- **1039 tests passing** (22 skipped for optional deps), 87.8% coverage (full suite), 83% coverage (fast suite)
 - **28 registered experiments** (E1–E30, excluding E17/E18/E22/E26) — covering chain integrity, status derivation, snapshot round-trip, precondition enforcement, 5-agent audit, AML pipeline, real-time watcher, edge sync, git baseline, FDE pipeline, side-effect stress, governance benchmark, long-chain stress, collusion, contention, proof trace, microbenchmark, 1M scale, 10k concurrency, vector index recall, and LLM normalization
 
 ## Quick Start
@@ -188,8 +202,14 @@ python -m experiments.runner list
 # Run single
 python -m experiments.runner E2
 
-# Run tests (1057 passed, 87.8% coverage)
+# Run tests (1039 passed, 87.8% coverage)
 pytest tests/ -v --cov=adl_lite --cov-report=term-missing
+
+# Run fast tests only (excludes slow benchmarks)
+pytest tests/ -m "not slow" -v --cov=adl_lite
+
+# Start the REST API server
+uvicorn adl_lite.api:app --reload --port 8000
 ```
 
 ### CLI
@@ -214,11 +234,43 @@ adl-lite ontology query --json
 adl-lite anchor
 adl-lite anchor --merkle --proofs-dir ./proofs
 adl-lite verify-anchor
+adl-lite verify-anchor --state ./state.json
 adl-lite verify-inclusion <adl_id> --proof ./proofs/<adl_id>.json
 
 # Normalization (dry-run by default)
 adl-lite normalize --input-dir ./concepts --threshold 0.92
 adl-lite normalize --input-dir ./concepts --threshold 0.92 --execute
+```
+
+### REST API
+
+```bash
+# Start the API server
+uvicorn adl_lite.api:app --reload --port 8000
+
+# Register a concept
+curl -X POST http://localhost:8000/api/v1/consensus/register \
+  -H "Content-Type: application/json" \
+  -d '{"adl_id": "cap-weather-api", "actor": "agent_1", "domain": "weather", "scope": "public"}'
+
+# Validate (transition to validated)
+curl -X POST http://localhost:8000/api/v1/consensus/transition \
+  -H "Content-Type: application/json" \
+  -d '{"adl_id": "cap-weather-api", "to": "validated", "actor": "agent_2", "confidence": 0.85}'
+
+# Check status
+curl http://localhost:8000/api/v1/consensus/status/cap-weather-api
+
+# Fork a concept
+curl -X POST http://localhost:8000/api/v1/consensus/fork \
+  -H "Content-Type: application/json" \
+  -d '{"adl_id": "cap-weather-api", "child_id": "cap-weather-api-v2", "actor": "agent_3"}'
+
+# Switch to production mode (N_min ≥ 2)
+curl -X POST http://localhost:8000/api/v1/consensus/mode/production
+
+# Switch back to dev mode (N_min = 1)
+curl -X POST http://localhost:8000/api/v1/consensus/mode/dev
 ```
 
 ### Python API
@@ -240,6 +292,13 @@ print(chain.history())        # Full audit log
 mgr = OntologyManager()
 executor = ActionExecutor(mgr)
 errors = executor.validate_action(doc, action_block)
+
+# Consensus engine with dev/production mode
+from adl_lite.consensus import ConsensusEngine
+engine = ConsensusEngine(ontology=mgr, dev_mode=True)   # N_min=1 (dev)
+engine.set_production_mode()                              # N_min≥2 (collusion resistance)
+engine.register(concept_id="cap-weather-api", actor="agent_1")
+engine.transition(concept_id="cap-weather-api", to="validated", actor="agent_2")
 
 # Data import (IBM AML stress test)
 from adl_lite.data_importer import DataImporter
@@ -309,11 +368,12 @@ adl-lite/
 │   ├── models.py          # Event, EventChain, ADLDocument, PreconditionRule
 │   ├── parser.py          # L1/L2/L3/L4 parser
 │   ├── validator.py       # SSA validation + scope ACL + relation governance
-│   ├── consensus.py       # Consensus chain + fork + dynamic N_min
-│   ├── action_executor.py # Action execution + precondition checking + side effects
+│   ├── consensus.py       # Consensus chain + fork + dynamic N_min (dev_mode / production)
+│   ├── action_executor.py # Action execution + precondition checking + side effects + EWMA calibration
+│   ├── api.py             # FastAPI REST API (/api/v1/consensus/)
 │   ├── data_importer.py   # CSV/JSON → Event import
 │   ├── ontology.py        # OntologyManager (predicates/actions/transitions)
-│   ├── memory.py          # Hot/Warm/Cold index with optional VectorIndex
+│   ├── memory.py          # Hot/Warm/Cold index with optional VectorIndex + WarmIndex degradation
 │   ├── tools.py           # Agent tool wrappers
 │   ├── crdt.py            # CRDT merge semantics + LWW-Set EventChain merge
 │   ├── calibration.py     # MARGINCalibrator + γ_agg / γ_cal / γ_ewma / γ_band
@@ -348,7 +408,7 @@ adl-lite/
 │   ├── harness.py         # 5-agent simulation harness
 │   ├── proof_trace_checker.py # Randomized property-based theorem validation
 │   └── e*.py              # 28 registered experiments (E1–E30, excluding E17/E18/E22/E26)
-├── tests/                 # pytest suite (1057 tests, 87.8% coverage)
+├── tests/                 # pytest suite (1039 pass, 22 skip, 87.8% coverage)
 ├── examples/              # Capability file examples
 ├── data/aml/              # AML domain stress test data
 ├── docs/
@@ -393,6 +453,9 @@ adl-lite/
 | **SHACL** | Runtime shape validation over ADLDocument concepts, events, and relations |
 | **Vector Index** | FAISS-backed semantic search over ADL Markdown bodies |
 | **Canonicalization** | LLM-driven clustering and normalization of near-duplicate concepts |
+| **REST API** | FastAPI `/api/v1/consensus/` endpoints for external lifecycle management |
+| **dev_mode** | ConsensusEngine dev mode: N_min=1 (single validator) vs production N_min≥2 (collusion resistance) |
+| **WarmIndex degradation** | BD-02: SQLite timeout >5s → degrade to HotIndex (ConceptSkeleton) with auto-recovery |
 
 ## Agent Governance Positioning
 
@@ -426,6 +489,8 @@ A complete agent ecosystem uses **KYA** for permissions, **AgentSafe** for archi
 | 🔄 Active | Paper revision | Major revision for Applied Ontology (51pp, 9 theorems, TLA⁺ + Coq) |
 | ✅ v0.5.0-alpha | Formal methods | TLA⁺ bounded specs, Coq/Iris skeleton, proof trace checker |
 | ✅ v0.5.0-alpha | Scale architecture | Split-lock, incremental verify, zstd+msgpack cold storage |
+| ✅ v0.5.0-alpha | REST API | FastAPI /api/v1/consensus/ endpoints, dev/production mode toggle |
+| ✅ v0.5.0-alpha | Architecture dev | N_min dynamic threshold, EWMA side-effect, WarmIndex degradation, CLI fixes |
 | ✅ v0.4.2-alpha | Vector + LLM | Embeddings, FAISS vector index, LLM canonicalization (E29/E30) |
 | ✅ v0.4.1-alpha | Cold storage | zstd+msgpack compressed archival, auto-archival in ADLMemory |
 | ✅ v0.4.0-alpha | Full DID suite | did:web, did:ethr, LD-Proofs, Merkle trees |
