@@ -7,10 +7,24 @@ from collections import Counter
 import numpy as np
 import pytest
 
+try:
+    import faiss  # noqa: F401
+
+    HAS_FAISS = True
+except ImportError:
+    HAS_FAISS = False
+
 from adl_lite.exceptions import ADLMemoryError
 from adl_lite.memory import ADLMemory
 from adl_lite.parser import parse_text
-from adl_lite.vector_index import VectorIndex
+
+# VectorIndex requires faiss-cpu; skip all tests that use it.
+pytestmark = pytest.mark.skipif(
+    not HAS_FAISS,
+    reason="faiss-cpu not installed (install with: pip install faiss-cpu)",
+)
+
+from adl_lite.vector_index import VectorIndex  # noqa: E402
 
 
 class _NgramBackend:

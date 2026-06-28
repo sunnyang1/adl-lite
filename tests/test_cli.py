@@ -513,12 +513,13 @@ class TestCmdOntologyQuery:
         captured = capsys.readouterr()
         assert "provisional -> validated" in captured.out
 
-    def test_query_with_invalid_ontology_path(self, tmp_path: Path):
-        """Invalid ontology path raises ADLOntologyError (not caught by CLI handler)."""
-        from adl_lite.exceptions import ADLOntologyError
-
-        with pytest.raises(ADLOntologyError, match="not found"):
+    def test_query_with_invalid_ontology_path(self, tmp_path: Path, capsys):
+        """Invalid ontology path is caught and exits with code 1 (Bug 1 fix)."""
+        with pytest.raises(SystemExit) as exc_info:
             main(["ontology", "query", "--ontology", str(tmp_path / "nonexistent.yaml")])
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        assert "ontology error" in captured.err
 
 
 # ---------------------------------------------------------------------------
@@ -543,12 +544,13 @@ class TestCmdOntologyValidate:
         captured = capsys.readouterr()
         assert "OK" in captured.out
 
-    def test_validate_with_invalid_ontology(self, tmp_path: Path):
-        """Invalid ontology path raises ADLOntologyError (not caught by CLI handler)."""
-        from adl_lite.exceptions import ADLOntologyError
-
-        with pytest.raises(ADLOntologyError, match="not found"):
+    def test_validate_with_invalid_ontology(self, tmp_path: Path, capsys):
+        """Invalid ontology path is caught and exits with code 1 (Bug 1 fix)."""
+        with pytest.raises(SystemExit) as exc_info:
             main(["ontology", "validate", "--ontology", str(tmp_path / "nonexistent.yaml")])
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        assert "ontology error" in captured.err
 
 
 # ---------------------------------------------------------------------------

@@ -9,6 +9,20 @@ from pathlib import Path
 
 import pytest
 
+try:
+    import zstandard  # noqa: F401
+
+    HAS_ZSTANDARD = True
+except ImportError:
+    HAS_ZSTANDARD = False
+
+try:
+    import msgpack  # noqa: F401
+
+    HAS_MSGPACK = True
+except ImportError:
+    HAS_MSGPACK = False
+
 from adl_lite.cold_storage import ColdStorage
 from adl_lite.memory import ADLMemory
 from adl_lite.models import (
@@ -134,6 +148,10 @@ class TestIncrementalVerify:
 
 
 class TestCompressedColdStorage:
+    @pytest.mark.skipif(
+        not HAS_ZSTANDARD,
+        reason="zstandard not installed (install with: pip install zstandard)",
+    )
     def test_compressed_archive_roundtrip(self, tmp_path: Path):
         chain = _build_chain("disc-compressed", 50)
         storage = ColdStorage(base_dir=tmp_path / "archives")
@@ -154,6 +172,10 @@ class TestCompressedColdStorage:
             rebuilt.append(e)
         assert rebuilt.verify_integrity()
 
+    @pytest.mark.skipif(
+        not HAS_ZSTANDARD,
+        reason="zstandard not installed (install with: pip install zstandard)",
+    )
     def test_verify_archive_compressed(self, tmp_path: Path):
         chain = _build_chain("disc-compressed2", 50)
         storage = ColdStorage(base_dir=tmp_path / "archives")
@@ -162,6 +184,10 @@ class TestCompressedColdStorage:
         archive_file = chain.events[-1].payload["archive_file"]
         assert ColdStorage.verify_archive(pointer, archive_file)
 
+    @pytest.mark.skipif(
+        not HAS_ZSTANDARD,
+        reason="zstandard not installed (install with: pip install zstandard)",
+    )
     def test_compressed_smaller_than_jsonl(self, tmp_path: Path):
         chain = _build_chain("disc-compressed3", 200)
         storage = ColdStorage(base_dir=tmp_path / "archives")
@@ -221,6 +247,10 @@ class TestADLMemoryColdTier:
 
 
 class TestScaleExperiments:
+    @pytest.mark.skipif(
+        not (HAS_ZSTANDARD and HAS_MSGPACK),
+        reason="zstandard/msgpack not installed (install with: pip install zstandard msgpack)",
+    )
     def test_e27_runs_with_small_target(self, monkeypatch: pytest.MonkeyPatch):
         import experiments.e27_1m_event_scale as e27
 
@@ -230,6 +260,10 @@ class TestScaleExperiments:
         assert result.status in ("passed", "partial")
         assert result.metrics["integrity_ok"] is True
 
+    @pytest.mark.skipif(
+        not (HAS_ZSTANDARD and HAS_MSGPACK),
+        reason="zstandard/msgpack not installed (install with: pip install zstandard msgpack)",
+    )
     def test_e28_runs_with_small_target(self, monkeypatch: pytest.MonkeyPatch):
         import experiments.e28_10k_concurrency as e28
 

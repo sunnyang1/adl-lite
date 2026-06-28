@@ -18,8 +18,10 @@ References:
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 import threading
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -45,6 +47,13 @@ try:
     HAS_NETWORKX = True
 except ImportError:  # pragma: no cover
     HAS_NETWORKX = False
+
+logger = logging.getLogger("adl_lite.memory")
+
+# Timeout threshold for WarmIndex degradation (seconds).
+# If a WarmIndex query exceeds this threshold, subsequent queries
+# degrade to HotIndex-only (ConceptSkeleton) lookups.
+_WARM_TIMEOUT_THRESHOLD = 5.0
 
 
 # ---------------------------------------------------------------------------
@@ -168,7 +177,12 @@ class WarmIndex:
     def __init__(self, db_path: str = ":memory:") -> None:
         self.db_path = db_path
         self._lock = threading.RLock()
+        self._degraded = False  # Whether WarmIndex has degraded to Hot-only mode
+        self._last_query_time: float = 0.0
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
+        # Set busy_timeout so SQLite retries instead of immediately failing
+        # on locked tables (5000ms = 5 seconds retry window).
+        self.conn.execute("PRAGMA busy_timeout=5000")
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(self.SCHEMA)
         self.conn.commit()
@@ -207,10 +221,26 @@ class WarmIndex:
                 self._add_relation(rel)
 
     def get_document(self, adl_id: str) -> ADLDocument | None:
+        if self._degraded:
+            # WarmIndex is degraded — cannot serve full documents.
+            # Caller should fall back to HotIndex (ConceptSkeleton only).
+            logger.warning("WarmIndex degraded: skipping get_document for %s", adl_id)
+            return None
         with self._lock:
+            t0 = time.perf_counter()
             row = self.conn.execute(
                 "SELECT raw_json FROM documents WHERE adl_id = ?", (adl_id,)
             ).fetchone()
+            elapsed = time.perf_counter() - t0
+            self._last_query_time = elapsed
+            if elapsed > _WARM_TIMEOUT_THRESHOLD:
+                self._degraded = True
+                logger.warning(
+                    "WarmIndex query took %.2fs (> %.2fs threshold); "
+                    "degrading to HotIndex-only mode",
+                    elapsed,
+                    _WARM_TIMEOUT_THRESHOLD,
+                )
             if row is None:
                 return None
             data = json.loads(row["raw_json"])
@@ -441,7 +471,14 @@ class WarmIndex:
         """
         Multi-stage pre-filtering returning candidate adl_ids. Thread-safe.
         Scope prefix is escaped to prevent LIKE wildcard injection.
+
+        When WarmIndex is degraded (queries exceed timeout threshold),
+        returns an empty list, allowing callers to fall back to HotIndex.
         """
+        if self._degraded:
+            logger.warning("WarmIndex degraded: skipping cascade_filter")
+            return []
+
         conditions = []
         params: list = []
 
@@ -460,15 +497,40 @@ class WarmIndex:
         where_clause = " AND ".join(conditions) if conditions else "1=1"
 
         with self._lock:
+            t0 = time.perf_counter()
             rows = self.conn.execute(
                 f"SELECT adl_id FROM documents WHERE {where_clause}",
                 params,
             ).fetchall()
+            elapsed = time.perf_counter() - t0
+            self._last_query_time = elapsed
+            if elapsed > _WARM_TIMEOUT_THRESHOLD:
+                self._degraded = True
+                logger.warning(
+                    "WarmIndex cascade_filter took %.2fs (> %.2fs threshold); "
+                    "degrading to HotIndex-only mode",
+                    elapsed,
+                    _WARM_TIMEOUT_THRESHOLD,
+                )
 
         return [row["adl_id"] for row in rows]
 
     def close(self) -> None:
         self.conn.close()
+
+    @property
+    def degraded(self) -> bool:
+        """Whether WarmIndex has degraded to Hot-only mode due to timeout."""
+        return self._degraded
+
+    def reset_degradation(self) -> None:
+        """Reset degradation state, allowing WarmIndex to attempt queries again.
+
+        Useful after a transient performance issue (e.g., disk I/O spike)
+        has resolved, to restore full WarmIndex functionality.
+        """
+        self._degraded = False
+        self._last_query_time = 0.0
 
 
 # ---------------------------------------------------------------------------

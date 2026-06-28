@@ -43,6 +43,8 @@ docs/paper_ao/main.pdf
 # TLC model checker state dumps (can be 100MB+, not needed in repo)
 specs/states/
 
+# ADL runtime state (calibration profiles, archives, etc.)
+.adl/
 # Work buddy / tool artifacts
 .workbuddy/
 .codebuddy/

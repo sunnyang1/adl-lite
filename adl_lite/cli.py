@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 from .consensus import ConsensusEngine
-from .exceptions import ADLConsensusError, ADLTemplateError
+from .exceptions import ADLConsensusError, ADLOntologyError, ADLTemplateError
 from .memory import ADLMemory
 from .models import DiscoveryStatus, Event, EventChain
 from .ontology import OntologyManager
@@ -28,7 +28,7 @@ def _default_state_path(db_path: str | None) -> Path:
 
 
 def _load_engine(state_path: Path) -> ConsensusEngine:
-    engine = ConsensusEngine()
+    engine = ConsensusEngine(dev_mode=True)  # CLI defaults to dev mode for backward compat
     if not state_path.exists():
         return engine
 
@@ -229,7 +229,7 @@ def _cmd_ontology_query(args: argparse.Namespace) -> int:
             from_status=args.from_status,
             to_status=args.to_status,
         )
-    except (FileNotFoundError, ValueError) as exc:
+    except (FileNotFoundError, ValueError, ADLOntologyError) as exc:
         print(f"ontology error: {exc}", file=sys.stderr)
         return 1
 
@@ -275,7 +275,7 @@ def _cmd_ontology_validate(args: argparse.Namespace) -> int:
     ontology_path = Path(args.ontology) if args.ontology else None
     try:
         mgr = OntologyManager(ontology_path)
-    except (FileNotFoundError, ValueError) as exc:
+    except (FileNotFoundError, ValueError, ADLOntologyError) as exc:
         print(f"ontology error: {exc}", file=sys.stderr)
         return 1
 
@@ -362,9 +362,21 @@ def _cmd_verify_anchor(args: argparse.Namespace) -> int:
         print("anchor file not found", file=sys.stderr)
         return 1
 
+    # Load chains from state to verify against anchor
+    state_path = Path(getattr(args, "state", _default_state_path(None)))
+    engine = _load_engine(state_path)
+
     ok = anchor.verify_anchor()
     if ok:
         print("anchor OK")
+        # Verify each chain's integrity against the loaded state
+        if engine.chains:
+            chain_results = engine.verify_all()
+            failures = [cid for cid, intact in chain_results.items() if not intact]
+            if failures:
+                print(f"chain integrity failures: {failures}", file=sys.stderr)
+                return 1
+            print(f"all {len(chain_results)} chains verified")
         return 0
     print("anchor MISMATCH", file=sys.stderr)
     return 1
@@ -636,6 +648,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_verify_anchor = sub.add_parser("verify-anchor", help="Verify transparency anchor")
     p_verify_anchor.add_argument("--file", default="ANCHOR.md", help="Anchor file path")
     p_verify_anchor.add_argument("--commit", default=None, help="Git commit hash")
+    p_verify_anchor.add_argument("--state", default=None, help="Consensus state JSON path")
     p_verify_anchor.set_defaults(func=_cmd_verify_anchor)
 
     p_verify_inclusion = sub.add_parser("verify-inclusion", help="Verify a Merkle inclusion proof")

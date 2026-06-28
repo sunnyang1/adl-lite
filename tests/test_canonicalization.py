@@ -8,8 +8,31 @@ from collections import Counter
 import numpy as np
 import pytest
 
-from adl_lite.canonicalization import CanonicalizationEngine, LLMBackend
-from adl_lite.vector_index import VectorIndex
+try:
+    import sentence_transformers  # noqa: F401
+
+    HAS_SENTENCE_TRANSFORMERS = True
+except ImportError:
+    HAS_SENTENCE_TRANSFORMERS = False
+
+try:
+    import faiss  # noqa: F401
+
+    HAS_FAISS = True
+except ImportError:
+    HAS_FAISS = False
+
+# All tests require faiss-cpu for VectorIndex; skip the entire module
+# if unavailable. CanonicalizationEngine with SentenceTransformerBackend
+# additionally needs sentence-transformers, but the tests use _NgramBackend
+# so only faiss is strictly required.
+pytestmark = pytest.mark.skipif(
+    not HAS_FAISS,
+    reason="faiss-cpu not installed (install with: pip install faiss-cpu)",
+)
+
+from adl_lite.canonicalization import CanonicalizationEngine, LLMBackend  # noqa: E402
+from adl_lite.vector_index import VectorIndex  # noqa: E402
 
 
 class _FakeLLM(LLMBackend):

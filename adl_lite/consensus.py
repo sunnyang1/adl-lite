@@ -161,11 +161,12 @@ class ConsensusEngine:
         history = engine.get_history("disc-7f3a9b")
     """
 
-    def __init__(self, ontology: OntologyManager | None = None) -> None:
+    def __init__(self, ontology: OntologyManager | None = None, dev_mode: bool = True) -> None:
         self.chains: dict[str, EventChain] = {}
         self._lock = threading.RLock()
         self.fork_manager = ForkManager()
         self._ontology = ontology or default_ontology()
+        self._dev_mode = dev_mode
 
     # -- Chain lifecycle --
 
@@ -222,7 +223,7 @@ class ConsensusEngine:
 
             # Enforce dynamic minimum distinct validators for VALIDATE transitions
             if to_status == DiscoveryStatus.VALIDATED:
-                n_min = self._ontology.min_distinct_validators()
+                n_min = self._effective_n_min()
                 if chain.validator_count < n_min:
                     raise ADLConsensusError(
                         f"VALIDATE transition requires at least {n_min} distinct validators, "
@@ -282,6 +283,34 @@ class ConsensusEngine:
         """Verify integrity of all chains. Thread-safe."""
         with self._lock:
             return {cid: chain.verify_integrity() for cid, chain in self.chains.items()}
+
+    # -- Dynamic N_min threshold --
+
+    def _effective_n_min(self) -> int:
+        """Compute effective N_min: dev_mode allows 1, production requires >= 2.
+
+        In dev_mode (dev_mode=True), N_min is relaxed to 1 to enable
+        single-agent development and testing workflows. In production
+        (dev_mode=False), the minimum is enforced as max(ontology_value, 2)
+        to ensure collusion resistance with at least two distinct validators.
+        """
+        ontology_min = self._ontology.min_distinct_validators()
+        if self._dev_mode:
+            return 1
+        return max(ontology_min, 2)
+
+    def set_production_mode(self) -> None:
+        """Switch to production mode: N_min >= 2 (collusion-safe)."""
+        self._dev_mode = False
+
+    def set_dev_mode(self) -> None:
+        """Switch to development mode: N_min = 1 (single-validator allowed)."""
+        self._dev_mode = True
+
+    @property
+    def dev_mode(self) -> bool:
+        """Whether the engine is in development mode."""
+        return self._dev_mode
 
     # -- Internal --
 

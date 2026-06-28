@@ -289,6 +289,18 @@ class ActionExecutor:
         if action_def.triggers_transition:
             self._apply_transition(doc, action, action_def)
 
+        # 5b. Calibration feedback: if the transition was VALIDATE, trigger
+        #     an implicit EWMA accuracy update for the action's actor.
+        #     The observed_accuracy is derived from the confidence payload
+        #     attached to the VALIDATE event, providing a continuous feedback
+        #     loop between validation outcomes and per-actor trust scores.
+        if action_def.triggers_transition and "validated" in action_def.triggers_transition:
+            confidence = float(action.params.get("confidence", 0.5))
+            actor = action.actor or "system"
+            context = str(action.params.get("context", "general"))
+            alpha = float(action.params.get("alpha", 0.3))
+            self._calibrator.update_accuracy_ewma(actor, confidence, context=context, alpha=alpha)
+
         # 6. Update status
         action.exec_status = ActionExecStatus.EXECUTED if all_ok else ActionExecStatus.FAILED
         action.execution_log = log

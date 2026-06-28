@@ -9,8 +9,29 @@ from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import pytest
 
-from adl_lite.embeddings import EmbeddingBackend
-from adl_lite.vector_index import VectorIndex
+try:
+    import faiss  # noqa: F401
+
+    HAS_FAISS = True
+except ImportError:
+    HAS_FAISS = False
+
+try:
+    from adl_lite.embeddings import EmbeddingBackend  # noqa: F401
+    from adl_lite.vector_index import VectorIndex  # noqa: F401
+
+    HAS_VECTOR_INDEX = True
+except ImportError:
+    HAS_VECTOR_INDEX = False
+
+# All tests require faiss-cpu; skip the entire module if unavailable.
+pytestmark = pytest.mark.skipif(
+    not HAS_FAISS,
+    reason="faiss-cpu not installed (install with: pip install faiss-cpu)",
+)
+
+from adl_lite.embeddings import EmbeddingBackend  # noqa: E402
+from adl_lite.vector_index import VectorIndex  # noqa: E402
 
 
 class _FakeBackend:
