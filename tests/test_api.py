@@ -241,3 +241,159 @@ class TestForkEndpoint:
         assert resp.status_code == 200
         body = resp.json()
         assert body["adl_id"] == "test_api_fork_child"
+
+
+# ── Internal function tests ────────────────────────────────────────────
+
+
+class TestInternalFunctions:
+    """Tests for _get_engine lazy loading, transition error handling,
+    and fork error handling. Covers lines 121-144, 222-225, 228, 279-282."""
+
+    def test_get_engine_lazy_load_from_disk(self, tmp_path: Path):
+        """Create a temporary JSON state file with a registered concept,
+        call _get_engine() with that state_path. Verify the engine loads
+        correctly, the concept chain is present, and subsequent API calls
+        use the loaded engine. Covers lines 121-144."""
+        import json
+
+        from adl_lite.api import _get_engine
+
+        # Create a state file with a registered concept
+        state_file = tmp_path / "lazy_load_state.json"
+        state_data = {
+            "chains": {
+                "lazy-concept": [
+                    {
+                        "event_type": "register",
+                        "actor": "test-actor",
+                        "reasoning": "lazy load test",
+                        "timestamp": "2024-01-01T00:00:00+00:00",
+                        "payload": {},
+                    }
+                ]
+            }
+        }
+        state_file.write_text(json.dumps(state_data), encoding="utf-8")
+
+        # Reset module-level globals so the engine is lazily loaded fresh
+        import adl_lite.api
+
+        adl_lite.api._state_path = state_file
+        adl_lite.api._engine = None
+
+        # Call _get_engine — should load state from disk
+        engine = _get_engine()
+        assert engine is not None
+        assert "lazy-concept" in engine.chains
+
+        # Verify the loaded chain has events
+        chain = engine.chains["lazy-concept"]
+        assert len(chain.events) >= 1
+        assert chain.events[0].event_type.value == "register"
+
+        # Clean up globals
+        adl_lite.api._engine = None
+        adl_lite.api._state_path = Path("adl_consensus.json")
+
+    def test_transition_event_none_error(self, client: TestClient):
+        """POST to /api/v1/consensus/transition with a body that would
+        cause engine.transition() to return None.
+        Verify the endpoint returns a 500 error. Covers lines 222-225, 228."""
+        from unittest.mock import patch
+
+        # Register a concept first
+        reg_payload = {"adl_id": "trans_none_test2", "domain": "test", "scope": "public"}
+        client.post("/api/v1/consensus/register", json=reg_payload)
+
+        # Patch the engine's transition method to return None
+        # We patch on the actual engine instance, not the factory function
+        import adl_lite.api
+
+        engine = adl_lite.api._get_engine()
+
+        def mock_transition_return_none(*args, **kwargs):
+            return None
+
+        with patch.object(engine, "transition", side_effect=mock_transition_return_none):
+            trans_payload = {
+                "adl_id": "trans_none_test2",
+                "to_status": "validated",
+                "actor": "validator-1",
+                "reason": "test none event",
+            }
+            resp = client.post("/api/v1/consensus/transition", json=trans_payload)
+            assert resp.status_code == 500
+            assert (
+                "Transition failed" in resp.json()["detail"]
+                or "no event returned" in resp.json()["detail"].lower()
+            )
+
+        # Reset engine singleton so next test gets fresh state
+        adl_lite.api._engine = None
+
+    def test_fork_keyerror_handling(self, client: TestClient):
+        """POST to /api/v1/consensus/fork with an original_id that doesn't
+        exist in engine.chains, causing KeyError. Verify KeyError is caught
+        and 404 is returned. Covers lines 279-282."""
+        fork_payload = {
+            "original_id": "nonexistent_for_fork",
+            "fork_id": "fork_child_keyerror",
+            "actor": "forker-1",
+            "reason": "testing KeyError handling",
+        }
+        resp = client.post("/api/v1/consensus/fork", json=fork_payload)
+        # KeyError should be caught and return 404
+        assert resp.status_code == 404
+
+    def test_fork_consensus_error_handling(self, client: TestClient):
+        """POST to /api/v1/consensus/fork with parameters that would cause
+        ADLConsensusError (e.g., trying to fork an archived concept,
+        since archived → forked is not a valid transition).
+        Verify ADLConsensusError is caught and 409 is returned.
+        Covers lines 279-282."""
+
+        # Register a concept
+        reg_payload = {"adl_id": "fork_cons_archived", "domain": "test", "scope": "public"}
+        client.post("/api/v1/consensus/register", json=reg_payload)
+
+        # Transition it to archived status (via validated then deprecated)
+        client.post(
+            "/api/v1/consensus/transition",
+            json={
+                "adl_id": "fork_cons_archived",
+                "to_status": "validated",
+                "actor": "v1",
+                "reason": "validate",
+            },
+        )
+        client.post(
+            "/api/v1/consensus/transition",
+            json={
+                "adl_id": "fork_cons_archived",
+                "to_status": "deprecated",
+                "actor": "v2",
+                "reason": "deprecate",
+            },
+        )
+        client.post(
+            "/api/v1/consensus/transition",
+            json={
+                "adl_id": "fork_cons_archived",
+                "to_status": "archived",
+                "actor": "v3",
+                "reason": "archive",
+            },
+        )
+
+        # Attempt to fork an archived concept — should cause ADLConsensusError
+        # because archived → forked is not a valid transition
+        fork_payload = {
+            "original_id": "fork_cons_archived",
+            "fork_id": "fork_cons_archived_child",
+            "actor": "forker-1",
+            "reason": "testing consensus error on archived",
+        }
+        resp = client.post("/api/v1/consensus/fork", json=fork_payload)
+        # ADLConsensusError should be caught and return 409
+        assert resp.status_code == 409
