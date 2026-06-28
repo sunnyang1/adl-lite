@@ -4,8 +4,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![ESWC/ISWC 2027 Backup](https://img.shields.io/badge/Backup-ESWC%2FISWC%202027-blue.svg)](https://2027.eswc-conferences.org/)
 [![Applied Ontology: under revision](https://img.shields.io/badge/Journal-Applied%20Ontology-orange.svg)](https://www.iospress.nl/journal/applied-ontology/)
-[![Tests: 1039 PASS](https://img.shields.io/badge/tests-1039%20PASS-brightgreen.svg)]()
-[![Coverage: 87.8%](https://img.shields.io/badge/coverage-87.8%25-brightgreen.svg)]()
+[![Tests: 1174 PASS](https://img.shields.io/badge/tests-1174%20PASS-brightgreen.svg)]()
+[![Coverage: 87%](https://img.shields.io/badge/coverage-87%25-brightgreen.svg)]()
 [![Release Readiness: GO](https://img.shields.io/badge/release%20readiness-GO-brightgreen.svg)]()
 [![API: FastAPI](https://img.shields.io/badge/API-FastAPI%20REST-009688.svg)]()
 [![Paper: 39pp](https://img.shields.io/badge/paper-39pp-blue.svg)]()
@@ -15,6 +15,480 @@
 ADL Lite is an **event-first, Markdown-native capability-lifecycle registry** for LLM agent ecosystems. Each capability (tool, API, knowledge domain) is represented as an **append-only, cryptographically hash-linked EventChain**. Status, confidence, and validators are **never stored as mutable fields** — all derived deterministically from the event history.
 
 ADL Lite fills the gap between **KYA** (permissions layer) and **AgentSafe** (architecture-level governance): a lightweight, verifiable registry that records what agents can do, how capabilities evolve, and whether they remain trustworthy.
+
+## Table of Contents
+
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Usage Examples](#usage-examples)
+  - [CLI](#cli)
+  - [Python API](#python-api)
+  - [REST API](#rest-api)
+- [Architecture](#architecture)
+- [Core Concepts](#core-concepts)
+- [Experiments](#experiments)
+- [Project Structure](#project-structure)
+- [Paper Status](#paper-status)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Installation
+
+### Prerequisites
+
+- **Python 3.10+** (tested on 3.10, 3.11, 3.12)
+- **pip** (bundled with Python)
+- **Git** (for cloning and pre-commit hooks)
+- **[Docker](https://www.docker.com/)** (optional, for reproducible experiment runs)
+
+### Option 1: Development Install (Recommended)
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/sunnyang1/adl-lite.git
+cd adl-lite
+
+# 2. (Recommended) Create a virtual environment
+python3 -m venv .venv
+source .venv/bin/activate        # macOS / Linux
+# .venv\Scripts\activate         # Windows (PowerShell)
+
+# 3. Install in editable mode with dev dependencies
+pip install -e ".[dev]"
+
+# 4. (Optional) Install pre-commit hooks for automatic linting
+pip install pre-commit
+pre-commit install
+```
+
+### Option 2: Install from PyPI
+
+```bash
+pip install adl-lite
+```
+
+### Option 3: Docker
+
+```bash
+docker build -t adl-lite .
+docker run --rm adl-lite pytest tests/ -v
+```
+
+### Optional Extras
+
+ADL Lite uses optional dependency groups so the core package stays lightweight.
+Install only what you need:
+
+| Extra | Install Command | What It Enables |
+|-------|----------------|-----------------|
+| `dev` | `pip install -e ".[dev]"` | pytest, ruff, mypy, rdflib, pyshacl |
+| `experiments` | `pip install -e ".[experiments]"` | openai, anthropic (LLM experiment scripts) |
+| `experiments-embeddings` | `pip install -e ".[experiments-embeddings]"` | sentence-transformers for near-duplicate detection |
+| `embeddings` | `pip install -e ".[embeddings]"` | FAISS vector index + sentence-transformers + OpenAI |
+| `scale` | `pip install -e ".[scale]"` | FAISS, zstd, msgpack (large-scale cold storage) |
+| `did` | `pip install -e ".[did]"` | web3, eth-account, coincurve (did:ethr resolution) |
+| `gov` | `pip install -e ".[gov]"` | rdflib, pyshacl (SHACL validation) |
+| `prod` | `pip install -e ".[prod]"` | PostgreSQL drivers (psycopg, asyncpg) |
+| `v1` | `pip install -e ".[v1]"` | redis, celery (distributed task queue) |
+
+You can combine multiple extras:
+
+```bash
+pip install -e ".[dev,embeddings,scale,gov]"
+```
+
+### Verify the Installation
+
+```bash
+# Check the CLI is on your PATH
+adl-lite --help
+
+# Run the test suite (fast tests only)
+pytest tests/ -m "not slow" -v
+
+# Run a quick experiment
+python -m experiments.runner E1
+```
+
+---
+
+## Quick Start
+
+```bash
+# Clone and install
+git clone https://github.com/sunnyang1/adl-lite.git
+cd adl-lite
+pip install -e ".[dev]"
+
+# Run all experiments
+python -m experiments.runner all
+
+# List experiments
+python -m experiments.runner list
+
+# Run single experiment
+python -m experiments.runner E2
+
+# Run tests (1174 passed, 87% coverage)
+pytest tests/ -v --cov=adl_lite --cov-report=term-missing
+
+# Run fast tests only (excludes slow benchmarks)
+pytest tests/ -m "not slow" -v --cov=adl_lite
+
+# Start the REST API server
+uvicorn adl_lite.api:app --reload --port 8000
+```
+
+---
+
+## Usage Examples
+
+### End-to-End Walkthrough
+
+This walkthrough shows a complete capability lifecycle: **register → validate → fork → deprecate**.
+
+```python
+from adl_lite import Event, EventChain, EventType, DiscoveryStatus
+from adl_lite.consensus import ConsensusEngine
+from adl_lite.ontology import OntologyManager
+
+# 1. Set up the consensus engine
+#    dev_mode=True  → N_min=1 (single validator, good for development)
+#    dev_mode=False → N_min≥2 (collusion resistance, use in production)
+mgr = OntologyManager()
+engine = ConsensusEngine(ontology=mgr, dev_mode=True)
+
+# 2. An agent registers a new capability
+engine.register(concept_id="cap-weather-api", actor="agent_1")
+chain = engine.chains["cap-weather-api"]
+
+print(chain.status)       # DiscoveryStatus.PROVISIONAL
+print(chain.confidence)   # 0.0 (no validations yet)
+
+# 3. A second agent validates it with a confidence score
+engine.transition(
+    concept_id="cap-weather-api",
+    to="validated",
+    actor="agent_2",
+    confidence=0.85,
+)
+
+print(chain.status)       # DiscoveryStatus.VALIDATED
+print(chain.confidence)   # 0.85 (G-Counter max — never decreases)
+
+# 4. A third agent disagrees and forks a new version
+engine.fork(
+    concept_id="cap-weather-api",
+    child_id="cap-weather-api-v2",
+    actor="agent_3",
+)
+
+print(chain.status)       # DiscoveryStatus.FORKED (parent retains validated)
+
+# 5. The original is deprecated after the fork is validated
+engine.transition(
+    concept_id="cap-weather-api",
+    to="deprecated",
+    actor="agent_2",
+)
+
+print(chain.status)       # DiscoveryStatus.DEPRECATED
+
+# 6. Verify cryptographic integrity of the entire chain
+assert chain.verify_integrity()  # SHA-256 hash-link verification
+
+# Full audit log
+for event in chain.history():
+    print(f"  {event['event_type']:12s}  actor={event['actor']}  "
+          f"hash={event['hash'][:16]}...")
+```
+
+<details>
+<summary><b>Parsing an ADL Markdown file</b></summary>
+
+```python
+from adl_lite import parse_file
+
+# Parse a capability Markdown file (L1 front matter + L2 body + L3/L4 blocks)
+doc = parse_file("examples/weather_data_retrieval.md")
+
+# L1 — derived front-matter snapshot
+print(doc.front_matter.adl_id)     # "weather-data-retrieval"
+print(doc.front_matter.status)     # DiscoveryStatus.DEPRECATED
+print(doc.front_matter.confidence) # 0.85
+
+# L2 — Markdown body (human/LLM narrative)
+print(doc.markdown_body[:200])
+
+# L3 — semantic relation blocks
+for rel in doc.relations:
+    print(f"  {rel.source} --{rel.relation}--> {rel.target}")
+
+# L4 — typed action blocks (the event source of truth)
+for action in doc.actions:
+    print(f"  {action.action:10s}  actor={action.actor}")
+
+# The EventChain is derived from L4 action blocks
+chain = doc.event_chain
+print(chain.status)               # Derived from chain, not stored
+print(chain.confidence)           # G-Counter max over VALIDATE events
+```
+
+</details>
+
+<details>
+<summary><b>Multi-agent consensus with collusion resistance</b></summary>
+
+```python
+from adl_lite.consensus import ConsensusEngine
+from adl_lite.ontology import OntologyManager
+
+mgr = OntologyManager()
+engine = ConsensusEngine(ontology=mgr, dev_mode=True)
+
+# Register a concept
+engine.register(concept_id="cap-sql-exec", actor="agent_1")
+
+# Switch to production mode for collusion resistance
+engine.set_production_mode()  # N_min ≥ 2 distinct validators
+
+# Single-agent validation is now rejected
+try:
+    engine.transition("cap-sql-exec", to="validated", actor="agent_1", confidence=0.9)
+except Exception as e:
+    print(f"Rejected: {e}")  # Not enough distinct validators
+
+# A second distinct agent must validate
+engine.transition("cap-sql-exec", to="validated", actor="agent_2", confidence=0.8)
+print(engine.chains["cap-sql-exec"].status)  # VALIDATED
+```
+
+</details>
+
+<details>
+<summary><b>Confidence calibration strategies</b></summary>
+
+```python
+from adl_lite import parse_file
+
+doc = parse_file("examples/weather_data_retrieval.md")
+chain = doc.event_chain
+
+# Four calibration strategies — each answers "how confident are we?" differently:
+
+# 1. G-Counter max (default, O(1)) — highest single-validator confidence
+print(chain.confidence)                    # 0.85
+
+# 2. Aggregated confidence — per-actor maxima + quorum bonuses
+print(chain.aggregated_confidence())       # γ_agg
+
+# 3. EWMA confidence — time-decayed weighted average (α configurable)
+print(chain.ewma_confidence(alpha=0.3))    # γ_ewma
+
+# 4. Band-calibrated confidence — epistemic over/under-correction
+print(chain.band_calibrated_confidence())  # γ_band
+```
+
+</details>
+
+<details>
+<summary><b>Semantic Web exports (OWL, JSON-LD, RDF-star)</b></summary>
+
+```python
+from adl_lite import (
+    parse_file, export_owl, export_jsonld,
+    document_to_rdfstar_turtle, validate_adl_document,
+)
+
+doc = parse_file("examples/weather_data_retrieval.md")
+
+# OWL 2 DL export (RDF/XML or Turtle) — load into Protégé
+owl_ttl = export_owl(doc, format="turtle")
+
+# JSON-LD export — semantic-web APIs and graph databases
+jsonld = export_jsonld(doc)
+
+# RDF-star / SPARQL-star — annotated triple provenance
+rdfstar = document_to_rdfstar_turtle(doc)
+
+# Runtime SHACL validation
+shacl_errors = validate_adl_document(doc)
+print(f"SHACL errors: {len(shacl_errors)}")
+```
+
+</details>
+
+<details>
+<summary><b>Transparency anchors & Merkle proofs</b></summary>
+
+```python
+from adl_lite import parse_file, MerkleTree, compute_chain_merkle_root
+
+doc = parse_file("examples/weather_data_retrieval.md")
+chain = doc.event_chain
+
+# Compute a Merkle root over all event hashes
+root = compute_chain_merkle_root(chain)
+print(f"Merkle root: {root[:16]}...")
+
+# Generate an inclusion proof for a specific event
+target_hash = chain.events[-1].hash
+proof = MerkleTree.generate_proof(chain.events, target_hash)
+
+# Verify the proof
+assert MerkleTree.verify_proof(target_hash, proof, root)
+```
+
+</details>
+
+### CLI
+
+```bash
+# ── Validate ──────────────────────────────────────────────
+adl-lite validate examples/*.md                 # Basic validation
+adl-lite validate --strict examples/*.md        # + predicate-semantic checks
+adl-lite validate --strict-template examples/*.md  # + L2 template enforcement
+
+# ── Parse (dump parsed structure as JSON) ─────────────────
+adl-lite parse examples/capital_reflux_trap.md
+
+# ── Consensus (capability lifecycle) ──────────────────────
+adl-lite consensus register examples/capital_reflux_trap.md
+adl-lite consensus transition disc-capital-trap --to validated --actor agent_1
+
+# ── Ontology query ───────────────────────────────────────
+adl-lite ontology query --json
+
+# ── Transparency anchor ──────────────────────────────────
+adl-lite anchor                                 # Flat anchor
+adl-lite anchor --merkle --proofs-dir ./proofs  # Merkle root + per-chain proofs
+adl-lite verify-anchor                          # Verify flat anchor
+adl-lite verify-anchor --state ./state.json     # Verify from saved state
+adl-lite verify-inclusion <adl_id> --proof ./proofs/<adl_id>.json
+
+# ── LLM normalization (dry-run by default) ───────────────
+adl-lite normalize --input-dir ./concepts --threshold 0.92
+adl-lite normalize --input-dir ./concepts --threshold 0.92 --execute
+```
+
+### Python API
+
+```python
+from adl_lite import parse_file, Event, EventChain, EventType
+from adl_lite.action_executor import ActionExecutor
+from adl_lite.ontology import OntologyManager
+
+# Event chain
+doc = parse_file("examples/capital_reflux_trap.md")
+chain = doc.event_chain
+print(chain.status)                    # Derived from chain
+print(chain.confidence)                # O(1) — G-Counter max over VALIDATE events
+print(chain.aggregated_confidence())   # Bonus-formula aggregate
+print(chain.history())                 # Full audit log
+
+# Action execution
+mgr = OntologyManager()
+executor = ActionExecutor(mgr)
+errors = executor.validate_action(doc, action_block)
+
+# Consensus engine with dev/production mode
+from adl_lite.consensus import ConsensusEngine
+engine = ConsensusEngine(ontology=mgr, dev_mode=True)   # N_min=1 (dev)
+engine.set_production_mode()                              # N_min≥2 (collusion resistance)
+engine.register(concept_id="cap-weather-api", actor="agent_1")
+engine.transition(concept_id="cap-weather-api", to="validated", actor="agent_2")
+
+# Data import (IBM AML stress test)
+from adl_lite.data_importer import DataImporter
+chains = DataImporter().import_csv("HI-Small_Trans.csv",
+    event_type=EventType.REGISTER, concept_id_field="Account")
+
+# DID signature verification
+from adl_lite import KeyRegistry
+registry = KeyRegistry()
+chain.verify_integrity(registry=registry)  # Verify Ed25519 / secp256k1 signatures
+
+# OWL / JSON-LD / RDF-star export
+from adl_lite import export_owl, export_jsonld, document_to_rdfstar_turtle
+owl_ttl = export_owl(doc, format="turtle")
+jsonld = export_jsonld(doc)
+rdfstar = document_to_rdfstar_turtle(doc)
+
+# SHACL validation
+from adl_lite import validate_adl_document
+shacl_errors = validate_adl_document(doc)
+
+# L3 Relation validation
+from adl_lite import RelationValidator
+validator = RelationValidator()
+valid = validator.valid(relation, source_status, target_status)
+
+# Near-duplicate detection
+from adl_lite import check_near_duplicate, suggest_merge
+matches = check_near_duplicate(doc, existing_chains, threshold=0.85)
+merge_suggestion = suggest_merge(doc, existing_chains)
+
+# Vector semantic search
+from adl_lite import VectorIndex, SentenceTransformerBackend
+index = VectorIndex(backend=SentenceTransformerBackend())
+index.add(doc.adl_id, doc.markdown_body)
+results = index.search("gradient explosion", top_k=5, threshold=0.8)
+
+# LLM normalization (dry-run)
+from adl_lite import CanonicalizationEngine, OpenAILLMBackend
+engine = CanonicalizationEngine(index, llm=OpenAILLMBackend())
+proposals = engine.normalize(threshold=0.92, dry_run=True)
+
+# Merkle transparency anchor
+from adl_lite import MerkleTree, compute_chain_merkle_root
+root = compute_chain_merkle_root(chain)
+proof = MerkleTree.generate_proof(chain.events, target_event_hash)
+
+# Linked Data Proofs
+from adl_lite import create_event_proof, verify_event_proof
+event = chain.events[-1]
+proof = create_event_proof(event, did="did:key:z6Mk...", registry=registry)
+assert verify_event_proof(event, proof, registry=registry)
+```
+
+### REST API
+
+```bash
+# Start the API server
+uvicorn adl_lite.api:app --reload --port 8000
+
+# Register a concept
+curl -X POST http://localhost:8000/api/v1/consensus/register \
+  -H "Content-Type: application/json" \
+  -d '{"adl_id": "cap-weather-api", "actor": "agent_1", "domain": "weather", "scope": "public"}'
+
+# Validate (transition to validated)
+curl -X POST http://localhost:8000/api/v1/consensus/transition \
+  -H "Content-Type: application/json" \
+  -d '{"adl_id": "cap-weather-api", "to": "validated", "actor": "agent_2", "confidence": 0.85}'
+
+# Check status
+curl http://localhost:8000/api/v1/consensus/status/cap-weather-api
+
+# Fork a concept
+curl -X POST http://localhost:8000/api/v1/consensus/fork \
+  -H "Content-Type: application/json" \
+  -d '{"adl_id": "cap-weather-api", "child_id": "cap-weather-api-v2", "actor": "agent_3"}'
+
+# Switch to production mode (N_min ≥ 2)
+curl -X POST http://localhost:8000/api/v1/consensus/mode/production
+
+# Switch back to dev mode (N_min = 1)
+curl -X POST http://localhost:8000/api/v1/consensus/mode/dev
+```
+
+Once the server is running, interactive API docs are available at
+`http://localhost:8000/docs` (Swagger UI).
+
+---
 
 ## Architecture
 
@@ -70,31 +544,69 @@ assert chain.confidence == 0.85
 assert chain.verify_integrity()  # SHA-256 hash verification
 ```
 
-## Paper Status
+### Consensus States
 
-| Item | Status |
-|------|--------|
-| **paper_ao/** | Applied Ontology journal — under major revision (39 pp, 30+ refs, 9 theorems) |
-| **Target venue** | Applied Ontology (ESWC/ISWC 2027 track as backup) |
-| **New title** | *ADL Lite: An Event-First Capability-Lifecycle Registry for LLM Agent Ecosystems* |
-| **Key framing** | Complementary governance layer — not a competing ontology production method |
+```
+provisional → validated → deprecated → archived
+                 ↓
+              forked (parent retains validated)
+```
 
-**Key properties (formalised in paper_ao Section 4):**
+| provisional | validated | deprecated | forked | archived |
+|:---:|:---:|:---:|:---:|:---:|
 
-| Theorem | Property |
-|---------|----------|
-| T1 | Determinism of $\delta(C)$ |
-| T2 | Confluence under fork |
-| T3 | Status transition monotonicity |
-| T4 | Confidence boundedness $\gamma(C) \in [0,1]$ |
-| T5 | Confidence monotonicity under **non-colluding** validation |
-| T6 | Status–confidence consistency ($\delta = $ validated $\implies \gamma \geq 0.5$) |
-| T7 | CRDT convergence under LWW-Set merge |
-| Corollary | Event-level G-Set CRDT |
+Status transitions are monotonic (CRDT LUB semantics): a concept never regresses
+to a lower-status state once it has reached a higher one.
+
+---
+
+## Core Concepts
+
+| Term | Definition |
+|------|-----------|
+| **EventChain** | Append-only, cryptographically hash-linked event sequence. Capability = chain. |
+| **Event** | Atomic event: event_type, actor, payload, hash, previous_event_id, canon_version |
+| **Event-first** | Status/confidence/validators derived from chain, no mutable fields stored |
+| **Capability** | A claim an agent makes: "I can retrieve weather data", "I can execute SQL" |
+| **δ(C)** | Deterministic status derivation function (O(1)) |
+| **γ(C)** | G-Counter max confidence over all VALIDATE / SNAPSHOT events |
+| **γ_agg(C)** | Bonus-formula aggregate: per-actor maxima + quorum bonuses |
+| **γ_cal(C)** | Per-actor accuracy-weighted calibrated confidence |
+| **γ_ewma(C)** | EWMA-calibrated confidence with time-decay (α configurable, default 0.3) |
+| **γ_ctx(C)** | Per-domain context-calibrated confidence (e.g., AML vs fraud vs general) |
+| **γ_band(C)** | Epistemic-band calibrated confidence (over/under-correction) |
+| **Action Type** | L4 blocks: declarative actions + Comparator preconditions (no eval()) |
+| **Trust Model** | Hash chain integrity + canonicalization version + Ed25519/DIDs + Merkle proofs |
+| **Relation Validator** | Invariant 2: L3 relation validity based on endpoint lifecycle status |
+| **RDF-star** | Embedded triple annotations for event provenance in triple stores |
+| **SHACL** | Runtime shape validation over ADLDocument concepts, events, and relations |
+| **Vector Index** | FAISS-backed semantic search over ADL Markdown bodies |
+| **Canonicalization** | LLM-driven clustering and normalization of near-duplicate concepts |
+| **REST API** | FastAPI `/api/v1/consensus/` endpoints for external lifecycle management |
+| **dev_mode** | ConsensusEngine dev mode: N_min=1 (single validator) vs production N_min≥2 (collusion resistance) |
+| **WarmIndex degradation** | BD-02: SQLite timeout >5s → degrade to HotIndex (ConceptSkeleton) with auto-recovery |
+
+### Agent Governance Positioning
+
+ADL Lite is a **complementary governance layer**, not a competing ontology production method:
+
+| System | Answers | Layer |
+|--------|---------|-------|
+| **KYA** | "Is this agent trusted?" | Permissions / trust |
+| **AgentSafe** | "Is this architecture safe?" | Design-time + runtime + audit |
+| **Talukdar et al.** | "How do we build ontologies with agents?" | Ontology production |
+| **"Agent Traces to Trust"** | "How do we trace what agents did?" | Provenance |
+| **SafeAgent** | "Is this agent dangerous?" | Safety protocol |
+| **ADL Lite** | "How do we record, validate, and govern capabilities?" | **Capability lifecycle registry** |
+
+A complete agent ecosystem uses **KYA** for permissions, **AgentSafe** for architecture safety, and **ADL Lite** for capability lifecycle governance.
+
+---
 
 ## Experiments
 
 **paper_ao** (architectural correctness + boundary conditions):
+
 | # | Experiment | Key Metric |
 |---|-----------|-----------|
 | E1 | Chain integrity | 60 chains: P=R=F1=1.0 |
@@ -109,10 +621,10 @@ assert chain.verify_integrity()  # SHA-256 hash verification
 | E10 | FDE pipeline | OntologyManager + ActionExecutor |
 | E11 | Side-effect stress | ActionExecutor + side effects |
 | E12 | Benchmark comparison | Cross-format throughput comparison |
-| E13 | Long-chain stress | Linear to 50k events, $R^2 = 1.0$ |
-| E14 | Collusion vulnerability | 1 actor → $\gamma = 0.99$ (Phase 1 limitation) |
+| E13 | Long-chain stress | Linear to 50k events, R² = 1.0 |
+| E14 | Collusion vulnerability | 1 actor → γ = 0.99 (Phase 1 limitation) |
 | E15 | Precondition boundary | 4/11 caught by Pydantic (defense-in-depth gap) |
-| E16 | Contention simulation | 95% rejection at $k=20$ (no fork-on-conflict) |
+| E16 | Contention simulation | 95% rejection at k=20 (no fork-on-conflict) |
 | E17 | Multi-agent collaboration | Collaborative capability registration patterns |
 | E19 | Governance benchmark | Formal governance metrics across 100+ concepts |
 | E20 | Template effectiveness | 100% section coverage |
@@ -126,238 +638,26 @@ assert chain.verify_integrity()  # SHA-256 hash verification
 | E29 | Vector index recall | FAISS ANN recall vs brute-force cosine |
 | E30 | LLM normalization | Dry-run LLM canonicalization of near-duplicates |
 
-## New in v0.5.0-alpha (This Release)
-
-### Architecture-Driven Development
-- **FastAPI REST API** (`adl_lite/api.py`) — `/api/v1/consensus/` endpoints: register, transition, status, history, fork, verify, list, mode (dev/production)
-- **ConsensusEngine dev_mode** — `dev_mode=True` default (N_min=1 for development); `set_production_mode()` switches to N_min≥2 for collusion resistance
-- **EWMA calibration side-effect** — VALIDATE transition automatically triggers `MARGINCalibrator.update_accuracy_ewma()` for continuous confidence calibration
-- **WarmIndex degradation** (BD-02) — SQLite I/O timeout >5s → degrade to HotIndex (ConceptSkeleton only), with auto-recovery
-- **CLI bug fixes** — `ADLOntologyError` catch in ontology query/validate; `verify-anchor --state` loads chains from state file for integrity verification
-- **Optional-dep test guards** — graceful `pytest.mark.skipif` for sentence-transformers, faiss, zstandard, msgpack
-
-### Test & Coverage Improvement (v0.5.0-alpha)
-- **Test count**: 796 → **1057** → **1039 fast suite** (+261 tests, +32.8%; 22 skipped for optional deps)
-- **Code coverage**: 75.5% → **87.8%** (full suite), **83%** (fast suite)
-- **FDE module coverage**: 0% → **96.9%** (rule_engine, pipeline_engine, agent_runner, importers, transformers)
-- **Zero-coverage modules eliminated**: 7 → 0
-- **CI coverage gate**: configured (min 75%, target 85%)
-- **Slow test markers**: `@pytest.mark.slow` on 17 long-running tests (3.3× fast-test speedup)
-
-### Formal Methods & Verification
-- **TLA+ bounded specifications** — `specs/EventChain.tla` (single chain: T1/T2/T3/T4/T5/T7), `specs/CRDTMerge.tla` (two-branch merge: T9), `specs/ConsensusEngine.tla` (multi-agent with `N_min` validators: T6/T8)
-- **Buildable Coq/Iris skeleton** — `formal/coq/` with closed proofs for `Status.v`, `Event.v`, `Confidence.v`, `Chain.v`, `Invariants.v`, `CRDT.v` (Theorem 9 fully closed); Iris ghost-state stubs for split-lock concurrency
-- **Proof trace checker** — `proof_trace_checker.py` randomized property-based validation of Theorems 1–7 over 10,000 synthetic chains (E24)
-
-### Scale & Performance
-- **Split-lock EventChain** — `_events_lock` + `_cache_lock` (RLock) targeting 10k concurrent agents
-- **Incremental integrity verification** — caches verified prefix, only validates newly appended events
-- **zstd+msgpack cold storage** — compressed archival in `cold_storage.py` with streaming decompression
-- **1M event scale** — linear append/verify throughput with memory < 2 GB (E27)
-- **10K concurrent agent contention** — split-lock throughput under 10k logical agents (E28)
-- **Microbenchmark** — precondition eval time vs rule count and confidence aggregation time vs validator count (E25)
-
-### Vector Index & LLM Normalization
-- **Pluggable embedding backends** — `SentenceTransformerBackend` (local-first) and `OpenAIBackend`
-- **FAISS-backed vector index** — persisted semantic search with pre-filtering, SQLite metadata backup, thread-safe RLock
-- **LLM-driven canonicalization** — `CanonicalizationEngine` clusters near-duplicates, proposes canonical forms, emits auditable ADL action blocks; dry-run by default (E30)
-- **Vector index recall** — FAISS ANN recall against brute-force cosine (E29)
-- **New CLI**: `adl-lite normalize --input-dir ./concepts --threshold 0.92 --dry-run`
-
-### Security, Trust & Identity
-- **Multi-method DID resolver** — `did:key`, `did:web` (HTTPS), `did:ethr` (ecrecover via optional `[did]` extras)
-- **Linked Data Proofs** — `create_event_proof()` / `verify_event_proof()` with `Ed25519Signature2020` and `EcdsaSecp256k1Signature2019`; `Event.proof` field stores W3C Data Integrity proofs
-- **Merkle batch verification** — `MerkleTree` with SHA-256, inclusion proofs, and per-chain transparency anchors
-- **Transparency anchor** — flat and Merkle root anchors with inclusion proofs; CLI: `adl-lite anchor --merkle --proofs-dir <dir>` and `adl-lite verify-inclusion <adl_id>`
-
-### Governance & Validation
-- **Runtime SHACL validation** — `validate_adl_document()` runs built-in shapes on ADLDocument (Concept, Event, Agent, Relation, CalibrateEvent)
-- **Auto domain-expert calibration** — `MARGINCalibrator.update_accuracy_ewma()` + `apply_calibration_event()` + `update_from_feedback()`; `calibrate` action wired to `ActionExecutor` side effects
-- **Dynamic collusion resistance** — `OntologyManager.min_distinct_validators()` reads from ontology YAML; enforced by `ConsensusEngine` and `ActionExecutor`
-- **L3 Relation governance** — `RelationValidator` enforces Invariant 2 (lifecycle-based validity) with optional strict predicate-semantic checks and `status_resolver` callback
-
-### Semantic Web Interoperability
-- **OWL 2 bidirectional** — `export_owl()` + `parse_owl_turtle()` / `parse_owl_rdfxml()` for round-trip Protégé interoperability
-- **RDF-star / SPARQL-star** — `document_to_rdfstar_turtle()` and `sparqlstar_query_template()` for annotated triple provenance
-- **JSON-LD export** — `export_jsonld()` for semantic-web APIs and graph databases
-- **PROV-O export** — `prov_export.py` for provenance serialization
-
-### Test & Experiment Coverage
-- **1039 tests passing** (22 skipped for optional deps), 87.8% coverage (full suite), 83% coverage (fast suite)
-- **28 registered experiments** (E1–E30, excluding E17/E18/E22/E26) — covering chain integrity, status derivation, snapshot round-trip, precondition enforcement, 5-agent audit, AML pipeline, real-time watcher, edge sync, git baseline, FDE pipeline, side-effect stress, governance benchmark, long-chain stress, collusion, contention, proof trace, microbenchmark, 1M scale, 10k concurrency, vector index recall, and LLM normalization
-
-## Quick Start
+Run experiments:
 
 ```bash
-git clone https://github.com/sunnyang1/adl-lite.git
-cd adl-lite
-pip install -e ".[dev]"
-
-# Run all experiments
-python -m experiments.runner all
-
-# List experiments
+# List all available experiments
 python -m experiments.runner list
 
-# Run single
-python -m experiments.runner E2
+# Run a single experiment
+python -m experiments.runner E2 --verbose
 
-# Run tests (1039 passed, 87.8% coverage)
-pytest tests/ -v --cov=adl_lite --cov-report=term-missing
+# Run all experiments (5–15 minutes)
+python -m experiments.runner all
 
-# Run fast tests only (excludes slow benchmarks)
-pytest tests/ -m "not slow" -v --cov=adl_lite
-
-# Start the REST API server
-uvicorn adl_lite.api:app --reload --port 8000
+# One-command reproduction script
+./reproduce.sh              # all core experiments
+./reproduce.sh quick        # E1–E4 + E24 only (~30 seconds)
+./reproduce.sh docker       # build & run Docker image
+./reproduce.sh test         # pytest suite only
 ```
 
-### CLI
-
-```bash
-# Validate
-adl-lite validate examples/*.md
-adl-lite validate --strict examples/*.md
-adl-lite validate --strict-template examples/*.md
-
-# Parse
-adl-lite parse examples/capital_reflux_trap.md
-
-# Consensus (capability lifecycle)
-adl-lite consensus register examples/capital_reflux_trap.md
-adl-lite consensus transition disc-capital-trap --to validated --actor agent_1
-
-# Ontology query
-adl-lite ontology query --json
-
-# Transparency anchor
-adl-lite anchor
-adl-lite anchor --merkle --proofs-dir ./proofs
-adl-lite verify-anchor
-adl-lite verify-anchor --state ./state.json
-adl-lite verify-inclusion <adl_id> --proof ./proofs/<adl_id>.json
-
-# Normalization (dry-run by default)
-adl-lite normalize --input-dir ./concepts --threshold 0.92
-adl-lite normalize --input-dir ./concepts --threshold 0.92 --execute
-```
-
-### REST API
-
-```bash
-# Start the API server
-uvicorn adl_lite.api:app --reload --port 8000
-
-# Register a concept
-curl -X POST http://localhost:8000/api/v1/consensus/register \
-  -H "Content-Type: application/json" \
-  -d '{"adl_id": "cap-weather-api", "actor": "agent_1", "domain": "weather", "scope": "public"}'
-
-# Validate (transition to validated)
-curl -X POST http://localhost:8000/api/v1/consensus/transition \
-  -H "Content-Type: application/json" \
-  -d '{"adl_id": "cap-weather-api", "to": "validated", "actor": "agent_2", "confidence": 0.85}'
-
-# Check status
-curl http://localhost:8000/api/v1/consensus/status/cap-weather-api
-
-# Fork a concept
-curl -X POST http://localhost:8000/api/v1/consensus/fork \
-  -H "Content-Type: application/json" \
-  -d '{"adl_id": "cap-weather-api", "child_id": "cap-weather-api-v2", "actor": "agent_3"}'
-
-# Switch to production mode (N_min ≥ 2)
-curl -X POST http://localhost:8000/api/v1/consensus/mode/production
-
-# Switch back to dev mode (N_min = 1)
-curl -X POST http://localhost:8000/api/v1/consensus/mode/dev
-```
-
-### Python API
-
-```python
-from adl_lite import parse_file, Event, EventChain, EventType
-from adl_lite.action_executor import ActionExecutor
-from adl_lite.ontology import OntologyManager
-
-# Event chain
-doc = parse_file("examples/capital_reflux_trap.md")
-chain = doc.event_chain
-print(chain.status)           # Derived from chain
-print(chain.confidence)       # O(1) — G-Counter max over VALIDATE events
-print(chain.aggregated_confidence())  # Bonus-formula aggregate
-print(chain.history())        # Full audit log
-
-# Action execution
-mgr = OntologyManager()
-executor = ActionExecutor(mgr)
-errors = executor.validate_action(doc, action_block)
-
-# Consensus engine with dev/production mode
-from adl_lite.consensus import ConsensusEngine
-engine = ConsensusEngine(ontology=mgr, dev_mode=True)   # N_min=1 (dev)
-engine.set_production_mode()                              # N_min≥2 (collusion resistance)
-engine.register(concept_id="cap-weather-api", actor="agent_1")
-engine.transition(concept_id="cap-weather-api", to="validated", actor="agent_2")
-
-# Data import (IBM AML stress test)
-from adl_lite.data_importer import DataImporter
-chains = DataImporter().import_csv("HI-Small_Trans.csv",
-    event_type=EventType.REGISTER, concept_id_field="Account")
-
-# Calibration (4 strategies)
-print(chain.confidence)                  # O(1) — G-Counter max
-print(chain.aggregated_confidence())       # γ_agg — bonus-formula
-print(chain.ewma_confidence(alpha=0.3))   # γ_ewma — time-decay
-print(chain.band_calibrated_confidence())  # γ_band — epistemic correction
-
-# DID signature verification
-from adl_lite import KeyRegistry
-registry = KeyRegistry()
-chain.verify_integrity(registry=registry)  # Verify Ed25519 / secp256k1 signatures
-
-# OWL / JSON-LD / RDF-star export
-from adl_lite import export_owl, export_jsonld, document_to_rdfstar_turtle
-owl_ttl = export_owl(doc, format="turtle")
-jsonld = export_jsonld(doc)
-rdfstar = document_to_rdfstar_turtle(doc)
-
-# SHACL validation
-from adl_lite import validate_adl_document
-shacl_errors = validate_adl_document(doc)
-
-# L3 Relation validation
-from adl_lite import RelationValidator
-validator = RelationValidator()
-valid = validator.valid(relation, source_status, target_status)
-
-# Near-duplicate detection
-from adl_lite import check_near_duplicate, suggest_merge
-matches = check_near_duplicate(doc, existing_chains, threshold=0.85)
-merge_suggestion = suggest_merge(doc, existing_chains)
-
-# Vector semantic search
-from adl_lite import VectorIndex, SentenceTransformerBackend
-index = VectorIndex(backend=SentenceTransformerBackend())
-index.add(doc.adl_id, doc.markdown_body)
-results = index.search("gradient explosion", top_k=5, threshold=0.8)
-
-# LLM normalization (dry-run)
-from adl_lite import CanonicalizationEngine, OpenAILLMBackend
-engine = CanonicalizationEngine(index, llm=OpenAILLMBackend())
-proposals = engine.normalize(threshold=0.92, dry_run=True)
-
-# Merkle transparency anchor
-from adl_lite import MerkleTree, compute_chain_merkle_root
-root = compute_chain_merkle_root(chain)
-proof = MerkleTree.generate_proof(chain.events, target_event_hash)
-
-# Linked Data Proofs
-from adl_lite import create_event_proof, verify_event_proof
-event = chain.events[-1]
-proof = create_event_proof(event, did="did:key:z6Mk...", registry=registry)
-assert verify_event_proof(event, proof, registry=registry)
-```
+---
 
 ## Project Structure
 
@@ -407,8 +707,8 @@ adl-lite/
 │   ├── runner.py          # python -m experiments.runner all
 │   ├── harness.py         # 5-agent simulation harness
 │   ├── proof_trace_checker.py # Randomized property-based theorem validation
-│   └── e*.py              # 28 registered experiments (E1–E30, excluding E17/E18/E22/E26)
-├── tests/                 # pytest suite (1039 pass, 22 skip, 87.8% coverage)
+│   └── e*.py              # 28 registered experiments (E1–E30)
+├── tests/                 # pytest suite (1174 pass, 22 skip, 87% coverage)
 ├── examples/              # Capability file examples
 ├── data/aml/              # AML domain stress test data
 ├── docs/
@@ -431,51 +731,31 @@ adl-lite/
 └── .pre-commit-config.yaml
 ```
 
-## Core Concepts
+---
 
-| Term | Definition |
-|------|-----------|
-| **EventChain** | Append-only, cryptographically hash-linked event sequence. Capability = chain. |
-| **Event** | Atomic event: event_type, actor, payload, hash, previous_event_id, canon_version |
-| **Event-first** | Status/confidence/validators derived from chain, no mutable fields stored |
-| **Capability** | A claim an agent makes: "I can retrieve weather data", "I can execute SQL" |
-| **$\delta(C)$** | Deterministic status derivation function (O(1)) |
-| **$\gamma(C)$** | G-Counter max confidence over all VALIDATE / SNAPSHOT events |
-| **$\gamma_{agg}(C)$** | Bonus-formula aggregate: per-actor maxima + quorum bonuses |
-| **$\gamma_{cal}(C)$** | Per-actor accuracy-weighted calibrated confidence |
-| **$\gamma_{ewma}(C)$** | EWMA-calibrated confidence with time-decay (α configurable, default 0.3) |
-| **$\gamma_{ctx}(C)$** | Per-domain context-calibrated confidence (e.g., AML vs fraud vs general) |
-| **$\gamma_{band}(C)$** | Epistemic-band calibrated confidence (over/under-correction) |
-| **Action Type** | L4 blocks: declarative actions + Comparator preconditions (no eval()) |
-| **Trust Model** | Hash chain integrity + canonicalization version + Ed25519/DIDs + Merkle proofs |
-| **Relation Validator** | Invariant 2: L3 relation validity based on endpoint lifecycle status |
-| **RDF-star** | Embedded triple annotations for event provenance in triple stores |
-| **SHACL** | Runtime shape validation over ADLDocument concepts, events, and relations |
-| **Vector Index** | FAISS-backed semantic search over ADL Markdown bodies |
-| **Canonicalization** | LLM-driven clustering and normalization of near-duplicate concepts |
-| **REST API** | FastAPI `/api/v1/consensus/` endpoints for external lifecycle management |
-| **dev_mode** | ConsensusEngine dev mode: N_min=1 (single validator) vs production N_min≥2 (collusion resistance) |
-| **WarmIndex degradation** | BD-02: SQLite timeout >5s → degrade to HotIndex (ConceptSkeleton) with auto-recovery |
+## Paper Status
 
-## Agent Governance Positioning
+| Item | Status |
+|------|--------|
+| **paper_ao/** | Applied Ontology journal — under major revision (39 pp, 30+ refs, 9 theorems) |
+| **Target venue** | Applied Ontology (ESWC/ISWC 2027 track as backup) |
+| **New title** | *ADL Lite: An Event-First Capability-Lifecycle Registry for LLM Agent Ecosystems* |
+| **Key framing** | Complementary governance layer — not a competing ontology production method |
 
-ADL Lite is a **complementary governance layer**, not a competing ontology production method:
+**Key properties (formalised in paper_ao Section 4):**
 
-| System | Answers | Layer |
-|--------|---------|-------|
-| **KYA** | "Is this agent trusted?" | Permissions / trust |
-| **AgentSafe** | "Is this architecture safe?" | Design-time + runtime + audit |
-| **Talukdar et al.** | "How do we build ontologies with agents?" | Ontology production |
-| **"Agent Traces to Trust"** | "How do we trace what agents did?" | Provenance |
-| **SafeAgent** | "Is this agent dangerous?" | Safety protocol |
-| **ADL Lite** | "How do we record, validate, and govern capabilities?" | **Capability lifecycle registry** |
+| Theorem | Property |
+|---------|----------|
+| T1 | Determinism of δ(C) |
+| T2 | Confluence under fork |
+| T3 | Status transition monotonicity |
+| T4 | Confidence boundedness γ(C) ∈ [0,1] |
+| T5 | Confidence monotonicity under **non-colluding** validation |
+| T6 | Status–confidence consistency (δ = validated ⟹ γ ≥ 0.5) |
+| T7 | CRDT convergence under LWW-Set merge |
+| Corollary | Event-level G-Set CRDT |
 
-A complete agent ecosystem uses **KYA** for permissions, **AgentSafe** for architecture safety, and **ADL Lite** for capability lifecycle governance.
-
-## Consensus States
-
-| provisional | validated | deprecated | forked | archived |
-|:---:|:---:|:---:|:---:|:---:|
+---
 
 ## Roadmap
 
@@ -501,6 +781,137 @@ A complete agent ecosystem uses **KYA** for permissions, **AgentSafe** for archi
 
 ---
 
+## Contributing
+
+Contributions are welcome! This project follows a standard fork-and-PR workflow.
+
+### Development Setup
+
+```bash
+# 1. Fork and clone
+git clone https://github.com/<your-username>/adl-lite.git
+cd adl-lite
+
+# 2. Create a virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 3. Install in editable mode with dev dependencies
+pip install -e ".[dev]"
+
+# 4. Install pre-commit hooks (auto-runs ruff + mypy on every commit)
+pip install pre-commit
+pre-commit install
+```
+
+### Code Style
+
+| Tool | Configuration | Command |
+|------|---------------|---------|
+| **ruff** | Line length 100, target py310, rules E/F/W/I/N/UP/B/C4 | `ruff check adl_lite/` |
+| **ruff-format** | Enforced in CI and pre-commit | `ruff format adl_lite/` |
+| **mypy** | `--ignore-missing-imports`, untyped defs allowed | `mypy adl_lite/ --ignore-missing-imports` |
+
+Key conventions:
+- **Line length**: 100 characters (enforced by ruff)
+- **Target Python**: 3.10 (use no syntax newer than 3.10 in `adl_lite/`)
+- **Comments & docstrings**: English
+- **User-facing CLI output**: Bilingual (English/Chinese) is OK
+- **File naming**: test files match `test_<module>.py`
+- **Excluded from lint**: `archive/`, `data/aml/scripts/`
+
+### Running Tests
+
+```bash
+# Fast test suite (excludes slow benchmarks — ~6 seconds)
+pytest tests/ -m "not slow" -v
+
+# Full test suite with coverage
+pytest tests/ -v --cov=adl_lite --cov-report=xml --cov-report=term-missing
+
+# Run a specific test file
+pytest tests/test_consensus.py -v
+
+# Run a single test
+pytest tests/test_consensus.py::test_register -v
+```
+
+**Test markers:**
+- `@pytest.mark.slow` — marks long-running tests (benchmarks, stress tests).
+  Exclude with `-m "not slow"` for fast iteration.
+- `asyncio_mode = "auto"` — async tests run without explicit markers.
+
+### Pre-Commit Hooks
+
+The `.pre-commit-config.yaml` runs **ruff** (lint + format) and **mypy** on every
+commit. If a hook fails, fix the reported issues and re-stage:
+
+```bash
+# Run all hooks manually
+pre-commit run --all-files
+
+# If ruff auto-fixes issues, re-stage the changed files
+git add -u && git commit
+```
+
+### Submitting a Pull Request
+
+1. **Create a feature branch** from `main`:
+   ```bash
+   git checkout -b feature/my-new-feature
+   ```
+
+2. **Make your changes**. Ensure all checks pass:
+   ```bash
+   ruff check adl_lite/
+   ruff format --check adl_lite/
+   mypy adl_lite/ --ignore-missing-imports
+   pytest tests/ -m "not slow" -v
+   ```
+
+3. **Add tests** for new functionality. Aim to maintain or improve coverage
+   (current target: ≥ 85%).
+
+4. **Commit with a clear message**. We follow [Conventional Commits](https://www.conventionalcommits.org/):
+   ```
+   feat: add did:pkh resolver support
+   fix: handle None payload in EWMA calibration
+   docs: update installation instructions
+   test: add fork inheritance edge cases
+   refactor: extract merkle proof verification
+   ```
+
+5. **Push and open a PR** against `main`. Include:
+   - A summary of what changed and why
+   - Any breaking changes (mark with `BREAKING CHANGE:`)
+   - Test results or experiment output if applicable
+
+### CI Pipeline
+
+Every push and PR to `main` triggers [GitHub Actions](.github/workflows/ci.yml)
+which runs on Python 3.10, 3.11, and 3.12:
+
+1. **Install** — `pip install -e ".[dev]"`
+2. **Test** — `pytest tests/ -v --cov=adl_lite --cov-report=xml`
+3. **Lint** — `ruff check adl_lite/`
+4. **Type check** — `mypy adl_lite/ --ignore-missing-imports`
+5. **Benchmark** — `python experiments/benchmarks/throughput.py`
+6. **Coverage** — uploaded to Codecov (Python 3.12 job only)
+
+All steps must pass for the PR to be mergeable.
+
+### Reporting Issues
+
+- **Bugs**: Open an issue with a minimal reproduction (code snippet + expected
+  vs. actual output + Python version + OS).
+- **Feature requests**: Describe the use case and proposed API surface.
+- **Security vulnerabilities**: Do NOT open a public issue. Email the
+  maintainers directly.
+
+---
+
 ## License
 
-MIT License — see [LICENSE](LICENSE)
+MIT License — see [LICENSE](LICENSE).
+
+Copyright (c) 2026 CEIEC AI Infrastructure.
