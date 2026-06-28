@@ -12,6 +12,8 @@ Endpoints:
     POST   /api/v1/consensus/fork             — fork a capability
     GET    /api/v1/consensus/verify/{adl_id}  — verify chain integrity
     GET    /api/v1/consensus/list             — list all registered capabilities
+    POST   /api/v1/consensus/mode/dev         — set dev mode (admin only)
+    POST   /api/v1/consensus/mode/production  — set production mode (admin only)
 """
 
 from __future__ import annotations
@@ -21,9 +23,16 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from .api_auth import (
+    RateLimitMiddleware,
+    UserInfo,
+    configure_auth,
+    require_admin,
+    require_auth,
+)
 from .consensus import ConsensusEngine
 from .exceptions import ADLConsensusError
 from .models import ADLDocument, ADLFrontMatter, ADLType, DiscoveryStatus, Event, EventType
@@ -85,8 +94,18 @@ class VerifyResponse(BaseModel):
     integrity_ok: bool
 
 
+class PaginatedListResponse(BaseModel):
+    """Paginated response for listing registered capabilities."""
+
+    capabilities: list[str]
+    total: int
+    count: int  # Alias for total (backward compat with old ListResponse)
+    offset: int
+    limit: int
+
+
 class ListResponse(BaseModel):
-    """Response for listing registered capabilities."""
+    """Legacy response for listing registered capabilities (backward compat)."""
 
     capabilities: list[str]
     count: int
@@ -97,6 +116,15 @@ class ErrorResponse(BaseModel):
 
     error: str
     detail: str = ""
+
+
+# ---------------------------------------------------------------------------
+# Pagination constants
+# ---------------------------------------------------------------------------
+
+_MAX_LIMIT = 200
+_DEFAULT_LIMIT = 50
+_DEFAULT_OFFSET = 0
 
 
 # ---------------------------------------------------------------------------
@@ -152,17 +180,36 @@ def _save_engine(engine: ConsensusEngine) -> None:
     _state_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
-def create_app(state_path: str | None = None) -> FastAPI:
+def create_app(
+    state_path: str | None = None,
+    auth_enabled: bool = False,
+    jwt_secret: str = "change-me",
+    api_keys: set[str] | None = None,
+    rate_limit: int = 0,
+) -> FastAPI:
     """Create and configure the FastAPI application.
 
     Args:
         state_path: Path to consensus state JSON file. Defaults to
             ``adl_consensus.json`` in the current working directory.
+        auth_enabled: Whether to require authentication on endpoints.
+            When ``False``, all endpoints are accessible without auth
+            (backward compat with existing tests).
+        jwt_secret: Secret key for JWT signing/verification.
+        api_keys: Set of valid API keys for ``X-API-Key`` auth.
+        rate_limit: Max requests per 60s window per client. ``0`` disables.
     """
     global _state_path, _engine
     if state_path is not None:
         _state_path = Path(state_path)
     _engine = None  # Reset engine so it re-loads from new state_path
+
+    # Configure auth module globals
+    configure_auth(
+        jwt_secret=jwt_secret,
+        api_keys=api_keys or set(),
+        auth_enabled=auth_enabled,
+    )
 
     app = FastAPI(
         title="ADL Lite Consensus API",
@@ -170,11 +217,18 @@ def create_app(state_path: str | None = None) -> FastAPI:
         description="REST API for ADL Lite consensus lifecycle operations",
     )
 
+    # Add rate-limit middleware
+    if rate_limit > 0:
+        app.add_middleware(RateLimitMiddleware, rate_limit=rate_limit)
+
     # ------------------------------------------------------------------
     # POST /api/v1/consensus/register
     # ------------------------------------------------------------------
     @app.post("/api/v1/consensus/register", response_model=StatusResponse)
-    def register_capability(req: RegisterRequest) -> StatusResponse:
+    def register_capability(
+        req: RegisterRequest,
+        user: UserInfo = Depends(require_auth),
+    ) -> StatusResponse:
         engine = _get_engine()
         if req.adl_id in engine.chains:
             raise HTTPException(status_code=409, detail=f"Already registered: {req.adl_id}")
@@ -202,7 +256,10 @@ def create_app(state_path: str | None = None) -> FastAPI:
     # POST /api/v1/consensus/transition
     # ------------------------------------------------------------------
     @app.post("/api/v1/consensus/transition", response_model=StatusResponse)
-    def transition_capability(req: TransitionRequest) -> StatusResponse:
+    def transition_capability(
+        req: TransitionRequest,
+        user: UserInfo = Depends(require_auth),
+    ) -> StatusResponse:
         engine = _get_engine()
         try:
             target = DiscoveryStatus(req.to_status)
@@ -242,7 +299,10 @@ def create_app(state_path: str | None = None) -> FastAPI:
     # GET /api/v1/consensus/status/{adl_id}
     # ------------------------------------------------------------------
     @app.get("/api/v1/consensus/status/{adl_id}", response_model=StatusResponse)
-    def get_status(adl_id: str) -> StatusResponse:
+    def get_status(
+        adl_id: str,
+        user: UserInfo = Depends(require_auth),
+    ) -> StatusResponse:
         engine = _get_engine()
         if adl_id not in engine.chains:
             raise HTTPException(status_code=404, detail=f"Not registered: {adl_id}")
@@ -260,7 +320,10 @@ def create_app(state_path: str | None = None) -> FastAPI:
     # GET /api/v1/consensus/history/{adl_id}
     # ------------------------------------------------------------------
     @app.get("/api/v1/consensus/history/{adl_id}", response_model=HistoryResponse)
-    def get_history(adl_id: str) -> HistoryResponse:
+    def get_history(
+        adl_id: str,
+        user: UserInfo = Depends(require_auth),
+    ) -> HistoryResponse:
         engine = _get_engine()
         history = engine.get_history(adl_id)
         if not history:
@@ -272,7 +335,10 @@ def create_app(state_path: str | None = None) -> FastAPI:
     # POST /api/v1/consensus/fork
     # ------------------------------------------------------------------
     @app.post("/api/v1/consensus/fork", response_model=StatusResponse)
-    def fork_capability(req: ForkRequest) -> StatusResponse:
+    def fork_capability(
+        req: ForkRequest,
+        user: UserInfo = Depends(require_auth),
+    ) -> StatusResponse:
         engine = _get_engine()
         try:
             new_chain = engine.fork(req.original_id, req.fork_id, req.actor, req.reason)
@@ -295,7 +361,10 @@ def create_app(state_path: str | None = None) -> FastAPI:
     # GET /api/v1/consensus/verify/{adl_id}
     # ------------------------------------------------------------------
     @app.get("/api/v1/consensus/verify/{adl_id}", response_model=VerifyResponse)
-    def verify_integrity(adl_id: str) -> VerifyResponse:
+    def verify_integrity(
+        adl_id: str,
+        user: UserInfo = Depends(require_auth),
+    ) -> VerifyResponse:
         engine = _get_engine()
         if adl_id not in engine.chains:
             raise HTTPException(status_code=404, detail=f"Not registered: {adl_id}")
@@ -306,17 +375,36 @@ def create_app(state_path: str | None = None) -> FastAPI:
     # ------------------------------------------------------------------
     # GET /api/v1/consensus/list
     # ------------------------------------------------------------------
-    @app.get("/api/v1/consensus/list", response_model=ListResponse)
-    def list_capabilities() -> ListResponse:
+    @app.get("/api/v1/consensus/list", response_model=PaginatedListResponse)
+    def list_capabilities(
+        offset: int = Query(default=_DEFAULT_OFFSET, ge=0, description="Pagination offset"),
+        limit: int = Query(default=_DEFAULT_LIMIT, ge=1, description="Page size (max 200)"),
+        user: UserInfo = Depends(require_auth),
+    ) -> PaginatedListResponse:
+        if limit > _MAX_LIMIT:
+            raise HTTPException(
+                status_code=400, detail=f"Limit cannot exceed {_MAX_LIMIT}"
+            ) from None
+
         engine = _get_engine()
         caps = sorted(engine.chains.keys())
-        return ListResponse(capabilities=caps, count=len(caps))
+        total = len(caps)
+        slice_caps = caps[offset : offset + limit]
+        return PaginatedListResponse(
+            capabilities=slice_caps,
+            total=total,
+            count=total,
+            offset=offset,
+            limit=limit,
+        )
 
     # ------------------------------------------------------------------
     # POST /api/v1/consensus/mode/dev
     # ------------------------------------------------------------------
     @app.post("/api/v1/consensus/mode/dev", response_model=dict)
-    def set_dev_mode() -> dict[str, Any]:
+    def set_dev_mode(
+        user: UserInfo = Depends(require_admin),
+    ) -> dict[str, Any]:
         engine = _get_engine()
         engine.set_dev_mode()
         return {"mode": "dev", "n_min": 1, "dev_mode": True}
@@ -325,7 +413,9 @@ def create_app(state_path: str | None = None) -> FastAPI:
     # POST /api/v1/consensus/mode/production
     # ------------------------------------------------------------------
     @app.post("/api/v1/consensus/mode/production", response_model=dict)
-    def set_production_mode() -> dict[str, Any]:
+    def set_production_mode(
+        user: UserInfo = Depends(require_admin),
+    ) -> dict[str, Any]:
         engine = _get_engine()
         engine.set_production_mode()
         n_min = engine._effective_n_min()
