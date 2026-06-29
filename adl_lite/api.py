@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from .api_auth import (
@@ -187,6 +188,7 @@ def create_app(
     jwt_secret: str = "change-me",
     api_keys: set[str] | None = None,
     rate_limit: int = 0,
+    cors_origins: list[str] | None = None,
 ) -> FastAPI:
     """Create and configure the FastAPI application.
 
@@ -199,6 +201,8 @@ def create_app(
         jwt_secret: Secret key for JWT signing/verification.
         api_keys: Set of valid API keys for ``X-API-Key`` auth.
         rate_limit: Max requests per 60s window per client. ``0`` disables.
+        cors_origins: List of allowed CORS origins. If ``None``, allows all
+            origins (development mode). For production, specify exact origins.
     """
     global _state_path, _engine
     if state_path is not None:
@@ -217,6 +221,26 @@ def create_app(
         version="0.5.0-alpha",
         description="REST API for ADL Lite consensus lifecycle operations",
     )
+
+    # Add CORS middleware
+    if cors_origins is None:
+        # Development mode: allow all origins
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+    else:
+        # Production mode: restrict to specified origins
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=cors_origins,
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allow_headers=["*"],
+        )
 
     # Add rate-limit middleware
     if rate_limit > 0:
@@ -445,4 +469,13 @@ def create_app(
 # Convenience: default app instance for ``uvicorn adl_lite.api:create_app``
 # ---------------------------------------------------------------------------
 
-app = create_app()
+# Read configuration from environment variables
+from .config import get_api_config  # noqa: E402
+
+_config = get_api_config()
+app = create_app(
+    cors_origins=_config["cors_origins"],
+    auth_enabled=_config["auth_enabled"],
+    jwt_secret=_config["jwt_secret"],
+    rate_limit=_config["rate_limit"],
+)

@@ -9,7 +9,7 @@ import Box from '@mui/material/Box';
 import AddIcon from '@mui/icons-material/Add';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 
-export function OverviewPage(): JSX.Element {
+export default function OverviewPage(): JSX.Element {
   const [registerOpen, setRegisterOpen] = useState(false);
   const [transitionOpen, setTransitionOpen] = useState(false);
 

@@ -2,6 +2,7 @@ import React from 'react';
 import Box from '@mui/material/Box';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { AppHeader } from '@/components/layout/AppHeader';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -22,7 +23,9 @@ export function AppLayout({ children }: AppLayoutProps): JSX.Element {
             overflow: 'auto',
           }}
         >
-          <>{children}</>
+          <ErrorBoundary>
+            <>{children}</>
+          </ErrorBoundary>
         </Box>
       </Box>
     </Box>

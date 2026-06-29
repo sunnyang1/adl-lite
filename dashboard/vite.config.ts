@@ -18,6 +18,18 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Separate vendor libraries for better caching
+          // Note: Currently not working as expected - needs further investigation
+          // 'vendor-mui': ['@mui/material', '@mui/icons-material'],
+          // 'vendor-recharts': ['recharts'],
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',
