@@ -1,4 +1,3 @@
-import React from 'react';
 import Tree from 'react-d3-tree';
 import { Typography, Paper } from '@mui/material';
 import type { D3TreeNode } from '@/hooks/useForkTree';

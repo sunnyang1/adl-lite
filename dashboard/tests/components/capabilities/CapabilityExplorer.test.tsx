@@ -25,6 +25,10 @@ vi.mock('@/components/capabilities/CapabilityRow', () => ({
   ),
 }));
 
+vi.mock('@/components/shared/ConfidenceRangeFilter', () => ({
+  ConfidenceRangeFilter: () => <div data-testid="confidence-range-filter">Confidence Range</div>,
+}));
+
 import { useCapabilities } from '@/api/endpoints';
 import { useSelectionStore } from '@/store/useSelectionStore';
 
@@ -48,6 +52,7 @@ describe('CapabilityExplorer', () => {
       const state = {
         searchQuery: '',
         statusFilter: 'all',
+        confidenceRange: [0, 1] as [number, number],
       };
       return selector ? selector(state) : state;
     });
@@ -109,6 +114,7 @@ describe('CapabilityExplorer', () => {
       const state = {
         searchQuery: 'cap-1',
         statusFilter: 'all',
+        confidenceRange: [0, 1] as [number, number],
       };
       return selector ? selector(state) : state;
     });

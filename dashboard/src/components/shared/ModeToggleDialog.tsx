@@ -18,7 +18,7 @@ interface ModeToggleDialogProps {
 }
 
 export const ModeToggleDialog: React.FC<ModeToggleDialogProps> = ({ open, onClose }) => {
-  const { currentMode, devMode, setMode } = useModeStore();
+  const { devMode, setMode } = useModeStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

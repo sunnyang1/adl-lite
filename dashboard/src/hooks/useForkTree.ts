@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { buildForkGraph, toD3TreeFormat } from '@/utils/forkGraph';
 import { EventDict, ForkTreeNode } from '@/api/types';
 
-interface D3TreeNode {
+export interface D3TreeNode {
   name: string;
   children: D3TreeNode[];
 }

@@ -9,7 +9,6 @@ import {
   Box,
   Alert,
   CircularProgress,
-  Typography,
 } from '@mui/material';
 
 interface RegisterDialogProps {

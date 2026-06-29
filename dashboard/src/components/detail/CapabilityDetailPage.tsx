@@ -10,9 +10,14 @@ import { ConfidenceDot } from '@/components/shared/ConfidenceDot';
 import { IntegrityBadge } from '@/components/detail/IntegrityBadge';
 import { ChainTimelineView } from '@/components/detail/ChainTimelineView';
 import { ConsensusDetailPanel } from '@/components/detail/ConsensusDetailPanel';
+import { CalibrationChart } from '@/components/detail/CalibrationChart';
+import { ForkTreeView } from '@/components/detail/ForkTreeView';
+import { CapabilityActions } from '@/components/detail/CapabilityActions';
+import { useForkTree } from '@/hooks/useForkTree';
 import { LoadingSkeleton } from '@/components/shared/LoadingSkeleton';
 import { ErrorAlert } from '@/components/shared/ErrorAlert';
 import { formatConfidence } from '@/utils/formatters';
+import type { EwmaPoint } from '@/api/types';
 
 export function CapabilityDetailPage(): JSX.Element {
   const { adl_id } = useParams<{ adl_id: string }>();
@@ -31,6 +36,16 @@ export function CapabilityDetailPage(): JSX.Element {
   } = useHistory(adl_id ?? '');
 
   const { data: verifyData } = useVerify(adl_id ?? '');
+
+  // Compute EWMA points from history events
+  const ewmaPoints: EwmaPoint[] = (historyData?.events ?? []).map((event) => ({
+    timestamp: event.timestamp,
+    raw: status?.confidence ?? 0,
+    smoothed: status?.confidence ?? 0,
+  }));
+
+  // Build fork tree data
+  const { d3TreeData } = useForkTree(adl_id ?? '', historyData?.events ?? []);
 
   if (statusLoading || historyLoading) {
     return <LoadingSkeleton count={4} />;
@@ -74,7 +89,7 @@ export function CapabilityDetailPage(): JSX.Element {
 
       {/* Header */}
       <Paper sx={{ p: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
           <Typography variant="h4" fontWeight="bold">
             {adl_id}
           </Typography>
@@ -85,6 +100,7 @@ export function CapabilityDetailPage(): JSX.Element {
           </Typography>
           <IntegrityBadge integrityOk={integrityOk} />
         </Box>
+        <CapabilityActions adlId={adl_id ?? ''} />
       </Paper>
 
       {/* Timeline */}
@@ -105,6 +121,16 @@ export function CapabilityDetailPage(): JSX.Element {
           confidence={status.confidence}
           adlId={adl_id ?? ''}
         />
+      </Paper>
+
+      {/* Calibration Chart */}
+      <Paper sx={{ p: 2 }}>
+        <CalibrationChart ewmaPoints={ewmaPoints} />
+      </Paper>
+
+      {/* Fork Tree */}
+      <Paper sx={{ p: 2 }}>
+        <ForkTreeView d3TreeData={d3TreeData} />
       </Paper>
     </Box>
   );

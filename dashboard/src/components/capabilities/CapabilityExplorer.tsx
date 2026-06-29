@@ -12,6 +12,7 @@ import { useCapabilities } from '@/api/endpoints';
 import { CapabilitySummary, AdlStatus } from '@/api/types';
 import { CapabilityRow } from '@/components/capabilities/CapabilityRow';
 import { CapabilitySearchBar } from '@/components/capabilities/CapabilitySearchBar';
+import { ConfidenceRangeFilter } from '@/components/shared/ConfidenceRangeFilter';
 import { useSelectionStore } from '@/store/useSelectionStore';
 import { LoadingSkeleton } from '@/components/shared/LoadingSkeleton';
 import { ErrorAlert } from '@/components/shared/ErrorAlert';
@@ -21,6 +22,7 @@ export function CapabilityExplorer(): JSX.Element {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const searchQuery = useSelectionStore((state) => state.searchQuery);
   const statusFilter = useSelectionStore((state) => state.statusFilter);
+  const confidenceRange = useSelectionStore((state) => state.confidenceRange);
 
   const {
     data: capabilitiesData,
@@ -59,8 +61,14 @@ export function CapabilityExplorer(): JSX.Element {
       );
     }
 
+    // Filter by confidence range
+    filtered = filtered.filter(
+      (s: CapabilitySummary) =>
+        s.confidence >= confidenceRange[0] && s.confidence <= confidenceRange[1],
+    );
+
     return filtered;
-  }, [summaries, searchQuery, statusFilter]);
+  }, [summaries, searchQuery, statusFilter, confidenceRange]);
 
   if (isLoading) {
     return <LoadingSkeleton count={5} />;
@@ -76,6 +84,7 @@ export function CapabilityExplorer(): JSX.Element {
         Capability Explorer
       </Typography>
       <CapabilitySearchBar />
+      <ConfidenceRangeFilter />
       <TableContainer>
         <Table size="small">
           <TableHead>

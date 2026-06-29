@@ -7,10 +7,9 @@ import { ForkDialog } from '@/components/shared/ForkDialog';
 
 interface CapabilityActionsProps {
   adlId: string;
-  status: string;
 }
 
-export const CapabilityActions: React.FC<CapabilityActionsProps> = ({ adlId, status }) => {
+export const CapabilityActions: React.FC<CapabilityActionsProps> = ({ adlId }) => {
   const [modeToggleOpen, setModeToggleOpen] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [transitionOpen, setTransitionOpen] = useState(false);
