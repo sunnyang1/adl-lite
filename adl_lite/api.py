@@ -14,6 +14,7 @@ Endpoints:
     GET    /api/v1/consensus/list             — list all registered capabilities
     POST   /api/v1/consensus/mode/dev         — set dev mode (admin only)
     POST   /api/v1/consensus/mode/production  — set production mode (admin only)
+    GET    /api/v1/consensus/mode              — get current mode (dev/production, N_min)
 """
 
 from __future__ import annotations
@@ -397,6 +398,22 @@ def create_app(
             offset=offset,
             limit=limit,
         )
+
+    # ------------------------------------------------------------------
+    # GET /api/v1/consensus/mode
+    # ------------------------------------------------------------------
+    @app.get("/api/v1/consensus/mode", response_model=dict)
+    def get_mode(
+        user: UserInfo = Depends(require_auth),
+    ) -> dict[str, Any]:
+        """Return current consensus mode (dev/production) and N_min threshold."""
+        engine = _get_engine()
+        n_min = engine._effective_n_min()
+        return {
+            "mode": "dev" if engine.dev_mode else "production",
+            "n_min": n_min,
+            "dev_mode": engine.dev_mode,
+        }
 
     # ------------------------------------------------------------------
     # POST /api/v1/consensus/mode/dev

@@ -1,0 +1,206 @@
+%% ADL Lite Dashboard — Class Diagram
+
+classDiagram
+    direction TB
+
+    %% ===== API Response Types =====
+    class StatusResponse {
+        +string adl_id
+        +string status
+        +float confidence
+        +string[] validators
+        +boolean dev_mode
+    }
+
+    class HistoryResponse {
+        +string adl_id
+        +EventDict[] events
+    }
+
+    class EventDict {
+        +string event_id
+        +string concept_id
+        +string event_type
+        +string actor
+        +string reasoning
+        +string timestamp
+        +object payload
+        +string previous_event_id
+        +string hash
+    }
+
+    class PaginatedListResponse {
+        +string[] capabilities
+        +int total
+        +int count
+        +int offset
+        +int limit
+    }
+
+    class VerifyResponse {
+        +string adl_id
+        +boolean integrity_ok
+    }
+
+    class ModeResponse {
+        +string mode
+        +int n_min
+        +boolean dev_mode
+    }
+
+    class ErrorResponse {
+        +string error
+        +string detail
+    }
+
+    %% ===== Request Types =====
+    class RegisterRequest {
+        +string adl_id
+        +string scope
+        +string domain
+    }
+
+    class TransitionRequest {
+        +string adl_id
+        +string to_status
+        +string actor
+        +string reason
+        +object payload
+    }
+
+    class ForkRequest {
+        +string original_id
+        +string fork_id
+        +string actor
+        +string reason
+    }
+
+    %% ===== Client-Side Derived Types =====
+    class CapabilitySummary {
+        +string adl_id
+        +string status
+        +float confidence
+        +string[] validators
+        +int validator_count
+        +string confidence_color
+    }
+
+    class ForkEdge {
+        +string parent_id
+        +string child_id
+        +string actor
+        +string reason
+        +string timestamp
+    }
+
+    class ForkNode {
+        +string adl_id
+        +string status
+        +float confidence
+        +ForkNode[] children
+    }
+
+    class EwmaPoint {
+        +string timestamp
+        +float ewma_value
+        +string actor
+    }
+
+    class ValidatorVote {
+        +string actor
+        +float confidence
+        +string timestamp
+        +string reasoning
+    }
+
+    class HealthStats {
+        +int total
+        +int active
+        +int deprecated
+        +int forked
+        +float avg_confidence
+        +string mode
+    }
+
+    %% ===== Zustand Store Types =====
+    class ThemeStore {
+        +string theme "light" | "dark"
+        +toggleTheme() void
+    }
+
+    class SelectionStore {
+        +string selectedAdlId
+        +string searchQuery
+        +string statusFilter
+        +number confidenceMin
+        +number confidenceMax
+        +setSelectedId(id) void
+        +setSearchQuery(q) void
+        +setStatusFilter(f) void
+        +setConfidenceRange(min, max) void
+    }
+
+    class ModeStore {
+        +string currentMode "dev" | "production"
+        +int nMin
+        +boolean devMode
+        +setMode(response) void
+    }
+
+    %% ===== React Query Hook Interfaces =====
+    class ApiEndpoints {
+        +useCapabilities() UseQueryResult~PaginatedListResponse~
+        +useStatus(adl_id) UseQueryResult~StatusResponse~
+        +useHistory(adl_id) UseQueryResult~HistoryResponse~
+        +useVerify(adl_id) UseQueryResult~VerifyResponse~
+        +useMode() UseQueryResult~ModeResponse~
+        +useRegister(req) UseMutationResult
+        +useTransition(req) UseMutationResult
+        +useFork(req) UseMutationResult
+    }
+
+    %% ===== Component Props =====
+    class StatusCardProps {
+        +string label
+        +number value
+        +string icon
+        +string color
+    }
+
+    class CapabilityRowProps {
+        +CapabilitySummary capability
+        +onClick() void
+    }
+
+    class TimelineEventNodeProps {
+        +EventDict event
+        +boolean isLast
+    }
+
+    class ValidatorVoteRowProps {
+        +ValidatorVote vote
+        +string status
+    }
+
+    class ConfirmDialogProps {
+        +string title
+        +string description
+        +onConfirm() void
+        +onCancel() void
+        +boolean open
+    }
+
+    %% ===== Relationships =====
+    HistoryResponse --> EventDict : contains
+    PaginatedListResponse --> CapabilitySummary : transformed by client
+    StatusResponse --> CapabilitySummary : merged into
+    HistoryResponse --> ForkEdge : extracts fork anchors
+    HistoryResponse --> ValidatorVote : extracts validate events
+    HistoryResponse --> EwmaPoint : computes EWMA series
+    ForkEdge --> ForkNode : builds tree
+    StatusResponse --> HealthStats : aggregated across all capabilities
+    ApiEndpoints --> StatusResponse : fetches
+    ApiEndpoints --> HistoryResponse : fetches
+    ApiEndpoints --> PaginatedListResponse : fetches
+    ApiEndpoints --> VerifyResponse : fetches
+    ApiEndpoints --> ModeResponse : fetches
