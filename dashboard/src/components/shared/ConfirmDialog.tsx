@@ -40,6 +40,9 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       data-testid="confirm-dialog"
       maxWidth="sm"
       fullWidth
+      role="alertdialog"
+      aria-modal="true"
+      aria-label={title}
     >
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
