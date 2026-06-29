@@ -139,9 +139,9 @@ class CRDTState:
         return state
 
 
-def merge_event_chains(chain_a, chain_b) -> EventChain:
+def _merge_two_chains(chain_a, chain_b) -> EventChain:
     """
-    LWW-Set merge of two EventChains (Theorem 9, paper §4.7).
+    LWW-Set merge of exactly two EventChains (core algorithm, Theorem 9, paper §4.7).
 
     Algorithm:
       1. Union events by event_id (deduplicate — LWW on identical event_id)
@@ -149,10 +149,9 @@ def merge_event_chains(chain_a, chain_b) -> EventChain:
       3. Recompute cryptographic hashes (chain re-anchoring)
       4. Return merged EventChain
 
-    Properties:
-      - Commutative: merge(A, B) = merge(B, A)
-      - Associative: merge(merge(A, B), C) = merge(A, merge(B, C))
-      - Idempotent: merge(A, A) = A
+    This is the private pairwise merge worker.  The public API is
+    ``merge_event_chains(*chains)`` which delegates here for the 2-chain case
+    and uses ``functools.reduce`` for N≥3.
     """
     from .models import Event, EventChain
 
@@ -199,6 +198,54 @@ def merge_event_chains(chain_a, chain_b) -> EventChain:
         merged.append(event)
 
     return merged
+
+
+def merge_event_chains(*chains: EventChain) -> EventChain:
+    """
+    LWW-Set merge of N EventChains (Theorem 9 generalized, paper §4.7).
+
+    Supports N≥3 chains via pairwise fold (``functools.reduce`` over
+    ``_merge_two_chains``).  Backward compatible: calling with 2 chains
+    produces the same result as before.
+
+    Algorithm:
+      1. Union events by event_id across all chains (dedup — LWW on identical event_id)
+      2. Sort by timestamp (causal order)
+      3. Recompute cryptographic hashes (chain re-anchoring)
+      4. Return merged EventChain
+
+    Properties (proven for N≥2):
+      - Commutative: ``merge(*any_permutation)`` yields same result
+      - Associative: ``merge(merge(A, B), C) == merge(A, merge(B, C))``
+      - Idempotent: ``merge(A, A, …, A) == A``
+    """
+    from .models import EventChain
+
+    if len(chains) == 0:
+        raise ValueError("At least one EventChain required")
+
+    # Validate all chains share the same concept_id
+    if len(chains) >= 2:
+        first_id = chains[0].concept_id
+        for i, chain in enumerate(chains[1:], start=2):
+            if chain.concept_id != first_id:
+                raise ValueError(
+                    f"Cannot merge chains with different concept_ids: "
+                    f"{first_id} (chain 1) vs {chain.concept_id} (chain {i})"
+                )
+
+    if len(chains) == 1:
+        # Identity: return a copy of the single chain
+        result = EventChain(concept_id=chains[0].concept_id)
+        for event in chains[0].events:
+            result.append(event)
+        return result
+
+    if len(chains) == 2:
+        return _merge_two_chains(chains[0], chains[1])
+
+    # N ≥ 3: pairwise fold via reduce
+    return reduce(_merge_two_chains, chains)
 
 
 # ============================================================================
@@ -335,3 +382,65 @@ def prove_multi_way_merge() -> None:
     assert abs(pairwise.confidence - 0.90) < 1e-6, f"max(0.70..0.90) ≈ {pairwise.confidence}"
     assert pairwise.validator_count == 1, "max across 5 edges each with 1 validator = 1"
     assert pairwise.evidence_count == 1, "max evidence across 3 edges = 1"
+
+
+def prove_event_chain_multi_way_merge() -> None:
+    """
+    EventChain-level multi-way merge proof (Theorem 9 generalized for N≥3).
+
+    Creates 5 EventChains with different events and verifies:
+      - merge_event_chains(*chains) equals pairwise fold in any order
+        (commutativity + associativity)
+      - Idempotence: merge_event_chains(chain, chain, chain) == merge_event_chains(chain, chain)
+    """
+    from .models import Event, EventChain, EventType
+
+    # Create 5 EventChains with different non-overlapping events
+    chains: list[EventChain] = []
+    for i in range(5):
+        chain = EventChain(concept_id="prove-multi-way")
+        event = Event(
+            concept_id="prove-multi-way",
+            event_type=EventType.VALIDATE,
+            actor=f"agent_{i}",
+            timestamp=f"2025-06-{10 + i:02d}T10:00:00+00:00",
+            payload={"confidence": 0.70 + i * 0.05},
+        )
+        chain.append(event)
+        chains.append(chain)
+
+    # N-way merge
+    merged = merge_event_chains(*chains)
+
+    # Pairwise fold (natural order)
+    pairwise = reduce(_merge_two_chains, chains)
+
+    # Verify N-way == pairwise fold in terms of event_ids and count
+    merged_ids = {e.event_id for e in merged.events}
+    pairwise_ids = {e.event_id for e in pairwise.events}
+    assert merged_ids == pairwise_ids, "N-way merge should equal pairwise fold"
+
+    # Any permutation yields the same result (commutativity)
+    reversed_fold = reduce(_merge_two_chains, list(reversed(chains)))
+    reversed_ids = {e.event_id for e in reversed_fold.events}
+    assert merged_ids == reversed_ids, "merge order should not matter (commutativity)"
+
+    # Associativity: merge(merge(A, B), C) == merge(A, merge(B, C))
+    left_assoc = _merge_two_chains(_merge_two_chains(chains[0], chains[1]), chains[2])
+    right_assoc = _merge_two_chains(chains[0], _merge_two_chains(chains[1], chains[2]))
+    left_ids = {e.event_id for e in left_assoc.events}
+    right_ids = {e.event_id for e in right_assoc.events}
+    assert left_ids == right_ids, "merge should be associative"
+
+    # Idempotence: merge(A, A, A) == merge(A, A) == copy of A
+    single = merge_event_chains(chains[0])
+    double = merge_event_chains(chains[0], chains[0])
+    triple = merge_event_chains(chains[0], chains[0], chains[0])
+    single_ids = {e.event_id for e in single.events}
+    double_ids = {e.event_id for e in double.events}
+    triple_ids = {e.event_id for e in triple.events}
+    assert single_ids == double_ids == triple_ids, "merge should be idempotent"
+    assert single.length == double.length == triple.length
+
+    # Verify event count: 5 unique events
+    assert merged.length == 5, f"Expected 5 unique events, got {merged.length}"

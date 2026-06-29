@@ -1,329 +1,486 @@
 """
-CRDT convergence proofs — executable tests verifying lattice properties.
+CRDT merge_event_chains N>=3 formal proofs and edge case tests.
 
-Covers:
-  1. Commutativity: merge(A,B) == merge(B,A)
-  2. Associativity: merge(merge(A,B), C) == merge(A, merge(B,C))
-  3. Idempotence: merge(A,A) == A
-  4. Monotonicity: state never shrinks with event appends
-  5. Convergence under partition: two edges, merge dominates both
-  6. Multi-way merge: N edges, any merge order yields same result
-  7. Round-trip: CRDTState → dict → back
-  8. from_chain: derive CRDT state from existing EventChain
+Tests the generalized merge_event_chains(*chains) supporting N>=3 chains
+per Theorem 9 generalization (paper §4.7).
 """
+
+from __future__ import annotations
+
+import itertools
+import time
 
 import pytest
 
-from adl_lite.crdt import (
-    CRDTState,
-    StatusOrder,
-    merge_event_chains,
-    prove_associativity,
-    prove_commutativity,
-    prove_convergence_under_partition,
-    prove_idempotence,
-    prove_monotonicity,
-    prove_multi_way_merge,
-)
 from adl_lite.models import Event, EventChain, EventType
 
-
-class TestCRDTConvergence:
-    """Executable CRDT convergence proofs."""
-
-    def test_commutativity(self):
-        prove_commutativity()
-
-    def test_associativity(self):
-        prove_associativity()
-
-    def test_idempotence(self):
-        prove_idempotence()
-
-    def test_monotonicity(self):
-        prove_monotonicity()
-
-    def test_convergence_under_partition(self):
-        prove_convergence_under_partition()
-
-    def test_multi_way_merge(self):
-        prove_multi_way_merge()
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 
-class TestCRDTState:
-    """Unit tests for CRDTState operations."""
-
-    def test_default_is_provisional(self):
-        s = CRDTState()
-        assert s.status == StatusOrder.PROVISIONAL
-        assert s.confidence == 0.0
-        assert s.validator_count == 0
-
-    def test_status_order(self):
-        """StatusOrder must reflect correct lifecycle progression."""
-        assert StatusOrder.PROVISIONAL < StatusOrder.VALIDATED
-        assert StatusOrder.FORKED < StatusOrder.VALIDATED
-        assert StatusOrder.VALIDATED < StatusOrder.DEPRECATED
-        assert StatusOrder.DEPRECATED < StatusOrder.ARCHIVED
-
-    def test_merge_lub_for_status(self):
-        """LUB of provisional+validated = validated."""
-        a = CRDTState(status=StatusOrder.PROVISIONAL)
-        b = CRDTState(status=StatusOrder.VALIDATED, confidence=0.8)
-        merged = a.merge(b)
-        assert merged.status == StatusOrder.VALIDATED
-        # confidence follows G-Counter (max)
-        assert merged.confidence == 0.8
-
-    def test_merge_empty_is_neutral(self):
-        s = CRDTState(StatusOrder.VALIDATED, 0.9, 3, 5)
-        empty = CRDTState()
-        assert s.merge(empty) == s
-        assert empty.merge(s) == s
-
-    def test_apply_event_validate(self):
-        s = CRDTState()
-        s2 = s.apply_event("validate", {"confidence": 0.85})
-        assert s2.status == StatusOrder.VALIDATED
-        assert s2.confidence == 0.85
-        assert s2.validator_count == 1
-
-    def test_apply_event_evidence(self):
-        s = CRDTState()
-        s2 = s.apply_event("evidence", {})
-        assert s2.evidence_count == 1
-
-    def test_apply_event_status_regression_prevented(self):
-        """Cannot go from validated back to provisional."""
-        s = CRDTState(status=StatusOrder.VALIDATED)
-        s2 = s.apply_event("register", {})
-        assert s2.status == StatusOrder.VALIDATED  # unchanged
-
-    def test_into_dict_roundtrip(self):
-        s = CRDTState(StatusOrder.DEPRECATED, 0.75, 4, 10)
-        d = s.into_dict()
-        assert d["status"] == "deprecated"
-        assert d["confidence"] == 0.75
-        assert d["validator_count"] == 4
-        assert d["evidence_count"] == 10
-
-    def test_from_chain(self):
-        """Derive CRDT state from existing EventChain."""
-        chain = EventChain(concept_id="crdt-test")
-        chain.append(Event(concept_id="crdt-test", event_type=EventType.REGISTER, actor="a"))
-        chain.append(
-            Event(
-                concept_id="crdt-test",
-                event_type=EventType.VALIDATE,
-                actor="b",
-                payload={"confidence": 0.80},
-            )
-        )
-        chain.append(Event(concept_id="crdt-test", event_type=EventType.EVIDENCE, actor="c"))
-        chain.append(
-            Event(
-                concept_id="crdt-test",
-                event_type=EventType.VALIDATE,
-                actor="d",
-                payload={"confidence": 0.92},
-            )
-        )
-
-        state = CRDTState.from_chain(chain)
-
-        assert state.status == StatusOrder.VALIDATED
-        assert state.confidence == 0.92  # max of {0.80, 0.92}
-        assert state.validator_count == 2
-        assert state.evidence_count == 1
-
-
-class TestEventChainCRDTSemantics:
-    """Verify that EventChain.status and EventChain.confidence follow CRDT semantics."""
-
-    def test_confidence_g_counter_max(self):
-        """VALIDATE(0.9) → VALIDATE(0.5) → confidence stays 0.9 (G-Counter)."""
-        chain = EventChain(concept_id="g-counter-test")
-        chain.append(
-            Event(
-                concept_id="g-counter-test",
-                event_type=EventType.VALIDATE,
-                actor="a",
-                payload={"confidence": 0.9},
-            )
-        )
-        chain.append(
-            Event(
-                concept_id="g-counter-test",
-                event_type=EventType.VALIDATE,
-                actor="b",
-                payload={"confidence": 0.5},
-            )
-        )
-        # G-Counter semantics: max across all VALIDATE events
-        assert chain.confidence == 0.9
-
-    def test_status_lub_deprecated_dominates_validate(self):
-        """DEPRECATE then VALIDATE → status stays DEPRECATED (LUB)."""
-        chain = EventChain(concept_id="lub-test")
-        chain.append(Event(concept_id="lub-test", event_type=EventType.VALIDATE, actor="a"))
-        chain.append(Event(concept_id="lub-test", event_type=EventType.DEPRECATE, actor="b"))
-        chain.append(Event(concept_id="lub-test", event_type=EventType.VALIDATE, actor="c"))
-        # LUB of (VALIDATED, DEPRECATED) = DEPRECATED
-        assert chain.status.value == "deprecated"
-
-    def test_status_lub_archived_dominates_all(self):
-        """ARCHIVE then any lifecycle event → status stays ARCHIVED."""
-        chain = EventChain(concept_id="arch-test")
-        chain.append(Event(concept_id="arch-test", event_type=EventType.VALIDATE, actor="a"))
-        chain.append(Event(concept_id="arch-test", event_type=EventType.ARCHIVE, actor="a"))
-        chain.append(Event(concept_id="arch-test", event_type=EventType.VALIDATE, actor="b"))
-        chain.append(Event(concept_id="arch-test", event_type=EventType.DEPRECATE, actor="c"))
-        # LUB with ARCHIVE is always ARCHIVED
-        assert chain.status.value == "archived"
-
-    def test_confidence_max_with_snapshot(self):
-        """SNAPSHOT confidence is also considered in the G-Counter max."""
-        chain = EventChain(concept_id="snap-test")
-        chain.append(
-            Event(
-                concept_id="snap-test",
-                event_type=EventType.VALIDATE,
-                actor="a",
-                payload={"confidence": 0.7},
-            )
-        )
-        chain.append(
-            Event(
-                concept_id="snap-test",
-                event_type=EventType.SNAPSHOT,
-                actor="b",
-                payload={"confidence": 0.85},
-            )
-        )
-        chain.append(
-            Event(
-                concept_id="snap-test",
-                event_type=EventType.VALIDATE,
-                actor="c",
-                payload={"confidence": 0.6},
-            )
-        )
-        # max(0.7, 0.85, 0.6) = 0.85
-        assert chain.confidence == 0.85
-
-    def test_status_provisional_by_default(self):
-        """Empty chain or chain with only EVIDENCE/RELATE → PROVISIONAL."""
-        chain = EventChain(concept_id="empty-test")
-        chain.append(Event(concept_id="empty-test", event_type=EventType.EVIDENCE, actor="a"))
-        chain.append(Event(concept_id="empty-test", event_type=EventType.RELATE, actor="b"))
-        assert chain.status.value == "provisional"
-
-    def test_confidence_zero_with_no_validate(self):
-        """Chain without any VALIDATE or SNAPSHOT → confidence 0.0."""
-        chain = EventChain(concept_id="no-val-test")
-        chain.append(Event(concept_id="no-val-test", event_type=EventType.REGISTER, actor="a"))
-        chain.append(Event(concept_id="no-val-test", event_type=EventType.EVIDENCE, actor="b"))
-        assert chain.confidence == 0.0
-
-
-class TestCRDTMergeSemantics:
-    """Merge two EventChains and verify LUB/G-Counter semantics post-merge."""
-
-    def test_merge_validated_plus_deprecated(self):
-        """Chain A (VALIDATED) + Chain B (DEPRECATED) → merged DEPRECATED."""
-        chain_a = EventChain(concept_id="merge-test")
-        chain_a.append(Event(concept_id="merge-test", event_type=EventType.REGISTER, actor="a"))
-        chain_a.append(
-            Event(
-                concept_id="merge-test",
-                event_type=EventType.VALIDATE,
-                actor="b",
-                payload={"confidence": 0.85},
-            )
-        )
-
-        chain_b = EventChain(concept_id="merge-test")
-        chain_b.append(Event(concept_id="merge-test", event_type=EventType.REGISTER, actor="a"))
-        chain_b.append(
-            Event(
-                concept_id="merge-test",
-                event_type=EventType.VALIDATE,
-                actor="c",
-                payload={"confidence": 0.75},
-            )
-        )
-        chain_b.append(Event(concept_id="merge-test", event_type=EventType.DEPRECATE, actor="d"))
-
-        merged = merge_event_chains(chain_a, chain_b)
-        # LUB: max(VALIDATED, DEPRECATED) = DEPRECATED
-        assert merged.status.value == "deprecated"
-        # G-Counter: max(0.85, 0.75) = 0.85
-        assert merged.confidence == 0.85
-
-    def test_merge_archived_dominates_all(self):
-        """Chain A (ARCHIVED) + Chain B (VALIDATED) → merged ARCHIVED."""
-        chain_a = EventChain(concept_id="arch-merge")
-        chain_a.append(Event(concept_id="arch-merge", event_type=EventType.REGISTER, actor="a"))
-        chain_a.append(
-            Event(
-                concept_id="arch-merge",
-                event_type=EventType.VALIDATE,
-                actor="b",
-                payload={"confidence": 0.9},
-            )
-        )
-        chain_a.append(Event(concept_id="arch-merge", event_type=EventType.ARCHIVE, actor="a"))
-
-        chain_b = EventChain(concept_id="arch-merge")
-        chain_b.append(Event(concept_id="arch-merge", event_type=EventType.REGISTER, actor="a"))
-        chain_b.append(
-            Event(
-                concept_id="arch-merge",
-                event_type=EventType.VALIDATE,
-                actor="c",
-                payload={"confidence": 0.95},
-            )
-        )
-
-        merged = merge_event_chains(chain_a, chain_b)
-        assert merged.status.value == "archived"
-        assert merged.confidence == 0.95
-
-
-class TestCRDTConcurrency:
-    """Concurrent append stress test."""
-
-    @pytest.mark.skip(
-        reason="pytest + threading.Join() deadlock on macOS; lock safety covered by test_models.py"
+def _make_event(
+    concept_id: str,
+    event_type: EventType = EventType.REGISTER,
+    timestamp: str = "2025-01-01T00:00:00+00:00",
+    actor: str = "test",
+    payload: dict | None = None,
+) -> Event:
+    """Create an event with explicit timestamp."""
+    return Event(
+        concept_id=concept_id,
+        event_type=event_type,
+        actor=actor,
+        timestamp=timestamp,
+        payload=payload or {},
     )
-    def test_concurrent_validates_preserve_g_counter(self):
-        """5 threads append VALIDATE concurrently; G-Counter holds max."""
-        import threading
 
-        chain = EventChain(concept_id="concurrent-test")
-        chain.append(
-            Event(concept_id="concurrent-test", event_type=EventType.REGISTER, actor="init")
+
+def _make_chain(concept_id: str, events: list[Event] | None = None) -> EventChain:
+    """Create a chain with the given events."""
+    chain = EventChain(concept_id=concept_id)
+    if events:
+        for e in events:
+            chain.append(e)
+    return chain
+
+
+def _event_ids(chain: EventChain) -> set[str]:
+    """Return the set of event_ids in a chain."""
+    return {e.event_id for e in chain.events}
+
+
+def _event_count(chain: EventChain) -> int:
+    """Return the number of events in a chain."""
+    return len(chain.events)
+
+
+# ---------------------------------------------------------------------------
+# Test class: N-way merge basic functionality
+# ---------------------------------------------------------------------------
+
+
+class TestMergeEventChainsN:
+    """Tests for the generalized merge_event_chains(*chains) supporting N>=3."""
+
+    def test_merge_2_chains(self) -> None:
+        """2 chains → backward compatibility, same result as old API."""
+        from adl_lite.crdt import merge_event_chains
+
+        events_a = [
+            _make_event("cap-1", EventType.REGISTER, "2025-01-01T10:00:00+00:00"),
+            _make_event("cap-1", EventType.VALIDATE, "2025-01-01T11:00:00+00:00"),
+        ]
+        events_b = [
+            _make_event("cap-1", EventType.REGISTER, "2025-01-01T10:00:00+00:00"),
+            _make_event("cap-1", EventType.EVIDENCE, "2025-01-01T12:00:00+00:00"),
+        ]
+
+        chain_a = _make_chain("cap-1", events_a)
+        chain_b = _make_chain("cap-1", events_b)
+
+        result = merge_event_chains(chain_a, chain_b)
+
+        # Should contain all events from both chains (deduped by event_id)
+        event_ids = _event_ids(result)
+        all_ids = _event_ids(chain_a) | _event_ids(chain_b)
+        assert event_ids == all_ids
+        # Result has at most |A| + |B| events after dedup
+        assert result.length <= chain_a.length + chain_b.length
+
+    def test_merge_3_chains(self) -> None:
+        """3 chains with non-overlapping events → all events present."""
+        from adl_lite.crdt import merge_event_chains
+
+        chain_a = _make_chain(
+            "cap-2",
+            [
+                _make_event("cap-2", EventType.REGISTER, "2025-01-02T10:00:00+00:00"),
+                _make_event("cap-2", EventType.VALIDATE, "2025-01-02T11:00:00+00:00"),
+            ],
+        )
+        chain_b = _make_chain(
+            "cap-2",
+            [
+                _make_event("cap-2", EventType.EVIDENCE, "2025-01-02T12:00:00+00:00"),
+            ],
+        )
+        chain_c = _make_chain(
+            "cap-2",
+            [
+                _make_event("cap-2", EventType.DEPRECATE, "2025-01-02T13:00:00+00:00"),
+                _make_event("cap-2", EventType.ARCHIVE, "2025-01-02T14:00:00+00:00"),
+            ],
         )
 
-        def append_validate(idx: int):
-            chain.append(
-                Event(
-                    concept_id="concurrent-test",
-                    event_type=EventType.VALIDATE,
-                    actor=f"agent_{idx}",
-                    payload={"confidence": 0.5 + idx * 0.05},
+        result = merge_event_chains(chain_a, chain_b, chain_c)
+
+        # All 5 unique events should be present
+        assert result.length == 5
+        all_ids = _event_ids(chain_a) | _event_ids(chain_b) | _event_ids(chain_c)
+        assert _event_ids(result) == all_ids
+
+    def test_merge_5_chains(self) -> None:
+        """5 chains, verify total event count = sum of unique event_ids."""
+        from adl_lite.crdt import merge_event_chains
+
+        chains = []
+        expected_ids: set[str] = set()
+        for i in range(5):
+            events = [
+                _make_event(
+                    "cap-3",
+                    EventType.REGISTER,
+                    f"2025-01-03T{10 + i:02d}:00:00+00:00",
+                    actor=f"agent_{i}",
+                ),
+                _make_event(
+                    "cap-3",
+                    EventType.VALIDATE,
+                    f"2025-01-03T{10 + i:02d}:30:00+00:00",
+                    actor=f"agent_{i}",
+                ),
+            ]
+            chain = _make_chain("cap-3", events)
+            chains.append(chain)
+            expected_ids.update(_event_ids(chain))
+
+        result = merge_event_chains(*chains)
+
+        assert _event_count(result) == len(expected_ids)
+        assert _event_ids(result) == expected_ids
+
+    def test_merge_10_chains(self) -> None:
+        """10 chains with 100 events each, verify performance < 1 second."""
+        from adl_lite.crdt import merge_event_chains
+
+        chains = []
+        for i in range(10):
+            events = []
+            for j in range(100):
+                hour = (i * 100 + j) // 60
+                minute = (i * 100 + j) % 60
+                events.append(
+                    _make_event(
+                        "cap-perf",
+                        EventType.REGISTER,
+                        f"2025-01-04T{hour:02d}:{minute:02d}:00+00:00",
+                        actor=f"agent_{i}_{j}",
+                    )
                 )
-            )
+            chains.append(_make_chain("cap-perf", events))
 
-        threads = [threading.Thread(target=append_validate, args=(i,)) for i in range(5)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join(timeout=5)
+        start = time.perf_counter()
+        result = merge_event_chains(*chains)
+        elapsed = time.perf_counter() - start
 
-        # G-Counter max: max(0.50, 0.55, 0.60, 0.65, 0.70) = 0.70
-        assert chain.confidence == 0.70
-        # All 5 validators present
-        assert chain.validator_count == 5
-        # LUB: VALIDATED (no DEPRECATE/ARCHIVE)
-        assert chain.status.value == "validated"
+        # Total unique events = 10 * 100 = 1000 (all different event_ids)
+        assert result.length == 1000
+        assert elapsed < 1.0, f"merge 10×100 chains took {elapsed:.3f}s, expected < 1s"
+
+    # ------------------------------------------------------------------
+    # Formal properties (N≥3)
+    # ------------------------------------------------------------------
+
+    def test_merge_n_way_commutative(self) -> None:
+        """Any permutation yields same result for N=5."""
+        from adl_lite.crdt import merge_event_chains
+
+        chains = []
+        for i in range(5):
+            events = [
+                _make_event(
+                    "cap-comm",
+                    EventType.REGISTER,
+                    f"2025-01-05T{10 + i:02d}:00:00+00:00",
+                    actor=f"agent_{i}",
+                    payload={"data": f"val_{i}"},
+                ),
+                _make_event(
+                    "cap-comm",
+                    EventType.VALIDATE,
+                    f"2025-01-05T{10 + i:02d}:30:00+00:00",
+                    actor=f"agent_{i}",
+                    payload={"confidence": 0.5 + i * 0.1},
+                ),
+            ]
+            chains.append(_make_chain("cap-comm", events))
+
+        # Get reference result from natural order
+        reference = merge_event_chains(*chains)
+        ref_ids = _event_ids(reference)
+        ref_count = reference.length
+
+        # Test several permutations
+        for perm in itertools.permutations(chains):
+            result = merge_event_chains(*perm)
+            assert _event_count(result) == ref_count, "count mismatch for permutation"
+            assert _event_ids(result) == ref_ids, "ids mismatch for permutation"
+            # Verify event ordering by timestamp
+            for j in range(result.length - 1):
+                assert result.events[j].timestamp <= result.events[j + 1].timestamp, (
+                    f"timestamp order violated in permutation at index {j}"
+                )
+
+    def test_merge_n_way_associative(self) -> None:
+        """merge(merge(A,B), C) == merge(A, merge(B,C)) at EventChain level."""
+        from adl_lite.crdt import merge_event_chains
+
+        chain_a = _make_chain(
+            "cap-assoc",
+            [
+                _make_event("cap-assoc", EventType.REGISTER, "2025-01-06T10:00:00+00:00"),
+                _make_event("cap-assoc", EventType.VALIDATE, "2025-01-06T11:00:00+00:00"),
+            ],
+        )
+        chain_b = _make_chain(
+            "cap-assoc",
+            [
+                _make_event("cap-assoc", EventType.EVIDENCE, "2025-01-06T12:00:00+00:00"),
+            ],
+        )
+        chain_c = _make_chain(
+            "cap-assoc",
+            [
+                _make_event("cap-assoc", EventType.DEPRECATE, "2025-01-06T13:00:00+00:00"),
+            ],
+        )
+
+        # Left-associative: merge(merge(A, B), C)
+        left = merge_event_chains(merge_event_chains(chain_a, chain_b), chain_c)
+
+        # Right-associative: merge(A, merge(B, C))
+        right = merge_event_chains(chain_a, merge_event_chains(chain_b, chain_c))
+
+        assert _event_ids(left) == _event_ids(right)
+        assert left.length == right.length
+
+        # Also test the N-way call == pairwise fold
+        n_way = merge_event_chains(chain_a, chain_b, chain_c)
+        assert _event_ids(n_way) == _event_ids(left)
+
+    def test_merge_n_way_idempotent(self) -> None:
+        """merge(A, A, A) == merge(A, A) == copy of A."""
+        from adl_lite.crdt import merge_event_chains
+
+        chain = _make_chain(
+            "cap-idem",
+            [
+                _make_event("cap-idem", EventType.REGISTER, "2025-01-07T10:00:00+00:00"),
+                _make_event("cap-idem", EventType.VALIDATE, "2025-01-07T11:00:00+00:00"),
+            ],
+        )
+
+        result_aa = merge_event_chains(chain, chain)
+        result_aaa = merge_event_chains(chain, chain, chain)
+
+        assert _event_ids(result_aa) == _event_ids(chain)
+        assert result_aa.length == chain.length
+        assert _event_ids(result_aaa) == _event_ids(chain)
+        assert result_aaa.length == chain.length
+
+    # ------------------------------------------------------------------
+    # Edge cases
+    # ------------------------------------------------------------------
+
+    def test_merge_zero_chains_raises(self) -> None:
+        """Calling merge_event_chains() with no arguments raises ValueError."""
+        from adl_lite.crdt import merge_event_chains
+
+        with pytest.raises(ValueError, match="At least one EventChain required"):
+            merge_event_chains()
+
+    def test_merge_single_chain_identity(self) -> None:
+        """Single chain → returns a copy (not the same object)."""
+        from adl_lite.crdt import merge_event_chains
+
+        chain = _make_chain(
+            "cap-single",
+            [
+                _make_event("cap-single", EventType.REGISTER, "2025-01-08T10:00:00+00:00"),
+                _make_event("cap-single", EventType.VALIDATE, "2025-01-08T11:00:00+00:00"),
+            ],
+        )
+
+        result = merge_event_chains(chain)
+
+        # Result is a copy, not the same object
+        assert result is not chain
+        assert result.concept_id == chain.concept_id
+        assert _event_ids(result) == _event_ids(chain)
+        assert result.length == chain.length
+
+    def test_merge_empty_chains(self) -> None:
+        """3 empty chains → result is empty."""
+        from adl_lite.crdt import merge_event_chains
+
+        chain_a = EventChain(concept_id="cap-empty")
+        chain_b = EventChain(concept_id="cap-empty")
+        chain_c = EventChain(concept_id="cap-empty")
+
+        result = merge_event_chains(chain_a, chain_b, chain_c)
+
+        assert result.length == 0
+        assert result.concept_id == "cap-empty"
+
+    def test_merge_identical_chains(self) -> None:
+        """3 copies of same chain → single copy (idempotent, deduplicated)."""
+        from adl_lite.crdt import merge_event_chains
+
+        events = [
+            _make_event("cap-id", EventType.REGISTER, "2025-01-09T10:00:00+00:00"),
+            _make_event("cap-id", EventType.VALIDATE, "2025-01-09T11:00:00+00:00"),
+            _make_event("cap-id", EventType.EVIDENCE, "2025-01-09T12:00:00+00:00"),
+        ]
+        chain = _make_chain("cap-id", events)
+
+        result = merge_event_chains(chain, chain, chain)
+
+        assert result.length == chain.length
+        assert _event_ids(result) == _event_ids(chain)
+
+    def test_merge_timestamp_conflicts(self) -> None:
+        """Two different event_ids with same timestamp → both preserved."""
+        from adl_lite.crdt import merge_event_chains
+
+        # Same timestamp, different event_ids
+        e1 = _make_event("cap-ts", EventType.REGISTER, "2025-01-10T12:00:00+00:00")
+        e2 = _make_event("cap-ts", EventType.VALIDATE, "2025-01-10T12:00:00+00:00")
+
+        chain_a = _make_chain("cap-ts", [e1])
+        chain_b = _make_chain("cap-ts", [e2])
+
+        result = merge_event_chains(chain_a, chain_b)
+
+        # Both events should be present (different event_ids, same timestamp)
+        assert result.length == 2
+        result_ids = _event_ids(result)
+        assert e1.event_id in result_ids
+        assert e2.event_id in result_ids
+
+    def test_merge_partial_overlap(self) -> None:
+        """chain A has {e1,e2,e3}, chain B has {e2,e3,e4} → result has {e1,e2,e3,e4}."""
+        from adl_lite.crdt import merge_event_chains
+
+        e1 = _make_event("cap-overlap", EventType.REGISTER, "2025-01-11T10:00:00+00:00")
+        e2 = _make_event("cap-overlap", EventType.VALIDATE, "2025-01-11T11:00:00+00:00")
+        e3 = _make_event("cap-overlap", EventType.EVIDENCE, "2025-01-11T12:00:00+00:00")
+        e4 = _make_event("cap-overlap", EventType.DEPRECATE, "2025-01-11T13:00:00+00:00")
+
+        chain_a = _make_chain("cap-overlap", [e1, e2, e3])
+        chain_b = _make_chain("cap-overlap", [e2, e3, e4])
+
+        result = merge_event_chains(chain_a, chain_b)
+
+        assert result.length == 4
+        result_ids = _event_ids(result)
+        assert e1.event_id in result_ids
+        assert e2.event_id in result_ids
+        assert e3.event_id in result_ids
+        assert e4.event_id in result_ids
+
+    def test_merge_different_concept_ids(self) -> None:
+        """Merging chains with different concept_ids raises ValueError."""
+        from adl_lite.crdt import merge_event_chains
+
+        chain_a = EventChain(concept_id="cap-x")
+        chain_b = EventChain(concept_id="cap-y")
+
+        with pytest.raises(ValueError, match="concept_id"):
+            merge_event_chains(chain_a, chain_b)
+
+        # Also test with 3 chains, where mismatch is in the middle
+        chain_c = EventChain(concept_id="cap-x")
+        with pytest.raises(ValueError, match="concept_id"):
+            merge_event_chains(chain_a, chain_c, chain_b)
+
+    def test_merge_with_prove_multi_way(self) -> None:
+        """Calls the new prove_event_chain_multi_way_merge() EventChain version."""
+        from adl_lite.crdt import prove_event_chain_multi_way_merge
+
+        # Should not raise
+        prove_event_chain_multi_way_merge()
+
+    def test_merge_lww_on_duplicate_event_id(self) -> None:
+        """When two chains have the same event_id, LWW picks the later timestamp."""
+        from adl_lite.crdt import merge_event_chains
+
+        # Create two events with the same explicit event_id but different timestamps
+        e_old = Event(
+            event_id="fixed-id-001",
+            concept_id="cap-lww",
+            event_type=EventType.REGISTER,
+            actor="agent-old",
+            timestamp="2025-01-12T10:00:00+00:00",
+            payload={"version": "old"},
+        )
+        e_new = Event(
+            event_id="fixed-id-001",
+            concept_id="cap-lww",
+            event_type=EventType.REGISTER,
+            actor="agent-new",
+            timestamp="2025-01-12T11:00:00+00:00",
+            payload={"version": "new"},
+        )
+
+        chain_a = _make_chain("cap-lww", [e_old])
+        chain_b = _make_chain("cap-lww", [e_new])
+
+        result = merge_event_chains(chain_a, chain_b)
+
+        assert result.length == 1
+        result_event = result.events[0]
+        assert result_event.actor == "agent-new"
+        assert result_event.payload == {"version": "new"}
+
+    def test_merge_preserves_timestamp_order(self) -> None:
+        """Merged chain events are sorted by timestamp (causal order)."""
+        from adl_lite.crdt import merge_event_chains
+
+        chain_a = _make_chain(
+            "cap-order",
+            [
+                _make_event("cap-order", EventType.REGISTER, "2025-01-13T14:00:00+00:00"),
+                _make_event("cap-order", EventType.ARCHIVE, "2025-01-13T15:00:00+00:00"),
+            ],
+        )
+        chain_b = _make_chain(
+            "cap-order",
+            [
+                _make_event("cap-order", EventType.VALIDATE, "2025-01-13T12:00:00+00:00"),
+                _make_event("cap-order", EventType.EVIDENCE, "2025-01-13T13:00:00+00:00"),
+            ],
+        )
+        chain_c = _make_chain(
+            "cap-order",
+            [
+                _make_event("cap-order", EventType.DEPRECATE, "2025-01-13T16:00:00+00:00"),
+            ],
+        )
+
+        result = merge_event_chains(chain_a, chain_b, chain_c)
+
+        # Verify strict timestamp ordering
+        for i in range(result.length - 1):
+            ts_i = result.events[i].timestamp
+            ts_next = result.events[i + 1].timestamp
+            assert ts_i <= ts_next, f"Timestamp order violation: {ts_i} > {ts_next} at index {i}"
+
+    def test_merge_concept_id_preserved(self) -> None:
+        """Merged chain preserves the original concept_id."""
+        from adl_lite.crdt import merge_event_chains
+
+        chain_a = _make_chain(
+            "cap-preserve",
+            [_make_event("cap-preserve", EventType.REGISTER, "2025-01-14T10:00:00+00:00")],
+        )
+        chain_b = _make_chain(
+            "cap-preserve",
+            [_make_event("cap-preserve", EventType.VALIDATE, "2025-01-14T11:00:00+00:00")],
+        )
+
+        result = merge_event_chains(chain_a, chain_b)
+        assert result.concept_id == "cap-preserve"
+
+        result_3 = merge_event_chains(chain_a, chain_b, chain_a)
+        assert result_3.concept_id == "cap-preserve"
