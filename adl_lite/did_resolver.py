@@ -167,18 +167,31 @@ def create_did_key(public_key: ed25519.Ed25519PublicKey) -> str:
 
 
 def _parse_did_web(did: str) -> str:
-    """Convert did:web:example.com:path to https://example.com/path/.well-known/did.json."""
+    """Convert did:web:example.com:path to https://example.com/path/.well-known/did.json.
+
+    Per W3C DID spec, port numbers are represented by percent-encoding the colon
+    as %3A (e.g. did:web:example.com%3A8080 → https://example.com:8080/.well-known/did.json).
+    """
     if not did.startswith("did:web:"):
         raise ValueError(f"Not a did:web: {did}")
     encoded = did[len("did:web:") :]
     decoded = urllib.parse.unquote(encoded)
     parts = decoded.split(":")
     domain = parts[0]
-    path = "/".join(parts[1:]) if len(parts) > 1 else ""
-    if path:
-        url = f"https://{domain}/{path}/did.json"
+    # W3C DID spec: if the second segment looks like a port number
+    # (all digits), treat it as a port, not a path component
+    port: str | None = None
+    if len(parts) > 1 and parts[1].isdigit():
+        port = parts[1]
+        path_parts = parts[2:]
     else:
-        url = f"https://{domain}/.well-known/did.json"
+        path_parts = parts[1:]
+    path = "/".join(path_parts) if path_parts else ""
+    host = f"{domain}:{port}" if port else domain
+    if path:
+        url = f"https://{host}/{path}/did.json"
+    else:
+        url = f"https://{host}/.well-known/did.json"
     return url
 
 

@@ -164,6 +164,11 @@ class TestParseDidWeb:
         with pytest.raises(ValueError, match="Not a did:web"):
             _parse_did_web("did:key:z6MkqRY")
 
+    def test_did_web_path_components(self):
+        """did:web with multiple path segments should resolve to correct URL."""
+        url = _parse_did_web("did:web:example.com:path:to:entity")
+        assert url == "https://example.com/path/to/entity/did.json"
+
 
 # ---------------------------------------------------------------------------
 # _decode_jwk
