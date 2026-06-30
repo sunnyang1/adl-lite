@@ -52,3 +52,23 @@ def get_api_config() -> dict:
         "jwt_secret": os.getenv("JWT_SECRET", "change-me"),
         "rate_limit": int(os.getenv("RATE_LIMIT", "0")),
     }
+
+
+def get_neo4j_config() -> dict:
+    """Read Neo4j connection configuration from environment variables.
+
+    Environment Variables:
+        NEO4J_URI: Neo4j connection URI (default: "bolt://localhost:7687")
+        NEO4J_USER: Neo4j username (default: "neo4j")
+        NEO4J_PASSWORD: Neo4j password (default: "password")
+        NEO4J_DATABASE: Neo4j database name (default: "neo4j")
+
+    Returns:
+        Dictionary with Neo4j connection configuration.
+    """
+    return {
+        "uri": os.getenv("NEO4J_URI", "bolt://localhost:7687"),
+        "user": os.getenv("NEO4J_USER", "neo4j"),
+        "password": os.getenv("NEO4J_PASSWORD", "password"),
+        "database": os.getenv("NEO4J_DATABASE", "neo4j"),
+    }

@@ -71,6 +71,7 @@ from .near_duplicate import (
     check_near_duplicate_embedding,
     suggest_merge,
 )
+from .neo4j_adapter import Neo4jGraphAdapter
 from .owl_export import export_owl
 from .owl_import import parse_owl_rdfxml, parse_owl_turtle
 from .rdfstar_export import document_to_rdfstar_turtle, sparqlstar_query_template
@@ -209,6 +210,7 @@ __all__ = [
     "ForkManager",
     "ForkResolution",
     # Memory
+    "Neo4jGraphAdapter",
     "ADLMemory",
     "HotIndex",
     "WarmIndex",

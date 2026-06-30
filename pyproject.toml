@@ -102,6 +102,9 @@ v1 = [
     "redis>=5.0",
     "celery>=5.3",
 ]
+neo4j = [
+    "neo4j>=5.0",
+]
 
 [project.scripts]
 adl-lite = "adl_lite.cli:main"
