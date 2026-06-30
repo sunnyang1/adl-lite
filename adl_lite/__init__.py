@@ -107,6 +107,7 @@ from .models import (
     ExecutionEntry,
     MechanismType,
     PreconditionRule,
+    ValidationResult,
 )
 from .ontology import OntologyManager
 from .parser import ADLParser, extract_wiki_links, parse_file, parse_text
@@ -141,6 +142,7 @@ __all__ = [
     "ExecutionEntry",
     "MechanismType",
     "PreconditionRule",
+    "ValidationResult",
     # Calibration
     "CalibrationProfile",
     "MARGINCalibrator",

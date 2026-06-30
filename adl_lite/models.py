@@ -21,6 +21,7 @@ import base64
 import hashlib
 import json
 import threading
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal
@@ -1438,3 +1439,26 @@ class ADLDocument(BaseModel):
 
         validator = ADLValidator()
         return validator.validate_document(self)
+
+
+# ---------------------------------------------------------------------------
+# Validation Result (structured SHACL / SSA validation output)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ValidationResult:
+    """Structured output from SHACL or SSA validation.
+
+    Fields:
+        path: The property path or component that failed (e.g. "adl:eventType", "L1 scope")
+        severity: Severity level — one of "Violation", "Warning", "Info"
+        message: Human-readable description of the validation issue
+    """
+
+    path: str
+    severity: str  # "Violation" | "Warning" | "Info"
+    message: str
+
+    def __str__(self) -> str:
+        return f"[{self.severity}] {self.path}: {self.message}"
