@@ -66,7 +66,7 @@ class TestCliParse:
 
 class TestCliValidate:
     def test_validate_ok(self, capsys):
-        args = _ns(files=[str(CAPITAL)], strict=False)
+        args = _ns(files=[str(CAPITAL)], strict=False, shacl=None, no_shacl=None)
         rc = cli._cmd_validate(args)
         assert rc == 0
         captured = capsys.readouterr()
@@ -74,12 +74,12 @@ class TestCliValidate:
 
     def test_validate_multiple_files(self, capsys):
         paths = sorted(EXAMPLES.glob("*.md"))
-        args = _ns(files=[str(p) for p in paths], strict=False)
+        args = _ns(files=[str(p) for p in paths], strict=False, shacl=None, no_shacl=None)
         rc = cli._cmd_validate(args)
         assert rc == 0
 
     def test_validate_fail(self, capsys):
-        args = _ns(files=[str(INVALID)], strict=False)
+        args = _ns(files=[str(INVALID)], strict=False, shacl=None, no_shacl=None)
         rc = cli._cmd_validate(args)
         assert rc == 1
         captured = capsys.readouterr()
@@ -87,7 +87,7 @@ class TestCliValidate:
 
     def test_validate_strict_unknown_predicate(self, capsys):
         invalid_pred = FIXTURES / "invalid_predicate.md"
-        args = _ns(files=[str(invalid_pred)], strict=True)
+        args = _ns(files=[str(invalid_pred)], strict=True, shacl=None, no_shacl=None)
         rc = cli._cmd_validate(args)
         assert rc == 1
         captured = capsys.readouterr()

@@ -164,13 +164,11 @@ adl:ForkShape a sh:NodeShape ;
     sh:property [
         sh:path adl:sourceConceptId ;
         sh:datatype xsd:string ;
-        sh:minCount 1 ;
         sh:maxCount 1 ;
     ] ;
     sh:property [
         sh:path adl:targetConceptId ;
         sh:datatype xsd:string ;
-        sh:minCount 1 ;
         sh:maxCount 1 ;
     ] .
 """

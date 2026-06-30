@@ -232,8 +232,8 @@ class TestForkShapeValidation:
         conforms, report = validate_adl_document(doc)
         assert conforms, f"Fork with source+target should conform. Report:\n{report}"
 
-    def test_fork_event_missing_source_fails(self):
-        """FORK event without source_concept_id should NOT conform."""
+    def test_fork_event_missing_source_conforms(self):
+        """FORK event without source_concept_id now conforms — these are consensus-level, not document-level constraints."""
         doc = self._make_doc(
             action_blocks=[
                 ADLActionBlock(
@@ -247,11 +247,12 @@ class TestForkShapeValidation:
             ]
         )
         conforms, report = validate_adl_document(doc)
-        assert not conforms, "Fork without source_concept_id should fail"
-        assert "sourceConceptId" in report
+        assert conforms, (
+            f"Fork without source_concept_id should conform (optional after T04). Report:\n{report}"
+        )
 
-    def test_fork_event_missing_target_fails(self):
-        """FORK event without target_concept_id should NOT conform."""
+    def test_fork_event_missing_target_conforms(self):
+        """FORK event without target_concept_id now conforms — these are consensus-level, not document-level constraints."""
         doc = self._make_doc(
             action_blocks=[
                 ADLActionBlock(
@@ -265,8 +266,9 @@ class TestForkShapeValidation:
             ]
         )
         conforms, report = validate_adl_document(doc)
-        assert not conforms, "Fork without target_concept_id should fail"
-        assert "targetConceptId" in report
+        assert conforms, (
+            f"Fork without target_concept_id should conform (optional after T04). Report:\n{report}"
+        )
 
 
 class TestCliShaclFlags:
