@@ -25,7 +25,7 @@ L4 & \texttt{adl:action} & Typed actions with preconditions & REGISTER, VALIDATE
 
 The L1 layer comprises YAML front matter containing identity metadata; critically, these fields are \emph{derived snapshots} recomputed from the EventChain. The L2 layer consists of Markdown body prose subject to the Singular Subjectivity Assertion (SSA).
 
-\textbf{Definition (SSA).} The Singular Subjectivity Assertion is a document-level constraint stating that every L2 Markdown body is authored by a single actor at a single time. It is enforced not by the ActionExecutor (which governs L4 events), but by the parser: any L2 section containing multiple contradictory subjective claims without explicit attribution is flagged as an SSA violation. The SSA ensures that the L2 narrative layer remains traceable to a single source of subjectivity, preventing ``ghost-authored'' reasoning that cannot be traced to an event. Contradictory subjective assertions must be recorded as separate L4 events (e.g., \textsc{Evidence} or \textsc{Relate}) by different actors. The SSA interacts with lifecycle governance as follows: (i)~a concept in \texttt{provisional} status may contain SSA-violating prose (it is unvalidated); (ii)~a \textsc{Validate} action's precondition requires that the L2 body pass SSA checking, ensuring that validated concepts have traceable narrative provenance; (iii)~\textsc{Fork} events inherit the parent's L2 body but must satisfy SSA for the new actor's rationale. Full machine-checkable enforcement of SSA is planned via SHACL shape validation (FW6).
+\textbf{Definition (SSA).} The Singular Subjectivity Assertion is a document-level constraint stating that every L2 Markdown body is authored by a single actor at a single time. It is enforced not by the ActionExecutor (which governs L4 events), but by the parser: any L2 section containing multiple contradictory subjective claims without explicit attribution is flagged as an SSA violation. The SSA ensures that the L2 narrative layer remains traceable to a single source of subjectivity, preventing ``ghost-authored'' reasoning that cannot be traced to an event. Contradictory subjective assertions must be recorded as separate L4 events (e.g., \textsc{Evidence} or \textsc{Relate}) by different actors. The SSA interacts with lifecycle governance as follows: (i)~a concept in \texttt{provisional} status may contain SSA-violating prose (it is unvalidated); (ii)~a \textsc{Validate} action's precondition requires that the L2 body pass SSA checking, ensuring that validated concepts have traceable narrative provenance; (iii)~\textsc{Fork} events inherit the parent's L2 body but must satisfy SSA for the new actor's rationale. Basic SHACL shapes are now implemented (\S\ref{subsec:shacl-validation}); full SSA-specific SHACL enforcement and epistemic context learning remain future work (FW6).
 
 The L3 layer introduces typed semantic assertions through fenced blocks supporting predicates such as \texttt{isomorphic-to}, \texttt{specialisation-of}, and \texttt{related-to}, with lifecycle operations (establishment, modification, revocation) recorded as \texttt{RELATE} events. These predicates serve a dual purpose: they express domain relationships between concepts, and they provide a mechanism for linking near-duplicate concepts that may arise from multi-agent authoring. For example, if two agents independently register ``gradient-explosion'' and ``exploding-gradients'', the recommended workflow is to detect the near-duplicate by string similarity and link them with the strongest applicable predicate (\texttt{isomorphic-to} for structural equivalence). If one concept is strictly superior, the other is marked as \texttt{deprecated} with a \texttt{FORK} or \texttt{RELATE} event pointing to the canonical concept. Automated canonicalisation via embedding clustering is deferred to future work (FW7).
 
@@ -242,15 +242,6 @@ Let $C_{\text{life}} = \{e \in C \mid e.\tau \in \Sigma_{\text{life}}\}$ be the 
 where $\max_{\prec}$ is the maximum over the integer order (Eq.~\ref{eq:status-order}). Complexity: $O(|C|)$ by single scan of $C$ (or $O(1)$ with an incremental LUB cache updated on every \texttt{append}).
 
 \textbf{Conflict resolution (CRDT LUB).} Under Eq.~\ref{eq:delta-def}, status is determined by the \emph{highest} lifecycle event in the lattice, not the last. Once $\text{deprecated}$ or $\text{archived}$ appears, no subsequent event can lower the status (monotonicity). Re-activation after deprecation requires a new genesis event on a new chain.
-\begin{equation}
-    \delta(C) = \begin{cases}
-        \text{provisional} & \text{if } C_{\text{life}} = [] \\
-        \max_{\prec}\{ f(e.\tau) \mid e \in C_{\text{life}} \} & \text{otherwise}
-    \end{cases}
-\end{equation}
-where $\max_{\prec}$ is the maximum over the integer order of the lattice (1~provisional, 2~forked, 3~validated, 4~deprecated, 5~archived). This is computed in $O(|C_{\text{life}}|)$ time by a single scan of the lifecycle subsequence.
-
-\textbf{Conflict resolution (CRDT LUB).} Under Eq.~\ref{eq:delta-def}, status is determined by the \emph{highest} lifecycle event in the lattice, not the last. Once $\text{deprecated}$ or $\text{archived}$ appears, no subsequent event can lower the status (monotonicity). Re-activation after deprecation requires a new genesis event on a new chain.
 
 \subsubsection{Confidence Aggregation: Three Variants}
 
@@ -335,7 +326,7 @@ T9 & CRDT merge: commutative, associative, idempotent & Direct & Set union + LUB
 \begin{table}[htbp]
 \centering
 \footnotesize
-\caption{Proof status of the seven core theorems.}
+\caption{Proof status of the nine core theorems.}
 \label{tab:proof-status}
 \begin{tabularx}{\textwidth}{@{}p{2.8cm}p{2.5cm}p{3.5cm}X@{}}
 \toprule
@@ -560,22 +551,22 @@ The \texttt{canonicalization.py} module implements a pipeline for detecting and 
 \end{enumerate}
 This design ensures that concept deduplication is both semantically informed (via LLM reasoning) and auditable (via the EventChain), while preserving human oversight through the dry-run gate.
 
-\subsection{REST API and Authentication}\label{sec:rest-api}
+\subsection{REST API and Authentication}\label{subsubsec:rest-api}
 
 The \texttt{api.py} module (481 lines) exposes a FastAPI-based REST API providing programmatic access to ADL Lite operations. The API implements 10 endpoints under the \texttt{/api/v1/consensus/} prefix: \texttt{register}, \texttt{transition}, \texttt{status}, \texttt{history}, \texttt{fork}, \texttt{verify}, \texttt{list}, \texttt{mode/dev}, \texttt{mode/production}, and \texttt{mode query}. Authentication supports dual mechanisms: JWT bearer tokens and API key authentication via \texttt{api\_auth.py} (344 lines), enabling flexible integration with both human operators and automated agents. The API enforces CORS policies, rate limiting, and pagination for list endpoints, ensuring controlled access under high concurrency. The application is constructed via a factory pattern (\texttt{create\_app()}), enabling dependency injection and testability.
 
-\subsection{MCP Server for Agent Integration}\label{sec:mcp-server}
+\subsection{MCP Server for Agent Integration}\label{subsubsec:mcp-server}
 
 The \texttt{mcp\_server.py} module (458 lines) implements a Model Context Protocol (MCP) server using the FastMCP framework, enabling ADL Lite to serve as a governance backend for MCP-compatible LLM agents. The server exposes 10 tools (\texttt{adl\_parse}, \texttt{adl\_validate}, \texttt{adl\_register}, \texttt{adl\_transition}, \texttt{adl\_status}, \texttt{adl\_verify}, \texttt{adl\_history}, \texttt{adl\_fork}, \texttt{adl\_list}, \texttt{adl\_ontology\_query}), 2 resources (\texttt{adl://ontology}, \texttt{adl://capability/\{adl\_id\}}), and 1 prompt (\texttt{adl\_lifecycle\_prompt}). Two transport modes are supported: stdio for local agent integration and streamable-http for networked deployments. This integration enables LLM agents to query, register, and validate capabilities through a standardized protocol interface.
 
-\subsection{SHACL Validation Framework}\label{sec:shacl-validation}
+\subsection{SHACL Validation Framework}\label{subsubsec:shacl-validation}
 
 The \texttt{shacl\_validation.py} module (334 lines) implements W3C SHACL shape validation using the pyshacl library, providing machine-checkable conformance checking for ADL documents. Six SHACL shapes are defined: \texttt{EventShape}, \texttt{ConceptShape}, \texttt{AgentShape}, \texttt{CalibrateEventShape}, \texttt{RelationShape}, and \texttt{ForkShape}. These shapes validate exported RDF against the structural and semantic constraints described in Appendix~\ref{sec:appendix-shapes}. The module provides two primary validation functions: \texttt{validate\_adl\_rdf()} for validating RDF graphs and \texttt{validate\_adl\_document()} for direct document validation. This framework completes the Semantic Web interoperability stack by enabling automated constraint checking complementary to the OWL 2 DL and RDF-star exports.
 
-\subsection{Neo4j Graph Adapter}\label{sec:neo4j-adapter}
+\subsection{Neo4j Graph Adapter}\label{subsubsec:neo4j-adapter}
 
 The \texttt{neo4j\_adapter.py} module (148 lines) provides a pluggable graph backend implementing the same interface as the NetworkX DiGraph for the WarmIndex. It supports graph operations including \texttt{add\_edge}, \texttt{bfs}, \texttt{\_\_contains\_\_}, \texttt{node\_count}, and \texttt{close}. The adapter supports dual-write mode, maintaining synchronized SQLite and Neo4j stores for query flexibility, and provides a \texttt{rebuild\_from\_relations} method for graph reconstruction. Configuration is provided via environment variables, enabling deployment-specific tuning without code changes. This adapter enables scalable graph traversal queries over large capability relation graphs.
 
-\subsection{CRDT Multi-Way Merge Generalization}\label{sec:crdt-multi-way}
+\subsection{CRDT Multi-Way Merge Generalization}\label{subsubsec:crdt-multi-way}
 
 The \texttt{merge\_event\_chains(*chains)} function has been generalized to support N$\geq$3 chain merging via \texttt{functools.reduce} over the \texttt{\_merge\_two\_chains} helper, maintaining full backward compatibility with the 2-chain case. This enables concurrent merge of multiple branches without pairwise reduction, improving both performance and semantic clarity for multi-agent scenarios. New proof functions \texttt{prove\_multi\_way\_merge()} and \texttt{prove\_event\_chain\_multi\_way\_merge()} establish CRDT convergence properties (Theorem~9) for arbitrary numbers of concurrent branches. The multi-way merge preserves the established properties: commutativity, associativity, idempotence, and deterministic state derivation.
