@@ -101,7 +101,14 @@ def _cmd_parse(args: argparse.Namespace) -> int:
 
 
 def _cmd_validate(args: argparse.Namespace) -> int:
-    validator = ADLValidator(strict=args.strict)
+    if args.shacl:
+        shacl = True
+    elif args.no_shacl:
+        shacl = False
+    else:
+        shacl = None  # auto-detect
+
+    validator = ADLValidator(shacl=shacl, strict=args.strict)
     any_errors = False
 
     for path_str in args.files:
@@ -123,6 +130,30 @@ def _cmd_validate(args: argparse.Namespace) -> int:
             print(f"{path}: OK")
 
     return 1 if any_errors else 0
+
+
+def _cmd_shacl(args: argparse.Namespace) -> int:
+    from .shacl_validation import validate_adl_document as shacl_validate
+
+    all_pass = True
+    for path_str in args.files:
+        p = Path(path_str)
+        try:
+            doc = parse_file(str(p))
+            conforms, report = shacl_validate(doc)
+            if conforms:
+                print(f"{p.name}: SHACL OK")
+            else:
+                print(f"{p.name}: SHACL FAILED")
+                for line in report.splitlines():
+                    if line.strip():
+                        print(f"  {line.strip()}")
+                all_pass = False
+        except Exception as e:
+            print(f"{p.name}: ERROR — {e}", file=sys.stderr)
+            all_pass = False
+
+    return 0 if all_pass else 1
 
 
 def _cmd_store(args: argparse.Namespace) -> int:
@@ -592,7 +623,23 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Reject unknown L3 relation predicates (ontology registry)",
     )
+    p_validate.add_argument(
+        "--shacl",
+        action="store_true",
+        default=None,
+        help="Enable SHACL validation (auto-detected by default)",
+    )
+    p_validate.add_argument(
+        "--no-shacl",
+        action="store_true",
+        default=None,
+        help="Disable SHACL validation",
+    )
     p_validate.set_defaults(func=_cmd_validate, strict=False)
+
+    p_shacl = sub.add_parser("shacl", help="Run SHACL validation on ADL files")
+    p_shacl.add_argument("files", nargs="+", help="ADL Markdown files to validate")
+    p_shacl.set_defaults(func=_cmd_shacl)
 
     p_store = sub.add_parser("store", help="Store document in ADLMemory database")
     p_store.add_argument("file", help="Path to .md document")

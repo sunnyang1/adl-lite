@@ -267,3 +267,45 @@ class TestForkShapeValidation:
         conforms, report = validate_adl_document(doc)
         assert not conforms, "Fork without target_concept_id should fail"
         assert "targetConceptId" in report
+
+
+class TestCliShaclFlags:
+    """CLI --shacl/--no-shacl flags and standalone 'adl-lite shacl' subcommand (T04)."""
+
+    def test_cli_validate_shacl_flag(self):
+        """ADLValidator(shacl=True) enables SHACL validation."""
+        validator = ADLValidator(shacl=True)
+        assert validator.shacl is True
+
+    def test_cli_validate_no_shacl_flag(self):
+        """ADLValidator(shacl=False) disables SHACL validation."""
+        validator = ADLValidator(shacl=False)
+        assert validator.shacl is False
+
+    def test_standalone_shacl_command_ok(self):
+        """The standalone shacl subcommand works with a valid file via _cmd_shacl."""
+        import tempfile
+        from argparse import Namespace
+        from pathlib import Path
+
+        from adl_lite.cli import _cmd_shacl
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write("""---
+adl_id: shacl-cli-test
+adl_type: concept
+status: validated
+confidence: 0.85
+scope: public
+names: { "en": "SHACL CLI Test" }
+---
+# SHACL CLI Test
+""")
+            tmp_path = f.name
+
+        try:
+            ns = Namespace(files=[tmp_path])
+            ret = _cmd_shacl(ns)
+            assert ret == 0
+        finally:
+            Path(tmp_path).unlink(missing_ok=True)
