@@ -2,9 +2,10 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version: 0.6.0-alpha](https://img.shields.io/badge/version-v0.6.0--alpha-blue.svg)](https://github.com/sunnyang1/adl-lite/releases/tag/v0.6.0-alpha)
 [![ESWC/ISWC 2027 Backup](https://img.shields.io/badge/Backup-ESWC%2FISWC%202027-blue.svg)](https://2027.eswc-conferences.org/)
 [![Applied Ontology: under revision](https://img.shields.io/badge/Journal-Applied%20Ontology-orange.svg)](https://www.iospress.nl/journal/applied-ontology/)
-[![Tests: 1174 PASS](https://img.shields.io/badge/tests-1174%20PASS-brightgreen.svg)]()
+[![Tests: 1358 PASS](https://img.shields.io/badge/tests-1358%20PASS-brightgreen.svg)]()
 [![Coverage: 87%](https://img.shields.io/badge/coverage-87%25-brightgreen.svg)]()
 [![Release Readiness: GO](https://img.shields.io/badge/release%20readiness-GO-brightgreen.svg)]()
 [![API: FastAPI](https://img.shields.io/badge/API-FastAPI%20REST-009688.svg)]()
@@ -132,7 +133,7 @@ python -m experiments.runner list
 # Run single experiment
 python -m experiments.runner E2
 
-# Run tests (1174 passed, 87% coverage)
+# Run tests (1358 passed, 87% coverage)
 pytest tests/ -v --cov=adl_lite --cov-report=term-missing
 
 # Run fast tests only (excludes slow benchmarks)
@@ -322,24 +323,32 @@ print(f"SHACL errors: {len(shacl_errors)}")
 </details>
 
 <details>
-<summary><b>Transparency anchors & Merkle proofs</b></summary>
+<summary><b>Transparency anchors & Merkle batch proofs</b></summary>
 
 ```python
-from adl_lite import parse_file, MerkleTree, compute_chain_merkle_root
+from adl_lite import parse_file
+from adl_lite.key_registry import TransparencyAnchor
 
-doc = parse_file("examples/weather_data_retrieval.md")
-chain = doc.event_chain
+doc_a = parse_file("examples/weather_data_retrieval.md")
+doc_b = parse_file("examples/capital_reflux_trap.md")
+chain_a, chain_b = doc_a.event_chain, doc_b.event_chain
 
-# Compute a Merkle root over all event hashes
-root = compute_chain_merkle_root(chain)
-print(f"Merkle root: {root[:16]}...")
+# Anchor multiple chains using a Merkle root
+anchor = TransparencyAnchor("ANCHOR.md")
+value = anchor.anchor([chain_a, chain_b], use_merkle=True, proofs_dir="./proofs")
+print(f"Merkle root: {value[:16]}...")
 
-# Generate an inclusion proof for a specific event
-target_hash = chain.events[-1].hash
-proof = MerkleTree.generate_proof(chain.events, target_hash)
+# Generate and verify an individual inclusion proof
+proof = anchor.prove_inclusion(chain_a)
+assert anchor.verify_inclusion(chain_a, proof)
 
-# Verify the proof
-assert MerkleTree.verify_proof(target_hash, proof, root)
+# Batch verify all chains against the Merkle root (O(log n) per chain)
+results = TransparencyAnchor.verify_batch(
+    [chain_a, chain_b],
+    merkle_root=value,
+    proofs={"weather-data-retrieval": proof_a, "disc-capital-trap": proof_b},
+)
+print(results)  # {'weather-data-retrieval': True, 'disc-capital-trap': True}
 ```
 
 </details>
@@ -367,7 +376,7 @@ adl-lite anchor                                 # Flat anchor
 adl-lite anchor --merkle --proofs-dir ./proofs  # Merkle root + per-chain proofs
 adl-lite verify-anchor                          # Verify flat anchor
 adl-lite verify-anchor --state ./state.json     # Verify from saved state
-adl-lite verify-inclusion <adl_id> --proof ./proofs/<adl_id>.json
+adl-lite verify-batch --anchor ANCHOR.md --proofs-dir ./proofs  # Merkle batch verification
 
 # ── LLM normalization (dry-run by default) ───────────────
 adl-lite normalize --input-dir ./concepts --threshold 0.92
@@ -446,6 +455,14 @@ proposals = engine.normalize(threshold=0.92, dry_run=True)
 from adl_lite import MerkleTree, compute_chain_merkle_root
 root = compute_chain_merkle_root(chain)
 proof = MerkleTree.generate_proof(chain.events, target_event_hash)
+
+# N≥3 CRDT chain merge (Complete Version)
+from adl_lite.crdt import merge_event_chains
+merged = merge_event_chains(chain_a, chain_b, chain_c, chain_d)  # N-way merge via pairwise fold
+
+# Merkle batch verification (Complete Version)
+from adl_lite.key_registry import TransparencyAnchor
+results = TransparencyAnchor.verify_batch(chains, merkle_root, proofs)  # → {concept_id: bool}
 
 # Linked Data Proofs
 from adl_lite import create_event_proof, verify_event_proof
@@ -675,7 +692,7 @@ adl-lite/
 │   ├── ontology.py        # OntologyManager (predicates/actions/transitions)
 │   ├── memory.py          # Hot/Warm/Cold index with optional VectorIndex + WarmIndex degradation
 │   ├── tools.py           # Agent tool wrappers
-│   ├── crdt.py            # CRDT merge semantics + LWW-Set EventChain merge
+│   ├── crdt.py            # CRDT merge semantics + LWW-Set N≥3 EventChain merge (Theorem 9)
 │   ├── calibration.py     # MARGINCalibrator + γ_agg / γ_cal / γ_ewma / γ_band
 │   ├── embeddings.py      # Pluggable embedding backends (SentenceTransformer / OpenAI)
 │   ├── vector_index.py    # FAISS-backed persisted vector index + semantic search
@@ -690,7 +707,7 @@ adl-lite/
 │   ├── realtime.py        # Real-time event watcher
 │   ├── sync_manager.py    # Edge-to-core sync coordination
 │   ├── did_resolver.py    # Multi-method DID resolver (did:key / did:web / did:ethr)
-│   ├── key_registry.py    # Key registry + transparency anchor + Git signatures
+│   ├── key_registry.py    # Key registry + transparency anchor + Merkle batch verify + Git sigs
 │   ├── ld_proof.py        # W3C Linked Data Proofs (Ed25519 / secp256k1)
 │   ├── merkle.py          # SHA-256 Merkle trees with inclusion proofs
 │   ├── relation_validator.py # L3 Relation Reconciliation (Invariant 2)
@@ -708,7 +725,7 @@ adl-lite/
 │   ├── harness.py         # 5-agent simulation harness
 │   ├── proof_trace_checker.py # Randomized property-based theorem validation
 │   └── e*.py              # 28 registered experiments (E1–E30)
-├── tests/                 # pytest suite (1174 pass, 22 skip, 87% coverage)
+├── tests/                 # pytest suite (1358 pass, 6 skip, 87% coverage)
 ├── examples/              # Capability file examples
 ├── data/aml/              # AML domain stress test data
 ├── docs/
@@ -767,6 +784,7 @@ adl-lite/
 | ✅ v0.2.0 | Semantic Web | OWL bidirectional, RDF-star, SPARQL-star, JSON-LD |
 | ✅ v0.2.0 | L3 governance | RelationValidator, Invariant 2, fork inheritance |
 | 🔄 Active | Paper revision | Major revision for Applied Ontology (51pp, 9 theorems, TLA⁺ + Coq) |
+| ✅ v0.6.0-alpha | Complete version | N≥3 CRDT merge (Theorem 9), Merkle batch verification, DID complete, `verify-batch` CLI |
 | ✅ v0.5.0-alpha | Formal methods | TLA⁺ bounded specs, Coq/Iris skeleton, proof trace checker |
 | ✅ v0.5.0-alpha | Scale architecture | Split-lock, incremental verify, zstd+msgpack cold storage |
 | ✅ v0.5.0-alpha | REST API | FastAPI /api/v1/consensus/ endpoints, dev/production mode toggle |
