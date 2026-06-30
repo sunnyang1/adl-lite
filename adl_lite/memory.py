@@ -39,6 +39,7 @@ from .models import (
     EventChain,
     EventType,
 )
+from .neo4j_adapter import Neo4jGraphAdapter
 
 # Optional NetworkX — gracefully degrade if absent
 try:
@@ -174,7 +175,11 @@ class WarmIndex:
     CREATE INDEX IF NOT EXISTS idx_events_concept_seq ON events(concept_id, timestamp);
     """
 
-    def __init__(self, db_path: str = ":memory:") -> None:
+    def __init__(
+        self,
+        db_path: str = ":memory:",
+        graph_backend: Neo4jGraphAdapter | None = None,
+    ) -> None:
         self.db_path = db_path
         self._lock = threading.RLock()
         self._degraded = False  # Whether WarmIndex has degraded to Hot-only mode
@@ -187,8 +192,15 @@ class WarmIndex:
         self.conn.executescript(self.SCHEMA)
         self.conn.commit()
 
-        # Relation graph (optional NetworkX)
-        self.graph: nx.DiGraph | None = nx.DiGraph() if HAS_NETWORKX else None
+        # Relation graph: NetworkX by default, Neo4j if graph_backend is provided
+        self.graph_backend = graph_backend
+        if graph_backend is not None:
+            # Use Neo4j — skip NetworkX
+            self.graph = None
+        elif HAS_NETWORKX:
+            self.graph = nx.DiGraph()
+        else:
+            self.graph = None
 
     # Document storage
 
@@ -390,13 +402,18 @@ class WarmIndex:
             self.graph.add_edge(
                 rel.source, rel.target, relation=rel.relation, confidence=rel.confidence
             )
+        if self.graph_backend is not None:
+            self.graph_backend.add_edge(rel.source, rel.target, rel.relation, rel.confidence)
 
     def get_related(self, concept_id: str, depth: int = 1) -> list[tuple[str, str, float]]:
         """
         BFS traversal of the relation graph. Thread-safe.
         Returns list of (related_capability, relation, confidence).
+        Priority order: Neo4j backend → NetworkX → SQL fallback.
         """
         with self._lock:
+            if self.graph_backend is not None:
+                return self.graph_backend.bfs(concept_id, max_depth=depth)
             if self.graph and HAS_NETWORKX:
                 return self._graph_bfs(concept_id, depth)
             return self._sql_bfs(concept_id, depth)

@@ -242,3 +242,106 @@ class TestNeo4jGraphAdapter:
             with patch.object(builtins, "__import__", side_effect=fake_import):
                 with pytest.raises(ImportError, match="Neo4j support requires the 'neo4j' extra"):
                     a._get_driver()
+
+    # ------------------------------------------------------------------
+    # WarmIndex Integration
+    # ------------------------------------------------------------------
+
+
+class TestWarmIndexIntegration:
+    """WarmIndex with Neo4jGraphAdapter integration."""
+
+    def test_warmindex_with_neo4j_backend(self) -> None:
+        """Verify WarmIndex dispatches to Neo4j when graph_backend is provided."""
+        from unittest.mock import MagicMock
+
+        from adl_lite.memory import WarmIndex
+        from adl_lite.models import (
+            ADLDocument,
+            ADLFrontMatter,
+            ADLRelationBlock,
+            ADLType,
+            DiscoveryStatus,
+            ProvisionalNames,
+        )
+        from adl_lite.neo4j_adapter import Neo4jGraphAdapter
+
+        mock_backend = MagicMock(spec=Neo4jGraphAdapter)
+        warm = WarmIndex(db_path=":memory:", graph_backend=mock_backend)
+
+        # Verify no NetworkX graph initialized
+        assert warm.graph is None
+        assert warm.graph_backend is mock_backend
+
+        # Insert a doc with relations
+        doc = ADLDocument(
+            front_matter=ADLFrontMatter(
+                adl_type=ADLType.CONCEPT,
+                adl_id="test-concept",
+                status=DiscoveryStatus.VALIDATED,
+                confidence=0.9,
+                scope="public",
+                provisional_names=ProvisionalNames(en="test-concept"),
+            ),
+            markdown_body="Test",
+            adl_blocks=[],
+        )
+        warm.insert_document(doc)
+
+        # Verify add_edge was NOT called (no relations in the doc)
+        mock_backend.add_edge.assert_not_called()
+
+        # Now test with a relation
+        doc2 = ADLDocument(
+            front_matter=ADLFrontMatter(
+                adl_type=ADLType.CONCEPT,
+                adl_id="test-rel",
+                status=DiscoveryStatus.VALIDATED,
+                confidence=0.9,
+                scope="public",
+                provisional_names=ProvisionalNames(en="test-rel"),
+            ),
+            markdown_body="Test with relations",
+            adl_blocks=[
+                ADLRelationBlock(
+                    source="test-rel",
+                    relation="related-to",
+                    target="other-concept",
+                    confidence=0.8,
+                )
+            ],
+        )
+        warm.insert_document(doc2)
+        mock_backend.add_edge.assert_called_once_with(
+            "test-rel", "other-concept", "related-to", 0.8
+        )
+
+    def test_warmindex_falls_back_to_networkx(self) -> None:
+        """Verify WarmIndex uses NetworkX when no graph_backend is given."""
+        from adl_lite.memory import HAS_NETWORKX, WarmIndex
+
+        warm = WarmIndex()
+        assert warm.graph_backend is None
+        if HAS_NETWORKX:
+            assert warm.graph is not None
+        else:
+            assert warm.graph is None
+
+    def test_warmindex_get_related_dispatches_to_backend(self) -> None:
+        """Verify get_related() calls graph_backend.bfs when configured."""
+        from unittest.mock import MagicMock
+
+        from adl_lite.memory import WarmIndex
+        from adl_lite.neo4j_adapter import Neo4jGraphAdapter
+
+        mock_backend = MagicMock(spec=Neo4jGraphAdapter)
+        mock_backend.bfs.return_value = [
+            ("related-cap", "related-to", 0.9),
+        ]
+
+        warm = WarmIndex(db_path=":memory:", graph_backend=mock_backend)
+
+        results = warm.get_related("test-concept", depth=2)
+
+        mock_backend.bfs.assert_called_once_with("test-concept", max_depth=2)
+        assert results == [("related-cap", "related-to", 0.9)]
