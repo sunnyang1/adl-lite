@@ -14,6 +14,8 @@ The empirical results support the event-first design, but the deeper contributio
 
 \textbf{Q4: What is the ontological cost of the event-first stance?} The event-first model makes historical queries natural (e.g., ``what was the status at time $t$?''), but certain snapshot queries require scanning the entire chain. For example, computing the set of all currently \texttt{validated} concepts requires evaluating $\delta(C)$ for every chain, which is $O(n)$ per chain. This is a deliberate design choice: event-first trades query-time computation for the elimination of stored mutable state and the consistency defects it introduces. The complexity is linear and bounded (Theorem~1), so the cost is predictable and acceptable for the target deployment scale ($10^5$--$10^6$ events).
 
+\textbf{Space-time trade-off.} The append-only design trades storage growth for query-time recomputation. At $10^6$ events, the zstd+msgpack cold-storage archive achieves $>{>}10\times$ compression over JSONL (E27), mitigating storage concerns. The warm index caches derived snapshots ($\delta$, $\gamma$) for $O(1)$ incremental queries, so the $O(n)$ cost is incurred only on cold starts or cache invalidations. For deployments exceeding $10^6$ events, secondary indexing (e.g., materialized status views, event-type partitioning) could be introduced without changing the canonical derivation semantics.
+
 \subsection{Capability Registry Contribution}\label{subsec:conceptual-modeling}
 
 The three contributions of this paper (Section~\ref{subsec:contributions})---ontological analysis, formal semantics, and architectural verification---position ADL Lite as a lightweight, deployment-ready governance layer for capability lifecycles.
