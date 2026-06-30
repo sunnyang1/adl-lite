@@ -367,7 +367,14 @@ def _cmd_verify_anchor(args: argparse.Namespace) -> int:
     engine = _load_engine(state_path)
 
     # Attach loaded chains to the anchor so verify_anchor() computes the correct expected hash
-    anchor._last_chains = list(engine.chains.values())
+    chains = list(engine.chains.values())
+    anchor._last_chains = chains
+    # If the anchor was created with --merkle, also compute the Merkle tree so
+    # verify_anchor() compares against the Merkle root rather than a flat SHA-256.
+    if anchor.anchor_path.exists():
+        content = anchor.anchor_path.read_text(encoding="utf-8")
+        if "Merkle" in content:
+            anchor._last_tree = anchor._compute_merkle_anchor(chains)
 
     ok = anchor.verify_anchor()
     if ok:

@@ -23,6 +23,7 @@ from .models import (
     ADLRelationBlock,
     ADLType,
     DiscoveryStatus,
+    ValidationResult,
 )
 from .ontology import OntologyManager, default_ontology
 from .relation_validator import RelationValidator
@@ -183,11 +184,19 @@ class ADLValidator:
         self,
         strict: bool = False,
         ontology: OntologyManager | None = None,
-        shacl: bool = False,
+        shacl: bool | None = None,
         status_resolver: Callable[[str], DiscoveryStatus] | None = None,
     ) -> None:
         self.strict = strict
-        self.shacl = shacl
+        if shacl is None:
+            try:
+                import pyshacl  # noqa: F401
+
+                self.shacl = True
+            except ImportError:
+                self.shacl = False
+        else:
+            self.shacl = shacl
         self._ontology = ontology
         self._status_resolver = status_resolver
         self._relation_validator = RelationValidator(ontology=self.ontology)
@@ -219,7 +228,7 @@ class ADLValidator:
         errors.extend(self._validate_relation_governance(doc))
 
         if self.shacl:
-            errors.extend(self._validate_shacl(doc))
+            errors.extend(str(r) for r in self._validate_shacl(doc))
 
         return errors
 
@@ -249,23 +258,23 @@ class ADLValidator:
 
         return errors
 
-    def _validate_shacl(self, doc: ADLDocument) -> list[str]:
-        """Run runtime SHACL validation and return human-readable errors."""
+    def _validate_shacl(self, doc: ADLDocument) -> list[ValidationResult]:
+        """Run runtime SHACL validation and return structured ValidationResult items."""
         try:
             from .shacl_validation import validate_adl_document
         except ImportError as exc:
-            return [f"SHACL validation unavailable: {exc}"]
+            return [ValidationResult("SHACL", "Warning", f"SHACL validation unavailable: {exc}")]
 
         try:
             conforms, report = validate_adl_document(doc)
         except Exception as exc:  # noqa: BLE001
-            return [f"SHACL validation error: {exc}"]
+            return [ValidationResult("SHACL", "Error", f"SHACL validation error: {exc}")]
 
         if not conforms:
             lines = [line.strip() for line in report.splitlines() if line.strip()]
             # Keep only the most informative validation-result lines.
             return [
-                f"SHACL violation: {line}"
+                ValidationResult("SHACL", "Violation", line)
                 for line in lines
                 if any(token in line for token in ("Violation", "Constraint", "Value", "Path"))
             ][:10]

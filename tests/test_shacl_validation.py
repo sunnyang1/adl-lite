@@ -18,6 +18,7 @@ from adl_lite.models import (
 )
 from adl_lite.prov_export import to_prov_o
 from adl_lite.shacl_validation import validate_adl_document, validate_adl_rdf
+from adl_lite.validator import ADLValidator
 
 
 class TestShaclValidation:
@@ -160,3 +161,109 @@ class TestRuntimeShaclValidation:
         )
         conforms, report = validate_adl_document(doc)
         assert not conforms, "CALIBRATE event with invalid observedAccuracy should fail"
+
+
+class TestShaclDefaultOn:
+    """SHACL auto-detection in ADLValidator (T02)."""
+
+    def test_auto_detect_enabled(self):
+        """When pyshacl is importable, ADLValidator(shacl=None) sets shacl=True."""
+        validator = ADLValidator(shacl=None)
+        assert validator.shacl is True
+
+    def test_auto_detect_disabled(self):
+        """When shacl=False is passed explicitly, ADLValidator disables SHACL."""
+        validator = ADLValidator(shacl=False)
+        assert validator.shacl is False
+        # Validation should still work without SHACL
+        doc = self._make_concept_doc()
+        errors = validator.validate_document(doc)
+        # No SHACL-related errors returned
+        assert not any("SHACL" in e for e in errors)
+
+    @staticmethod
+    def _make_concept_doc() -> ADLDocument:
+        return ADLDocument(
+            front_matter=ADLFrontMatter(
+                adl_type=ADLType.CONCEPT,
+                adl_id="test-concept",
+                status=DiscoveryStatus.PROVISIONAL,
+                confidence=0.5,
+                scope="public",
+                provisional_names=ProvisionalNames(en="test-concept"),
+            ),
+            markdown_body="A test concept.",
+        )
+
+
+class TestForkShapeValidation:
+    """ForkShape SHACL validation (T03)."""
+
+    def _make_doc(self, action_blocks=None):
+        return ADLDocument(
+            front_matter=ADLFrontMatter(
+                adl_type=ADLType.CONCEPT,
+                adl_id="fork-doc",
+                status=DiscoveryStatus.VALIDATED,
+                confidence=0.85,
+                scope="public",
+                provisional_names=ProvisionalNames(en="fork-doc"),
+            ),
+            markdown_body="A fork test concept.",
+            adl_blocks=[],
+            action_blocks=action_blocks or [],
+        )
+
+    def test_fork_event_with_source_target_conforms(self):
+        """FORK event with both source_concept_id and target_concept_id should conform."""
+        doc = self._make_doc(
+            action_blocks=[
+                ADLActionBlock(
+                    action="fork",
+                    actor="system",
+                    reasoning="Forking concept",
+                    params={
+                        "source_concept_id": "concept-a",
+                        "target_concept_id": "concept-b",
+                    },
+                )
+            ]
+        )
+        conforms, report = validate_adl_document(doc)
+        assert conforms, f"Fork with source+target should conform. Report:\n{report}"
+
+    def test_fork_event_missing_source_fails(self):
+        """FORK event without source_concept_id should NOT conform."""
+        doc = self._make_doc(
+            action_blocks=[
+                ADLActionBlock(
+                    action="fork",
+                    actor="system",
+                    reasoning="Forking concept",
+                    params={
+                        "target_concept_id": "concept-b",
+                    },
+                )
+            ]
+        )
+        conforms, report = validate_adl_document(doc)
+        assert not conforms, "Fork without source_concept_id should fail"
+        assert "sourceConceptId" in report
+
+    def test_fork_event_missing_target_fails(self):
+        """FORK event without target_concept_id should NOT conform."""
+        doc = self._make_doc(
+            action_blocks=[
+                ADLActionBlock(
+                    action="fork",
+                    actor="system",
+                    reasoning="Forking concept",
+                    params={
+                        "source_concept_id": "concept-a",
+                    },
+                )
+            ]
+        )
+        conforms, report = validate_adl_document(doc)
+        assert not conforms, "Fork without target_concept_id should fail"
+        assert "targetConceptId" in report

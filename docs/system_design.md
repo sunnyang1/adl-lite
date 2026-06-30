@@ -1,9 +1,8 @@
-# ADL Lite Dashboard — System Architecture & Task Decomposition
+# ADL Lite — SHACL Runtime Complete Version: System Design & Task Decomposition
 
-> **Author**: 高见远（Gao） · Architect  
-> **Date**: 2025-06-29  
-> **Version**: 1.0  
-> **Status**: Draft for Engineer implementation
+> **Architect**: 高见远 (Bob)  
+> **Version**: F28 SHACL Runtime Complete  
+> **Base**: ADL Lite v0.6.0-alpha  
 
 ---
 
@@ -11,509 +10,290 @@
 
 ### 1. Implementation Approach
 
-#### 1.1 Core Technical Challenges
+#### Core Technical Challenges
 
-| Challenge | Description | Resolution |
-|-----------|-------------|------------|
-| **Fork relationship reconstruction** | `/list` returns flat capability IDs; fork parent-child relationships are only visible inside `/history` event payloads (type=`fork`, payload contains `original_id`) | Fetch `/history` for each capability to extract fork anchors; build a client-side fork adjacency map |
-| **Per-validator confidence extraction** | `/status` returns aggregate γ; individual validator votes are embedded in `/history` events (type=`validate`, payload contains per-actor confidence) | Reconstruct validator detail from event history on the client side |
-| **EWMA curve computation** | No dedicated EWMA endpoint; γ_ewma must be computed from sequential `calibrate`/`validate` events | Compute EWMA client-side from `/history` events with α=0.3 (same as backend `calibration.ewma_confidence`) |
-| **Auto-refresh without hammering API** | 30s polling for ~10 endpoints must stay under 60 req/min rate limit | Use React Query's `refetchInterval` with smart stale-ness; batch status checks; only poll active views |
-| **SPA routing + deep-link capability detail** | Routes `/overview`, `/capabilities`, `/capabilities/:adl_id` need data preloading | React Router v6 with data loaders; prefetch capability list on mount |
+| Challenge | Analysis |
+|-----------|----------|
+| **FORK payload enrichment** | FORK events carry `source_concept_id` / `target_concept_id` inside the JSON payload literal (`adl:payload`). SHACL cannot inspect JSON literals; these must be extracted into named RDF properties (`adl:sourceConceptId`, `adl:targetConceptId`) in `_document_to_rdf_graph()`, following the same pattern used for CALIBRATE's `observedAccuracy`. |
+| **ValidationResult structure** | Currently `_validate_shacl()` returns `list[str]` (human-readable text). P0-5 requires a structured `ValidationResult` dataclass with `path`, `severity`, `message`. The pyshacl report text must be parsed into these fields. |
+| **Default-on auto-detect** | `ADLValidator(shacl=False)` must become `ADLValidator(shacl=None)` where `None` means "enabled if pyshacl importable". This requires a try/import check that mirrors existing `_shacl_available()` in `shacl_validation.py`. |
+| **CLI flags** | `--shacl` (enable), `--no-shacl` (force-disable when auto-detect would enable), and a standalone `adl-lite shacl <files>` subcommand. All three must compose correctly. |
 
-#### 1.2 Framework & Library Selection
+#### Framework & Library Selections
 
-| Layer | Choice | Justification |
-|-------|--------|---------------|
-| **Build tool** | Vite 5 | Fast HMR, native TS support, simple config |
-| **UI framework** | React 18 | Component model fits dashboard widget layout; concurrent features for smooth updates |
-| **Language** | TypeScript 5 | Strict typing for API response contracts; prevents runtime shape errors |
-| **Component library** | MUI v5 | Rich data-display components (DataGrid, Card, Timeline); theme system for dark/light |
-| **Utility styling** | Tailwind CSS 3 | Quick layout tweaks, spacing, responsive breakpoints alongside MUI |
-| **Data fetching** | @tanstack/react-query v5 | Built-in caching, refetchInterval, stale-while-revalidate; eliminates manual polling logic |
-| **Routing** | react-router-dom v6 | Nested routes, data loaders, URL param extraction for `:adl_id` |
-| **Charts** | Recharts v2 | Declarative line charts for γ_ewma calibration curves; lightweight vs D3 |
-| **Tree visualization** | react-d3-tree v3 | Fork tree as hierarchical D3 tree; handles branching naturally |
-| **State management** | React Context + Zustand | Context for theme/mode (global); Zustand for capability selection state (cross-component) |
-| **HTTP client** | Axios v1 | Request/response interceptors for base URL and error normalization |
+| Library | Version | Justification |
+|---------|---------|---------------|
+| `pyshacl` | >=0.25 | Already used; provides the SHACL validation engine. No upgrade needed. |
+| `rdflib` | >=7.0 | Already used; provides RDF graph handling. No upgrade needed. |
 
-#### 1.3 Architecture Pattern
+**No new dependencies required.** Both `pyshacl` and `rdflib` are already declared in `[project.optional-dependencies] gov`.
 
-**Component-Driven SPA** (no server-side rendering):
+#### Architecture Pattern
 
-- **Presentation Layer**: React components (MUI + Tailwind)
-- **Data Layer**: React Query cache (server state) + Zustand store (client state)
-- **Routing Layer**: React Router v6 with nested layouts
-- **API Layer**: Axios client → REST endpoints under `/api/v1/consensus/`
+```
+CLI (argparse) ──→ ADLValidator ──→ shacl_validation ──→ pyshacl
+   │                    │                                      │
+   │  --shacl/--no-shacl│  ValidationResult[]                  │
+   │  shacl subcommand  │                                      │
+   ▼                    ▼                                      ▼
+args               validate_document()                   validate() RDF
+```
 
-No MVVM/MVC overhead — React Query acts as the "ViewModel" by managing server state lifecycle, and Zustand handles ephemeral UI state (selected capability, filters, theme toggle).
+Pattern: **Layered validation** — SSA checks happen first (pronoun/scope/slot), SHACL structural checks happen second. The Validator acts as the orchestrator; `shacl_validation.py` is the SHACL engine that knows RDF.
 
 ---
 
 ### 2. File List
 
-All files reside under `dashboard/` at the project root (NOT inside `adl_lite/` Python package).
+All relative paths are from project root.
 
-```
-dashboard/
-├── package.json
-├── vite.config.ts
-├── tsconfig.json
-├── tsconfig.node.json
-├── tailwind.config.ts
-├── postcss.config.js
-├── index.html
-├── .env.example
-├── public/
-│   └── favicon.svg
-├── src/
-│   ├── main.tsx                           # App entry point
-│   ├── App.tsx                            # Root component + router
-│   ├── vite-env.d.ts                      # Vite type declarations
-│   ├── api/
-│   │   ├── client.ts                      # Axios instance + interceptors
-│   │   ├── types.ts                       # API response TypeScript interfaces
-│   │   ├── endpoints.ts                   # React Query hook factory (useCapabilities, useStatus, etc.)
-│   │   └── mocks.ts                       # Mock data for dev/testing
-│   ├── store/
-│   │   ├── useThemeStore.ts               # Dark/light theme Zustand store
-│   │   ├── useSelectionStore.ts           # Selected capability + filters Zustand store
-│   │   └── useModeStore.ts                # Consensus mode (dev/production) Zustand store
-│   ├── hooks/
-│   │   ├── usePolling.ts                  # 30s auto-refresh wrapper
-│   │   ├── useForkTree.ts                 # Build fork adjacency from history events
-│   │   ├── useEwmaCurve.ts               # Compute EWMA series from event history
-│   │   ├── useConfidenceColor.ts          # γ → color mapping (green/yellow/red)
-│   │   └── useValidatorDetail.ts          # Extract per-validator votes from history
-│   ├── components/
-│   │   ├── layout/
-│   │   │   ├── AppLayout.tsx              # Shell: sidebar + header + main content
-│   │   │   ├── AppSidebar.tsx             # Navigation sidebar (Overview, Capabilities)
-│   │   │   ├── AppHeader.tsx              # Top bar: mode badge + theme toggle + refresh
-│   │   │   └── ResponsiveContainer.tsx    # Responsive wrapper (desktop-first, mobile stacking)
-│   │   ├── overview/
-│   │   │   ├── HealthOverviewPanel.tsx     # Stats cards: total, active, deprecated, avg γ, mode
-│   │   │   ├── StatusCard.tsx             # Individual stat card component
-│   │   │   ├── ConfidenceGauge.tsx        # Circular gauge for average γ
-│   │   │   └── ModeIndicator.tsx          # Dev/Production mode badge
-│   │   ├── capabilities/
-│   │   │   ├── CapabilityExplorer.tsx      # Paginated list + search + status filter
-│   │   │   ├── CapabilityRow.tsx          # Single row: ID, status badge, γ, validators count
-│   │   │   ├── CapabilitySearchBar.tsx    # Search input + status dropdown filter
-│   │   │   └── ConfidenceRangeSlider.tsx  # P1: 0-1 slider for γ range filter
-│   │   ├── detail/
-│   │   │   ├── CapabilityDetailPage.tsx   # Container: chain + consensus + charts
-│   │   │   ├── ChainTimelineView.tsx      # Event chain as vertical timeline
-│   │   │   ├── TimelineEventNode.tsx      # Single event node in timeline
-│   │   │   ├── IntegrityBadge.tsx         # Chain integrity verification badge
-│   │   │   ├── ConsensusDetailPanel.tsx   # Validators list, N/M ratio, γ confidence
-│   │   │   ├── ValidatorVoteRow.tsx        # Per-validator vote row
-│   │   │   ├── CalibrationChart.tsx       # P1: γ_ewma line chart (Recharts)
-│   │   │   ├── ForkTreeView.tsx           # P1: Fork tree visualization (react-d3-tree)
-│   │   │   └── CapabilityActions.tsx      # P1: Register/transition/fork action buttons + dialogs
-│   │   ├── shared/
-│   │   │   ├── StatusBadge.tsx            # Status emoji badge (🟡🟢🔴🔵⚪)
-│   │   │   ├── ConfidenceDot.tsx          # γ color dot (green/yellow/red)
-│   │   │   ├── LoadingSkeleton.tsx        # MUI skeleton placeholder
-│   │   │   ├── ErrorAlert.tsx             # Error display with retry button
-│   │   │   └── ConfirmDialog.tsx          # Reusable confirmation dialog (for actions)
-│   │   └── theme/
-│   │       └── ThemeProvider.tsx           # MUI + Tailwind dark/light theme wrapper
-│   │       └── theme.ts                   # MUI theme tokens (colors, typography)
-│   ├── pages/
-│   │   ├── OverviewPage.tsx               # /overview route page
-│   │   ├── CapabilitiesPage.tsx           # /capabilities route page
-│   │   └── CapabilityDetailPageRoute.tsx  # /capabilities/:adl_id route page
-│   ├── router/
-│   │   └── index.tsx                      # Route definitions + data loaders
-│   ├── utils/
-│   │   ├── constants.ts                   # Polling interval, color thresholds, API base URL
-│   │   ├── ewma.ts                        # EWMA computation function (pure, testable)
-│   │   ├── forkGraph.ts                   # Fork adjacency builder from event payloads
-│   │   ├── formatters.ts                  # Date/time, confidence percentage formatting
-│   │   └── confidenceColor.ts             # γ → MUI color mapping utility
-│   └── styles/
-│       ├── globals.css                    # Tailwind directives + global resets
-│       └── overrides.css                  # MUI + Tailwind coexistence overrides
-├── dashboard/tests/                       # Test files (mirror src structure)
-│   ├── utils/
-│   │   ├── ewma.test.ts
-│   │   ├── forkGraph.test.ts
-│   │   ├── confidenceColor.test.ts
-│   │   └── formatters.test.ts
-│   ├── hooks/
-│   │   ├── useForkTree.test.ts
-│   │   ├── useEwmaCurve.test.ts
-│   │   └── useConfidenceColor.test.ts
-│   └── components/
-│   │   ├── overview/
-│   │   │   └── HealthOverviewPanel.test.tsx
-│   │   ├── capabilities/
-│   │   │   └── CapabilityExplorer.test.tsx
-│   │   └── detail/
-│   │   │   ├── ChainTimelineView.test.tsx
-│   │   │   └── ConsensusDetailPanel.test.tsx
-│   │   └── shared/
-│   │   │   ├── StatusBadge.test.tsx
-│   │   │   └── ConfirmDialog.test.tsx
-```
+| # | File | Action | Purpose |
+|---|------|--------|---------|
+| 1 | `adl_lite/models.py` | **Modify** | Add `ValidationResult` dataclass |
+| 2 | `adl_lite/__init__.py` | **Modify** | Export `ValidationResult` |
+| 3 | `adl_lite/validator.py` | **Modify** | `shacl=None` default; `_validate_shacl()` returns `list[ValidationResult]` |
+| 4 | `adl_lite/shacl_validation.py` | **Modify** | Add `ForkShape` Turtle; enrich FORK events in `_document_to_rdf_graph()`; add `parse_validation_results()` helper |
+| 5 | `adl_lite/cli.py` | **Modify** | `--shacl`/`--no-shacl` flags on `validate`; new `shacl` subcommand |
+| 6 | `tests/test_shacl_validation.py` | **Modify** | ForkShape tests; ValidationResult tests; default-on tests |
+| 7 | `docs/class-diagram.mermaid` | **Create** | Class/data-structure diagram |
+| 8 | `docs/sequence-diagram.mermaid` | **Create** | Call-flow sequence diagram |
 
 ---
 
-### 3. Data Structures and Interfaces
+### 3. Data Structures & Interfaces
+
+#### 3a. ValidationResult Dataclass
+
+```python
+@dataclass
+class ValidationResult:
+    """Structured SHACL validation result."""
+    path: str       # RDF property path (e.g. "adl:sourceConceptId")
+    severity: str   # "Violation" | "Warning" | "Info"
+    message: str    # Human-readable description
+```
+
+**Design decisions:**
+- `severity` is `str`, not an enum — aligns directly with pyshacl output text, simpler for serialization, and avoids enum import chains.
+- `path` is the RDF property path from the SHACL validation report (e.g. `adl:eventHash`, `adl:observedAccuracy`).
+- `message` is a human-readable sentence extracted from the pyshacl report.
+
+#### 3b. ForkShape (Turtle — SHACL Shape)
+
+```turtle
+adl:ForkShape a sh:NodeShape ;
+    sh:targetClass adl:ForkEvent ;
+    sh:property [
+        sh:path adl:sourceConceptId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path adl:targetConceptId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] .
+```
+
+This enforces that every FORK event **must** carry both a `sourceConceptId` and a `targetConceptId` as named RDF properties.
+
+#### 3c. ADLValidator Signature Changes
+
+```python
+# BEFORE
+def __init__(self, strict=False, ontology=None, shacl=False, status_resolver=None) -> None
+
+# AFTER
+def __init__(self, strict=False, ontology=None, shacl=None, status_resolver=None) -> None
+    # shacl=None → auto-detect (enabled if pyshacl importable)
+    # shacl=True  → force enable  (raises ImportError if pyshacl not installed)
+    # shacl=False → force disable
+```
+
+```python
+# BEFORE
+def _validate_shacl(self, doc: ADLDocument) -> list[str]: ...
+
+# AFTER
+def _validate_shacl(self, doc: ADLDocument) -> list[ValidationResult]: ...
+```
+
+#### 3d. CLI Signature Changes
+
+```python
+# adl-lite validate --shacl [--no-shacl] <files...>
+p_validate.add_argument("--shacl", action="store_true", help="Enable SHACL validation")
+p_validate.add_argument("--no-shacl", action="store_true", help="Disable SHACL validation")
+
+# adl-lite shacl [--strict] <files...>
+p_shacl = sub.add_parser("shacl", help="Run SHACL validation only")
+p_shacl.add_argument("files", nargs="+", help="Paths to .md documents")
+```
+
+#### 3e. `parse_validation_results()` Helper
+
+```python
+def parse_validation_results(results_text: str) -> list[ValidationResult]:
+    """Parse pyshacl report text into structured ValidationResult list."""
+    ...
+```
+
+Located in `shacl_validation.py`.
+
+#### 3f. Class Diagram
 
 ```mermaid
 classDiagram
-    direction TB
-
-    %% ===== API Response Types =====
-    class StatusResponse {
-        +string adl_id
-        +string status
-        +float confidence
-        +string[] validators
-        +boolean dev_mode
+    class ValidationResult {
+        +str path
+        +str severity
+        +str message
+        +__init__(path, severity, message)
     }
 
-    class HistoryResponse {
-        +string adl_id
-        +EventDict[] events
+    class ADLValidator {
+        +bool strict
+        +OntologyManager ontology
+        +bool | None shacl
+        +Callable status_resolver
+        +validate_document(doc) list[str] | list[ValidationResult]
+        +_validate_shacl(doc) list[ValidationResult]
+        +validate_scope_access(doc_scope, requester_scope) bool
     }
 
-    class EventDict {
-        +string event_id
-        +string concept_id
-        +string event_type
-        +string actor
-        +string reasoning
-        +string timestamp
-        +object payload
-        +string previous_event_id
-        +string hash
+    class shacl_validation {
+        +str _ADL_SHAPES_TURTLE
+        +Graph _shapes_graph
+        +_get_shapes_graph() Graph
+        +_shacl_available() bool
+        +validate_adl_rdf(rdf_data, rdf_format) tuple[bool, str]
+        +_document_to_rdf_graph(doc) Graph
+        +validate_adl_document(doc) tuple[bool, str]
+        +parse_validation_results(results_text) list[ValidationResult]
     }
 
-    class PaginatedListResponse {
-        +string[] capabilities
-        +int total
-        +int count
-        +int offset
-        +int limit
+    class ADLDocument {
+        +ADLFrontMatter front_matter
+        +str markdown_body
+        +list[ADLRelationBlock] adl_blocks
+        +list[ADLActionBlock] action_blocks
+        +list[ADLRelationBlock] relations
+        +list evidence
+        +list seals
+        +EventChain event_chain
+        +str adl_id
+        +str concept_name
     }
 
-    class VerifyResponse {
-        +string adl_id
-        +boolean integrity_ok
+    class CLI {
+        +_cmd_validate(args) int
+        +_cmd_shacl(args) int
+        +_build_parser() ArgumentParser
+        +main(argv) None
     }
 
-    class ModeResponse {
-        +string mode
-        +int n_min
-        +boolean dev_mode
-    }
-
-    class ErrorResponse {
-        +string error
-        +string detail
-    }
-
-    %% ===== Request Types =====
-    class RegisterRequest {
-        +string adl_id
-        +string scope
-        +string domain
-    }
-
-    class TransitionRequest {
-        +string adl_id
-        +string to_status
-        +string actor
-        +string reason
-        +object payload
-    }
-
-    class ForkRequest {
-        +string original_id
-        +string fork_id
-        +string actor
-        +string reason
-    }
-
-    %% ===== Client-Side Derived Types =====
-    class CapabilitySummary {
-        +string adl_id
-        +string status
-        +float confidence
-        +string[] validators
-        +int validator_count
-        +string confidence_color
-    }
-
-    class ForkEdge {
-        +string parent_id
-        +string child_id
-        +string actor
-        +string reason
-        +string timestamp
-    }
-
-    class ForkNode {
-        +string adl_id
-        +string status
-        +float confidence
-        +ForkNode[] children
-    }
-
-    class EwmaPoint {
-        +string timestamp
-        +float ewma_value
-        +string actor
-    }
-
-    class ValidatorVote {
-        +string actor
-        +float confidence
-        +string timestamp
-        +string reasoning
-    }
-
-    class HealthStats {
-        +int total
-        +int active
-        +int deprecated
-        +int forked
-        +float avg_confidence
-        +string mode
-    }
-
-    %% ===== Zustand Store Types =====
-    class ThemeStore {
-        +string theme "light" | "dark"
-        +toggleTheme() void
-    }
-
-    class SelectionStore {
-        +string selectedAdlId
-        +string searchQuery
-        +string statusFilter
-        +number confidenceMin
-        +number confidenceMax
-        +setSelectedId(id) void
-        +setSearchQuery(q) void
-        +setStatusFilter(f) void
-        +setConfidenceRange(min, max) void
-    }
-
-    class ModeStore {
-        +string currentMode "dev" | "production"
-        +int nMin
-        +boolean devMode
-        +setMode(response) void
-    }
-
-    %% ===== React Query Hook Interfaces =====
-    class ApiEndpoints {
-        +useCapabilities() UseQueryResult~PaginatedListResponse~
-        +useStatus(adl_id) UseQueryResult~StatusResponse~
-        +useHistory(adl_id) UseQueryResult~HistoryResponse~
-        +useVerify(adl_id) UseQueryResult~VerifyResponse~
-        +useMode() UseQueryResult~ModeResponse~
-        +useRegister(req) UseMutationResult
-        +useTransition(req) UseMutationResult
-        +useFork(req) UseMutationResult
-    }
-
-    %% ===== Component Props =====
-    class StatusCardProps {
-        +string label
-        +number value
-        +string icon
-        +string color
-    }
-
-    class CapabilityRowProps {
-        +CapabilitySummary capability
-        +onClick() void
-    }
-
-    class TimelineEventNodeProps {
-        +EventDict event
-        +boolean isLast
-    }
-
-    class ValidatorVoteRowProps {
-        +ValidatorVote vote
-        +string status
-    }
-
-    class ConfirmDialogProps {
-        +string title
-        +string description
-        +onConfirm() void
-        +onCancel() void
-        +boolean open
-    }
-
-    %% ===== Relationships =====
-    HistoryResponse --> EventDict : contains
-    PaginatedListResponse --> CapabilitySummary : transformed by client
-    StatusResponse --> CapabilitySummary : merged into
-    HistoryResponse --> ForkEdge : extracts fork anchors
-    HistoryResponse --> ValidatorVote : extracts validate events
-    HistoryResponse --> EwmaPoint : computes EWMA series
-    ForkEdge --> ForkNode : builds tree
-    StatusResponse --> HealthStats : aggregated across all capabilities
-    ApiEndpoints --> StatusResponse : fetches
-    ApiEndpoints --> HistoryResponse : fetches
-    ApiEndpoints --> PaginatedListResponse : fetches
-    ApiEndpoints --> VerifyResponse : fetches
-    ApiEndpoints --> ModeResponse : fetches
+    ADLValidator --> ValidationResult : returns
+    ADLValidator --> shacl_validation : calls
+    ADLValidator --> ADLDocument : validates
+    CLI --> ADLValidator : creates & calls
+    shacl_validation --> ValidationResult : parses into
 ```
 
 ---
 
 ### 4. Program Call Flow
 
-#### 4.1 Dashboard Initial Load → Overview Page
+#### Flow 1: `adl-lite validate --shacl doc.md`
 
 ```mermaid
 sequenceDiagram
-    actor User
-    participant Router as React Router
-    participant Query as React Query Cache
-    participant API as Axios Client
-    participant Backend as /api/v1/consensus/
+    participant User
+    participant CLI as cli.py (_cmd_validate)
+    participant Val as ADLValidator
+    participant SH as shacl_validation
+    participant Rdf as rdflib/pyshacl
 
-    User->>Router: Open http://localhost:5173/overview
-    Router->>Query: Route matched → load OverviewPage
-    Query->>API: GET /list?offset=0&limit=50
-    API->>Backend: HTTP request
-    Backend-->>API: PaginatedListResponse {capabilities, total, ...}
-    API-->>Query: Cache list response
+    User->>CLI: adl-lite validate --shacl doc.md
+    Note over CLI: args.shacl=True
 
-    loop For each capability ID in first page
-        Query->>API: GET /status/{adl_id}
-        API->>Backend: HTTP request
-        Backend-->>API: StatusResponse {adl_id, status, confidence, ...}
-        API-->>Query: Cache status response
+    CLI->>CLI: parse_file("doc.md") → ADLDocument
+    
+    CLI->>Val: ADLValidator(strict=False, shacl=True)
+    Val->>Val: _shacl = True (force enable)
+
+    CLI->>Val: validate_document(doc)
+    Val->>Val: _validate_front_matter() → []
+    Val->>Val: _validate_markdown_body() → []
+    Val->>Val: self.shacl is truthy → call _validate_shacl(doc)
+
+    Val->>SH: validate_adl_document(doc)
+    SH->>SH: _document_to_rdf_graph(doc)
+    SH->>SH: Export EventChain → PROV-O Turtle
+    SH->>SH: Enrich CALIBRATE events (observedAccuracy)
+    SH->>SH: Enrich FORK events (sourceConceptId, targetConceptId)
+    SH->>SH: Enrich Relations (source, target, etc.)
+    SH->>Rdf: Graph() + parse(data=turtle)
+    
+    SH->>Rdf: pyshacl.validate(data_graph, shacl_graph)
+    Rdf-->>SH: (conforms, _, results_text)
+    SH-->>Val: (conforms, results_text)
+
+    Val->>SH: parse_validation_results(results_text)
+    SH-->>Val: [ValidationResult(...), ...]
+
+    alt conforms
+        Val-->>CLI: [] (empty errors)
+        CLI-->>User: doc.md: OK
+    else violations
+        Val-->>CLI: [ValidationResult(...)]
+        CLI-->>User: doc.md: FAIL (3 error(s))
+        CLI-->>User:   - [Violation] adl:sourceConceptId: …
     end
-
-    Query-->>Router: Data resolved
-    Router-->>User: Render OverviewPage with HealthOverviewPanel + stats cards
-
-    Note over Query: Auto-refresh: refetchInterval=30000ms
-    Query->>API: Re-fetch /list + /status (every 30s)
-    API->>Backend: Polling request
-    Backend-->>API: Updated data
-    API-->>Query: Update cache → React re-renders
 ```
 
-#### 4.2 User Clicks Capability → Detail View
+#### Flow 2: `adl-lite shacl doc.md` (standalone)
 
 ```mermaid
 sequenceDiagram
-    actor User
-    participant Explorer as CapabilityExplorer
-    participant Router as React Router
-    participant Selection as SelectionStore
-    participant Query as React Query Cache
-    participant API as Axios Client
-    participant Backend as /api/v1/consensus/
+    participant User
+    participant CLI as cli.py (_cmd_shacl)
+    participant SH as shacl_validation
+    
+    User->>CLI: adl-lite shacl doc.md
+    
+    CLI->>CLI: parse_file("doc.md") → ADLDocument
+    
+    CLI->>SH: validate_adl_document(doc)
+    SH->>SH: _document_to_rdf_graph(doc)
+    SH->>SH: pyshacl.validate(...)
+    SH-->>CLI: (conforms, results_text)
+    
+    CLI->>SH: parse_validation_results(results_text)
+    SH-->>CLI: [ValidationResult(...)]
 
-    User->>Explorer: Click on capability row "cap-xyz"
-    Explorer->>Selection: setSelectedId("cap-xyz")
-    Explorer->>Router: navigate(/capabilities/cap-xyz)
-
-    Router->>Query: Route matched → load CapabilityDetailPageRoute
-    Query->>API: GET /status/cap-xyz (already cached, stale-while-revalidate)
-    API->>Backend: Re-validate
-    Backend-->>API: StatusResponse
-    API-->>Query: Update cache
-
-    Query->>API: GET /history/cap-xyz
-    API->>Backend: HTTP request
-    Backend-->>API: HistoryResponse {events: [...]}
-    API-->>Query: Cache history
-
-    Query->>API: GET /verify/cap-xyz
-    API->>Backend: HTTP request
-    Backend-->>API: VerifyResponse {integrity_ok: true}
-    API-->>Query: Cache verify result
-
-    Query-->>Router: All data resolved
-    Router-->>User: Render CapabilityDetailPage: ChainTimeline + ConsensusPanel + IntegrityBadge
-
-    Note over Query: Auto-refresh continues for active detail view
-```
-
-#### 4.3 Mode Toggle (P1)
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant Header as AppHeader
-    participant Mode as ModeStore
-    participant Query as React Query
-    participant API as Axios Client
-    participant Backend as /api/v1/consensus/
-
-    User->>Header: Click "Switch to Dev Mode"
-    Header->>Query: useModeMutation.mutate({target: "dev"})
-    Query->>API: POST /mode/dev
-    API->>Backend: HTTP request
-    Backend-->>API: {mode: "dev", n_min: 1, dev_mode: true}
-    API-->>Query: Mutation success
-
-    Query->>Mode: setMode({mode: "dev", nMin: 1, devMode: true})
-    Mode-->>Header: Mode badge updates → "DEV (n_min=1)"
-
-    Query->>Query: Invalidate all status queries (mode affects γ thresholds)
-    Query->>API: Re-fetch all /status endpoints
-    API->>Backend: Updated status responses
-    Backend-->>API: Updated γ values under dev mode
-    API-->>Query: Cache refreshed → UI updates
-```
-
-#### 4.4 Capability Action: Fork (P1)
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant Detail as CapabilityDetailPage
-    participant Dialog as ConfirmDialog
-    participant Query as React Query
-    participant API as Axios Client
-    participant Backend as /api/v1/consensus/
-
-    User->>Detail: Click "Fork" action button
-    Detail->>Dialog: Open fork dialog with form fields
-    User->>Dialog: Enter fork_id, actor, reason → Confirm
-    Dialog->>Query: useForkMutation.mutate({original_id, fork_id, actor, reason})
-    Query->>API: POST /fork {original_id, fork_id, actor, reason}
-    API->>Backend: HTTP request
-    Backend-->>API: StatusResponse {adl_id: fork_id, status: "provisional", ...}
-    API-->>Query: Mutation success
-
-    Query->>Query: Invalidate /list + /status queries
-    Query->>API: Re-fetch capability list
-    API->>Backend: Updated list
-    Backend-->>API: List now includes fork_id
-    API-->>Query: Cache updated → Explorer re-renders
-
-    Query-->>Detail: Show success snackbar
+    alt conforms
+        CLI-->>User: doc.md: SHACL OK
+    else violations
+        CLI-->>User: doc.md: SHACL FAIL
+        CLI-->>User:   [Violation] adl:sourceConceptId: …
+    end
 ```
 
 ---
 
 ### 5. Anything UNCLEAR
 
-| # | Item | Assumption Made | Risk |
-|---|------|-----------------|------|
-| UC-1 | **Fork tree depth** | Forks are single-level (no recursive fork-of-fork in MVP). P1 ForkTreeView handles 2 levels. | If recursive forks exist, tree visualization needs pruning/virtualization |
-| UC-2 | **Capability metadata** | `/list` returns only `string[]` of IDs; no domain, scope, or description. Summary cards derived from `/status` only. | Richer metadata would require backend enhancement (not in scope) |
-| UC-3 | **Event payload shape** | Assuming `payload` dict in validate events contains `confidence` and `reasoning`; fork events contain `original_id`. | If payload keys differ, transformation hooks need adjustment |
-| UC-4 | **Auth integration** | Design assumes `auth_enabled=False` (no headers). If auth is enabled later, Axios interceptor adds JWT/API-key header. | Minimal impact — interceptor pattern already in design |
-| UC-5 | **Pagination total vs count** | API returns both `total` and `count` (backward compat). We use `total` for page count, ignore `count`. | If `total` is ever removed, fall back to `count` |
-| UC-6 | **CORS** | Assuming Vite dev proxy forwards to backend. Production may need CORS headers on FastAPI. | Vite proxy handles dev; production deployment docs needed |
+| Item | Status |
+|------|--------|
+| FORK payload field names | **Confirmed by PM**: `source_concept_id` / `target_concept_id` kept as-is |
+| TRANSITION constraints scope | **Confirmed by PM**: SHACL handles structural; ontology layer handles state machine |
+| ValidationResult.severity type | **Confirmed by PM**: `str` ("Violation"/"Warning"/"Info") — no enum |
+| `--no-shacl` flag | **Confirmed by PM**: added alongside `--shacl` |
+| Auto-detect behavior | Assumed: when `shacl=None`, check `pyshacl` importability; when `shacl=True`, raise `ImportError` if not importable |
+| `_validate_shacl` return type change | **Breaking change**: callers expecting `list[str]` must now handle `list[ValidationResult]`. The CLI `_cmd_validate()` currently prints errors as strings. Since `ADLValidator.validate_document()` returns `list[str]` (the union of all checks), the SHACL errors must remain `str` compatible OR the whole method return type changes. **Decision**: Keep `validate_document()` returning `list[str]`, but make `_validate_shacl()` internally produce `list[ValidationResult]` and convert to `str` only for the outer return. Alternatively, add a `detailed` flag. |
+| Error display format | Assumed: CLI prints `[severity] path: message` for each `ValidationResult` when `--shacl` is active |
 
 ---
 
@@ -521,120 +301,159 @@ sequenceDiagram
 
 ### 6. Required Packages
 
-#### Production Dependencies
+No new packages required. Existing dependencies for `[gov]` extra:
 
 ```
-- react@^18.3.1: UI framework
-- react-dom@^18.3.1: React DOM renderer
-- @mui/material@^5.15.0: Component library (Cards, DataGrid, Dialog, etc.)
-- @mui/icons-material@^5.15.0: Icon set for status badges, actions
-- @emotion/react@^11.11.0: MUI required emotion engine
-- @emotion/styled@^11.11.0: MUI required emotion styled
-- @tanstack/react-query@^5.50.0: Server state management (caching, polling, mutations)
-- react-router-dom@^6.23.0: SPA routing with data loaders
-- axios@^1.7.0: HTTP client with interceptors
-- recharts@^2.12.0: Declarative chart library (line charts for EWMA)
-- react-d3-tree@^3.4.0: Hierarchical tree visualization (fork graph)
-- zustand@^4.5.0: Lightweight client state store
-- @mui/x-data-grid@^7.10.0: Advanced data grid for capability list (pagination, sorting, filtering)
+- pyshacl>=0.25       # SHACL validation engine (already in [gov] extra)
+- rdflib>=7.0         # RDF graph library (already in [gov] extra)
 ```
 
-#### Development Dependencies
-
-```
-- vite@^5.3.0: Build tool + dev server
-- @vitejs/plugin-react@^4.3.0: Vite React plugin (JSX transform, HMR)
-- typescript@^5.4.0: TypeScript compiler
-- @types/react@^18.3.0: React type definitions
-- @types/react-dom@^18.3.0: React DOM type definitions
-- tailwindcss@^3.4.0: Utility CSS framework
-- postcss@^8.4.0: CSS processing (Tailwind required)
-- autoprefixer@^10.4.0: CSS autoprefixer (Tailwind required)
-- @typescript-eslint/eslint-plugin@^7.0.0: TS linting rules
-- @typescript-eslint/parser@^7.0.0: TS ESLint parser
-- eslint@^8.57.0: Linter core
-- eslint-plugin-react-hooks@^4.6.0: React hooks lint rules
-- vitest@^1.6.0: Unit test runner (Vite-native)
-- @testing-library/react@^16.0.0: React component testing
-- @testing-library/jest-dom@^6.4.0: DOM assertion extensions
-- jsdom@^24.0.0: DOM environment for tests
-```
+Install command: `pip install -e '.[gov]'`
 
 ---
 
 ### 7. Task List (ordered by dependency)
 
-#### T01: Project Infrastructure — Config + Entry + Dependencies
+#### T01: 项目基础设施 + ValidationResult 数据模型
 
 | Field | Value |
 |-------|-------|
+| **Task ID** | T01 |
 | **Priority** | P0 |
+| **Name** | Project infrastructure + ValidationResult dataclass |
+| **Source Files** | `adl_lite/models.py`, `adl_lite/__init__.py`, `pyproject.toml` |
 | **Dependencies** | None |
-| **Source Files** | `dashboard/package.json`, `dashboard/vite.config.ts`, `dashboard/tsconfig.json`, `dashboard/tsconfig.node.json`, `dashboard/tailwind.config.ts`, `dashboard/postcss.config.js`, `dashboard/index.html`, `dashboard/.env.example`, `dashboard/public/favicon.svg`, `dashboard/src/main.tsx`, `dashboard/src/App.tsx`, `dashboard/src/vite-env.d.ts`, `dashboard/src/styles/globals.css`, `dashboard/src/styles/overrides.css` |
-| **Description** | Scaffold the Vite + React + TS + MUI + Tailwind project. Install all deps. Configure Vite dev proxy to `/api/v1/consensus/` on localhost:8000. Set up Tailwind + MUI coexistence (emotion + tailwindcss). Create `main.tsx` entry point with QueryClientProvider + ThemeProvider wrapper. Create `App.tsx` shell with Outlet placeholder. Create `globals.css` with Tailwind directives. Create `.env.example` with `VITE_API_BASE_URL=http://localhost:8000`. |
 
-#### T02: Data Layer — API Client + Types + React Query Hooks + Stores
+**Scope:**
+1. Add `ValidationResult` dataclass to `adl_lite/models.py`:
+   - `path: str` — RDF property path
+   - `severity: str` — "Violation" / "Warning" / "Info"
+   - `message: str` — human-readable description
+   - Optional `focus_node: str = ""` for the RDF node that triggered the violation
+2. Export `ValidationResult` in `adl_lite/__init__.py` (both import and `__all__`)
+3. `pyproject.toml`: no changes needed (dependencies already declared); verify version is `0.6.0-alpha`
+
+---
+
+#### T02: ADLValidator shacl 默认启用 + 结构化结果返回
 
 | Field | Value |
 |-------|-------|
+| **Task ID** | T02 |
 | **Priority** | P0 |
+| **Name** | ADLValidator shacl default-on + structured _validate_shacl |
+| **Source Files** | `adl_lite/validator.py`, `adl_lite/shacl_validation.py`, `tests/test_shacl_validation.py` |
 | **Dependencies** | T01 |
-| **Source Files** | `dashboard/src/api/client.ts`, `dashboard/src/api/types.ts`, `dashboard/src/api/endpoints.ts`, `dashboard/src/api/mocks.ts`, `dashboard/src/store/useThemeStore.ts`, `dashboard/src/store/useSelectionStore.ts`, `dashboard/src/store/useModeStore.ts`, `dashboard/src/utils/constants.ts`, `dashboard/src/utils/ewma.ts`, `dashboard/src/utils/forkGraph.ts`, `dashboard/src/utils/formatters.ts`, `dashboard/src/utils/confidenceColor.ts`, `dashboard/src/hooks/usePolling.ts`, `dashboard/src/hooks/useForkTree.ts`, `dashboard/src/hooks/useEwmaCurve.ts`, `dashboard/src/hooks/useConfidenceColor.ts`, `dashboard/src/hooks/useValidatorDetail.ts`, `dashboard/tests/utils/ewma.test.ts`, `dashboard/tests/utils/forkGraph.test.ts`, `dashboard/tests/utils/confidenceColor.test.ts`, `dashboard/tests/utils/formatters.test.ts` |
-| **Description** | Build the data infrastructure. (1) Axios client with base URL from env, error interceptor → normalized ErrorResponse. (2) TypeScript interfaces mirroring all API response types (StatusResponse, HistoryResponse, PaginatedListResponse, VerifyResponse, ModeResponse, EventDict) + derived types (CapabilitySummary, ForkEdge, EwmaPoint, ValidatorVote, HealthStats). (3) React Query hooks: `useCapabilities`, `useStatus`, `useHistory`, `useVerify`, `useMode`, `useRegister`, `useTransition`, `useFork` — all with 30s refetchInterval for GET queries, invalidation on mutation success. (4) Zustand stores: theme (light/dark), selection (selectedAdlId, searchQuery, statusFilter, confidenceRange), mode (currentMode, nMin, devMode). (5) Pure utility functions: ewma computation, fork graph builder, confidence color mapper, date/confidence formatters. (6) Mock data for dev/testing. Include unit tests for all pure utils. |
 
-#### T03: Core UI — Layout + Overview + Capability Explorer + Detail Views (P0 MVP)
+**Scope:**
+1. **`adl_lite/validator.py`**:
+   - Change `ADLValidator.__init__` signature: `shacl: bool = False` → `shacl: bool | None = None`
+   - Add `_shacl_available()` check in validator (mirror existing one in `shacl_validation.py`)
+   - Update `validate_document()`: when `self.shacl is None`, auto-detect; when `True`, require pyshacl
+   - Change `_validate_shacl()` return type from `list[str]` to `list[ValidationResult]`
+   - Internally call `parse_validation_results()` to parse pyshacl report
+   - Convert `ValidationResult` list to `str` list in `validate_document()` for backward compatibility (or introduce a `detailed` flag — **decision: keep `validate_document()` returning `list[str]`**, convert VR → str via `f"[{r.severity}] {r.path}: {r.message}"`)
+2. **`adl_lite/shacl_validation.py`**:
+   - Add `parse_validation_results(results_text: str) -> list[ValidationResult]` function
+   - Parse pyshacl report text by splitting on blank lines, extracting `severity`, `path`, `message` using regex
+3. **`tests/test_shacl_validation.py`**:
+   - Add test for `parse_validation_results()` with known pyshacl output
+   - Update existing tests if needed (they use the old tuple return)
+
+---
+
+#### T03: ForkShape SHACL 形状 + _document_to_rdf_graph Fork 富化
 
 | Field | Value |
 |-------|-------|
+| **Task ID** | T03 |
 | **Priority** | P0 |
-| **Dependencies** | T01, T02 |
-| **Source Files** | `dashboard/src/components/layout/AppLayout.tsx`, `dashboard/src/components/layout/AppSidebar.tsx`, `dashboard/src/components/layout/AppHeader.tsx`, `dashboard/src/components/layout/ResponsiveContainer.tsx`, `dashboard/src/components/overview/HealthOverviewPanel.tsx`, `dashboard/src/components/overview/StatusCard.tsx`, `dashboard/src/components/overview/ConfidenceGauge.tsx`, `dashboard/src/components/overview/ModeIndicator.tsx`, `dashboard/src/components/capabilities/CapabilityExplorer.tsx`, `dashboard/src/components/capabilities/CapabilityRow.tsx`, `dashboard/src/components/capabilities/CapabilitySearchBar.tsx`, `dashboard/src/components/detail/CapabilityDetailPage.tsx`, `dashboard/src/components/detail/ChainTimelineView.tsx`, `dashboard/src/components/detail/TimelineEventNode.tsx`, `dashboard/src/components/detail/IntegrityBadge.tsx`, `dashboard/src/components/detail/ConsensusDetailPanel.tsx`, `dashboard/src/components/detail/ValidatorVoteRow.tsx`, `dashboard/src/components/shared/StatusBadge.tsx`, `dashboard/src/components/shared/ConfidenceDot.tsx`, `dashboard/src/components/shared/LoadingSkeleton.tsx`, `dashboard/src/components/shared/ErrorAlert.tsx`, `dashboard/src/components/theme/ThemeProvider.tsx`, `dashboard/src/components/theme/theme.ts`, `dashboard/src/pages/OverviewPage.tsx`, `dashboard/src/pages/CapabilitiesPage.tsx`, `dashboard/src/pages/CapabilityDetailPageRoute.tsx`, `dashboard/src/router/index.tsx` |
-| **Description** | Build all P0 UI components and wire them together. (1) Layout shell: AppLayout (MUI Box + sidebar + content area), AppSidebar (nav links), AppHeader (mode badge + refresh indicator), ResponsiveContainer (desktop-first stacking). (2) Theme: ThemeProvider wrapping MUI CssBaseline + dark/light toggle, theme.ts defining palette tokens. (3) Overview: HealthOverviewPanel aggregates `/list` + all `/status` → HealthStats; StatusCard for each metric; ConfidenceGauge (circular); ModeIndicator badge. (4) Capability Explorer: CapabilityExplorer uses MUI X DataGrid with pagination; CapabilityRow; CapabilitySearchBar with status dropdown filter. (5) Detail: CapabilityDetailPage with chain timeline + consensus panel; ChainTimelineView (vertical MUI Timeline); TimelineEventNode; IntegrityBadge from `/verify`; ConsensusDetailPanel with validator list + N/M ratio + γ; ValidatorVoteRow. (6) Shared: StatusBadge (emoji), ConfidenceDot, LoadingSkeleton, ErrorAlert. (7) Router: React Router v6 with nested routes (/overview, /capabilities, /capabilities/:adl_id). |
+| **Name** | ForkShape SHACL shape + FORK event RDF enrichment |
+| **Source Files** | `adl_lite/shacl_validation.py`, `tests/test_shacl_validation.py`, `adl_lite/models.py` |
+| **Dependencies** | T01 |
 
-#### T04: Advanced Components — Charts + Fork Tree + Actions + Filters (P1)
+**Scope:**
+1. **`adl_lite/shacl_validation.py`**:
+   - Add ForkShape to `_ADL_SHAPES_TURTLE` (see §3b above)
+   - Enrich `_document_to_rdf_graph()` — add FORK event handling:
+     ```python
+     if event.event_type == EventType.FORK:
+         evt_uri = adl[f"evt-{doc.adl_id}-{event.event_type.value}-{idx:03d}"]
+         src = event.payload.get("source_concept_id")
+         tgt = event.payload.get("target_concept_id")
+         if src is not None:
+             g.add((evt_uri, adl.sourceConceptId, Literal(str(src))))
+         if tgt is not None:
+             g.add((evt_uri, adl.targetConceptId, Literal(str(tgt))))
+     ```
+   - Add ADL namespace terms: `adl.sourceConceptId`, `adl.targetConceptId` (already Namespace-based, auto-resolved)
+2. **`tests/test_shacl_validation.py`**:
+   - `test_fork_event_missing_source_fails` — FORK event without `source_concept_id` → SHACL failure
+   - `test_fork_event_missing_target_fails` — FORK event without `target_concept_id` → SHACL failure
+   - `test_fork_event_valid_passes` — FORK event with both fields → SHACL pass
+3. **`adl_lite/models.py`** (if needed for test helpers): no changes needed, EventType.FORK already exists
+
+---
+
+#### T04: CLI --shacl/--no-shacl + shacl 子命令
 
 | Field | Value |
 |-------|-------|
-| **Priority** | P1 |
-| **Dependencies** | T01, T02, T03 |
-| **Source Files** | `dashboard/src/components/detail/CalibrationChart.tsx`, `dashboard/src/components/detail/ForkTreeView.tsx`, `dashboard/src/components/detail/CapabilityActions.tsx`, `dashboard/src/components/capabilities/ConfidenceRangeSlider.tsx`, `dashboard/src/components/shared/ConfirmDialog.tsx` |
-| **Description** | Build P1 features on top of the P0 MVP. (1) CalibrationChart: Recharts LineChart rendering EWMA curve from `useEwmaCurve` hook output; axes: timestamp (X) vs γ_ewma (Y); color gradient green→yellow→red. (2) ForkTreeView: react-d3-tree rendering fork hierarchy from `useForkTree` output; nodes show adl_id + status badge + γ; collapsible branches. (3) CapabilityActions: MUI ButtonGroup (Register, Transition, Fork) → each opens ConfirmDialog with appropriate form fields; uses `useRegister`, `useTransition`, `useFork` mutations; success → invalidate queries + snackbar. (4) ConfidenceRangeSlider: MUI Slider (0-1 range) for γ filter; updates SelectionStore.confidenceRange → re-filters capability list. (5) ConfirmDialog: reusable MUI Dialog with title, description, confirm/cancel buttons. |
+| **Task ID** | T04 |
+| **Priority** | P0 |
+| **Name** | CLI --shacl/--no-shacl flags + standalone shacl subcommand |
+| **Source Files** | `adl_lite/cli.py`, `tests/test_shacl_validation.py`, `tests/test_cli.py` |
+| **Dependencies** | T02, T03 |
 
-#### T05: Tests + Polish — Component Tests + Integration Checks + Final Debugging
+**Scope:**
+1. **`adl_lite/cli.py`**:
+   - **`validate` subcommand**: Add `--shacl` and `--no-shacl` flags:
+     ```python
+     p_validate.add_argument("--shacl", action="store_true", help="Enable SHACL validation")
+     p_validate.add_argument("--no-shacl", action="store_true", help="Disable SHACL validation")
+     ```
+   - **`_cmd_validate()`**: Pass shacl parameter:
+     ```python
+     shacl = True if args.shacl else (False if args.no_shacl else None)
+     validator = ADLValidator(strict=args.strict, shacl=shacl)
+     ```
+   - **`shacl` subcommand**: New standalone subcommand:
+     ```python
+     p_shacl = sub.add_parser("shacl", help="Run SHACL validation only")
+     p_shacl.add_argument("files", nargs="+", help="Paths to .md documents")
+     p_shacl.add_argument("--strict", action="store_true", help="Reject unknown relation predicates")
+     p_shacl.set_defaults(func=_cmd_shacl)
+     ```
+   - **`_cmd_shacl()`**: Implementation that:
+     - Creates `ADLValidator(shacl=True)` 
+     - Parses each file
+     - Calls `validate_adl_document()` directly (bypassing SSA checks)
+     - Parses results with `parse_validation_results()`
+     - Prints structured output with `[severity] path: message` format
+     - Returns exit code 0 (all pass) or 1 (any fail)
 
-| Field | Value |
-|-------|-------|
-| **Priority** | P1 |
-| **Dependencies** | T02, T03, T04 |
-| **Source Files** | `dashboard/tests/hooks/useForkTree.test.ts`, `dashboard/tests/hooks/useEwmaCurve.test.ts`, `dashboard/tests/hooks/useConfidenceColor.test.ts`, `dashboard/tests/components/overview/HealthOverviewPanel.test.tsx`, `dashboard/tests/components/capabilities/CapabilityExplorer.test.tsx`, `dashboard/tests/components/detail/ChainTimelineView.test.tsx`, `dashboard/tests/components/detail/ConsensusDetailPanel.test.tsx`, `dashboard/tests/components/shared/StatusBadge.test.tsx`, `dashboard/tests/components/shared/ConfirmDialog.test.tsx` |
-| **Description** | Write component-level tests using Vitest + React Testing Library. (1) HealthOverviewPanel: verify stats cards render with mock data, auto-refresh triggers. (2) CapabilityExplorer: verify search, status filter, pagination, row click → navigation. (3) ChainTimelineView: verify event nodes render, integrity badge shows. (4) ConsensusDetailPanel: validator votes, N/M ratio, confidence display. (5) Shared components: StatusBadge maps status→emoji correctly, ConfirmDialog opens/closes. (6) Hook tests: useForkTree builds correct adjacency, useEwmaCurve computes expected series, useConfidenceColor returns correct palette. Run full test suite; fix any integration issues between router, queries, and components. |
+2. **`tests/test_shacl_validation.py`** (integration tests):
+   - `test_cli_validate_with_shacl_flag` — simulate CLI args
+   - `test_cli_shacl_subcommand` — simulate `adl-lite shacl` call
+   - `test_cli_no_shacl_disables` — `--no-shacl` suppresses SHACL even when pyshacl is available
+
+3. **`tests/test_cli.py`**: If exists, add CLI-level tests; if not, create with basic argument parsing tests
 
 ---
 
 ### 8. Shared Knowledge
 
-Cross-file conventions the Engineer must follow:
-
 ```
-- API Base URL: Read from VITE_API_BASE_URL env var (default: http://localhost:8000/api/v1/consensus)
-- All API error responses: Normalize to ErrorResponse {error, detail} via Axios interceptor
-- Confidence color thresholds:
-    γ ≥ 0.8  → green  (#4caf50 / MUI success)
-    γ ≥ 0.5  → yellow (#ff9800 / MUI warning)
-    γ < 0.5  → red    (#f44336 / MUI error)
-- Polling interval: 30 seconds (refetchInterval: 30000 in React Query)
-- EWMA alpha: 0.3 (matching backend calibration.ewma_confidence default)
-- Status badges: provisional=🟡, validated=🟢, deprecated=🔴, forked=🔵, archived=⚪
-- Component naming: PascalCase for components, camelCase for hooks/utils
-- Import organization order: (1) React/MUI, (2) third-party, (3) internal api/store/hooks, (4) internal components, (5) types
-- File organization: One component per file; test file mirrors src path under tests/
-- MUI + Tailwind coexistence: MUI for interactive components (Dialog, DataGrid, Slider); Tailwind for layout/spacing/responsive utilities only
-- React Query key structure: ['capabilities', {offset, limit}] for list; ['status', adl_id] for status; ['history', adl_id] for history
-- Mutation invalidation: On success, invalidate related query keys (e.g., fork → invalidate ['capabilities', 'status', original_id])
-- Vite proxy config: proxy /api/v1 → http://localhost:8000 (dev only; production uses env base URL)
-- Dark/Light theme: MUI ThemeProvider + CssBaseline; Tailwind dark mode via class strategy (adds 'dark' to document root)
-- Date formatting: ISO 8601 input → display as "YYYY-MM-DD HH:mm" via formatters.ts
-- Responsive breakpoints: Desktop-first; MUI Grid system; below 768px → stack layout (sidebar collapses to hamburger)
+1. All ValidationResult.severity values are raw strings: "Violation", "Warning", "Info"
+2. ADLValidator.shacl parameter: None=auto-detect, True=force, False=disable
+3. FORK event payload dict uses "source_concept_id" and "target_concept_id" keys
+4. pyshacl report text is parsed by blank-line-separated result blocks
+5. validate_document() always returns list[str] for backward compatibility
+6. _validate_shacl() internally returns list[ValidationResult], converted to str for outer API
+7. The shacl subcommand bypasses SSA validation — it is SHACL-only
+8. CLI exit codes: 0=success, 1=validation/parse failure
+9. adl namespace terms added: adl:sourceConceptId, adl:targetConceptId
+10. New ADL shapes all use sh:NodeShape with sh:targetClass pointing to adl:ForkEvent
 ```
 
 ---
@@ -643,34 +462,22 @@ Cross-file conventions the Engineer must follow:
 
 ```mermaid
 graph TD
-    T01[T01: Project Infrastructure] --> T02[T02: Data Layer]
-    T01 --> T03[T03: Core UI - P0 MVP]
-    T02 --> T03
-    T02 --> T04[T04: Advanced Components - P1]
+    T01["T01: 项目基础设施 + ValidationResult"] --> T02
+    T01 --> T03
+    T02 --> T04
     T03 --> T04
-    T02 --> T05[T05: Tests + Polish]
-    T03 --> T05
     T04 --> T05
 
-    style T01 fill:#e8f5e9,stroke:#4caf50
-    style T02 fill:#e8f5e9,stroke:#4caf50
-    style T03 fill:#e8f5e9,stroke:#4caf50
-    style T04 fill:#fff3e0,stroke:#ff9800
-    style T05 fill:#fff3e0,stroke:#ff9800
+    style T01 fill:#4a90d9,stroke:#fff,color:#fff
+    style T02 fill:#50b86c,stroke:#fff,color:#fff
+    style T03 fill:#50b86c,stroke:#fff,color:#fff
+    style T04 fill:#e8a838,stroke:#fff,color:#fff
+    style T05 fill:#e8a838,stroke:#fff,color:#fff
 ```
 
-Legend: Green = P0 (MVP), Orange = P1 (Enhancement)
-
----
-
-### 10. Open Items for Engineer
-
-| # | Item | Recommendation |
-|---|------|---------------|
-| OI-1 | **MUI X DataGrid vs custom table** | Start with MUI X DataGrid (community version, free) for paginated list. If bundle size is concern, swap to MUI Table + custom pagination. |
-| OI-2 | **react-d3-tree bundle size** | react-d3-tree pulls in D3 (~80KB). If bundle size matters, consider a simpler TreeView from MUI for P1, upgrade to D3 for richer fork viz. |
-| OI-3 | **Vite proxy vs CORS** | Dev uses Vite proxy. For production, ensure FastAPI serves CORS headers (via `fastapi.middleware.CORSMiddleware`). Document this in deployment notes. |
-| OI-4 | **Mock data strategy** | Create `mocks.ts` with realistic sample data (5 capabilities, 10-20 events each) for dev without backend. Consider MSW (Mock Service Worker) for more realistic API mocking in tests. |
-| OI-5 | **Error boundary** | Add a React ErrorBoundary at the AppLayout level to catch render errors gracefully. Not in the file list but recommended during T03 implementation. |
-| OI-6 | **Accessibility** | MUI components have built-in ARIA. Ensure custom timeline nodes and tree nodes also have appropriate aria-labels. Test with keyboard navigation. |
-| OI-7 | **Bundle optimization** | Use Vite's `build.rollupOptions.output.manualChunks` to split MUI, Recharts, and D3 into separate chunks for better caching. |
+| Task | Depends On | Parallelizable |
+|------|-----------|----------------|
+| **T01** Project infra | — | — |
+| **T02** Validator default-on + structured results | T01 | ✅ T03 (parallel after T01) |
+| **T03** ForkShape + RDF enrichment | T01 | ✅ T02 (parallel after T01) |
+| **T04** CLI flags + shacl subcommand | T02, T03 | ❌ Serial |

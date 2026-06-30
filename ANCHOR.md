@@ -1,3 +1,3 @@
 # ADL Transparency Anchor
 
-`4404ed82035849c8fa047e41a9cc5841179e91a9c7698abda9c5a5d294cb91bf`
+`b3211c1218a0b8cbefd59a432a46980cb9fd9e0e589ad21fc25d6dcf44cbaf22`

@@ -152,6 +152,27 @@ adl:RelationShape a sh:NodeShape ;
         sh:maxCount 1 ;
         sh:not [ sh:hasValue "archived" ] ;
     ] .
+
+adl:ForkShape a sh:NodeShape ;
+    sh:targetClass adl:ForkEvent ;
+    sh:property [
+        sh:path adl:eventType ;
+        sh:hasValue "fork" ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path adl:sourceConceptId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path adl:targetConceptId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] .
 """
 
 
@@ -261,6 +282,21 @@ def _document_to_rdf_graph(doc: ADLDocument) -> Graph:
                         Literal(float(observed), datatype=XSD.float),
                     )
                 )
+
+    # Enrich FORK events with source/target concept IDs for ForkShape validation
+    for idx, event in enumerate(doc.event_chain.events):
+        if event.event_type == EventType.FORK:
+            evt_uri = adl[f"evt-{doc.adl_id}-{event.event_type.value}-{idx:03d}"]
+            source = event.payload.get("source_concept_id") or event.payload.get("params", {}).get(
+                "source_concept_id"
+            )
+            target = event.payload.get("target_concept_id") or event.payload.get("params", {}).get(
+                "target_concept_id"
+            )
+            if source:
+                g.add((evt_uri, adl.sourceConceptId, Literal(source, datatype=XSD.string)))
+            if target:
+                g.add((evt_uri, adl.targetConceptId, Literal(target, datatype=XSD.string)))
 
     return g
 

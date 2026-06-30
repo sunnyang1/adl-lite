@@ -1,118 +1,43 @@
-%% ADL Lite Dashboard — Sequence Diagrams
-
-%% 4.1 Dashboard Initial Load → Overview Page
 sequenceDiagram
-    actor User
-    participant Router as React Router
-    participant Query as React Query Cache
-    participant API as Axios Client
-    participant Backend as /api/v1/consensus/
+    participant User
+    participant CLI as cli.py (_cmd_validate)
+    participant Val as ADLValidator
+    participant SH as shacl_validation
+    participant Rdf as rdflib/pyshacl
 
-    User->>Router: Open http://localhost:5173/overview
-    Router->>Query: Route matched → load OverviewPage
-    Query->>API: GET /list?offset=0&limit=50
-    API->>Backend: HTTP request
-    Backend-->>API: PaginatedListResponse {capabilities, total, ...}
-    API-->>Query: Cache list response
+    User->>CLI: adl-lite validate --shacl doc.md
+    Note over CLI: args.shacl=True
 
-    loop For each capability ID in first page
-        Query->>API: GET /status/{adl_id}
-        API->>Backend: HTTP request
-        Backend-->>API: StatusResponse {adl_id, status, confidence, ...}
-        API-->>Query: Cache status response
+    CLI->>CLI: parse_file("doc.md") → ADLDocument
+    
+    CLI->>Val: ADLValidator(strict=False, shacl=True)
+    Val->>Val: _shacl = True (force enable)
+
+    CLI->>Val: validate_document(doc)
+    Val->>Val: _validate_front_matter() → []
+    Val->>Val: _validate_markdown_body() → []
+    Val->>Val: self.shacl is truthy → call _validate_shacl(doc)
+
+    Val->>SH: validate_adl_document(doc)
+    SH->>SH: _document_to_rdf_graph(doc)
+    SH->>SH: Export EventChain → PROV-O Turtle
+    SH->>SH: Enrich CALIBRATE events (observedAccuracy)
+    SH->>SH: Enrich FORK events (sourceConceptId, targetConceptId)
+    SH->>SH: Enrich Relations (source, target, etc.)
+    SH->>Rdf: Graph() + parse(data=turtle)
+    
+    SH->>Rdf: pyshacl.validate(data_graph, shacl_graph)
+    Rdf-->>SH: (conforms, _, results_text)
+    SH-->>Val: (conforms, results_text)
+
+    Val->>SH: parse_validation_results(results_text)
+    SH-->>Val: [ValidationResult(...), ...]
+
+    alt conforms
+        Val-->>CLI: [] (empty errors)
+        CLI-->>User: doc.md: OK
+    else violations
+        Val-->>CLI: [ValidationResult(...)]
+        CLI-->>User: doc.md: FAIL (3 error(s))
+        CLI-->>User:   - [Violation] adl:sourceConceptId: …
     end
-
-    Query-->>Router: Data resolved
-    Router-->>User: Render OverviewPage with HealthOverviewPanel + stats cards
-
-    Note over Query: Auto-refresh: refetchInterval=30000ms
-    Query->>API: Re-fetch /list + /status (every 30s)
-    API->>Backend: Polling request
-    Backend-->>API: Updated data
-    API-->>Query: Update cache → React re-renders
-
-%% 4.2 User Clicks Capability → Detail View
-sequenceDiagram
-    actor User
-    participant Explorer as CapabilityExplorer
-    participant Router as React Router
-    participant Selection as SelectionStore
-    participant Query as React Query Cache
-    participant API as Axios Client
-    participant Backend as /api/v1/consensus/
-
-    User->>Explorer: Click on capability row "cap-xyz"
-    Explorer->>Selection: setSelectedId("cap-xyz")
-    Explorer->>Router: navigate(/capabilities/cap-xyz)
-
-    Router->>Query: Route matched → load CapabilityDetailPageRoute
-    Query->>API: GET /status/cap-xyz (already cached, stale-while-revalidate)
-    API->>Backend: Re-validate
-    Backend-->>API: StatusResponse
-    API-->>Query: Update cache
-
-    Query->>API: GET /history/cap-xyz
-    API->>Backend: HTTP request
-    Backend-->>API: HistoryResponse {events: [...]}
-    API-->>Query: Cache history
-
-    Query->>API: GET /verify/cap-xyz
-    API->>Backend: HTTP request
-    Backend-->>API: VerifyResponse {integrity_ok: true}
-    API-->>Query: Cache verify result
-
-    Query-->>Router: All data resolved
-    Router-->>User: Render CapabilityDetailPage: ChainTimeline + ConsensusPanel + IntegrityBadge
-
-    Note over Query: Auto-refresh continues for active detail view
-
-%% 4.3 Mode Toggle (P1)
-sequenceDiagram
-    actor User
-    participant Header as AppHeader
-    participant Mode as ModeStore
-    participant Query as React Query
-    participant API as Axios Client
-    participant Backend as /api/v1/consensus/
-
-    User->>Header: Click "Switch to Dev Mode"
-    Header->>Query: useModeMutation.mutate({target: "dev"})
-    Query->>API: POST /mode/dev
-    API->>Backend: HTTP request
-    Backend-->>API: {mode: "dev", n_min: 1, dev_mode: true}
-    API-->>Query: Mutation success
-
-    Query->>Mode: setMode({mode: "dev", nMin: 1, devMode: true})
-    Mode-->>Header: Mode badge updates → "DEV (n_min=1)"
-
-    Query->>Query: Invalidate all status queries (mode affects γ thresholds)
-    Query->>API: Re-fetch all /status endpoints
-    API->>Backend: Updated status responses
-    Backend-->>API: Updated γ values under dev mode
-    API-->>Query: Cache refreshed → UI updates
-
-%% 4.4 Capability Action: Fork (P1)
-sequenceDiagram
-    actor User
-    participant Detail as CapabilityDetailPage
-    participant Dialog as ConfirmDialog
-    participant Query as React Query
-    participant API as Axios Client
-    participant Backend as /api/v1/consensus/
-
-    User->>Detail: Click "Fork" action button
-    Detail->>Dialog: Open fork dialog with form fields
-    User->>Dialog: Enter fork_id, actor, reason → Confirm
-    Dialog->>Query: useForkMutation.mutate({original_id, fork_id, actor, reason})
-    Query->>API: POST /fork {original_id, fork_id, actor, reason}
-    API->>Backend: HTTP request
-    Backend-->>API: StatusResponse {adl_id: fork_id, status: "provisional", ...}
-    API-->>Query: Mutation success
-
-    Query->>Query: Invalidate /list + /status queries
-    Query->>API: Re-fetch capability list
-    API->>Backend: Updated list
-    Backend-->>API: List now includes fork_id
-    API-->>Query: Cache updated → Explorer re-renders
-
-    Query-->>Detail: Show success snackbar
