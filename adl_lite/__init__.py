@@ -26,7 +26,7 @@ Quick Start:
     mem.store(doc)
 """
 
-__version__ = "0.5.0-alpha"
+__version__ = "0.6.0-alpha"
 
 from .action_executor import ActionExecutor
 from .calibration import (
