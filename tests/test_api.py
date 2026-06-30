@@ -43,7 +43,7 @@ class TestAppCreation:
         resp = client.get("/docs")
         assert resp.status_code == 200
 
-    def test_openapi_has_nine_paths(self, client: TestClient):
+    def test_openapi_has_expected_paths(self, client: TestClient):
         resp = client.get("/openapi.json")
         paths = resp.json()["paths"]
         expected = [
@@ -54,6 +54,7 @@ class TestAppCreation:
             "/api/v1/consensus/fork",
             "/api/v1/consensus/verify/{adl_id}",
             "/api/v1/consensus/list",
+            "/api/v1/consensus/mode",
             "/api/v1/consensus/mode/dev",
             "/api/v1/consensus/mode/production",
         ]
