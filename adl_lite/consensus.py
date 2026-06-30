@@ -211,6 +211,21 @@ class ConsensusEngine:
             if not self._is_valid_transition(current, to_status, self._ontology):
                 raise ADLConsensusError(f"Invalid transition: {current.value} → {to_status.value}")
 
+            # Enforce dynamic minimum distinct validators for VALIDATE transitions
+            # BEFORE appending the event — prevents chain mutation when the guard fails.
+            # The prospective validator (current actor) is counted since they will be a
+            # distinct validator once the event is appended, so we check:
+            #   existing_validators + (1 if actor is new) >= n_min
+            if to_status == DiscoveryStatus.VALIDATED:
+                n_min = self._effective_n_min()
+                existing = chain.validators  # distinct VALIDATE actors already in chain
+                prospective = len(existing) + (0 if actor in existing else 1)
+                if prospective < n_min:
+                    raise ADLConsensusError(
+                        f"VALIDATE transition requires at least {n_min} distinct validators, "
+                        f"but only {len(existing)} existing + prospective={prospective} present"
+                    )
+
             event_type = _status_to_event_type(to_status)
             event = Event(
                 concept_id=adl_id,
@@ -220,15 +235,6 @@ class ConsensusEngine:
                 payload=payload or {},
             )
             chain.append(event)
-
-            # Enforce dynamic minimum distinct validators for VALIDATE transitions
-            if to_status == DiscoveryStatus.VALIDATED:
-                n_min = self._effective_n_min()
-                if chain.validator_count < n_min:
-                    raise ADLConsensusError(
-                        f"VALIDATE transition requires at least {n_min} distinct validators, "
-                        f"but only {chain.validator_count} present"
-                    )
 
             return event
 

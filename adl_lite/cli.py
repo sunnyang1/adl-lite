@@ -366,6 +366,9 @@ def _cmd_verify_anchor(args: argparse.Namespace) -> int:
     state_path = Path(getattr(args, "state", _default_state_path(None)))
     engine = _load_engine(state_path)
 
+    # Attach loaded chains to the anchor so verify_anchor() computes the correct expected hash
+    anchor._last_chains = list(engine.chains.values())
+
     ok = anchor.verify_anchor()
     if ok:
         print("anchor OK")
