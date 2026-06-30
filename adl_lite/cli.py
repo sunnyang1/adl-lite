@@ -411,6 +411,55 @@ def _cmd_verify_inclusion(args: argparse.Namespace) -> int:
     return 1
 
 
+def _cmd_verify_batch(args: argparse.Namespace) -> int:
+    import json as _json
+
+    from .key_registry import TransparencyAnchor
+    from .merkle import MerkleProof
+
+    state_path = Path(args.state) if args.state else _default_state_path(None)
+    engine = _load_engine(state_path)
+
+    anchor_path = Path(args.anchor)
+    if not anchor_path.exists():
+        print(f"anchor file not found: {args.anchor}", file=sys.stderr)
+        return 1
+
+    content = anchor_path.read_text(encoding="utf-8")
+    root_line = next((line for line in content.split("\n") if "Root:" in line), "")
+    merkle_root = root_line.split("`")[1] if "`" in root_line else ""
+
+    proofs_dir = Path(args.proofs_dir) if args.proofs_dir else Path(".adl/proofs")
+
+    proofs: dict = {}
+    if proofs_dir.exists():
+        for pf in sorted(proofs_dir.glob("*.proof.json")):
+            data = _json.loads(pf.read_text(encoding="utf-8"))
+            proof = MerkleProof(**data)
+            cid = pf.stem.replace(".proof", "")
+            proofs[cid] = proof
+
+    chains = list(engine.chains.values())
+    if not chains:
+        print("no chains loaded", file=sys.stderr)
+        return 1
+
+    results = TransparencyAnchor.verify_batch(chains, merkle_root, proofs)
+
+    passed = sum(1 for v in results.values() if v)
+    total = len(results)
+
+    if passed == total:
+        print(f"all {total} chains verified")
+        return 0
+
+    for cid, ok in results.items():
+        if not ok:
+            print(f"  FAILED: {cid}", file=sys.stderr)
+    print(f"{passed}/{total} chains verified, {total - passed} failed", file=sys.stderr)
+    return 1
+
+
 def _cmd_normalize(args: argparse.Namespace) -> int:
     from .parser import parse_file
 
@@ -657,6 +706,16 @@ def _build_parser() -> argparse.ArgumentParser:
     p_verify_inclusion.add_argument("--anchor", default="ANCHOR.md", help="Anchor file path")
     p_verify_inclusion.add_argument("--state", default=None, help="Consensus state JSON path")
     p_verify_inclusion.set_defaults(func=_cmd_verify_inclusion)
+
+    p_verify_batch = sub.add_parser(
+        "verify-batch", help="Batch verify chains using Merkle inclusion proofs"
+    )
+    p_verify_batch.add_argument("--anchor", default="ANCHOR.md", help="Anchor file path")
+    p_verify_batch.add_argument(
+        "--proofs-dir", default=None, help="Directory containing .proof.json files"
+    )
+    p_verify_batch.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_verify_batch.set_defaults(func=_cmd_verify_batch)
 
     p_normalize = sub.add_parser(
         "normalize",

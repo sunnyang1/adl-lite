@@ -13,11 +13,13 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
 import os
 import struct
 import subprocess
 import tempfile
 import warnings
+from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -221,13 +223,41 @@ class TransparencyAnchor:
             hashes = [hashlib.sha256(b"").hexdigest()]
         return MerkleTree(hashes)
 
-    def anchor(self, chains: list[EventChain], *, use_merkle: bool = False) -> str:
+    def anchor(
+        self,
+        chains: list[EventChain],
+        *,
+        use_merkle: bool = False,
+        proofs_dir: str | Path | None = None,
+    ) -> str:
+        """Write the transparency anchor to ANCHOR.md.
+
+        When *use_merkle* is True a Merkle root is computed over the sorted
+        chain summaries.  If *proofs_dir* is also provided, each chain's
+        inclusion proof is written as ``<concept_id>.proof.json`` in that
+        directory and the ANCHOR.md is extended with a chain list.
+        """
         self._last_chains = chains
         if use_merkle:
             tree = self._compute_merkle_anchor(chains)
             self._last_tree = tree
             value = tree.root_hex
+
+            # Build header
             body = f"# ADL Transparency Anchor (Merkle)\n\nRoot: `{value}`\n"
+
+            # Export individual inclusion proofs when proofs_dir is set
+            if proofs_dir is not None:
+                pd = Path(proofs_dir)
+                pd.mkdir(parents=True, exist_ok=True)
+                sorted_chains = sorted(chains, key=lambda x: x.concept_id)
+                body += "\n## Chains\n"
+                for i, chain in enumerate(sorted_chains):
+                    proof = tree.proof(i)
+                    proof_file = f"{chain.concept_id}.proof.json"
+                    proof_path = pd / proof_file
+                    proof_path.write_text(json.dumps(asdict(proof), indent=2), encoding="utf-8")
+                    body += f"- `{chain.concept_id}`: proof=`{proof_file}`\n"
         else:
             self._last_tree = None
             value = self._compute_anchor(chains)
@@ -257,6 +287,44 @@ class TransparencyAnchor:
             return False
         return MerkleTree.verify_proof(proof)
 
+    @staticmethod
+    def verify_batch(
+        chains: list[EventChain],
+        merkle_root: str,
+        proofs: dict[str, MerkleProof],
+    ) -> dict[str, bool]:
+        """Batch-verify multiple chains against a Merkle root.
+
+        For each chain, looks up its inclusion proof (keyed by concept_id),
+        checks that the proof root matches *merkle_root*, the leaf_hash matches
+        the chain summary, and the proof path is cryptographically valid.
+
+        Returns:
+            ``{concept_id: bool}`` — True for valid, False for invalid.
+            Non-existent concept_ids in *proofs* are mapped to False.
+        """
+        result: dict[str, bool] = {}
+        for chain in chains:
+            cid = chain.concept_id
+            proof = proofs.get(cid)
+            if proof is None:
+                result[cid] = False
+                continue
+            # Root must match the expected anchor
+            if proof.root != merkle_root:
+                result[cid] = False
+                continue
+            # Leaf hash must match current chain summary
+            summary = hashlib.sha256(
+                "".join(e.hash for e in chain.events).encode("utf-8")
+            ).hexdigest()
+            if proof.leaf_hash != summary:
+                result[cid] = False
+                continue
+            # Cryptographic path verification
+            result[cid] = MerkleTree.verify_proof(proof)
+        return result
+
     def verify_anchor(self) -> bool:
         if not self.anchor_path.exists():
             return False
@@ -268,13 +336,36 @@ class TransparencyAnchor:
         return f"`{expected}`" in content
 
     def verify_anchor_at_commit(self, commit_hash: str) -> bool:
+        """Verify that the anchor stored at *commit_hash* matches the current chains.
+
+        Handles both flat (SHA-256) and Merkle anchor formats.  For Merkle
+        anchors the method reconstructs the root from ``_last_tree`` (or
+        ``_last_chains``) and compares it against the content.
+        """
         try:
             r = subprocess.run(
                 ["git", "show", f"{commit_hash}:{self.anchor_path}"],
                 capture_output=True,
                 text=True,
             )
-            return r.returncode == 0 and f"`{self._compute_anchor(self._last_chains)}`" in r.stdout
+            if r.returncode != 0:
+                return False
+
+            content = r.stdout
+
+            # Detect Merkle format
+            if "ADL Transparency Anchor (Merkle)" in content:
+                if self._last_tree is not None:
+                    expected = self._last_tree.root_hex
+                elif self._last_chains:
+                    tree = self._compute_merkle_anchor(self._last_chains)
+                    expected = tree.root_hex
+                else:
+                    return False
+                return f"`{expected}`" in content
+
+            # Flat anchor format
+            return f"`{self._compute_anchor(self._last_chains)}`" in content
         except Exception:
             return False
 
