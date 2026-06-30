@@ -101,6 +101,77 @@ class OpenAILLMBackend:
         ) from last_exc
 
 
+class AnthropicLLMBackend:
+    """Anthropic backend for canonicalization with retry/backoff.
+
+    Implements the LLMBackend protocol using the Anthropic Messages API.
+    Requires ``anthropic>=0.25`` (the ``[experiments]`` extra).
+    """
+
+    def __init__(
+        self,
+        model: str = "claude-sonnet-4-20250514",
+        client: object | None = None,
+        max_retries: int = 3,
+        base_delay: float = 1.0,
+    ) -> None:
+        self._model = model
+        self._client = client
+        self._max_retries = max_retries
+        self._base_delay = base_delay
+
+    def _get_client(self) -> Any:
+        if self._client is None:
+            try:
+                import anthropic
+            except ImportError as exc:
+                raise ImportError(
+                    "anthropic is required for AnthropicLLMBackend. "
+                    'Install it with: pip install -e ".[experiments]"'
+                ) from exc
+            self._client = anthropic.Anthropic()
+        return self._client
+
+    def complete(self, prompt: str, system: str | None = None) -> str:
+        client = self._get_client()
+        kwargs: dict = {}
+        if system:
+            kwargs["system"] = system
+
+        last_exc: Exception | None = None
+        for attempt in range(self._max_retries):
+            try:
+                message = client.messages.create(
+                    model=self._model,
+                    max_tokens=4096,
+                    messages=[{"role": "user", "content": prompt}],
+                    **kwargs,
+                )
+                # Extract text content from the response
+                content = ""
+                for block in message.content:
+                    if block.type == "text":
+                        content += block.text
+                return content
+            except Exception as exc:
+                last_exc = exc
+                # Only retry on rate-limit or transient API errors
+                import anthropic
+
+                if not isinstance(
+                    exc, anthropic.RateLimitError | anthropic.APIError | anthropic.APITimeoutError
+                ):
+                    break
+                if attempt < self._max_retries - 1:
+                    import time
+
+                    time.sleep(self._base_delay * (2**attempt))
+
+        raise RuntimeError(
+            f"Anthropic request failed after {self._max_retries} attempt(s): {last_exc}"
+        ) from last_exc
+
+
 class CanonicalizationEngine:
     """Find near-duplicate clusters and propose canonical forms via LLM."""
 

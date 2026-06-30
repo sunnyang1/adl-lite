@@ -35,7 +35,12 @@ from .calibration import (
     aggregated_confidence,
     calibrated_confidence,
 )
-from .canonicalization import CanonicalizationEngine, LLMBackend, OpenAILLMBackend
+from .canonicalization import (
+    AnthropicLLMBackend,
+    CanonicalizationEngine,
+    LLMBackend,
+    OpenAILLMBackend,
+)
 from .consensus import ConsensusEngine, ForkManager, ForkResolution
 from .crdt import CRDTState, StatusOrder, merge_event_chains
 from .did_resolver import (
@@ -195,6 +200,7 @@ __all__ = [
     "CanonicalizationEngine",
     "LLMBackend",
     "OpenAILLMBackend",
+    "AnthropicLLMBackend",
     "VectorIndex",
     # L2 Template
     "L2Template",
