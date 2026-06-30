@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -345,3 +346,117 @@ class TestWarmIndexIntegration:
 
         mock_backend.bfs.assert_called_once_with("test-concept", max_depth=2)
         assert results == [("related-cap", "related-to", 0.9)]
+
+
+class TestCliNeo4jCommands:
+    """Test neo4j CLI command name resolution."""
+
+    @staticmethod
+    def _find_subparser(
+        parser: argparse.ArgumentParser, name: str
+    ) -> argparse.ArgumentParser | None:
+        """Find a subparser by name from an argparse parser."""
+        sub = parser._subparsers
+        if sub is None:
+            return None
+        for action in sub._actions:
+            choices = getattr(action, "choices", None)
+            if choices is not None and name in choices:
+                result: object = choices[name]
+                assert isinstance(result, argparse.ArgumentParser)
+                return result
+        return None
+
+    def test_neo4j_subcommand_registered(self) -> None:
+        """Verify the neo4j subcommand exists in argparse."""
+        from adl_lite.cli import _build_parser
+
+        parser = _build_parser()
+        neo4j_parser = self._find_subparser(parser, "neo4j")
+        assert neo4j_parser is not None, "neo4j subcommand not found"
+
+    def test_neo4j_status_subcommand_registered(self) -> None:
+        """Verify the neo4j status subcommand exists."""
+        from adl_lite.cli import _build_parser
+
+        parser = _build_parser()
+        neo4j_parser = self._find_subparser(parser, "neo4j")
+        assert neo4j_parser is not None, "neo4j subcommand not found"
+
+        status_parser = self._find_subparser(neo4j_parser, "status")
+        assert status_parser is not None, "neo4j status subcommand not found"
+
+    def test_neo4j_rebuild_subcommand_registered(self) -> None:
+        """Verify the neo4j rebuild subcommand exists."""
+        from adl_lite.cli import _build_parser
+
+        parser = _build_parser()
+        neo4j_parser = self._find_subparser(parser, "neo4j")
+        assert neo4j_parser is not None, "neo4j subcommand not found"
+
+        rebuild_parser = self._find_subparser(neo4j_parser, "rebuild")
+        assert rebuild_parser is not None, "neo4j rebuild subcommand not found"
+
+    def test_neo4j_status_has_connection_args(self) -> None:
+        """Verify neo4j status has --uri, --user, --password arguments."""
+        from adl_lite.cli import _build_parser
+
+        parser = _build_parser()
+        neo4j_parser = self._find_subparser(parser, "neo4j")
+        assert neo4j_parser is not None
+
+        status_parser = self._find_subparser(neo4j_parser, "status")
+        assert status_parser is not None
+
+        # Verify expected args are present
+        parsed = status_parser.parse_args(
+            ["--uri", "bolt://test:7687", "--user", "u", "--password", "p"]
+        )
+        assert parsed.uri == "bolt://test:7687"
+        assert parsed.user == "u"
+        assert parsed.password == "p"
+
+    def test_neo4j_rebuild_has_state_and_connection_args(self) -> None:
+        """Verify neo4j rebuild has --state, --uri, --user, --password arguments."""
+        from adl_lite.cli import _build_parser
+
+        parser = _build_parser()
+        neo4j_parser = self._find_subparser(parser, "neo4j")
+        assert neo4j_parser is not None
+
+        rebuild_parser = self._find_subparser(neo4j_parser, "rebuild")
+        assert rebuild_parser is not None
+
+        # Verify expected args are present
+        parsed = rebuild_parser.parse_args(
+            [
+                "--state",
+                "state.json",
+                "--uri",
+                "bolt://test:7687",
+                "--user",
+                "u",
+                "--password",
+                "p",
+            ]
+        )
+        assert parsed.state == "state.json"
+        assert parsed.uri == "bolt://test:7687"
+        assert parsed.user == "u"
+        assert parsed.password == "p"
+
+    def test_neo4j_status_func_is_callable(self) -> None:
+        """Verify the status subcommand has a callable func."""
+        from adl_lite.cli import _build_parser
+
+        parser = _build_parser()
+        args = parser.parse_args(["neo4j", "status"])
+        assert callable(args.func)
+
+    def test_neo4j_rebuild_func_is_callable(self) -> None:
+        """Verify the rebuild subcommand has a callable func."""
+        from adl_lite.cli import _build_parser
+
+        parser = _build_parser()
+        args = parser.parse_args(["neo4j", "rebuild"])
+        assert callable(args.func)

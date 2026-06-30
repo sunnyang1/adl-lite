@@ -592,6 +592,81 @@ def _cmd_consensus_verify(args: argparse.Namespace) -> int:
     return 1
 
 
+def _cmd_neo4j_status(args: argparse.Namespace) -> int:
+    """Check Neo4j connection status and node count."""
+    from .config import get_neo4j_config
+    from .neo4j_adapter import Neo4jGraphAdapter
+
+    config = get_neo4j_config()
+    uri = args.uri or config["uri"]
+    user = args.user or config["user"]
+    password = args.password or config["password"]
+
+    try:
+        adapter = Neo4jGraphAdapter(uri=uri, user=user, password=password)
+        count = adapter.node_count()
+        print("Neo4j connection OK")
+        print(f"  URI:  {uri}")
+        print(f"  Nodes: {count}")
+        adapter.close()
+        return 0
+    except Exception as exc:
+        print(f"Neo4j connection FAILED: {exc}", file=sys.stderr)
+        return 1
+
+
+def _cmd_neo4j_rebuild(args: argparse.Namespace) -> int:
+    """Rebuild Neo4j graph from SQLite relations."""
+    from .config import get_neo4j_config
+    from .neo4j_adapter import Neo4jGraphAdapter
+
+    config = get_neo4j_config()
+    uri = args.uri or config["uri"]
+    user = args.user or config["user"]
+    password = args.password or config["password"]
+
+    # Load relations from state or SQLite
+    state_path = Path(args.state) if args.state else None
+    relations: list[dict] = []
+
+    if state_path and state_path.exists():
+        import json
+
+        data = json.loads(state_path.read_text(encoding="utf-8"))
+        relations = data.get("relations", [])
+
+    if not relations:
+        # Try loading from WarmIndex SQLite
+        from .memory import WarmIndex
+
+        warm = WarmIndex()
+        cursor = warm.conn.execute("SELECT source, predicate, target, confidence FROM relations")
+        for row in cursor.fetchall():
+            relations.append(
+                {
+                    "source": row["source"],
+                    "predicate": row["predicate"],
+                    "target": row["target"],
+                    "confidence": row["confidence"],
+                }
+            )
+        warm.conn.close()
+
+    if not relations:
+        print("No relations found to rebuild", file=sys.stderr)
+        return 1
+
+    try:
+        adapter = Neo4jGraphAdapter(uri=uri, user=user, password=password)
+        count = adapter.rebuild_from_relations(relations)
+        print(f"Neo4j graph rebuilt: {count} edges created")
+        adapter.close()
+        return 0
+    except Exception as exc:
+        print(f"Neo4j rebuild FAILED: {exc}", file=sys.stderr)
+        return 1
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="adl-lite",
@@ -773,6 +848,28 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_verify_batch.add_argument("--state", default=None, help="Consensus state JSON path")
     p_verify_batch.set_defaults(func=_cmd_verify_batch)
+
+    p_neo4j = sub.add_parser("neo4j", help="Neo4j graph backend management")
+    p_neo4j_sub = p_neo4j.add_subparsers(
+        dest="neo4j_command", required=True, help="Neo4j sub-command"
+    )
+
+    p_neo4j_status = p_neo4j_sub.add_parser(
+        "status", help="Check Neo4j connection status and node count"
+    )
+    p_neo4j_status.add_argument("--uri", default=None, help="Neo4j connection URI (overrides env)")
+    p_neo4j_status.add_argument("--user", default=None, help="Neo4j username (overrides env)")
+    p_neo4j_status.add_argument("--password", default=None, help="Neo4j password (overrides env)")
+    p_neo4j_status.set_defaults(func=_cmd_neo4j_status)
+
+    p_neo4j_rebuild = p_neo4j_sub.add_parser(
+        "rebuild", help="Rebuild Neo4j graph from SQLite relations"
+    )
+    p_neo4j_rebuild.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_neo4j_rebuild.add_argument("--uri", default=None, help="Neo4j connection URI (overrides env)")
+    p_neo4j_rebuild.add_argument("--user", default=None, help="Neo4j username (overrides env)")
+    p_neo4j_rebuild.add_argument("--password", default=None, help="Neo4j password (overrides env)")
+    p_neo4j_rebuild.set_defaults(func=_cmd_neo4j_rebuild)
 
     p_normalize = sub.add_parser(
         "normalize",
