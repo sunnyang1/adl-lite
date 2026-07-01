@@ -28,17 +28,21 @@ SWRLB_NS = "http://www.w3.org/2003/11/swrlb#"
 XSD_NS = "http://www.w3.org/2001/XMLSchema#"
 
 # L3 predicates from adl_core_ontology.yaml with OWL characteristics
+# Updated to match v0.2 ontology (paper Appendix A)
 L3_PREDICATES: dict[str, dict[str, bool]] = {
-    "isomorphic-to": {"transitive": False, "symmetric": False, "asymmetric": False},
-    "specialisation-of": {"transitive": True, "symmetric": False, "asymmetric": False},
-    "co-occurs-with": {"transitive": False, "symmetric": True, "asymmetric": False},
-    "related-to": {"transitive": False, "symmetric": False, "asymmetric": False},
-    "analogical-to": {"transitive": False, "symmetric": False, "asymmetric": False},
-    "analogical-transfer": {"transitive": False, "symmetric": False, "asymmetric": False},
-    "dual-of": {"transitive": False, "symmetric": True, "asymmetric": False},
-    "fork-of": {"transitive": False, "symmetric": False, "asymmetric": False},
-    "mitigated-by": {"transitive": False, "symmetric": False, "asymmetric": False},
-    "indexed-phrase": {"transitive": False, "symmetric": False, "asymmetric": False},
+    "isomorphic-to": {"transitive": True, "symmetric": True, "irreflexive": False},
+    "specialisation-of": {"transitive": True, "symmetric": False, "irreflexive": True},
+    "co-occurs-with": {"transitive": False, "symmetric": True, "irreflexive": False},
+    "related-to": {"transitive": False, "symmetric": True, "irreflexive": False},
+    "analogical-to": {"transitive": False, "symmetric": True, "irreflexive": False},
+    "analogical-transfer": {"transitive": False, "symmetric": False, "irreflexive": False},
+    "dual-of": {"transitive": False, "symmetric": True, "irreflexive": False},
+    "fork-of": {"transitive": True, "symmetric": False, "irreflexive": True},
+    "mitigated-by": {"transitive": False, "symmetric": False, "irreflexive": False},
+    "indexed-phrase": {"transitive": False, "symmetric": False, "irreflexive": False},
+    # Case-study-derived relations (E5 multi-agent literature review)
+    "feeds-into": {"transitive": True, "symmetric": False, "irreflexive": False},
+    "complements": {"transitive": False, "symmetric": False, "irreflexive": False},
 }
 
 
@@ -158,6 +162,8 @@ def _build_l3_object_properties_rdfxml(root: Element) -> None:
             SubElement(prop, "rdf:type").set("rdf:resource", f"{OWL_NS}SymmetricProperty")
         if chars.get("asymmetric"):
             SubElement(prop, "rdf:type").set("rdf:resource", f"{OWL_NS}AsymmetricProperty")
+        if chars.get("irreflexive"):
+            SubElement(prop, "rdf:type").set("rdf:resource", f"{OWL_NS}IrreflexiveProperty")
 
 
 def _build_l3_object_properties_turtle() -> list[str]:
@@ -183,6 +189,9 @@ def _build_l3_object_properties_turtle() -> list[str]:
         if chars.get("asymmetric"):
             lines[-1] += " ;"
             lines.append("    a owl:AsymmetricProperty")
+        if chars.get("irreflexive"):
+            lines[-1] += " ;"
+            lines.append("    a owl:IrreflexiveProperty")
         lines[-1] += " ."
         lines.append("")
     return lines

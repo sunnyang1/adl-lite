@@ -24,7 +24,7 @@ import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, Union
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
@@ -1176,8 +1176,8 @@ class ADLFormalSealBlock(BaseModel):
     verified_by: str | None = None
 
 
-# Union type for all L3 blocks
-ADLBlock = ADLRelationBlock | ADLEvidenceBlock | ADLFormalSealBlock
+# Union type for all L3 blocks  # noqa: UP007 — Python 3.9 compat
+ADLBlock = Union[ADLRelationBlock, ADLEvidenceBlock, ADLFormalSealBlock]  # noqa: UP007
 
 
 # ---------------------------------------------------------------------------
@@ -1301,8 +1301,8 @@ class ADLActionBlock(BaseModel):
     execution_log: list[ExecutionEntry] = Field(default_factory=list)
 
 
-# Union type for all blocks (L3 + L4)
-AllBlocks = ADLRelationBlock | ADLEvidenceBlock | ADLFormalSealBlock | ADLActionBlock
+# Union type for all blocks (L3 + L4)  # noqa: UP007 — Python 3.9 compat
+AllBlocks = Union[ADLRelationBlock, ADLEvidenceBlock, ADLFormalSealBlock, ADLActionBlock]  # noqa: UP007
 
 
 # ---------------------------------------------------------------------------

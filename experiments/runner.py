@@ -20,7 +20,7 @@ from . import (
     e2_status_derivation,  # noqa: F401
     e3_snapshot_roundtrip,  # noqa: F401
     e4_precondition,  # noqa: F401
-    e5_agent_audit,  # noqa: F401
+    e5_literature_review,  # noqa: F401
     e6_aml_pipeline,  # noqa: F401
     e6b_multiagent_coordination,  # noqa: F401
     e7_realtime_watcher,  # noqa: F401
