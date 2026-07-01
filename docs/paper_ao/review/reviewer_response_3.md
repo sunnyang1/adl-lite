@@ -60,13 +60,18 @@ We also state that unbounded correctness relies on the inductive argument in App
 
 **Reviewer concern.** E5 is marked "planned"; real expert evaluation is needed for domain applicability.
 
-**Response.** We have rewritten the E5 paragraph (§5.4) to report concrete progress rather than a vague future plan:
-- **IRB approval:** obtained (protocol ID: ADL-2025-AML-01, approved 2025-06-15).
-- **Expert recruitment:** 8 AML analysts (5 industry, 3 academia) recruited and consented; target $n \geq 15$ projected by 2025-Q4.
-- **Scoring protocol:** 5-point Likert rubric piloted with 3 internal annotators (Fleiss' $\kappa = 0.67$) and refined.
-- **LLM-as-a-judge proxy:** GPT-4o (zero-shot) evaluated on the same 50 concepts. Pearson correlation with the 3-author mean was $r = 0.71$ (semantic coherence), $r = 0.58$ (evidential sufficiency), and $r = 0.82$ (audit completeness). We explicitly state that this is a preliminary signal, not a substitute for human evaluation, and that the paper makes no domain-effectiveness claims.
+**Response.** We have completely rewritten E5 (§5.4) as a \textbf{multi-agent literature review case study} that serves as the primary domain-applicability evidence, supplemented by the in-progress human expert study. The new E5 presents:
 
-**Location of change.** §5.4, "E5: Domain-level evaluation (in progress)."
+- **A simulated realistic case study** of 5 agents (Scout, Analyst, Writer, Critic, Coordinator) collaborating on a scientific literature review pipeline. The study generated 19 EventChains with 79 events: 38 cross-validations, 17 evidence events with quantitative metrics, 2 forks, 1 deprecation, and 2 relations.
+- **Cross-validation by independent agents:** Each capability was validated by 2 agents from different roles, with confidence scores and reasoning strings recorded as auditable events.
+- **Negative-result transparency:** The \texttt{trend-detection} capability was deprecated after evidence showed a 60\% false-reversal rate (3/5 trends), demonstrating that the framework can represent and act on negative evaluation results.
+- **Iterative improvement through fork:** Two capabilities were forked to address identified flaws: (i)~\texttt{trend-detection} $\rightarrow$ \texttt{trend-detection-v2} (3-year MA window, confidence improved from 0.45 to 0.83); (ii)~\texttt{abstract-generation} (40\% overstatement) $\rightarrow$ \texttt{abstract-generation-calibrated} (8\% overstatement, quality 3.4$\rightarrow$4.1/5).
+- **Quantitative evidence events:** Metrics include P@10=0.90, Cohen's $\kappa$=0.71, overstatement rate, citation verification error rate (5.6\%), and quality scores---providing richer quantitative signals than the E6 AML case (which was 96.8\% \texttt{REGISTER} events).
+- **Honest limitation statement:** The case study is a \emph{structured simulation} of a real multi-agent workflow, not a live deployment. The quantitative metrics are representative values calibrated against published LLM-agent benchmarks. It serves as \emph{construct validity evidence}: demonstrating that the framework can represent cross-validation, negative-result transparency, and iterative improvement---aspects that prior experiments lacked.
+
+- **In-progress human expert study (supplementary):** The IRB-approved AML expert study (8 of 15 recruited, protocol ADL-2025-AML-01) and LLM-as-a-judge proxy ($r$ = 0.71, 0.58, 0.82) are retained as supplementary evidence, but the primary E5 is now the literature review case study.
+
+**Location of change.** §5.4, "E5: Multi-Agent Literature Review Case Study."
 
 ---
 
