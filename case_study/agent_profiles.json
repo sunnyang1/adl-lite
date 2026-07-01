@@ -1,0 +1,27 @@
+{
+  "scout": {
+    "name": "Scout",
+    "model": "GPT-4o",
+    "role": "Literature search and retrieval"
+  },
+  "analyst": {
+    "name": "Analyst",
+    "model": "GPT-4o",
+    "role": "Critical analysis of methods and results"
+  },
+  "writer": {
+    "name": "Writer",
+    "model": "Claude 3.5 Sonnet",
+    "role": "Synthesis and writing"
+  },
+  "critic": {
+    "name": "Critic",
+    "model": "Claude 3.5 Sonnet",
+    "role": "Quality review and fact-checking"
+  },
+  "coordinator": {
+    "name": "Coordinator",
+    "model": "GPT-4o",
+    "role": "Task orchestration and delegation"
+  }
+}

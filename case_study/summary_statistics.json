@@ -1,0 +1,27 @@
+{
+  "total_chains": 19,
+  "total_events": 79,
+  "event_types": {
+    "register": 19,
+    "validate": 38,
+    "evidence": 17,
+    "deprecate": 1,
+    "fork": 2,
+    "relate": 2
+  },
+  "status_dist": {
+    "validated": 18,
+    "deprecated": 1
+  },
+  "confidence": {
+    "min": 0.4,
+    "max": 0.91,
+    "mean": 0.753
+  },
+  "deprecated": [
+    "trend-detection"
+  ],
+  "forks": 2,
+  "relates": 2,
+  "evidence": 17
+}
