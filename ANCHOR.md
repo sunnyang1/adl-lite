@@ -1,3 +1,3 @@
-# ADL Transparency Anchor
+# ADL Transparency Anchor (Merkle)
 
-`b3211c1218a0b8cbefd59a432a46980cb9fd9e0e589ad21fc25d6dcf44cbaf22`
+Root: `948a3362c0a56caadf0fac283a38815d26160fd651a38e3e8ba8aff567781501`

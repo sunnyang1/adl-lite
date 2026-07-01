@@ -1,43 +1,30 @@
 sequenceDiagram
-    participant User
-    participant CLI as cli.py (_cmd_validate)
-    participant Val as ADLValidator
-    participant SH as shacl_validation
-    participant Rdf as rdflib/pyshacl
+    participant Caller as Caller (ADLMemory.find_related)
+    participant Warm as WarmIndex
+    participant Adapter as Neo4jGraphAdapter
+    participant Driver as neo4j.Driver
+    participant Session as neo4j.Session
+    participant DB as Neo4j DB
 
-    User->>CLI: adl-lite validate --shacl doc.md
-    Note over CLI: args.shacl=True
+    Caller->>Warm: get_related("disc-7f3a9b", depth=2)
+    Warm->>Warm: acquire _lock
 
-    CLI->>CLI: parse_file("doc.md") → ADLDocument
-    
-    CLI->>Val: ADLValidator(strict=False, shacl=True)
-    Val->>Val: _shacl = True (force enable)
-
-    CLI->>Val: validate_document(doc)
-    Val->>Val: _validate_front_matter() → []
-    Val->>Val: _validate_markdown_body() → []
-    Val->>Val: self.shacl is truthy → call _validate_shacl(doc)
-
-    Val->>SH: validate_adl_document(doc)
-    SH->>SH: _document_to_rdf_graph(doc)
-    SH->>SH: Export EventChain → PROV-O Turtle
-    SH->>SH: Enrich CALIBRATE events (observedAccuracy)
-    SH->>SH: Enrich FORK events (sourceConceptId, targetConceptId)
-    SH->>SH: Enrich Relations (source, target, etc.)
-    SH->>Rdf: Graph() + parse(data=turtle)
-    
-    SH->>Rdf: pyshacl.validate(data_graph, shacl_graph)
-    Rdf-->>SH: (conforms, _, results_text)
-    SH-->>Val: (conforms, results_text)
-
-    Val->>SH: parse_validation_results(results_text)
-    SH-->>Val: [ValidationResult(...), ...]
-
-    alt conforms
-        Val-->>CLI: [] (empty errors)
-        CLI-->>User: doc.md: OK
-    else violations
-        Val-->>CLI: [ValidationResult(...)]
-        CLI-->>User: doc.md: FAIL (3 error(s))
-        CLI-->>User:   - [Violation] adl:sourceConceptId: …
+    alt graph_backend is not None
+        Warm->>Adapter: bfs("disc-7f3a9b", depth=2)
+        Adapter->>Driver: session(database=db)
+        Driver-->>Adapter: Session
+        Adapter->>Session: run(bfs_cypher, concept_id, depth)
+        Session->>DB: MATCH (start:ADLConcept {id:...})
+        DB-->>Session: records
+        Session-->>Adapter: Result
+        Adapter->>Adapter: parse records → list[tuple]
+        Adapter-->>Warm: [(target, relation, conf), ...]
+    else graph is not None (NetworkX)
+        Warm->>Warm: _graph_bfs(concept_id, depth)
+        Warm-->>Caller: results
+    else fallback SQL
+        Warm->>Warm: _sql_bfs(concept_id, depth)
+        Warm-->>Caller: results
     end
+
+    Warm-->>Caller: [(target, relation, conf), ...]

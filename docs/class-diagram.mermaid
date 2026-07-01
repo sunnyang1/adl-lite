@@ -1,54 +1,48 @@
 classDiagram
-    class ValidationResult {
-        +str path
-        +str severity
-        +str message
-        +__init__(path, severity, message)
+    class GraphBackend {
+        <<Protocol>>
+        +add_edge(source: str, target: str, relation: str, confidence: float) None
+        +bfs(concept_id: str, depth: int) list[tuple[str, str, float]]
+        +__contains__(node: str) bool
+        +node_count() int
+        +close() None
     }
 
-    class ADLValidator {
-        +bool strict
-        +OntologyManager ontology
-        +bool | None shacl
-        +Callable status_resolver
-        +validate_document(doc) list[str] | list[ValidationResult]
-        +_validate_shacl(doc) list[ValidationResult]
-        +validate_scope_access(doc_scope, requester_scope) bool
+    class Neo4jGraphAdapter {
+        -_driver: Driver
+        -_database: str
+        +__init__(uri: str | None, user: str | None, password: str | None, database: str | None) None
+        +add_edge(source: str, target: str, relation: str, confidence: float) None
+        +bfs(concept_id: str, depth: int) list[tuple[str, str, float]]
+        +__contains__(node: str) bool
+        +node_count() int
+        +close() None
+        -_run(query: str, params: dict) Result
     }
 
-    class shacl_validation {
-        +str _ADL_SHAPES_TURTLE
-        +Graph _shapes_graph
-        +_get_shapes_graph() Graph
-        +_shacl_available() bool
-        +validate_adl_rdf(rdf_data, rdf_format) tuple[bool, str]
-        +_document_to_rdf_graph(doc) Graph
-        +validate_adl_document(doc) tuple[bool, str]
-        +parse_validation_results(results_text) list[ValidationResult]
+    class WarmIndex {
+        -graph: nx.DiGraph | None
+        -graph_backend: GraphBackend | None
+        +__init__(db_path: str, graph_backend: GraphBackend | None) None
+        +_add_relation(rel: ADLRelationBlock) None
+        +get_related(concept_id: str, depth: int) list[tuple[str, str, float]]
+        +delete_document(adl_id: str) None
+        +close() None
     }
 
-    class ADLDocument {
-        +ADLFrontMatter front_matter
-        +str markdown_body
-        +list[ADLRelationBlock] adl_blocks
-        +list[ADLActionBlock] action_blocks
-        +list[ADLRelationBlock] relations
-        +list evidence
-        +list seals
-        +EventChain event_chain
-        +str adl_id
-        +str concept_name
+    class ADLRelationBlock {
+        +source: str
+        +relation: str
+        +target: str
+        +confidence: float
     }
 
-    class CLI {
-        +_cmd_validate(args) int
-        +_cmd_shacl(args) int
-        +_build_parser() ArgumentParser
-        +main(argv) None
+    class ADLMemory {
+        +warm: WarmIndex
+        +find_related(adl_id: str, depth: int) list[tuple[str, str, float]]
     }
 
-    ADLValidator --> ValidationResult : returns
-    ADLValidator --> shacl_validation : calls
-    ADLValidator --> ADLDocument : validates
-    CLI --> ADLValidator : creates & calls
-    shacl_validation --> ValidationResult : parses into
+    GraphBackend <|.. Neo4jGraphAdapter : implements
+    WarmIndex o-- GraphBackend : optional
+    WarmIndex ..> ADLRelationBlock : uses
+    ADLMemory o-- WarmIndex : contains

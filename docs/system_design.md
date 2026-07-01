@@ -1,483 +1,418 @@
-# ADL Lite — SHACL Runtime Complete Version: System Design & Task Decomposition
+# F25 Neo4j Adapter Layer — System Design & Task Decomposition
 
-> **Architect**: 高见远 (Bob)  
-> **Version**: F28 SHACL Runtime Complete  
-> **Base**: ADL Lite v0.6.0-alpha  
+> **ADL Lite v0.6.0-alpha** · Architect: 高见远 (Bob)
+> 
+> Date: 2025-07-17
 
 ---
 
 ## Part A: System Design
 
+---
+
 ### 1. Implementation Approach
 
-#### Core Technical Challenges
+#### 核心技术难点
 
-| Challenge | Analysis |
-|-----------|----------|
-| **FORK payload enrichment** | FORK events carry `source_concept_id` / `target_concept_id` inside the JSON payload literal (`adl:payload`). SHACL cannot inspect JSON literals; these must be extracted into named RDF properties (`adl:sourceConceptId`, `adl:targetConceptId`) in `_document_to_rdf_graph()`, following the same pattern used for CALIBRATE's `observedAccuracy`. |
-| **ValidationResult structure** | Currently `_validate_shacl()` returns `list[str]` (human-readable text). P0-5 requires a structured `ValidationResult` dataclass with `path`, `severity`, `message`. The pyshacl report text must be parsed into these fields. |
-| **Default-on auto-detect** | `ADLValidator(shacl=False)` must become `ADLValidator(shacl=None)` where `None` means "enabled if pyshacl importable". This requires a try/import check that mirrors existing `_shacl_available()` in `shacl_validation.py`. |
-| **CLI flags** | `--shacl` (enable), `--no-shacl` (force-disable when auto-detect would enable), and a standalone `adl-lite shacl <files>` subcommand. All three must compose correctly. |
+| 难点 | 分析 | 解决方案 |
+|------|------|----------|
+| **NetworkX 替换为 Neo4j 的侵入面控制** | `WarmIndex` 内 `self.graph: nx.DiGraph | None` 在 `_add_relation`、`get_related`、`_graph_bfs`、`delete_document` 四处被引用，需最小化改动 | 引入 `GraphProtocol` / `GraphBackend` 抽象接口，`Neo4jGraphAdapter` 实现该接口，`WarmIndex.__init__` 通过 `graph_backend` 参数注入 |
+| **同步 vs 异步** | `neo4j` Python driver v5 同时支持同步（`session.run()`）和异步 API；现有 `WarmIndex` 全部为同步调用 | 使用同步 API（`GraphDatabase.driver`），零侵入现有调用链 |
+| **Cypher BFS 语义对齐** | NetworkX `_graph_bfs` 只走**出边**（`successors`），而 SQL `_sql_bfs` 走双向（`UNION`）。Neo4j 适配器替换的是 NetworkX 路径 | Cypher 查询使用定向边模式 `(start)-[*1..depth]->(other)` 对齐 `successors` |
+| **连接生命周期** | Neo4j driver 是长连接资源，需在 `WarmIndex.close()` 时清理 | `Neo4jGraphAdapter.close()` 代理到 `driver.close()`，在 `WarmIndex.close()` 中调用 |
+| **重建（rebuild）** | 从 SQLite `relations` 表全量重建到 Neo4j，需处理已有数据冲突（幂等） | 使用 `MERGE` 代替 `CREATE`，按 `(source, predicate, target)` 唯一约束 upsert |
 
-#### Framework & Library Selections
+#### 框架与库选型
 
-| Library | Version | Justification |
-|---------|---------|---------------|
-| `pyshacl` | >=0.25 | Already used; provides the SHACL validation engine. No upgrade needed. |
-| `rdflib` | >=7.0 | Already used; provides RDF graph handling. No upgrade needed. |
+| 组件 | 选择 | 理由 |
+|------|------|------|
+| Neo4j Driver | `neo4j>=5.0` | 稳定、广泛使用，支持同步 API，与现有同步栈兼容 |
+| 测试 Mock | `unittest.mock` (stdlib) + pytest | 无额外依赖；mock `neo4j.Driver` / `Session` / `Result` |
+| 环境变量 | `os.environ` + `pydantic-settings` (已存在) | 项目已有 `pydantic-settings` 依赖，可复用 |
 
-**No new dependencies required.** Both `pyshacl` and `rdflib` are already declared in `[project.optional-dependencies] gov`.
+#### 架构模式
 
-#### Architecture Pattern
+**Strategy Pattern** — `WarmIndex` 持有 `GraphBackend` 协议引用，运行时可切换 NetworkX（默认）或 Neo4j：
 
 ```
-CLI (argparse) ──→ ADLValidator ──→ shacl_validation ──→ pyshacl
-   │                    │                                      │
-   │  --shacl/--no-shacl│  ValidationResult[]                  │
-   │  shacl subcommand  │                                      │
-   ▼                    ▼                                      ▼
-args               validate_document()                   validate() RDF
+WarmIndex
+├── graph: nx.DiGraph | None          ← 默认（networkx）
+└── graph_backend: GraphBackend | None ← 可选（neo4j）
 ```
 
-Pattern: **Layered validation** — SSA checks happen first (pronoun/scope/slot), SHACL structural checks happen second. The Validator acts as the orchestrator; `shacl_validation.py` is the SHACL engine that knows RDF.
+两套互斥：当 `graph_backend` 非 None 时，`self.graph` 置为 None。
 
 ---
 
-### 2. File List
+### 2. Open Questions — Decisions
 
-All relative paths are from project root.
-
-| # | File | Action | Purpose |
-|---|------|--------|---------|
-| 1 | `adl_lite/models.py` | **Modify** | Add `ValidationResult` dataclass |
-| 2 | `adl_lite/__init__.py` | **Modify** | Export `ValidationResult` |
-| 3 | `adl_lite/validator.py` | **Modify** | `shacl=None` default; `_validate_shacl()` returns `list[ValidationResult]` |
-| 4 | `adl_lite/shacl_validation.py` | **Modify** | Add `ForkShape` Turtle; enrich FORK events in `_document_to_rdf_graph()`; add `parse_validation_results()` helper |
-| 5 | `adl_lite/cli.py` | **Modify** | `--shacl`/`--no-shacl` flags on `validate`; new `shacl` subcommand |
-| 6 | `tests/test_shacl_validation.py` | **Modify** | ForkShape tests; ValidationResult tests; default-on tests |
-| 7 | `docs/class-diagram.mermaid` | **Create** | Class/data-structure diagram |
-| 8 | `docs/sequence-diagram.mermaid` | **Create** | Call-flow sequence diagram |
+| # | 问题 | 决策 |
+|---|------|------|
+| 1 | Neo4j driver 版本锁定 | **`neo4j>=5.0`** — 稳定 API，广泛部署 |
+| 2 | 认证方式 | **环境变量 + 构造函数参数**（构造参数优先于环境变量） |
+| 3 | `__contains__` 缓存 | **跳过 MVP** — Neo4j 内部已有节点缓存，每次查询代价低 |
+| 4 | BFS 方向 | **仅出边（successors）** — 对齐 NetworkX 现有行为 |
+| 5 | Cypher 图标签 | **`ADLConcept`** — 单一标签，简单清晰 |
 
 ---
 
-### 3. Data Structures & Interfaces
+### 3. 环境变量约定
 
-#### 3a. ValidationResult Dataclass
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `NEO4J_URI` | `bolt://localhost:7687` | Neo4j 连接 URI |
+| `NEO4J_USER` | `neo4j` | 数据库用户名 |
+| `NEO4J_PASSWORD` | *(必填)* | 数据库密码 |
+| `NEO4J_DATABASE` | `neo4j` | 数据库名称 |
 
-```python
-@dataclass
-class ValidationResult:
-    """Structured SHACL validation result."""
-    path: str       # RDF property path (e.g. "adl:sourceConceptId")
-    severity: str   # "Violation" | "Warning" | "Info"
-    message: str    # Human-readable description
-```
+构造函数参数优先级高于环境变量。
 
-**Design decisions:**
-- `severity` is `str`, not an enum — aligns directly with pyshacl output text, simpler for serialization, and avoids enum import chains.
-- `path` is the RDF property path from the SHACL validation report (e.g. `adl:eventHash`, `adl:observedAccuracy`).
-- `message` is a human-readable sentence extracted from the pyshacl report.
+---
 
-#### 3b. ForkShape (Turtle — SHACL Shape)
+### 4. File List
 
-```turtle
-adl:ForkShape a sh:NodeShape ;
-    sh:targetClass adl:ForkEvent ;
-    sh:property [
-        sh:path adl:sourceConceptId ;
-        sh:datatype xsd:string ;
-        sh:minCount 1 ;
-        sh:maxCount 1 ;
-    ] ;
-    sh:property [
-        sh:path adl:targetConceptId ;
-        sh:datatype xsd:string ;
-        sh:minCount 1 ;
-        sh:maxCount 1 ;
-    ] .
-```
+| 文件路径 | 操作 | 说明 |
+|----------|------|------|
+| `adl_lite/neo4j_adapter.py` | **新建** | `Neo4jGraphAdapter` 类 + `GraphBackend` Protocol |
+| `adl_lite/memory.py` | 修改 | `WarmIndex` 增加 `graph_backend` 参数，分发到 adapter |
+| `adl_lite/cli.py` | 修改 | 新增 `neo4j status|rebuild` 子命令 |
+| `adl_lite/config.py` | 修改 | 新增 Neo4j 配置项（可选，可复用 `pydantic-settings`） |
+| `adl_lite/__init__.py` | 修改 | 新增 `Neo4jGraphAdapter` 导出 |
+| `pyproject.toml` | 修改 | 新增 `[neo4j]` optional dependencies |
+| `tests/test_neo4j_adapter.py` | **新建** | 单元测试（mocked `neo4j` driver） |
 
-This enforces that every FORK event **must** carry both a `sourceConceptId` and a `targetConceptId` as named RDF properties.
+---
 
-#### 3c. ADLValidator Signature Changes
+### 5. Data Structures & Interfaces
 
-```python
-# BEFORE
-def __init__(self, strict=False, ontology=None, shacl=False, status_resolver=None) -> None
-
-# AFTER
-def __init__(self, strict=False, ontology=None, shacl=None, status_resolver=None) -> None
-    # shacl=None → auto-detect (enabled if pyshacl importable)
-    # shacl=True  → force enable  (raises ImportError if pyshacl not installed)
-    # shacl=False → force disable
-```
-
-```python
-# BEFORE
-def _validate_shacl(self, doc: ADLDocument) -> list[str]: ...
-
-# AFTER
-def _validate_shacl(self, doc: ADLDocument) -> list[ValidationResult]: ...
-```
-
-#### 3d. CLI Signature Changes
-
-```python
-# adl-lite validate --shacl [--no-shacl] <files...>
-p_validate.add_argument("--shacl", action="store_true", help="Enable SHACL validation")
-p_validate.add_argument("--no-shacl", action="store_true", help="Disable SHACL validation")
-
-# adl-lite shacl [--strict] <files...>
-p_shacl = sub.add_parser("shacl", help="Run SHACL validation only")
-p_shacl.add_argument("files", nargs="+", help="Paths to .md documents")
-```
-
-#### 3e. `parse_validation_results()` Helper
-
-```python
-def parse_validation_results(results_text: str) -> list[ValidationResult]:
-    """Parse pyshacl report text into structured ValidationResult list."""
-    ...
-```
-
-Located in `shacl_validation.py`.
-
-#### 3f. Class Diagram
+#### 5.1 Class Diagram
 
 ```mermaid
 classDiagram
-    class ValidationResult {
-        +str path
-        +str severity
-        +str message
-        +__init__(path, severity, message)
+    class GraphBackend {
+        <<Protocol>>
+        +add_edge(source: str, target: str, relation: str, confidence: float) None
+        +bfs(concept_id: str, depth: int) list[tuple[str, str, float]]
+        +__contains__(node: str) bool
+        +node_count() int
+        +close() None
     }
 
-    class ADLValidator {
-        +bool strict
-        +OntologyManager ontology
-        +bool | None shacl
-        +Callable status_resolver
-        +validate_document(doc) list[str] | list[ValidationResult]
-        +_validate_shacl(doc) list[ValidationResult]
-        +validate_scope_access(doc_scope, requester_scope) bool
+    class Neo4jGraphAdapter {
+        -_driver: Driver
+        -_database: str
+        +__init__(uri: str | None, user: str | None, password: str | None, database: str | None) None
+        +add_edge(source: str, target: str, relation: str, confidence: float) None
+        +bfs(concept_id: str, depth: int) list[tuple[str, str, float]]
+        +__contains__(node: str) bool
+        +node_count() int
+        +close() None
+        -_run(query: str, params: dict) Result
     }
 
-    class shacl_validation {
-        +str _ADL_SHAPES_TURTLE
-        +Graph _shapes_graph
-        +_get_shapes_graph() Graph
-        +_shacl_available() bool
-        +validate_adl_rdf(rdf_data, rdf_format) tuple[bool, str]
-        +_document_to_rdf_graph(doc) Graph
-        +validate_adl_document(doc) tuple[bool, str]
-        +parse_validation_results(results_text) list[ValidationResult]
+    class WarmIndex {
+        -graph: nx.DiGraph | None
+        -graph_backend: GraphBackend | None
+        +__init__(db_path: str, graph_backend: GraphBackend | None) None
+        +_add_relation(rel: ADLRelationBlock) None
+        +get_related(concept_id: str, depth: int) list[tuple[str, str, float]]
+        +delete_document(adl_id: str) None
+        +close() None
     }
 
-    class ADLDocument {
-        +ADLFrontMatter front_matter
-        +str markdown_body
-        +list[ADLRelationBlock] adl_blocks
-        +list[ADLActionBlock] action_blocks
-        +list[ADLRelationBlock] relations
-        +list evidence
-        +list seals
-        +EventChain event_chain
-        +str adl_id
-        +str concept_name
+    class ADLRelationBlock {
+        +source: str
+        +relation: str
+        +target: str
+        +confidence: float
     }
 
-    class CLI {
-        +_cmd_validate(args) int
-        +_cmd_shacl(args) int
-        +_build_parser() ArgumentParser
-        +main(argv) None
+    class ADLMemory {
+        +warm: WarmIndex
+        +find_related(adl_id: str, depth: int) list[tuple[str, str, float]]
     }
 
-    ADLValidator --> ValidationResult : returns
-    ADLValidator --> shacl_validation : calls
-    ADLValidator --> ADLDocument : validates
-    CLI --> ADLValidator : creates & calls
-    shacl_validation --> ValidationResult : parses into
+    GraphBackend <|.. Neo4jGraphAdapter : implements
+    WarmIndex o-- GraphBackend : optional
+    WarmIndex ..> ADLRelationBlock : uses
+    ADLMemory o-- WarmIndex : contains
+```
+
+#### 5.2 Cypher Queries (Internal Design)
+
+| 操作 | Cypher Query |
+|------|-------------|
+| `add_edge` | `MERGE (s:ADLConcept {id: $source}) MERGE (t:ADLConcept {id: $target}) MERGE (s)-[r:RELATES {relation: $relation}]->(t) SET r.confidence = $confidence` |
+| `bfs` | `MATCH (start:ADLConcept {id: $concept_id}) MATCH path = (start)-[*1..$depth]->(other:ADLConcept) WHERE start <> other RETURN DISTINCT other.id AS target, last(relationships(path)).relation AS relation, last(relationships(path)).confidence AS confidence` |
+| `__contains__` | `MATCH (n:ADLConcept {id: $id}) RETURN count(n) > 0 AS exists` |
+| `node_count` | `MATCH (n:ADLConcept) RETURN count(n) AS count` |
+| `clear` | `MATCH (n:ADLConcept) DETACH DELETE n` |
+| `rebuild (insert)` | `UNWIND $edges AS e MERGE (s:ADLConcept {id: e.source}) MERGE (t:ADLConcept {id: e.target}) MERGE (s)-[r:RELATES {relation: e.relation}]->(t) SET r.confidence = e.confidence` |
+
+---
+
+### 6. Program Call Flow
+
+#### 6.1 Neo4j Backend — `get_related()` Sequence
+
+```mermaid
+sequenceDiagram
+    participant Caller as Caller (ADLMemory.find_related)
+    participant Warm as WarmIndex
+    participant Adapter as Neo4jGraphAdapter
+    participant Driver as neo4j.Driver
+    participant Session as neo4j.Session
+    participant DB as Neo4j DB
+
+    Caller->>Warm: get_related("disc-7f3a9b", depth=2)
+    Warm->>Warm: acquire _lock
+
+    alt graph_backend is not None
+        Warm->>Adapter: bfs("disc-7f3a9b", depth=2)
+        Adapter->>Driver: session(database=db)
+        Driver-->>Adapter: Session
+        Adapter->>Session: run(bfs_cypher, concept_id, depth)
+        Session->>DB: MATCH (start:ADLConcept {id:...})
+        DB-->>Session: records
+        Session-->>Adapter: Result
+        Adapter->>Adapter: parse records → list[tuple]
+        Adapter-->>Warm: [(target, relation, conf), ...]
+    else graph is not None (NetworkX)
+        Warm->>Warm: _graph_bfs(concept_id, depth)
+        Warm-->>Caller: results
+    else fallback SQL
+        Warm->>Warm: _sql_bfs(concept_id, depth)
+        Warm-->>Caller: results
+    end
+
+    Warm-->>Caller: [(target, relation, conf), ...]
+```
+
+#### 6.2 Neo4j Backend — `_add_relation()` Sequence
+
+```mermaid
+sequenceDiagram
+    participant Warm as WarmIndex
+    participant Adapter as Neo4jGraphAdapter
+    participant DB as Neo4j DB
+
+    Warm->>Warm: _add_relation(rel)
+    Warm->>Warm: INSERT INTO relations (SQLite)
+
+    alt graph_backend is not None
+        Warm->>Adapter: add_edge(source, target, relation, confidence)
+        Adapter->>DB: MERGE (s)-[r:RELATES]->(t) SET r.confidence=...
+        DB-->>Adapter: OK
+    else graph is not None (NetworkX)
+        Warm->>Warm: graph.add_edge(...)
+    end
+```
+
+#### 6.3 CLI `neo4j rebuild` Sequence
+
+```mermaid
+sequenceDiagram
+    participant CLI as adl-lite CLI
+    participant DB as SQLite (relations table)
+    participant Adapter as Neo4jGraphAdapter
+    participant Neo4j as Neo4j DB
+
+    CLI->>CLI: parse_args → neo4j rebuild
+    CLI->>Adapter: Neo4jGraphAdapter(uri, user, password)
+    Adapter-->>CLI: adapter instance
+    CLI->>DB: SELECT source, predicate, target, confidence FROM relations
+    DB-->>CLI: rows
+    
+    loop each row
+        CLI->>Adapter: add_edge(source, target, predicate, confidence)
+        Adapter->>Neo4j: MERGE ... SET ...
+    end
+    
+    CLI->>Adapter: node_count()
+    Adapter-->>CLI: N
+
+    CLI->>Adapter: close()
+    CLI->>CLI: print "rebuild complete: N nodes, M edges"
 ```
 
 ---
 
-### 4. Program Call Flow
+### 7. Anything UNCLEAR
 
-#### Flow 1: `adl-lite validate --shacl doc.md`
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant CLI as cli.py (_cmd_validate)
-    participant Val as ADLValidator
-    participant SH as shacl_validation
-    participant Rdf as rdflib/pyshacl
-
-    User->>CLI: adl-lite validate --shacl doc.md
-    Note over CLI: args.shacl=True
-
-    CLI->>CLI: parse_file("doc.md") → ADLDocument
-    
-    CLI->>Val: ADLValidator(strict=False, shacl=True)
-    Val->>Val: _shacl = True (force enable)
-
-    CLI->>Val: validate_document(doc)
-    Val->>Val: _validate_front_matter() → []
-    Val->>Val: _validate_markdown_body() → []
-    Val->>Val: self.shacl is truthy → call _validate_shacl(doc)
-
-    Val->>SH: validate_adl_document(doc)
-    SH->>SH: _document_to_rdf_graph(doc)
-    SH->>SH: Export EventChain → PROV-O Turtle
-    SH->>SH: Enrich CALIBRATE events (observedAccuracy)
-    SH->>SH: Enrich FORK events (sourceConceptId, targetConceptId)
-    SH->>SH: Enrich Relations (source, target, etc.)
-    SH->>Rdf: Graph() + parse(data=turtle)
-    
-    SH->>Rdf: pyshacl.validate(data_graph, shacl_graph)
-    Rdf-->>SH: (conforms, _, results_text)
-    SH-->>Val: (conforms, results_text)
-
-    Val->>SH: parse_validation_results(results_text)
-    SH-->>Val: [ValidationResult(...), ...]
-
-    alt conforms
-        Val-->>CLI: [] (empty errors)
-        CLI-->>User: doc.md: OK
-    else violations
-        Val-->>CLI: [ValidationResult(...)]
-        CLI-->>User: doc.md: FAIL (3 error(s))
-        CLI-->>User:   - [Violation] adl:sourceConceptId: …
-    end
-```
-
-#### Flow 2: `adl-lite shacl doc.md` (standalone)
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant CLI as cli.py (_cmd_shacl)
-    participant SH as shacl_validation
-    
-    User->>CLI: adl-lite shacl doc.md
-    
-    CLI->>CLI: parse_file("doc.md") → ADLDocument
-    
-    CLI->>SH: validate_adl_document(doc)
-    SH->>SH: _document_to_rdf_graph(doc)
-    SH->>SH: pyshacl.validate(...)
-    SH-->>CLI: (conforms, results_text)
-    
-    CLI->>SH: parse_validation_results(results_text)
-    SH-->>CLI: [ValidationResult(...)]
-
-    alt conforms
-        CLI-->>User: doc.md: SHACL OK
-    else violations
-        CLI-->>User: doc.md: SHACL FAIL
-        CLI-->>User:   [Violation] adl:sourceConceptId: …
-    end
-```
-
----
-
-### 5. Anything UNCLEAR
-
-| Item | Status |
-|------|--------|
-| FORK payload field names | **Confirmed by PM**: `source_concept_id` / `target_concept_id` kept as-is |
-| TRANSITION constraints scope | **Confirmed by PM**: SHACL handles structural; ontology layer handles state machine |
-| ValidationResult.severity type | **Confirmed by PM**: `str` ("Violation"/"Warning"/"Info") — no enum |
-| `--no-shacl` flag | **Confirmed by PM**: added alongside `--shacl` |
-| Auto-detect behavior | Assumed: when `shacl=None`, check `pyshacl` importability; when `shacl=True`, raise `ImportError` if not importable |
-| `_validate_shacl` return type change | **Breaking change**: callers expecting `list[str]` must now handle `list[ValidationResult]`. The CLI `_cmd_validate()` currently prints errors as strings. Since `ADLValidator.validate_document()` returns `list[str]` (the union of all checks), the SHACL errors must remain `str` compatible OR the whole method return type changes. **Decision**: Keep `validate_document()` returning `list[str]`, but make `_validate_shacl()` internally produce `list[ValidationResult]` and convert to `str` only for the outer return. Alternatively, add a `detailed` flag. |
-| Error display format | Assumed: CLI prints `[severity] path: message` for each `ValidationResult` when `--shacl` is active |
+| 待明确项 | 影响 | 建议 |
+|----------|------|------|
+| Neo4j **Auth Token 过期/轮转** 策略 | 长连接的生产环境安全性 | MVP 不做 token 轮转；使用长期有效的 basic auth。后续可加 `neo4j-jwt` 集成 |
+| **事务粒度** | `add_edge` 每个调用是否独立事务 | MVP 每个 `add_edge` 自包含事务（driver 默认 auto-commit）。rebuild 场景可考虑 batch transaction |
+| **连接池大小** | 高并发下的 resource 管理 | 使用 driver 默认连接池（`max_connection_pool_size=100`），MVP 不做调优 |
+| **重建时节点已存在** | `MERGE` 幂等，但已有 edge 的 `confidence` 是否覆盖 | 覆盖（`SET r.confidence = $confidence`）。全量重建 = 从 SQLite 同步最新状态 |
 
 ---
 
 ## Part B: Task Decomposition
 
-### 6. Required Packages
+---
 
-No new packages required. Existing dependencies for `[gov]` extra:
+### 8. Required Packages
 
 ```
-- pyshacl>=0.25       # SHACL validation engine (already in [gov] extra)
-- rdflib>=7.0         # RDF graph library (already in [gov] extra)
+# pyproject.toml — new [neo4j] optional extras
+neo4j>=5.0              # Neo4j Python driver (sync API)
+
+# Test dependencies (already in [dev])
+pytest>=7.0
+pytest-cov>=4.0
 ```
 
-Install command: `pip install -e '.[gov]'`
+已在 `pyproject.toml` 的 `[dev]` 中有 pytest，无需新增测试依赖。
 
 ---
 
-### 7. Task List (ordered by dependency)
+### 9. Task List
 
-#### T01: 项目基础设施 + ValidationResult 数据模型
+| Task ID | Task Name | Source Files | Dependencies | Priority |
+|---------|-----------|-------------|--------------|----------|
+| **T01** | 项目基础设施 — pyproject.toml extras + config + __init__ 导出 | `pyproject.toml`, `adl_lite/config.py`, `adl_lite/__init__.py` | 无 | P0 |
+| **T02** | Neo4jGraphAdapter 核心实现 — GraphBackend Protocol + 5 个方法 + Cypher 查询 | `adl_lite/neo4j_adapter.py` | T01 | P0 |
+| **T03** | WarmIndex 集成 — graph_backend 参数 + 三处分发逻辑（_add_relation/get_related/delete_document/close） | `adl_lite/memory.py` | T02 | P0 |
+| **T04** | CLI neo4j 子命令 — `adl-lite neo4j status|rebuild` | `adl_lite/cli.py` | T01, T03 | P1 |
+| **T05** | 单元测试 — mocked neo4j driver 覆盖所有 5 个方法 + WarmIndex 集成 | `tests/test_neo4j_adapter.py` | T02, T03 | P0 |
 
-| Field | Value |
-|-------|-------|
-| **Task ID** | T01 |
-| **Priority** | P0 |
-| **Name** | Project infrastructure + ValidationResult dataclass |
-| **Source Files** | `adl_lite/models.py`, `adl_lite/__init__.py`, `pyproject.toml` |
-| **Dependencies** | None |
+#### 9.1 Task Details
 
-**Scope:**
-1. Add `ValidationResult` dataclass to `adl_lite/models.py`:
-   - `path: str` — RDF property path
-   - `severity: str` — "Violation" / "Warning" / "Info"
-   - `message: str` — human-readable description
-   - Optional `focus_node: str = ""` for the RDF node that triggered the violation
-2. Export `ValidationResult` in `adl_lite/__init__.py` (both import and `__all__`)
-3. `pyproject.toml`: no changes needed (dependencies already declared); verify version is `0.6.0-alpha`
+##### T01: 项目基础设施
 
----
+**文件**: `pyproject.toml`, `adl_lite/config.py`, `adl_lite/__init__.py`
 
-#### T02: ADLValidator shacl 默认启用 + 结构化结果返回
+**内容**:
+1. `pyproject.toml`: 在 `[project.optional-dependencies]` 新增 `neo4j = ["neo4j>=5.0"]`
+2. `adl_lite/config.py`: 新增 `Neo4jSettings` 类（复用 `pydantic-settings` 的 `BaseSettings`），定义 `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `NEO4J_DATABASE` 字段，带默认值
+3. `adl_lite/__init__.py`: 新增 `from .neo4j_adapter import Neo4jGraphAdapter` 导出（import 用 try/except 保护，`neo4j` 为 optional dep）
 
-| Field | Value |
-|-------|-------|
-| **Task ID** | T02 |
-| **Priority** | P0 |
-| **Name** | ADLValidator shacl default-on + structured _validate_shacl |
-| **Source Files** | `adl_lite/validator.py`, `adl_lite/shacl_validation.py`, `tests/test_shacl_validation.py` |
-| **Dependencies** | T01 |
+##### T02: Neo4jGraphAdapter 核心实现
 
-**Scope:**
-1. **`adl_lite/validator.py`**:
-   - Change `ADLValidator.__init__` signature: `shacl: bool = False` → `shacl: bool | None = None`
-   - Add `_shacl_available()` check in validator (mirror existing one in `shacl_validation.py`)
-   - Update `validate_document()`: when `self.shacl is None`, auto-detect; when `True`, require pyshacl
-   - Change `_validate_shacl()` return type from `list[str]` to `list[ValidationResult]`
-   - Internally call `parse_validation_results()` to parse pyshacl report
-   - Convert `ValidationResult` list to `str` list in `validate_document()` for backward compatibility (or introduce a `detailed` flag — **decision: keep `validate_document()` returning `list[str]`**, convert VR → str via `f"[{r.severity}] {r.path}: {r.message}"`)
-2. **`adl_lite/shacl_validation.py`**:
-   - Add `parse_validation_results(results_text: str) -> list[ValidationResult]` function
-   - Parse pyshacl report text by splitting on blank lines, extracting `severity`, `path`, `message` using regex
-3. **`tests/test_shacl_validation.py`**:
-   - Add test for `parse_validation_results()` with known pyshacl output
-   - Update existing tests if needed (they use the old tuple return)
+**文件**: `adl_lite/neo4j_adapter.py`（新建）
 
----
+**类**: 
+- `GraphBackend` — `typing.Protocol` 定义 5 个方法签名
+- `Neo4jGraphAdapter` — 实现 `GraphBackend`，封装 `neo4j.GraphDatabase.driver`
 
-#### T03: ForkShape SHACL 形状 + _document_to_rdf_graph Fork 富化
+**方法**:
+- `__init__`: 从环境变量读取默认值，构造参数覆盖；`NEO4J_URI` 默认 `bolt://localhost:7687`，`NEO4J_USER` 默认 `neo4j`，`NEO4J_PASSWORD` 无默认值（raise on None），`NEO4J_DATABASE` 默认 `neo4j`
+- `_run(query, params)`: 内部 helper，创建 session、执行、返回 records
+- `add_edge`: `MERGE` 幂等插入 edge
+- `bfs`: Cypher BFS 只走**出边**，返回 `list[tuple[str, str, float]]`
+- `__contains__`: Cypher `count(n) > 0`
+- `node_count`: Cypher `count(n)`
+- `close`: `driver.close()`
 
-| Field | Value |
-|-------|-------|
-| **Task ID** | T03 |
-| **Priority** | P0 |
-| **Name** | ForkShape SHACL shape + FORK event RDF enrichment |
-| **Source Files** | `adl_lite/shacl_validation.py`, `tests/test_shacl_validation.py`, `adl_lite/models.py` |
-| **Dependencies** | T01 |
+##### T03: WarmIndex 集成
 
-**Scope:**
-1. **`adl_lite/shacl_validation.py`**:
-   - Add ForkShape to `_ADL_SHAPES_TURTLE` (see §3b above)
-   - Enrich `_document_to_rdf_graph()` — add FORK event handling:
-     ```python
-     if event.event_type == EventType.FORK:
-         evt_uri = adl[f"evt-{doc.adl_id}-{event.event_type.value}-{idx:03d}"]
-         src = event.payload.get("source_concept_id")
-         tgt = event.payload.get("target_concept_id")
-         if src is not None:
-             g.add((evt_uri, adl.sourceConceptId, Literal(str(src))))
-         if tgt is not None:
-             g.add((evt_uri, adl.targetConceptId, Literal(str(tgt))))
-     ```
-   - Add ADL namespace terms: `adl.sourceConceptId`, `adl.targetConceptId` (already Namespace-based, auto-resolved)
-2. **`tests/test_shacl_validation.py`**:
-   - `test_fork_event_missing_source_fails` — FORK event without `source_concept_id` → SHACL failure
-   - `test_fork_event_missing_target_fails` — FORK event without `target_concept_id` → SHACL failure
-   - `test_fork_event_valid_passes` — FORK event with both fields → SHACL pass
-3. **`adl_lite/models.py`** (if needed for test helpers): no changes needed, EventType.FORK already exists
+**文件**: `adl_lite/memory.py`
 
----
+**改动点**:
+1. `WarmIndex.__init__`: 新增 `graph_backend: GraphBackend | None = None` 参数。当 `graph_backend` 非 None 时，`self.graph = None`（不初始化 NetworkX）
+2. `WarmIndex._add_relation`: 在 "if self.graph and HAS_NETWORKX" 前增加 `elif self.graph_backend:` 分支，调用 `self.graph_backend.add_edge(...)`
+3. `WarmIndex.get_related`: 在 "if self.graph and HAS_NETWORKX" 后增加 `elif self.graph_backend:` 分支，调用 `self.graph_backend.bfs(...)`
+4. `WarmIndex.delete_document`: 在 "if adl_id in self.graph" 前增加 `elif self.graph_backend:` 分支（但 delete_document 的 NetworkX 操作只是 remove_node；Neo4j 的删除在 `clear` / rebuild 场景处理，MVP 不实现单节点删除——如需删除，SQLite 是权威源，重建即可）
+5. `WarmIndex.close`: 调用 `self.graph_backend.close()` 如果存在
 
-#### T04: CLI --shacl/--no-shacl + shacl 子命令
+**注意**: `delete_document` 中 Neo4j 端不实现节点级删除（保持简洁）；SQLite 仍为权威存储，Neo4j 是查询加速层。如需同步删除，可通过 rebuild。
 
-| Field | Value |
-|-------|-------|
-| **Task ID** | T04 |
-| **Priority** | P0 |
-| **Name** | CLI --shacl/--no-shacl flags + standalone shacl subcommand |
-| **Source Files** | `adl_lite/cli.py`, `tests/test_shacl_validation.py`, `tests/test_cli.py` |
-| **Dependencies** | T02, T03 |
+##### T04: CLI neo4j 子命令
 
-**Scope:**
-1. **`adl_lite/cli.py`**:
-   - **`validate` subcommand**: Add `--shacl` and `--no-shacl` flags:
-     ```python
-     p_validate.add_argument("--shacl", action="store_true", help="Enable SHACL validation")
-     p_validate.add_argument("--no-shacl", action="store_true", help="Disable SHACL validation")
-     ```
-   - **`_cmd_validate()`**: Pass shacl parameter:
-     ```python
-     shacl = True if args.shacl else (False if args.no_shacl else None)
-     validator = ADLValidator(strict=args.strict, shacl=shacl)
-     ```
-   - **`shacl` subcommand**: New standalone subcommand:
-     ```python
-     p_shacl = sub.add_parser("shacl", help="Run SHACL validation only")
-     p_shacl.add_argument("files", nargs="+", help="Paths to .md documents")
-     p_shacl.add_argument("--strict", action="store_true", help="Reject unknown relation predicates")
-     p_shacl.set_defaults(func=_cmd_shacl)
-     ```
-   - **`_cmd_shacl()`**: Implementation that:
-     - Creates `ADLValidator(shacl=True)` 
-     - Parses each file
-     - Calls `validate_adl_document()` directly (bypassing SSA checks)
-     - Parses results with `parse_validation_results()`
-     - Prints structured output with `[severity] path: message` format
-     - Returns exit code 0 (all pass) or 1 (any fail)
+**文件**: `adl_lite/cli.py`
 
-2. **`tests/test_shacl_validation.py`** (integration tests):
-   - `test_cli_validate_with_shacl_flag` — simulate CLI args
-   - `test_cli_shacl_subcommand` — simulate `adl-lite shacl` call
-   - `test_cli_no_shacl_disables` — `--no-shacl` suppresses SHACL even when pyshacl is available
-
-3. **`tests/test_cli.py`**: If exists, add CLI-level tests; if not, create with basic argument parsing tests
-
----
-
-### 8. Shared Knowledge
-
+**子命令结构**:
 ```
-1. All ValidationResult.severity values are raw strings: "Violation", "Warning", "Info"
-2. ADLValidator.shacl parameter: None=auto-detect, True=force, False=disable
-3. FORK event payload dict uses "source_concept_id" and "target_concept_id" keys
-4. pyshacl report text is parsed by blank-line-separated result blocks
-5. validate_document() always returns list[str] for backward compatibility
-6. _validate_shacl() internally returns list[ValidationResult], converted to str for outer API
-7. The shacl subcommand bypasses SSA validation — it is SHACL-only
-8. CLI exit codes: 0=success, 1=validation/parse failure
-9. adl namespace terms added: adl:sourceConceptId, adl:targetConceptId
-10. New ADL shapes all use sh:NodeShape with sh:targetClass pointing to adl:ForkEvent
+adl-lite neo4j status   -- 检查 Neo4j 连接 → 打印连接状态、节点数
+adl-lite neo4j rebuild  -- 从 SQLite relations 表全量重建到 Neo4j
 ```
 
+参数: `--db` (SQLite 路径), `--uri`, `--user`, `--password`, `--database`（后四个覆盖环境变量）
+
+**实现**:
+- `_cmd_neo4j_status(args)`: 创建 `Neo4jGraphAdapter`，调用 `node_count()`，成功则打印 `"Neo4j connected: N nodes"`，失败打印错误信息
+- `_cmd_neo4j_rebuild(args)`: 打开 SQLite，SELECT relations 表全量数据，遍历调用 `add_edge`，结束后打印统计
+
+##### T05: 单元测试
+
+**文件**: `tests/test_neo4j_adapter.py`（新建）
+
+**测试内容**:
+1. `TestNeo4jGraphAdapter` — mock `neo4j.GraphDatabase.driver`:
+   - `test_add_edge`: verify `session.run` called with MERGE cypher
+   - `test_bfs`: mock result records, verify returns correct tuples
+   - `test_contains`: mock count>0 / count=0, verify True/False
+   - `test_node_count`: mock count, verify returns int
+   - `test_close`: verify `driver.close()` called
+   - `test_init_from_env`: set env vars, verify constructor reads them (monkeypatch)
+   - `test_init_from_params`: verify constructor params override env
+2. `TestWarmIndexNeo4jIntegration` — test WarmIndex with mock `Neo4jGraphAdapter`:
+   - `test_graph_backend_injection`: create WarmIndex with mock adapter
+   - `test_add_relation_dispatches_to_backend`: verify `add_edge` called
+   - `test_get_related_dispatches_to_backend`: verify `bfs` called
+
 ---
 
-### 9. Task Dependency Graph
+### 10. Task Dependency Graph
 
 ```mermaid
 graph TD
-    T01["T01: 项目基础设施 + ValidationResult"] --> T02
-    T01 --> T03
-    T02 --> T04
-    T03 --> T04
-    T04 --> T05
+    T01["T01: 项目基础设施<br/>(pyproject.toml + config + __init__)"]
+    T02["T02: Neo4jGraphAdapter 核心实现<br/>(neo4j_adapter.py)"]
+    T03["T03: WarmIndex 集成<br/>(memory.py)"]
+    T04["T04: CLI neo4j 子命令<br/>(cli.py)"]
+    T05["T05: 单元测试<br/>(test_neo4j_adapter.py)"]
 
-    style T01 fill:#4a90d9,stroke:#fff,color:#fff
-    style T02 fill:#50b86c,stroke:#fff,color:#fff
-    style T03 fill:#50b86c,stroke:#fff,color:#fff
-    style T04 fill:#e8a838,stroke:#fff,color:#fff
-    style T05 fill:#e8a838,stroke:#fff,color:#fff
+    T01 --> T02
+    T02 --> T03
+    T01 --> T04
+    T03 --> T04
+    T02 --> T05
+    T03 --> T05
 ```
 
-| Task | Depends On | Parallelizable |
-|------|-----------|----------------|
-| **T01** Project infra | — | — |
-| **T02** Validator default-on + structured results | T01 | ✅ T03 (parallel after T01) |
-| **T03** ForkShape + RDF enrichment | T01 | ✅ T02 (parallel after T01) |
-| **T04** CLI flags + shacl subcommand | T02, T03 | ❌ Serial |
+---
+
+### 11. Shared Knowledge
+
+#### 环境变量约定
+
+```
+NEO4J_URI       = bolt://localhost:7687   # 默认
+NEO4J_USER      = neo4j                   # 默认
+NEO4J_PASSWORD  = <REQUIRED>              # 无默认值
+NEO4J_DATABASE  = neo4j                   # 默认
+```
+
+构造函数参数（`Neo4jGraphAdapter(uri=..., user=..., password=..., database=...)`）优先级高于环境变量。
+
+#### 架构约定
+
+| 约定 | 说明 |
+|------|------|
+| **SQLite 为权威存储** | Neo4j 是查询加速层，非权威。所有写操作先写 SQLite，再同步到 Neo4j |
+| **NetworkX ↔ Neo4j 互斥** | `WarmIndex` 中 `graph_backend` 非 None 时 `self.graph` 置为 None，二者不会共存 |
+| **Cypher BFS 仅出边** | 对齐 NetworkX `successors` 行为，不搜索入边 |
+| **幂等写入** | 全部使用 `MERGE` 而非 `CREATE`，支持重复调用不产生重复数据 |
+| **所有日期/时间 ISO 8601** | 保持与现有代码库一致 |
+| **neo4j driver 为 long-lived singleton** | 每个 `Neo4jGraphAdapter` 实例持有唯一 driver，不应频繁创建销毁 |
+
+#### 错误处理模式
+
+```python
+# Neo4j 不可用时优雅降级
+try:
+    results = self.graph_backend.bfs(concept_id, depth)
+except ServiceUnavailableError:
+    logger.warning("Neo4j unavailable, falling back to SQL BFS")
+    results = self._sql_bfs(concept_id, depth)
+```
+
+> **MVP 简化**: 上述降级逻辑为 P2（后续迭代）。MVP 中 Neo4j 不可用时直接抛出异常，由上层调用者处理。
+
+#### 代码风格
+
+- 遵循现有项目规范（ruff, mypy）
+- Type annotation 全覆盖
+- 所有 public 方法添加 docstring（与现有 `WarmIndex` 风格一致）
