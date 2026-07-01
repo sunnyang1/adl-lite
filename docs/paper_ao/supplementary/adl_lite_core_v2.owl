@@ -193,12 +193,7 @@ adl:concretizedBy rdf:type owl:ObjectProperty ;
   owl:members ( adl:EventChain adl:EventChainRecord )
 ] .
 
-# (9) SWRL rules (status-transition constraints)
-# Rule 1: A validated concept can be deprecated
-# Rule 2: A deprecated concept cannot be validated
-# Note: These are illustrative; full SWRL encoding requires rule engine support
-
-# (10) Cardinality constraints
+# (9) Cardinality constraints
 [ rdf:type owl:Restriction ;
   owl:onProperty adl:hasSHA256Hash ;
   owl:cardinality "1"^^xsd:nonNegativeInteger

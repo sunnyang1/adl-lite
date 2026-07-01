@@ -52,6 +52,11 @@ predicates:
   indexed-phrase:
     description: Lexical anchor to warm-index phrase id
     allowed_mapping_types: [lexical]
+  depends-on:
+    description: Generic ontological dependence (D2 axiom) — one concept depends on another for its existence or validity
+    allowed_mapping_types: [ontological]
+    transitive: false
+    symmetric: false
 
 # mapping_type values observed in corpus (informational; not strict-validated in 2a)
 mapping_types:

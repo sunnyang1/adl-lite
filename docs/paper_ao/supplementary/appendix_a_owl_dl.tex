@@ -183,52 +183,9 @@ adl:hasPayload rdf:type owl:DatatypeProperty ;
     rdfs:label "has payload" .
 \end{lstlisting}
 
-\subsection{SWRL Rules for Status-Transition Constraints}
+\subsection{Status-Transition Constraints (Outside OWL~2 DL Expressivity)}
 
-While full operational encoding of $\delta(C)$ exceeds OWL~2 DL expressivity, the lifecycle transition graph can be partially encoded as SWRL rules. These are \emph{illustrative} rather than executable within the ADL Lite runtime (which uses the ActionExecutor).
-
-\begin{lstlisting}[language=turtle, caption={Illustrative SWRL rules for lifecycle transitions.}, label={lst:owl-swrl}]
-@prefix swrl: <http://www.w3.org/2003/11/swrl#> .
-@prefix swrlb: <http://www.w3.org/2003/11/swrlb#> .
-
-# Rule: If a concept has status deprecated, it cannot have status validated
-# (Informative: enforces transition monotonicity)
-[ rdf:type swrl:Imp ;
-  swrl:body [
-    rdf:type swrl:AtomList ;
-    rdf:first [
-      rdf:type swrl:ClassAtom ;
-      swrl:argument1 _:c ;
-      swrl:classPredicate adl:Concept
-    ] ;
-    rdf:rest [
-      rdf:first [
-        rdf:type swrl:IndividualPropertyAtom ;
-        swrl:propertyPredicate adl:hasStatus ;
-        swrl:argument1 _:c ;
-        swrl:argument2 adl:deprecated
-      ] ;
-      rdf:rest rdf:nil
-    ]
-  ] ;
-  swrl:head [
-    rdf:type swrl:AtomList ;
-    rdf:first [
-      rdf:type swrl:ClassAtom ;
-      swrl:argument1 _:c ;
-      swrl:classPredicate [
-        rdf:type owl:Class ;
-        owl:complementOf [
-          rdf:type owl:Restriction ;
-          owl:onProperty adl:hasStatus ;
-          owl:hasValue adl:validated
-        ]
-      ]
-    ] ;
-    rdf:rest rdf:nil
-  ]
-] .
-\end{lstlisting}
+While full operational encoding of $\delta(C)$ exceeds OWL~2 DL expressivity, the lifecycle transition graph can be partially expressed using SWRL rules. However, the current \texttt{adl\_lite\_core\_v2.owl} file does \emph{not} include SWRL rules because (i)~SWRL built-in atoms (e.g., \texttt{swrlb:greaterThanOrEqual}) are outside the DL-safe fragment and unsupported by HermiT; (ii)~the status LUB and confidence aggregation require recursive computation that SWRL cannot express; and (iii)~the ActionExecutor enforces preconditions and transitions at runtime, making OWL-level SWRL rules redundant for operational enforcement. The fragment is therefore a \emph{conceptual alignment anchor} without executable SWRL rules.
 
 \subsection{Validation Report}
 
@@ -236,8 +193,8 @@ While full operational encoding of $\delta(C)$ exceeds OWL~2 DL expressivity, th
 
 \textbf{OWL~2 DL profile validation.} ROBOT \texttt{validate} confirms that the expanded ontology conforms to the OWL~2 DL profile (\texttt{owl2\_dl = true}) in both Turtle and RDF/XML formats. The fragment contains 130 axioms, 7 classes, 5 datatype properties, 13 object properties, 13 individuals, and 44 signature entities. It does not conform to OWL~2 EL/QL/RL because \texttt{TransitiveProperty} and \texttt{SymmetricProperty} declarations exceed the expressivity of those profiles; this is intentional and correct.
 
-\textbf{Consistency checking.} The structural reasoner built into ROBOT reports a consistent ontology (no contradictions among the declared axioms). HermiT was not used because the embedded SWRL rules contain built-in atoms (\texttt{swrlb:greaterThanOrEqual}, \texttt{swrlb:notEqual}) that are outside HermiT's supported fragment; this is a known limitation of HermiT, not an ontology error. SWRL rules remain executable in Drools-based or external rule engines.
+\textbf{Consistency checking.} The structural reasoner built into ROBOT reports a consistent ontology (no contradictions among the declared axioms). HermiT was also tested and reported a consistent ontology. No unsatisfiable classes or property inconsistencies were detected.
 
 \textbf{SPARQL constraint validation (ROBOT verify).} Three SPARQL constraint queries were executed with ROBOT \texttt{verify}: (i)~\texttt{confidence\_range} (detects confidence outside $[0,1]$); (ii)~\texttt{no\_self\_loop} (detects source--target self-referential L3 relations); (iii)~\texttt{validated\_min\_confidence} (detects \texttt{validated} status with confidence $< 0.5$). On a normal ADL document (\texttt{capital\_reflux\_trap.md}) all three constraints passed with zero violations. On a deliberately corrupted document (confidence set to 0.3 for a \texttt{validated} concept), the \texttt{validated\_min\_confidence} constraint correctly reported one violation, demonstrating that the SPARQL constraints can detect real data-quality anomalies.
 
-\textbf{Known limitations.} (i)~The \texttt{adl:hasConfidence} range is declared as \texttt{xsd:float} without a $[0,1]$ facet constraint (OWL~2 DL does not support numeric-range facets on datatype properties); the $[0,1]$ bound is enforced by the ActionExecutor, not the OWL reasoner. (ii)~The SWRL rule in Listing~\ref{lst:owl-swrl} uses an \texttt{owl:complementOf} restriction in the head, which exceeds the DL-safe SWRL fragment; this is acknowledged as an expressive illustration, not a runtime enforcement mechanism. (iii)~Full encoding of $\delta$ (status LUB) and $\gamma$ (confidence aggregation) remains outside OWL~2 DL expressivity for the reasons stated in \S\ref{subsec:formal-alignment}: recursive aggregation over sequences, temporal reasoning, and procedural precondition evaluation require external computation. The fragment is intentionally a \emph{conceptual alignment anchor}---a starting point for interoperability with BFO-based tools---not a complete operational encoding.
+\textbf{Known limitations.} (i)~The \texttt{adl:hasConfidence} range is declared as \texttt{xsd:float} without a $[0,1]$ facet constraint (OWL~2 DL does not support numeric-range facets on datatype properties); the $[0,1]$ bound is enforced by the ActionExecutor, not the OWL reasoner. (ii)~SWRL rules are not included in the current fragment because status LUB and confidence aggregation require recursive computation beyond SWRL expressivity; the ActionExecutor enforces transitions at runtime. (iii)~Full encoding of $\delta$ (status LUB) and $\gamma$ (confidence aggregation) remains outside OWL~2 DL expressivity for the reasons stated in \S\ref{subsec:formal-alignment}: recursive aggregation over sequences, temporal reasoning, and procedural precondition evaluation require external computation. The fragment is intentionally a \emph{conceptual alignment anchor}---a starting point for interoperability with BFO-based tools---not a complete operational encoding.

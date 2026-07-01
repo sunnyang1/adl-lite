@@ -103,9 +103,9 @@ EventChain-record ($R$): the serialized, hash-linked JSON/YAML representation---
 \end{enumerate}
 
 \paragraph{First-order logic encoding (selected axioms).}
-To make the dependence structure amenable to formal analysis, we translate two core axioms into first-order logic with modal existence predicates (following Fine's framework \cite{fine1995ontologicaldependence}). Let $E(x,w)$ mean ``$x$ exists in world $w$'' and $\text{Dep}(x,y,w)$ mean ``$x$ ontologically depends on $y$ in world $w$''.
+To make the dependence structure amenable to formal analysis, we translate two core axioms into first-order logic with explicit world parameters (following Fine's possible-worlds framework \cite{fine1995ontologicaldependence}). Let $E(x,w)$ mean ``$x$ exists in world $w$'' and $\text{Dep}(x,y,w)$ mean ``$x$ ontologically depends on $y$ in world $w$''.
 
-\textbf{D2 (Generic dependence).} A concept generically depends on EventChain-records as a class of bearers, not on any specific bearer:
+\textbf{D2 (Generic dependence).} A concept generically depends on EventChain-records as a class of bearers, not on any specific bearer. The use of a world parameter $w$ makes the dependence relations explicit across possible worlds, but this is FOL with an additional sort for worlds, not modal logic (there are no modal operators $\Box$ or $\Diamond$):
 \begin{multline}\label{eq:d2-fol}
 \forall c\;\bigl(\text{Concept}(c) \rightarrow \\[-2pt]
 \quad \forall w\,\bigl(E(c,w) \rightarrow \exists R\,(\text{EventChainRecord}(R) \land \text{Dep}(c,R,w))\bigr) \land \\[-2pt]

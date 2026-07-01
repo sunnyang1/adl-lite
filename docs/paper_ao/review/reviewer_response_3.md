@@ -153,9 +153,9 @@ We also revised the Deviation 3 paragraph to replace the incorrect "Horn-clause 
 | Priority | Section | Change | Reviewer concern |
 |----------|---------|--------|------------------|
 | Major 1 | §3.2.4 | Added FOL encoding of D2 and D5 (Eq. 1–2) | Ontological axioms in natural language only |
-| Major 2 | Appendix A | Expanded OWL fragment: 7 L3 object properties, dependence axioms, SWRL rule | OWL fragment too thin |
-| Major 3 | Appendix I | Reported Coq proofs (T3, T4, T7 completed; T1, T9 WIP) and TLA+ bounds | No machine verification reported |
-| Major 4 | §5.4 | E5: IRB approved, 8 experts recruited, LLM-as-judge proxy ($r = 0.71$, $0.58$, $0.82$) | E5 only "planned" |
+| Major 2 | Appendix A | Expanded OWL fragment: 7 L3 object properties, dependence axioms, 12 predicates total, ROBOT validated (OWL 2 DL confirmed, no SWRL rules due to expressivity limits) | OWL fragment too thin |
+| Major 3 | Appendix I | Reported Coq proofs (T3, T4, T7 completed; T1, T9 stated but not fully closed) and TLA+ bounds; abstract corrected to "six machine-verified, three stated" | No machine verification reported |
+| Major 4 | §5.4 | E5 replaced with multi-agent literature review case study (19 chains, 79 events, cross-validation, deprecation, fork); human expert study retained as supplementary (IRB, 8/15 recruited) | E5 only "planned" |
 | Minor 5 | §3.6 | Added Table~\ref{tab:operational-vs-ufob} comparing operational mechanisms | "Operational ontology" imprecise |
 | Minor 6 | §3.6, App. E, H, A | Replaced "Horn-clause" with "variable-free ground fragment" | Overstated formal claim |
 | Minor 7 | §5.2 | Added 95% CI [99.963%, 100.0%] for E2-ext | No confidence interval |
