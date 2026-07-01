@@ -65,7 +65,7 @@ E13 measures the performance and integrity of \textsc{VerifyIntegrity} on chains
 
 E14 tests the vulnerability identified in Limitation~L3 (un-calibrated confidence aggregation). A coalition of $k$ colluding validators each appends a \texttt{VALIDATE} event with $\mathit{confidence} = 0.99$. The experiment measures the final aggregated confidence $\gamma(C)$ and the coalition size required to reach the maximum.
 
-\textbf{Results.} With $k = 1$, the final confidence reached $0.99$ and the concept transitioned to \texttt{validated}. The status and confidence were fully controlled by a single malicious actor. This confirms that Phase~1's self-reported confidence aggregation is vulnerable to collusion; there is no stake, no reputation penalty, and no multi-signature requirement to prevent a single actor from dominating the consensus. The mitigation is scoped to Phase~3: the calibration layer (\S\ref{subsec:calibration}) and staking-based validation (FW9).
+\textbf{Results.} With $k = 1$, the final confidence reached $0.99$ and the concept transitioned to \texttt{validated}. The status and confidence were fully controlled by a single malicious actor. This confirms that Phase~1's self-reported confidence aggregation is vulnerable to collusion; there is no stake, no reputation penalty, and no multi-signature requirement to prevent a single actor from dominating the consensus. The mitigation is scoped to Phase~3: the calibration layer (Appendix~\ref{app:implementation}) and staking-based validation (FW9).
 
 \subsubsection{Precondition Boundary Stress (E15)}
 

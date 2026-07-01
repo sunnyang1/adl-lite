@@ -1,198 +1,165 @@
-# Response to Reviewer 3 (Synthesis / Area Chair) — ADL Lite
+# Response to Reviewer Comments (Round 3 — Major Revision)
 
-## Review Summary
+## ADL Lite: An Event-First Capability-Lifecycle Registry for LLM Agent Ecosystems
 
-This review provides a comprehensive synthesis of the paper's strengths and weaknesses, together with 7 targeted questions. The reviewer praises the event-first ontological commitment, the two-level occurrent/record account, and the lightweight implementation, but identifies four areas needing clarification: (i) formal semantics of the precondition language, (ii) distributed event-time and CRDT convergence, (iii) confidence aggregation algebraic properties, and (iv) identity/migration/interoperability questions. The reviewer offers a constructive path: "clarifications and a modest empirical user/agent study OR a more complete formal appendix."
-
-We address all 7 questions below. For the overall assessment, we choose the **"more complete formal appendix"** route: we have significantly strengthened Appendix~E with algebraic property proofs for γ, operational semantics for precondition evaluation, and explicit CRDT convergence assumptions. We also include a detailed experimental protocol for the requested user/agent study as future work (FW15), demonstrating that the study design is ready for execution.
+We thank the reviewer for the exceptionally thorough and constructive feedback. This revision addresses all 10 identified items: 4 Major and 6 Minor. Below, we respond to each point individually and indicate the specific changes made.
 
 ---
 
-## Q1: Precondition Formal Grammar, Operational Semantics, Complexity Class
+## Major Revisions
 
-**Question:** Can you provide the formal grammar and operational semantics of the precondition language, along with its exact complexity class and supported temporal/contextual operators? Are preconditions evaluated only on the local chain prefix, or may they reference external chains?
+### 1. Originality — Formalise core ontological axioms (I1–I4, D1–D5) in FOL
 
-**Response:** The precondition language is already formalized in §4.3 ("Formal Precondition Language," lines 56–104) with the following components:
+**Reviewer concern.** The identity and dependence axioms in §3.2.4 are expressed in natural language. For *Applied Ontology*, core axioms (especially D2 generic dependence and D5 no-cross-level-identity) should be presented in first-order logic.
 
-1. **BNF grammar** (line 81–90):
-   ```
-   rule ::= ⟨field, comparator, value⟩
-   field ::= identifier
-   comparator ::= EQ | NEQ | GT | GTE | LT | LTE | IN | EXISTS
-   value ::= scalar | set | null
-   rule_list ::= rule | rule_list AND rule_list | rule_list OR rule_list
-   ```
+**Response.** We have added a new paragraph "First-order logic encoding (selected axioms)" immediately after the Dependence axioms in §3.2.4. It presents:
+- **D2 (Generic dependence)** as a modal FOL formula (Equation~\ref{eq:d2-fol}) using Fine's framework: $\forall c\,(\text{Concept}(c) \rightarrow \forall w\,(E(c,w) \rightarrow \exists R\,(\text{EventChainRecord}(R) \land \text{Dep}(c,R,w))) \land \neg\exists R\,(\text{EventChainRecord}(R) \land \forall w\,(E(c,w) \rightarrow \text{Dep}(c,R,w))))$. The first conjunct states that in every world where $c$ exists, some record bears it; the second states that no particular record is indispensable.
+- **D5 (No cross-level identity)** as the simple FOL formula $\forall x \forall y\,(\text{Occurrent}(x) \land \text{ICE}(y) \rightarrow x \neq y)$ (Equation~\ref{eq:d5-fol}).
+- **I3–I4 (Identity conditions)** as sorted-signature equality formulas over records and processes.
 
-2. **Operational semantics** (line 93–97): The semantic function `eval(r, C) ∈ {true, false}` is defined as:
-   ```
-   eval(⟨f, κ, v⟩, C) = apply(κ, lookup(f, C), v)
-   ```
-   where `lookup(f, C) = Snapshot(C)[f]` (the value of field `f` in the derived snapshot, or `null` if absent), and `apply(κ, x, y)` is the comparator-specific predicate from Table~\ref{tab:comparator-semantics}.
+We chose D2 and D5 because they are the axioms that most directly address the category-mistake risk identified by the reviewer, and because they have the most substantial literature (Fine 1995, BFO 2.0) to ground their formalisation. The FOL formulas are presented as illustrative of achievable formal depth; the OWL 2 DL fragment (Appendix~A) provides a decidable approximation of the class-level structure, while the FOL formulas capture the dependence relations that exceed OWL expressivity.
 
-3. **Complexity class** (Theorem~8, line 103): For any well-formed chain `C` and precondition rule `r`, `eval(r, C)` terminates in **O(1)** time (assuming the derived snapshot is cached). For a list of `k` rules, total time is **O(k)** and space is **O(1)**. The language is a variable-free ground fragment: each rule is a single atomic comparison over a cached derived snapshot, with no quantification, no recursion, and no dynamic code execution. The conjunction of `k` rules is a variable-free conjunction of ground atoms, evaluated in **O(k)** time. This places the precondition language in **P** (in fact, constant-time per rule, linear-time per rule list). The decidability and complexity-class discussion (membership in **P**) is in Appendix~H.
-
-4. **Scope: local chain only** (line 97): The snapshot is pre-computed in **O(n)** time by a single scan of the local chain `C`. Preconditions **do not** reference external chains. This is a deliberate design choice: the precondition language is a closed, local-evaluation fragment that operates only on the derived snapshot of the chain being modified. Cross-chain preconditions (e.g., "allow VALIDATE only if concept X is validated") are not supported in the core language; they would require external lookup and are deferred to future work (FW2). The closed-world scope ensures that precondition evaluation is referentially transparent and can be computed without network access or consensus.
-
-**Changes made:** We have added explicit clarification in §4.3 that preconditions evaluate only on the local chain snapshot and do not reference external chains. The text now reads: "Precondition evaluation is local and referentially transparent: `eval(r, C)` uses a cached derived snapshot computed from the local chain `C` only. Cross-chain preconditions are not supported in the core language; they are deferred to future work (FW2)."
+**Location of change.** §3.2.4, "Two-Level Ontological Account," between the Dependence axioms and the "Resolving the apparent ambiguity" paragraph.
 
 ---
 
-## Q2: Fork/Merge Event-Time, Total/Partial Order, CRDT Convergence
+### 2. Methodology — Expand OWL 2 DL fragment and validate with ROBOT
 
-**Question:** How is event-time handled in forks and merges? Do you assume a total order per chain and a partial order across chains? Please specify the conflict-resolution policy and give at least a proof sketch or counterexample for the proposed CRDT convergence property.
+**Reviewer concern.** The OWL 2 DL fragment is too thin (only 4 classes + 2 datatype properties) and lacks L3 object properties, SWRL/SPARQL constraints, and ROBOT validation.
 
-**Response:** These questions are already addressed in §4.4 and Appendix~E, but we have strengthened the presentation for clarity.
+**Response.** We have completely rewritten Appendix~A (OWL 2 DL Axiomatization) to include:
+- **Core category axioms** (Event, EventChain, EventChainRecord, Concept, Actor, Relation) with BFO/IAO alignment.
+- **L3 relation predicates** as OWL object properties with formal properties: \texttt{isomorphicTo} (symmetric, transitive), \texttt{specialisationOf} (transitive, irreflexive), \texttt{forkOf} (transitive, irreflexive), \texttt{relatedTo} (symmetric), \texttt{analogicalTo} (symmetric), \texttt{coOccursWith} (symmetric), \texttt{mitigatedBy}. Disjointness constraints between all relation types are declared via \texttt{owl:AllDisjointProperties}.
+- **Ontological dependence axioms** (D2–D5): \texttt{dependsOnRecord}, \texttt{concretizedBy}, \texttt{causallyProduces} as object properties, and \texttt{AllDisjointClasses} between EventChain and EventChainRecord.
+- **Lifecycle event types** as a disjoint union (Register, Validate, Deprecate, Fork, Archive).
+- **Data properties** for status, confidence, hash, payload, and previous-event linkage.
+- **Illustrative SWRL rule** for status-transition monotonicity (deprecated concepts cannot simultaneously hold validated status).
 
-1. **Within-chain: total order** (§4.4, line 263): Events within a single chain are totally ordered by the cryptographic linkage (each event points to its predecessor via `previous_event_id`). The chain is a linear sequence; there are no branches within a single chain.
+**Validation report.** The expanded ontology was validated with ROBOT v1.9.7. The Turtle file (\texttt{adl\_lite\_core\_v2.owl}, 183 triples) was parsed and validated with \texttt{rdflib} v6.3.2; no syntax errors were reported. ROBOT \texttt{convert} was successfully executed on both Turtle and RDF/XML serialisations. ROBOT \texttt{validate} confirms OWL~2 DL profile conformance (\texttt{owl2\_dl = true}) in both formats. The structural reasoner reports a consistent ontology (no contradictions). HermiT was not used because the embedded SWRL rules contain built-in atoms (\texttt{swrlb:greaterThanOrEqual}, \texttt{swrlb:notEqual}) outside HermiT's supported fragment; this is a known limitation of HermiT, not an ontology error. Three SPARQL constraint queries were executed with ROBOT \texttt{verify}: (i) confidence range $[0,1]$; (ii) no self-loop L3 relations; (iii) validated status with minimum confidence $\geq 0.5$. On a normal ADL document, all three passed with zero violations. On a deliberately corrupted document (confidence set to 0.3 for a validated concept), the validated-min-confidence constraint correctly reported one violation, demonstrating that the SPARQL constraints can detect real data-quality anomalies. Two known limitations are acknowledged: (i) \texttt{xsd:float} range $[0,1]$ cannot be expressed as an OWL facet (enforced by the ActionExecutor instead); (ii) the SWRL rule uses \texttt{owl:complementOf} in the head, exceeding the DL-safe fragment (acknowledged as an expressive illustration, not a runtime enforcement mechanism).
 
-2. **Across-chain: partial order** (§4.4, line 263–271): For concurrent events across branches (e.g., in a distributed merge scenario), we define a total order `≺` as:
-   ```
-   e_i ≺ e_j ⟺ e_i.timestamp < e_j.timestamp ∨ (e_i.timestamp = e_j.timestamp ∧ e_i.event_id <_lex e_j.event_id)
-   ```
-   This is a **total order** on the set of all events (since timestamps are comparable and `event_id` provides a tiebreaker). However, the **merge semantics** (Phase 3) treat chains as partially ordered: the merge of two chains from the same genesis is the set union of their events, deduplicated by `event_id` (LWW-Set semantics). The merged set is then ordered by `≺` to produce a consistent linear view. This is the standard CRDT approach: events are immutable and uniquely identified, so concurrent branches can be merged by set union without conflict resolution.
-
-3. **Conflict-resolution policy** (§4.4, line 273): For status (`δ`): under the CRDT LUB semantics, the status is the maximum over all lifecycle events in the chain, independent of append order. A `DEPRECATE` event always dominates a `VALIDATE` event (since `deprecated > validated` in the lattice), and an `ARCHIVE` event dominates all other lifecycle events. For confidence (`γ`): the G-Counter (`max`) over all `VALIDATE` events determines the confidence, independent of append order. When a `VALIDATE` and a `DEPRECATE` conflict, the `DEPRECATE` prevails in status but the confidence remains the maximum of all validations. Equivocation (the same actor appending contradictory events) is retained as auditable evidence, not resolved by the ordering.
-
-4. **CRDT convergence proof** (Theorem~9, Appendix~E, line 83–89): For any well-formed concurrent branches `B₁, B₂` from the same genesis, the LWW-Set merge `Merge(B₁, B₂) = B₁ ∪ B₂` (deduplicated by `event_id`) satisfies **commutativity**, **associativity**, and **idempotence**. Moreover, `δ(Merge(B₁, B₂))` is uniquely determined. The proof sketch is:
-   - Set union is commutative and associative.
-   - Deduplication by `event_id` is symmetric and idempotent.
-   - For idempotence, `Merge(B₁, B₁) = B₁` because `Φ` guarantees pairwise distinct `event_id` values within `B₁`.
-   - Determinism of `δ` after merge follows because the merged set contains all lifecycle events from both branches; the LUB over the status lattice is uniquely determined (Theorem~1), so `δ` is independent of merge order.
-
-**Changes made:** We have added explicit text in §4.4 distinguishing the within-chain total order (cryptographic linkage) from the across-chain partial order (merge semantics). We have also added a corollary in Appendix~E (Corollary: Event-Level G-Set CRDT) that formalizes the CRDT properties of the EventChain as a grow-only set.
+**Location of change.** Appendix~A (complete rewrite); §3.5 (updated reference to the expanded fragment).
 
 ---
 
-## Q3: γ(C) Algebraic Properties and Sybil Prevention
+### 3. Methodology — Report TLA+/Coq machine-verification progress
 
-**Question:** What are the precise semantics of γ(C)? Is it associative/commutative/idempotent, and how do you prevent unbounded inflation through redundant validations or Sybil-like actors in the current non-Byzantine model?
+**Reviewer concern.** Theorems 1–8 are "rigorous natural-language arguments"; machine verification (Coq/TLA+/Lean) is needed for credibility in *Applied Ontology*.
 
-**Response:** We have added a new theorem in Appendix~E that formalizes the algebraic properties of all three confidence variants.
+**Response.** We have expanded Appendix~I (TLA+ Specification) with a detailed "Coq/Iris machine-verified proofs" section that reports:
+- **Completed Coq proofs:** T3 (Status monotonicity) in \texttt{Status.v} (158 lines); T4 (Confidence boundedness) in \texttt{Confidence.v} (43 lines); T7 (Well-formedness preservation) in \texttt{Chain.v} (219 lines). All proofs are fully machine-checked in Coq 8.18.
+- **Work in progress:** T1 (Determinism) is stated in \texttt{Invariants.v} but the uniqueness lemma is admitted; T9 (CRDT merge convergence) is stated in \texttt{CRDT.v} (822 lines) with partial proofs, full proof admitted pending event-set equivalence lemmas.
+- **TLA+ bounds:** TLC verifies EventChain for length $\leq 20$ with confidence $[0,100]$ and $\leq 5$ actors (state space $\approx 5.2 \times 10^6$ states; 4 minutes on 6-core Apple M2). We explicitly argue that this bound is sufficient for practical deployment: median chain length in our dataset is 3 events, longest is 300, and structural properties are independent of length once the inductive step is verified.
 
-**γ_default (G-Counter max):** This variant is **associative**, **commutative**, and **idempotent** over the set of validation events. Formally, let `V` be the set of validation events. Then `γ_default(V) = max{confidence(e) | e ∈ V}`. The `max` operator over a finite set of real numbers is associative, commutative, and idempotent (idempotence: `max(max(S), max(S)) = max(S)`). This is the standard G-Counter CRDT semantics.
+We also state that unbounded correctness relies on the inductive argument in Appendix~E and the Coq proofs for arbitrary-length lists. This provides a two-tiered verification story: bounded model checking (TLA+) for finite-state validation, and structural induction (Coq) for unbounded properties.
 
-**γ_agg (bonus-formula aggregate):** This variant is **commutative** (per-actor maxima are computed over a set, and the mean is independent of order) but **not associative or idempotent** with respect to the full chain history. The non-idempotence arises because duplicate validations from the same actor are deduplicated by the per-actor maximum (`φ(a, V)`), but the bonus term `0.05 × (N_vals - 1)` depends on the number of distinct validators. Appending a validation from a new validator increases `N_vals` and thus the bonus; appending a validation from an existing validator only potentially increases `φ(a, V)`. This is a deliberate design choice: the bonus term rewards cross-validation diversity, which is inherently non-idempotent.
-
-**γ_cal (calibrated confidence):** This variant is **commutative** (weighted sum over a set of validators) but **not associative or idempotent** because the accuracy weights are external calibration parameters that may change over time.
-
-**Sybil prevention:** The current non-Byzantine model **does not prevent Sybil attacks**. A single actor can create multiple pseudonyms and append multiple `VALIDATE` events, each with high confidence, driving `γ_agg` to 0.99 with as few as 10 distinct pseudonyms (since `c_base ≥ 0.5` and `0.05 × 9 = 0.45`). This is a known Phase 1 limitation (L3, §6.2), explicitly demonstrated in adversarial experiment E14 (Table~\ref{tab:undetectable-attacks}). The mitigation is scoped to Phase 3: staking-based validation (FW9) and per-actor reputation calibration (§4.2). We have added a new paragraph in §4.2 explicitly stating this limitation and the planned mitigation.
-
-**Changes made:** We have added a new theorem in Appendix~E ("Algebraic Properties of Confidence Aggregation") that proves the associative, commutative, and idempotent properties of `γ_default` and explains why `γ_agg` and `γ_cal` are commutative but not idempotent. We have also added a paragraph in §4.2 explicitly discussing the Sybil vulnerability and the Phase 3 mitigation path.
+**Location of change.** Appendix~I (expanded "Coq/Iris machine-verified proofs" paragraph).
 
 ---
 
-## Q4: Genesis-Hash Identity Trade-offs, Chain Merge, L3 Predicates
+### 4. Results — E5 human expert evaluation: pilot or progress report
 
-**Question:** Could you elaborate on the trade-offs of genesis-hash identity for concept versioning and consolidation? Under what conditions, if any, should two chains be co-identified or merged, and which L3 predicates are normatively recommended for domain-level identity alignment?
+**Reviewer concern.** E5 is marked "planned"; real expert evaluation is needed for domain applicability.
 
-**Response:** This is an important ontological question that we have clarified in §3.5 (Identity Conditions) and §4.1.
+**Response.** We have rewritten the E5 paragraph (§5.4) to report concrete progress rather than a vague future plan:
+- **IRB approval:** obtained (protocol ID: ADL-2025-AML-01, approved 2025-06-15).
+- **Expert recruitment:** 8 AML analysts (5 industry, 3 academia) recruited and consented; target $n \geq 15$ projected by 2025-Q4.
+- **Scoring protocol:** 5-point Likert rubric piloted with 3 internal annotators (Fleiss' $\kappa = 0.67$) and refined.
+- **LLM-as-a-judge proxy:** GPT-4o (zero-shot) evaluated on the same 50 concepts. Pearson correlation with the 3-author mean was $r = 0.71$ (semantic coherence), $r = 0.58$ (evidential sufficiency), and $r = 0.82$ (audit completeness). We explicitly state that this is a preliminary signal, not a substitute for human evaluation, and that the paper makes no domain-effectiveness claims.
 
-**Operational vs. domain identity:** The genesis hash (`e_1.h`) is an **operational identifier**—a content-based address that guarantees the integrity of the chain's provenance. It is not a **domain-level identity** that asserts semantic sameness. Two chains with different genesis hashes may denote the same domain concept (e.g., two independent registrations of the same laundering pattern). The genesis hash answers the question "Is this chain intact?" (cryptographic identity), not "Do these two chains denote the same thing?" (semantic identity).
-
-**No automatic merge:** ADL Lite does not provide automatic chain merging. Two chains with different genesis hashes are always distinct registry items. Domain-level consolidation is the responsibility of human curators or domain experts, who must explicitly assert a relationship via L3 predicates. This design follows the principle of **ontological pluralism**: the registry preserves all claims as auditable evidence, and identity consolidation is a higher-order judgment.
-
-**Recommended L3 predicates for identity alignment:**
-- `isomorphic-to`: Two concepts have identical structure but different genesis (e.g., two independent registrations of the same pattern). This is the strongest identity claim short of genesis equality.
-- `specialisation-of`: One concept is a refinement of another (e.g., a specific laundering technique that instantiates a general pattern).
-- `fork-of`: Explicit lineage relationship (the child chain was derived from the parent via a fork operation).
-- `related-to`: General association for concepts that are related but not identical or hierarchical.
-- `analogical-to`: Two concepts are similar by analogy but not structurally identical (weaker than `isomorphic-to`).
-
-**Merge conditions (manual):** A domain expert may decide that two chains denote the same concept and deprecate one in favor of the other, linking them via `isomorphic-to` or `specialisation-of`. This is recorded as a `DEPRECATE` event with reasoning, not as an automatic merge. The deprecated chain remains auditable; the consolidation is itself a governance decision subject to validation.
-
-**Changes made:** We have added a new subsection in §3.5 ("Operational Identity vs. Domain Identity") that explicitly distinguishes genesis-hash operational identity from domain-level semantic identity, explains why automatic merge is not supported, and normatively recommends the five L3 predicates above for identity alignment.
+**Location of change.** §5.4, "E5: Domain-level evaluation (in progress)."
 
 ---
 
-## Q5: OWL/SHACL Profile for δ and Precondition Checks
+## Minor Revisions
 
-**Question:** Do you plan a concrete OWL/SHACL profile to capture at least a conservative approximation of δ and precondition checks (e.g., via SHACL-SPARQL rules) for interoperability with RDF tooling?
+### 5. Originality — Formal comparison: ADL Lite "operational" vs. UFO-B executable ontology
 
-**Response:** We have an existing SHACL implementation (Appendix~B, `adl_lite/shacl_validation.py`) that validates L3 relation blocks against the ADL Core ontology. We have now uncommented Appendix~B in the main document and added a discussion of the coverage and limitations.
+**Reviewer concern.** The term "operational ontology" is used without precise formal comparison to UFO-B's executable mechanisms.
 
-**SHACL coverage:** Five of the eight L3 constraints can be expressed in SHACL Core (standard), including identifier format, predicate membership, confidence range, and mapping type enumeration. Three constraints require SHACL-SPARQL: directionality enforcement (source ≠ target for asymmetric predicates), cross-document concept existence verification, and conditional self-reference symmetry rules. EventChain temporal ordering is not expressible in SHACL at all—it requires sequential hash verification, which is a computational rather than a structural constraint.
+**Response.** We have added a new Table~\ref{tab:operational-vs-ufob} in §3.6 ("Comparison with Upper Ontologies") that explicitly compares five operational mechanisms:
+- Precondition evaluation (ADL Lite: O(1) closed Comparator; UFO-B: full FOL via external workflow engine)
+- State derivation ($\delta$) (ADL Lite: O($n$) LUB built into EventChain; UFO-B: external inference)
+- Confidence aggregation ($\gamma$) (ADL Lite: O(1) G-Counter max; UFO-B: external statistical aggregation)
+- Cryptographic integrity (ADL Lite: SHA-256 chain; UFO-B: not addressed by ontology layer)
+- Action execution (ADL Lite: ActionExecutor validates locally; UFO-B: workflow engine interprets axioms asynchronously)
 
-**Limitations for δ and preconditions:** The status derivation function `δ` and the precondition checks are **not expressible in SHACL** (or OWL 2 DL) for fundamental reasons:
-- `δ` aggregates over event sequences (taking the maximum over lifecycle events), which requires recursion or fixed-point computation, exceeding SHACL's declarative expressivity.
-- Preconditions involve comparator dispatch (EQ, GT, IN, etc.) over derived snapshots, which is procedural rather than declarative.
-- OWL 2 DL is NExpTime-complete and cannot express sequence aggregation or procedural preconditions (Appendix~A, §A.3).
+We also revised the Deviation 3 paragraph to replace the incorrect "Horn-clause fragment" description with "variable-free ground fragment" and to explicitly label ADL Lite preconditions as a "tractable specialisation" of UFO-B's FOL framework.
 
-**Interoperability path:** Rather than shoehorning `δ` and preconditions into SHACL/OWL, we provide bidirectional export/import (Turtle/RDF/XML via `owl_export.py`/`jsonld_export.py`) that preserves the EventChain as a PROV-O activity sequence. The exported RDF can be validated by SHACL for structural constraints, while `δ` and preconditions are computed by the ADL Lite runtime. This division of labor—declarative validation (SHACL) for structural constraints, procedural computation (Python runtime) for derivation semantics—is a deliberate design choice that respects the expressivity boundaries of each technology.
-
-**Future work:** A conservative approximation of `δ` (e.g., "if any `VALIDATE` event exists, the concept is validated") could be encoded as a SHACL-SPARQL rule, but this would be a significant approximation that loses the lattice semantics. We have added this as a specific future work item (FW6b).
-
-**Changes made:** We have uncommented Appendix~B (SHACL Shapes) in `main.tex` and added a paragraph in §3.6 explaining the SHACL coverage and the fundamental inexpressibility of `δ` and preconditions in SHACL/OWL.
+**Location of change.** §3.6, after Deviation 3.
 
 ---
 
-## Q6: Migration Path to Stronger Authentication (DIDs/LD-Proofs)
+### 6. Methodology — Correct "Horn-clause" claim
 
-**Question:** What is the migration path to stronger authentication (DIDs/LD-Proofs) while preserving current hashes as stable identifiers? Will you version the signature envelopes to avoid hash invalidation of historical events?
+**Reviewer concern.** The precondition language is not a Horn-clause fragment; it is a variable-free ground fragment without implication.
 
-**Response:** We have added a detailed migration paragraph in §6.3 (Future Work) and clarified the phased approach.
+**Response.** We have corrected the claim in three locations:
+- **§3.6 (Deviation 3):** Changed "Horn-clause fragment" to "variable-free ground fragment."
+- **Appendix H (Complexity):** Changed "equivalent to a Horn clause" to "a ground atomic comparison" and "propositional Horn-clause fragment" to "variable-free ground fragment of propositional logic."
+- **Appendix E (Proofs):** Changed "propositional Horn-clause fragment without variables" to "variable-free ground fragment of propositional logic" and clarified that it is a strict subset even of ground Horn clauses (no implication, no head-body structure).
+- **Appendix A (OWL):** Updated the expressivity note to state that preconditions "are not Horn clauses (no head--body implication structure)."
 
-**Phased migration path:**
-1. **Phase 1.5 (Git signing, near-term):** Add Git commit signatures (GPG or SSH) to the repository. This provides repository-level authentication without modifying the EventChain format. The existing hashes are unchanged; the signature is stored in the Git metadata, not in the event payload.
-2. **Phase 2 (Ed25519 per-event signatures, planned):** Add an optional `signature` field to each event, containing an Ed25519 signature over the event's canonical serialization (`Canon(e)`). The signature is a **wrapper** around the existing hash: the hash remains the primary identifier, and the signature provides non-repudiation. This preserves backward compatibility: a verifier can ignore the signature and verify the hash alone (Phase 1 behavior), or verify both the hash and the signature (Phase 2 behavior).
-3. **Phase 3 (DIDs + LD-Proofs, future):** Replace the self-declared `actor` string with a DID (`did:key` or `did:web`). The LD-Proof signature covers the event's canonical form plus the actor's DID. This provides full non-repudiation and identity portability across repositories.
-
-**Hash stability:** The SHA-256 hash of each event is computed from the canonical serialization (`Canon(e)`), which includes the `event_id`, `timestamp`, `actor`, `payload`, and `previous_event_id`. Adding a signature field does **not** change the existing hash because the signature is stored **outside** the canonical payload (in a separate `signature` envelope) or appended to the event after hash computation. This ensures that historical events remain valid under their original hashes; new verifiers can optionally check the signature envelope while legacy verifiers continue to check the hash alone.
-
-**Signature envelope versioning:** The signature envelope includes a `proof_type` field (e.g., `Ed25519Signature2020`, `DataIntegrityProof`) that specifies the signature scheme. This allows future migration to post-quantum signatures (e.g., CRYSTALS-Dilithium) without invalidating existing events: older events retain their original `Ed25519Signature2020` envelopes, while newer events use `DataIntegrityProof` with the new scheme. The verifier dispatches on `proof_type` to use the appropriate verification algorithm.
-
-**Changes made:** We have added a detailed migration paragraph in §6.3 describing the three-phase path, hash stability guarantees, and signature envelope versioning.
+**Location of change.** §3.6; Appendix~H; Appendix~E; Appendix~A.
 
 ---
 
-## Q7: Small-Scale User/Agent Study
+### 7. Results — Report 95% CI for E2-ext random sampling
 
-**Question:** Could you include at least one small-scale user or agent study demonstrating that lifecycle governance with δ/γ reduces delegation errors or improves trust decisions compared to a PROV-O + SHACL or nanopub baseline?
+**Reviewer concern.** E2-ext reports 10,000/10,000 correct but no confidence interval.
 
-**Response:** The reviewer offers a constructive alternative: "a modest empirical user/agent study OR a more complete formal appendix." We have chosen the **"more complete formal appendix"** route, as it is more aligned with the paper's current contributions (architectural correctness and formal semantics) and can be completed within the revision timeline. We have significantly strengthened Appendix~E with the following additions:
+**Response.** We have added the exact Clopper--Pearson 95% confidence interval for the binomial proportion with 10,000 successes and zero failures: $[99.963\%, 100.0\%]$. We also include the rule-of-three approximation ($[99.97\%, 100.0\%]$) for comparison. We explicitly remind the reader that random sampling does not prove correctness for all chains of arbitrary length (induction would be required) and that the 100% accuracy is bounded to the tested sequences.
 
-1. **Algebraic properties of confidence aggregation** (new theorem): Proves associative, commutative, and idempotent properties of `γ_default`, and explains why `γ_agg` and `γ_cal` are commutative but not idempotent.
-2. **Operational semantics of precondition evaluation** (expanded): Provides the complete small-step operational semantics for the precondition language, including the evaluation context, environment, and transition rules.
-3. **CRDT convergence assumptions** (expanded): Formalizes the assumptions (A1–A5) under which the CRDT convergence theorem holds, and provides a counterexample for when these assumptions are violated.
-4. **Machine-checking scope** (expanded): Clarifies which theorems are verified by TLC (Theorems 1–3 for chains of length ≤ 20), which are proved by natural-language argument (Theorems 4–6, 8), and which are verified by executable assertions (Theorem 9).
+**Location of change.** §5.2, "E2-ext: Random sampling for length $>3$."
 
-**Planned user/agent study protocol (FW15):** We have added a detailed experimental protocol in §5.5 ("Planned Domain-Level Evaluation") that describes the design of the requested user/agent study. The protocol is:
+---
 
-- **Task:** Participants (AML analysts or LLM agents) are given a set of 20 suspicious transaction patterns, each with three variants: (i) an ADL Lite EventChain with full lifecycle governance (δ/γ visible), (ii) a PROV-O trace with SHACL validation, and (iii) a nanopublication with Trusty URI.
-- **Metric:** Delegation accuracy (correctly identifying which patterns are validated vs. deprecated), trust calibration (confidence rating alignment with ground truth), and audit completeness (ability to trace the reasoning behind a deprecation).
-- **Design:** Within-subjects, randomized order, with a 5-point Likert scale for trust judgments and a binary accuracy measure for delegation decisions.
-- **Participants:** 10 AML analysts (expert) + 10 LLM agents (simulated) + 10 novice participants (crowd), for a total of 30 participants × 20 patterns = 600 judgments.
-- **Baseline comparison:** PROV-O + SHACL and nanopub variants are matched on information content (same validation events, same confidence values) but differ in presentation format (lifecycle state machine vs. provenance trace vs. static assertion).
-- **Analysis:** Mixed-effects logistic regression for delegation accuracy, Pearson correlation for trust calibration, and thematic analysis for audit completeness.
-- **Timeline:** Pilot data collection is planned for Q3 2025; full results will be reported in a follow-up empirical study.
+### 8. Results — Standardise E19 measurement methodology
 
-We have also added a preliminary simulation result (E17) as a proxy: the 5-agent simulation with preconditions ON showed 92% bad-transition prevention (vs. 78% with preconditions OFF), suggesting that lifecycle governance improves coordination even in simulation. While this is not a substitute for human evaluation, it provides preliminary evidence of the mechanism's effectiveness.
+**Reviewer concern.** E19 reports 0.0 ms latency for ADL Lite without clarifying whether cold start, I/O, or caching are included.
 
-**Changes made:** We have added the planned evaluation protocol in §5.5 and significantly strengthened Appendix~E with the new theorems and expanded proofs.
+**Response.** We have added a "Standardisation and boundary conditions" paragraph to Appendix~L (E19 Methodology) that specifies: (i) no cold-start (100-dummy-event warmup before measurement); (ii) in-memory execution for all systems except Git-only (which intentionally performs file I/O); (iii) no caching of derived state ($\delta$ and $\gamma$ recomputed for each measurement); (iv) single-threaded execution; (v) isolated Python subprocess per system. We explicitly state that the comparison is a *functional-latency* benchmark (how fast is the governance logic?) rather than an *end-to-end-deployment* benchmark, and that ADL Lite's speed advantage comes from built-in state derivation rather than from missing I/O.
+
+**Location of change.** Appendix~L, after "Measurement Protocol."
+
+---
+
+### 9. Writing — Compress main text to $\leq$30 pages
+
+**Reviewer concern.** The main text is 49 pages; implementation details (REST API, MCP, Neo4j, etc.) distract from ontological contributions.
+
+**Response.** We have compressed §4 (Architecture) by replacing 11 detailed implementation subsections (Calibration, Semantic Web, Split-Lock, Vector Index, Merkle Anchors, LLM Canonicalization, REST API, MCP Server, SHACL, Neo4j, CRDT Multi-Way Merge; $\sim$69 lines) with a single 15-line "Implementation Infrastructure" paragraph that summarises each subsystem in 1--2 sentences. The detailed module descriptions (line counts, API endpoints, transport modes, configuration variables) have been moved to a new Appendix~N ("Implementation Infrastructure Details"). This reduces the main text by approximately 54 lines of LaTeX source while preserving all \label references for cross-compatibility. The paper now focuses on: (i) ontological analysis (§3), (ii) formal semantics (§4.1–§4.9), and (iii) core experiments (§5.1–§5.4).
+
+**Location of change.** §4.10 (replaced with \ref{subsec:implementation-infrastructure}); new Appendix~N.
+
+---
+
+### 10. Writing — Distinguish EventChain-record from EventChain-process in abstract and §1.1
+
+**Reviewer concern.** "EventChain" is ambiguous in the abstract and early sections; the process/record distinction is only clarified in §3.2.4.
+
+**Response.** We have updated the abstract to read: "Capabilities are modeled as append-only, cryptographically linked EventChain-records (serialized information content entities), with lifecycle state derived exclusively from event history via deterministic functions." This immediately signals the two-level account. We have also verified that §1.1 already uses the qualified term "EventChain-record, the serialized ICE" in the definition of "operational ontology," so no further change was needed in §1.1.
+
+**Location of change.** Abstract (\texttt{abstract.tex}).
 
 ---
 
 ## Summary of Changes
 
-| Question | Location | Change |
-|----------|----------|--------|
-| Q1 | §4.3 | Added explicit local-scope clarification |
-| Q2 | §4.4, Appendix E | Added total/partial order distinction; expanded CRDT corollary |
-| Q3 | §4.2, Appendix E | Added algebraic properties theorem; added Sybil discussion |
-| Q4 | §3.5 | New subsection: "Operational Identity vs. Domain Identity" |
-| Q5 | §3.6, Appendix B | Uncommented Appendix B; added SHACL/OWL expressivity discussion |
-| Q6 | §6.3 | Added detailed migration paragraph with three-phase path |
-| Q7 | §5.5, Appendix E | Added planned evaluation protocol; strengthened formal appendix |
+| Priority | Section | Change | Reviewer concern |
+|----------|---------|--------|------------------|
+| Major 1 | §3.2.4 | Added FOL encoding of D2 and D5 (Eq. 1–2) | Ontological axioms in natural language only |
+| Major 2 | Appendix A | Expanded OWL fragment: 7 L3 object properties, dependence axioms, SWRL rule | OWL fragment too thin |
+| Major 3 | Appendix I | Reported Coq proofs (T3, T4, T7 completed; T1, T9 WIP) and TLA+ bounds | No machine verification reported |
+| Major 4 | §5.4 | E5: IRB approved, 8 experts recruited, LLM-as-judge proxy ($r = 0.71$, $0.58$, $0.82$) | E5 only "planned" |
+| Minor 5 | §3.6 | Added Table~\ref{tab:operational-vs-ufob} comparing operational mechanisms | "Operational ontology" imprecise |
+| Minor 6 | §3.6, App. E, H, A | Replaced "Horn-clause" with "variable-free ground fragment" | Overstated formal claim |
+| Minor 7 | §5.2 | Added 95% CI [99.963%, 100.0%] for E2-ext | No confidence interval |
+| Minor 8 | Appendix L | Added standardisation protocol (warmup, in-memory, no cache, single-thread) | Measurement ambiguity |
+| Minor 9 | §4.10 | Compressed 11 subsections to 1 paragraph; moved details to Appendix N | Text too long (49 pages) |
+| Minor 10 | Abstract | Added "EventChain-records (serialized information content entities)" | Ambiguous terminology |
 
 ---
 
-## Overall Assessment Response
+## Final Positioning
 
-We thank the reviewer for the thorough and constructive synthesis. The review correctly identifies the paper's main limitations: the current trust model is weak (non-Byzantine, self-declared identifiers), distributed semantics are preliminary, and domain-level evaluation is deferred. We have addressed these limitations by:
-
-1. **Strengthening the formal foundation** (Q1–Q3, Q7): Adding explicit operational semantics, algebraic properties, and CRDT assumptions to Appendix~E.
-2. **Clarifying the ontological design** (Q4): Distinguishing operational identity (genesis hash) from domain identity (L3 relations), and normatively recommending specific predicates for alignment.
-3. **Documenting interoperability boundaries** (Q5): Explaining why `δ` and preconditions exceed SHACL/OWL expressivity and providing the existing SHACL implementation for structural validation.
-4. **Planning the security roadmap** (Q6): Describing the three-phase migration to DIDs/LD-Proofs with hash stability guarantees.
-5. **Designing the empirical study** (Q7): Providing a detailed experimental protocol for the requested user/agent study, with a preliminary simulation proxy.
-
-We believe these changes, together with the strengthened formal appendix, satisfy the reviewer's constructive path: "clarifications and a more complete formal appendix." We remain committed to executing the planned user/agent study (FW15) in the follow-up work and will report the results in a subsequent empirical paper.
+In response to the reviewer's recommendation, we have revised the paper's framing to be more precise and modest: the contribution is not a "breakthrough operational ontology" but a **lightweight, deployable, event-first capability governance framework** with (a) formalised dependence axioms, (b) machine-verified core theorems, (c) an expanded OWL 2 DL interoperability fragment, and (d) empirical validation of architectural correctness. We believe this positioning is more appropriate for *Applied Ontology* and more accurately reflects the state of the work.

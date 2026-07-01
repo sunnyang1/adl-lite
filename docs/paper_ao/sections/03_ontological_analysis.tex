@@ -102,6 +102,32 @@ EventChain-record ($R$): the serialized, hash-linked JSON/YAML representation---
     \item \textbf{No cross-level identity (D5).} No occurrent is identical to any ICE (a BFO constraint). Consequently, no GDC can ontologically depend on an occurrent; a GDC may only depend on continuants (including ICEs).
 \end{enumerate}
 
+\paragraph{First-order logic encoding (selected axioms).}
+To make the dependence structure amenable to formal analysis, we translate two core axioms into first-order logic with modal existence predicates (following Fine's framework \cite{fine1995ontologicaldependence}). Let $E(x,w)$ mean ``$x$ exists in world $w$'' and $\text{Dep}(x,y,w)$ mean ``$x$ ontologically depends on $y$ in world $w$''.
+
+\textbf{D2 (Generic dependence).} A concept generically depends on EventChain-records as a class of bearers, not on any specific bearer:
+\begin{multline}\label{eq:d2-fol}
+\forall c\;\bigl(\text{Concept}(c) \rightarrow \\[-2pt]
+\quad \forall w\,\bigl(E(c,w) \rightarrow \exists R\,(\text{EventChainRecord}(R) \land \text{Dep}(c,R,w))\bigr) \land \\[-2pt]
+\quad \neg\exists R\,\bigl(\text{EventChainRecord}(R) \land \forall w\,(E(c,w) \rightarrow \text{Dep}(c,R,w))\bigr)\bigr).
+\end{multline}
+The first conjunct states that in every world where $c$ exists, some record bears it; the second conjunct states that no \emph{particular} record is indispensable. This is the standard Fine/BFO definition of generic dependence.
+
+\textbf{D5 (No cross-level identity).} Occurrents and ICEs are disjoint categories (a BFO constraint that prevents the category mistake of identifying a process with its record):
+\begin{equation}\label{eq:d5-fol}
+\forall x \forall y\;\bigl(\text{Occurrent}(x) \land \text{ICE}(y) \rightarrow x \neq y\bigr).
+\end{equation}
+From D5 together with the BFO axiom that GDCs cannot existentially depend on occurrents, it follows that $\text{Concept}(c) \land \text{EventChainProcess}(P) \rightarrow \neg\text{Dep}(c,P,w)$ for any world $w$. This justifies our distinction between causal origin (the $\textsc{Register}$ event, an occurrent) and ontological bearer (the EventChain-record, an ICE) in D1.
+
+\textbf{I3--I4 (identity conditions).} The identity axioms for records and processes are also expressible in FOL with sequence equality:
+\begin{align}
+R = R' &\leftrightarrow \text{concept}(R) = \text{concept}(R') \land \text{events}(R) = \text{events}(R'), \\
+P = P' &\leftrightarrow \text{events}(P) = \text{events}(P') \land \text{order}(P) = \text{order}(P') \land \text{timestamps}(P) = \text{timestamps}(P').
+\end{align}
+These are sorted-signature identity conditions; they do not require modal logic because they are extensional criteria over the same domain.
+
+The full set of axioms (I1--I4, D1--D5) could be given a complete FOL axiomatisation, but we present only the above four as illustrative of the formal depth achievable. The OWL~2 DL fragment (Appendix~A) provides a decidable approximation of the class-level structure, while these FOL formulas capture the dependence relations that exceed OWL expressivity.
+
 \paragraph{Resolving the apparent ambiguity.}
 $\text{EventChain-process}$ and $\text{EventChain-record}$ are distinct (Axioms I3--I4); the process causally produces the record (D4), which bears the concept (D2). A GDC cannot ontologically depend on an occurrent (D5), but can depend on the ICE that documents it (D2--D3). The concept's causal origin is traceable to the genesis event (the \texttt{REGISTER} occurrence), but its ontological bearer is the record. This resolves the category mistake.
 \subsubsection{Action as Planned Process / Intentional Event}
@@ -170,7 +196,7 @@ We formalize these dependence patterns as an OWL~2 DL alignment fragment in the 
 
 \subsection{Formal Alignment Fragment: OWL~2 DL Axiomatization}\label{subsec:formal-alignment}
 
-We present the OWL~2 DL alignment fragment that formalizes the dependence patterns above in Appendix~\ref{app:owl-dl}. It declares \texttt{adl:Event} $\sqsubseteq$ \texttt{bfo:occurrent}, \texttt{adl:EventChain} $\sqsubseteq$ \texttt{bfo:process}, and \texttt{adl:Concept} $\sqsubseteq$ \texttt{bfo:generically\_dependent\_continuant}, together with datatype properties for cryptographic linkage. The fragment is syntax-checked but not yet validated with ROBOT; full operational encoding of $\delta$ and $\gamma$ exceeds OWL~2 DL expressivity and is deferred to future work (FW1).
+We present the OWL~2 DL alignment fragment that formalizes the dependence patterns above in Appendix~\ref{app:owl-dl}. The revised fragment (v0.2) declares: (i)~core categories (\texttt{adl:Event} $\sqsubseteq$ \texttt{bfo:occurrent}, \texttt{adl:EventChain} $\sqsubseteq$ \texttt{bfo:process}, \texttt{adl:Concept} $\sqsubseteq$ \texttt{bfo:generically\_dependent\_continuant}); (ii)~L3 relation predicates as OWL object properties with symmetry/transitivity constraints (\texttt{isomorphic-to}, \texttt{specialisation-of}, \texttt{fork-of}, \texttt{related-to}, \texttt{analogical-to}, \texttt{co-occurs-with}, \texttt{mitigated-by}); (iii)~ontological dependence axioms (D2--D5) as object properties and disjointness constraints; and (iv)~illustrative SWRL rules for status-transition constraints. The fragment has been validated with ROBOT: OWL~2 DL profile conformance confirmed, structural consistency reported, and three SPARQL constraints verified on example documents (zero violations on valid data, correct detection on deliberately corrupted data). Full operational encoding of $\delta$ and $\gamma$ exceeds OWL~2 DL expressivity and is deferred to future work (FW1).
 
 \textbf{SHACL/OWL expressivity boundaries.} The SHACL shape graph (Appendix~\ref{app:shacl}) validates L3 relation blocks against structural constraints: identifier format (\texttt{sh:pattern}), predicate membership (\texttt{sh:in}), confidence range (\texttt{sh:minInclusive}/\texttt{sh:maxInclusive}), and directionality (\texttt{sh:sparql}). Five of eight constraints use SHACL Core; three require SHACL-SPARQL. However, the status derivation function $\delta$ and the precondition checks are \emph{not expressible in SHACL or OWL~2 DL} for fundamental reasons: (i)~$\delta$ aggregates over event sequences (taking the maximum over lifecycle events), which requires recursion or fixed-point computation exceeding SHACL's declarative expressivity; (ii)~preconditions involve comparator dispatch over derived snapshots, which is procedural rather than declarative; (iii)~temporal reasoning (\texttt{HoldsAt}, \texttt{Revoked} conditions) requires time-indexed assertions over event sequences, which exceeds OWL~2 DL's snapshot-based semantics; (iv)~cryptographic integrity (SHA-256 correctness) is a computational property that cannot be expressed in description logic; (v)~\emph{cross-chain references} require accessing events outside the current chain, which violates the local-scope restriction of the precondition language (\S\ref{subsubsec:precondition-language}). Encoding cross-chain references in OWL~2~DL would require non-local scope during precondition evaluation, violating the referential transparency and deterministic evaluation guarantees of Theorem~8.
 
@@ -216,6 +242,26 @@ Table~\ref{tab:upper-ontology-mapping} identifies three intentional deviations.
 
 \textbf{Deviation 2: No explicit quality hierarchy.} BFO and DOLCE have elaborate quality hierarchies \cite{bfo,dolce}; ADL Lite encodes qualities as payload fields in events (e.g., ``confidence'' is a value carried by \texttt{VALIDATE} events). \emph{Interoperability cost:} DOLCE's quality taxonomy cannot be directly reused; domain-specific extensions require explicit mapping from payload fields to quality classes.
 
-\textbf{Deviation 3: Actions as first-class citizens.} In BFO, actions are a subclass of processes; in ADL Lite, they are co-equal with objects at the language level, reflecting the event-first stance. \emph{Interoperability cost:} direct reuse of UFO-B's process hierarchy is prevented, but UFO-B's ``Institutional Event'' category \cite{guizzardi2024ufob} remains compatible. ADL Lite's precondition language is a decidable, non-recursive fragment (Comparator enumeration with explicit lambda dispatch, no quantification) that sacrifices full FOL expressivity to guarantee $O(1)$ evaluation. Each precondition rule $\langle f, k, v \rangle$ is equivalent to a ground atomic comparison $k(f(x), v)$; the conjunction of rules is a variable-free conjunction of such atoms, evaluated in polynomial time. Consequently, ADL Lite preconditions constitute a \emph{tractable specialisation} of UFO-B's FOL framework.
+\textbf{Deviation 3: Actions as first-class citizens.} In BFO, actions are a subclass of processes; in ADL Lite, they are co-equal with objects at the language level, reflecting the event-first stance. \emph{Interoperability cost:} direct reuse of UFO-B's process hierarchy is prevented, but UFO-B's ``Institutional Event'' category \cite{guizzardi2024ufob} remains compatible. ADL Lite's precondition language is a \emph{variable-free ground fragment} (Comparator enumeration with explicit lambda dispatch, no quantification) that sacrifices full FOL expressivity to guarantee $O(1)$ per-rule evaluation. Each precondition rule $\langle f, k, v \rangle$ is a ground atomic comparison over a cached derived snapshot; the conjunction of $k$ rules is evaluated in $O(k)$ time. Consequently, ADL Lite preconditions constitute a \emph{tractable specialisation} of UFO-B's FOL framework.
+
+\textbf{Operational mechanisms: ADL Lite vs. UFO-B.} Table~\ref{tab:operational-vs-ufob} clarifies the specific mechanisms through which ADL Lite achieves ``operational'' status and contrasts them with UFO-B's executable-ontology approach. The key distinction is that ADL Lite embeds execution semantics \emph{inside} the data structure (the EventChain), whereas UFO-B delegates execution to an external workflow engine that interprets the ontology.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Operational mechanism comparison: ADL Lite vs. UFO-B executable ontology.}
+\label{tab:operational-vs-ufob}
+\begin{tabularx}{\textwidth}{@{}p{3.2cm}p{4.8cm}p{4.8cm}@{}}
+\toprule
+\textbf{Mechanism} & \textbf{ADL Lite} & \textbf{UFO-B} \\
+\midrule
+Precondition evaluation & O(1) per rule; closed Comparator enumeration; no external reasoning required & Full FOL axioms; evaluated by external workflow engine or DL reasoner \\
+State derivation ($\delta$) & O($n$) LUB over lifecycle lattice; deterministic; built into EventChain & External inference over institutional facts; may require fixed-point computation \\
+Confidence aggregation ($\gamma$) & O(1) G-Counter max; built into EventChain & External statistical aggregation; not native to ontology \\
+Cryptographic integrity & SHA-256 hash chain; verified incrementally; no external trust anchor & Not addressed by ontology layer; delegated to application security \\
+Action execution & ActionExecutor validates preconditions locally; dispatches side effects synchronously & Workflow engine interprets ontology axioms; executes institutional transitions asynchronously \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \textbf{Deviation 4: Historical vs. ontological dependence.} We distinguish the causal origin of a concept (traceable to the genesis event, an occurrent) from its ontological bearer (the EventChain-record, an ICE). The concept is a GDC that depends on the record (D2), not on the process (D5). This avoids the category mistake of making a GDC existentially depend on an occurrent. The ``historical'' or ``genetic'' relationship to the process is a causal narrative, not an ontological dependence in the Fine/BFO sense.
