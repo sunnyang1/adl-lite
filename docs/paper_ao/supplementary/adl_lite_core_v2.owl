@@ -1,0 +1,210 @@
+@prefix adl: <https://adl-lite.org/ontology/v2#> .
+@prefix bfo: <http://purl.obolibrary.org/obo/BFO_> .
+@prefix iao: <http://purl.obolibrary.org/obo/IAO_> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix swrl: <http://www.w3.org/2003/11/swrl#> .
+@prefix swrlb: <http://www.w3.org/2003/11/swrlb#> .
+
+# (1) Core categories
+adl:Event rdf:type owl:Class ;
+    rdfs:subClassOf bfo:0000003 ;  # bfo:occurrent
+    rdfs:label "ADL Event" ;
+    rdfs:comment "An event in the ADL Lite lifecycle; occurrents have temporal parts." .
+
+adl:EventChain rdf:type owl:Class ;
+    rdfs:subClassOf bfo:0000015 ;  # bfo:process
+    rdfs:label "ADL Event Chain" ;
+    rdfs:comment "An append-only sequence of events; a process with ordered temporal parts." .
+
+adl:EventChainRecord rdf:type owl:Class ;
+    rdfs:subClassOf iao:0000030 ;  # iao:information_content_entity
+    rdfs:label "ADL Event Chain Record" ;
+    rdfs:comment "Serialized ICE representing the EventChain." .
+
+adl:Concept rdf:type owl:Class ;
+    rdfs:subClassOf bfo:0000031 ;  # bfo:generically_dependent_continuant
+    rdfs:label "ADL Concept" ;
+    rdfs:comment "A capability concept; concretized by EventChain records." .
+
+adl:Actor rdf:type owl:Class ;
+    rdfs:subClassOf bfo:0000023 ;  # bfo:role
+    rdfs:label "ADL Actor" ;
+    rdfs:comment "An actor role realized by a material entity." .
+
+adl:Relation rdf:type owl:Class ;
+    rdfs:subClassOf owl:Thing ;
+    rdfs:label "ADL Relation" ;
+    rdfs:comment "A typed edge between concepts (L3 assertion)." .
+
+# (2) L3 relation predicates (object properties)
+adl:isomorphicTo rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:Concept ;
+    rdfs:range adl:Concept ;
+    rdf:type owl:SymmetricProperty ;
+    rdf:type owl:TransitiveProperty ;
+    rdfs:label "isomorphic to" ;
+    rdfs:comment "Structural equivalence between independently registered concepts." .
+
+adl:specialisationOf rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:Concept ;
+    rdfs:range adl:Concept ;
+    rdf:type owl:TransitiveProperty ;
+    rdf:type owl:IrreflexiveProperty ;
+    rdfs:label "specialisation of" ;
+    rdfs:comment "One concept is a refinement or instance of another." .
+
+adl:forkOf rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:Concept ;
+    rdfs:range adl:Concept ;
+    rdf:type owl:TransitiveProperty ;
+    rdf:type owl:IrreflexiveProperty ;
+    rdfs:label "fork of" ;
+    rdfs:comment "Explicit lineage from a parent concept to a forked child." .
+
+adl:relatedTo rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:Concept ;
+    rdfs:range adl:Concept ;
+    rdf:type owl:SymmetricProperty ;
+    rdfs:label "related to" ;
+    rdfs:comment "General association between concepts." .
+
+adl:analogicalTo rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:Concept ;
+    rdfs:range adl:Concept ;
+    rdf:type owl:SymmetricProperty ;
+    rdfs:label "analogical to" ;
+    rdfs:comment "Similarity by analogy, weaker than structural equivalence." .
+
+adl:coOccursWith rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:Concept ;
+    rdfs:range adl:Concept ;
+    rdf:type owl:SymmetricProperty ;
+    rdfs:label "co-occurs with" ;
+    rdfs:comment "Concepts frequently co-occurring in the same context." .
+
+adl:mitigatedBy rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:Concept ;
+    rdfs:range adl:Concept ;
+    rdfs:label "mitigated by" ;
+    rdfs:comment "A countermeasure or mitigation relationship." .
+
+# (3) Disjointness between relation types
+[ rdf:type owl:AllDisjointProperties ;
+  owl:members ( adl:isomorphicTo adl:specialisationOf adl:forkOf adl:relatedTo adl:analogicalTo adl:coOccursWith adl:mitigatedBy )
+] .
+
+# (4) Lifecycle event types
+adl:LifecycleEvent rdf:type owl:Class ;
+    rdfs:subClassOf adl:Event ;
+    rdfs:label "Lifecycle Event" ;
+    owl:disjointUnionOf (
+        adl:RegisterEvent
+        adl:ValidateEvent
+        adl:DeprecateEvent
+        adl:ForkEvent
+        adl:ArchiveEvent
+    ) .
+
+adl:RegisterEvent rdf:type owl:Class ;
+    rdfs:subClassOf adl:LifecycleEvent .
+
+adl:ValidateEvent rdf:type owl:Class ;
+    rdfs:subClassOf adl:LifecycleEvent .
+
+adl:DeprecateEvent rdf:type owl:Class ;
+    rdfs:subClassOf adl:LifecycleEvent .
+
+adl:ForkEvent rdf:type owl:Class ;
+    rdfs:subClassOf adl:LifecycleEvent .
+
+adl:ArchiveEvent rdf:type owl:Class ;
+    rdfs:subClassOf adl:LifecycleEvent .
+
+# (5) Status enumeration
+adl:StatusValue rdf:type owl:Class ;
+    owl:oneOf ( adl:provisional adl:validated adl:deprecated adl:forked adl:archived ) .
+
+adl:provisional rdf:type adl:StatusValue .
+adl:validated rdf:type adl:StatusValue .
+adl:deprecated rdf:type adl:StatusValue .
+adl:forked rdf:type adl:StatusValue .
+adl:archived rdf:type adl:StatusValue .
+
+# (6) Data properties
+adl:hasStatus rdf:type owl:DatatypeProperty ;
+    rdfs:domain adl:EventChain ;
+    rdfs:range adl:StatusValue ;
+    rdfs:label "has status" .
+
+adl:hasConfidence rdf:type owl:DatatypeProperty ;
+    rdfs:domain adl:EventChain ;
+    rdfs:range xsd:float ;
+    rdfs:label "has confidence" ;
+    rdfs:comment "Aggregate confidence value in [0,1]." .
+
+adl:hasSHA256Hash rdf:type owl:DatatypeProperty ;
+    rdf:type owl:FunctionalProperty ;
+    rdfs:domain adl:Event ;
+    rdfs:range xsd:hexBinary ;
+    rdfs:label "has SHA-256 hash" .
+
+adl:hasPreviousEvent rdf:type owl:ObjectProperty ;
+    rdf:type owl:FunctionalProperty ;
+    rdfs:domain adl:Event ;
+    rdfs:range adl:Event ;
+    rdfs:label "has previous event" .
+
+adl:realizedBy rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:Actor ;
+    rdfs:range bfo:0000040 ;  # bfo:material_entity
+    rdfs:label "realized by" .
+
+adl:hasPayload rdf:type owl:DatatypeProperty ;
+    rdfs:domain adl:Event ;
+    rdfs:range xsd:string ;
+    rdfs:label "has payload" ;
+    rdfs:comment "JSON payload of the event." .
+
+# (7) Ontological dependence: concept -> record
+adl:dependsOnRecord rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:Concept ;
+    rdfs:range adl:EventChainRecord ;
+    rdfs:subPropertyOf bfo:0000084 ;  # bfo:generic_depends_on (approximate)
+    rdfs:label "depends on record" ;
+    rdfs:comment "Generic dependence of a concept on its EventChain-record bearer." .
+
+adl:causallyProduces rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:EventChain ;
+    rdfs:range adl:EventChainRecord ;
+    rdfs:label "causally produces" ;
+    rdfs:comment "The process produces the record (D4)." .
+
+adl:concretizedBy rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:EventChainRecord ;
+    rdfs:range bfo:0000040 ;  # bfo:material_entity
+    rdfs:label "concretized by" ;
+    rdfs:comment "The record is concretized by a material bearer (D3)." .
+
+# (8) Disjointness between process and record (D5)
+[ rdf:type owl:AllDisjointClasses ;
+  owl:members ( adl:EventChain adl:EventChainRecord )
+] .
+
+# (9) SWRL rules (status-transition constraints)
+# Rule 1: A validated concept can be deprecated
+# Rule 2: A deprecated concept cannot be validated
+# Note: These are illustrative; full SWRL encoding requires rule engine support
+
+# (10) Cardinality constraints
+[ rdf:type owl:Restriction ;
+  owl:onProperty adl:hasSHA256Hash ;
+  owl:cardinality "1"^^xsd:nonNegativeInteger
+] rdfs:subClassOf adl:Event .
+
+[ rdf:type owl:Restriction ;
+  owl:onProperty adl:hasPreviousEvent ;
+  owl:maxCardinality "1"^^xsd:nonNegativeInteger
+] rdfs:subClassOf adl:Event .
