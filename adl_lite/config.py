@@ -3,6 +3,7 @@
 Reads configuration from environment variables with sensible defaults.
 """
 
+import json
 import os
 
 
@@ -46,11 +47,42 @@ def get_api_config() -> dict:
     Returns:
         Dictionary with API configuration.
     """
+    # API-key → tenant mapping. Accepts either a JSON object
+    # (``{"key": "tenant"}``) or a ``key:tenant,key2:tenant2`` string.
+    api_key_tenants_raw = os.getenv("API_KEY_TENANTS", "")
+    api_key_tenants: dict[str, str] = {}
+    if api_key_tenants_raw:
+        try:
+            parsed = json.loads(api_key_tenants_raw)
+            if isinstance(parsed, dict):
+                api_key_tenants = {str(k): str(v) for k, v in parsed.items()}
+        except json.JSONDecodeError:
+            for pair in api_key_tenants_raw.split(","):
+                if ":" in pair:
+                    key, tenant = pair.split(":", 1)
+                    api_key_tenants[key.strip()] = tenant.strip()
+
+    # Quota defaults (all optional — unset = unlimited, backward-compatible).
+    _q_api = os.getenv("QUOTA_MAX_API_CALLS")
+    _q_entities = os.getenv("QUOTA_MAX_ENTITIES")
+    quota_max_api_calls: int | None = None
+    quota_max_entities: int | None = None
+    if _q_api and _q_api.strip():
+        quota_max_api_calls = int(_q_api)
+    if _q_entities and _q_entities.strip():
+        quota_max_entities = int(_q_entities)
+
     return {
         "cors_origins": get_cors_origins(),
         "auth_enabled": os.getenv("AUTH_ENABLED", "false").lower() == "true",
         "jwt_secret": os.getenv("JWT_SECRET", "change-me"),
         "rate_limit": int(os.getenv("RATE_LIMIT", "0")),
+        "api_key_tenants": api_key_tenants,
+        "metering_db_path": os.getenv("METERING_DB_PATH") or None,
+        "state_base_dir": os.getenv("STATE_BASE_DIR") or None,
+        "quota_max_api_calls": quota_max_api_calls,
+        "quota_max_entities": quota_max_entities,
+        "quota_period": os.getenv("QUOTA_PERIOD", "monthly"),
     }
 
 

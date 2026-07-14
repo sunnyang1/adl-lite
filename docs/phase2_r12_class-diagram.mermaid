@@ -1,0 +1,157 @@
+classDiagram
+    direction TB
+
+    %% ============================================================
+    %% 新增：QuotaPolicy & QuotaConfig（quota.py）
+    %% ============================================================
+
+    class QuotaPolicy {
+        <<Pydantic BaseModel>>
+        +int? max_api_calls = None
+        +int? max_entities = None
+        +str period = "monthly"
+    }
+
+    class QuotaConfig {
+        <<thread-safe singleton>>
+        -QuotaPolicy _global
+        -dict~str,QuotaPolicy~ _tenants
+        -Lock _lock
+        +get_policy(tenant_id: str) QuotaPolicy
+        +set_global(policy: QuotaPolicy) None
+        +set_tenant(tenant_id: str, policy: QuotaPolicy) None
+        +reset() None
+    }
+
+    %% ============================================================
+    %% 新增：check_quota FastAPI 依赖（quota.py）
+    %% ============================================================
+
+    class check_quota {
+        <<FastAPI Depends function>>
+        +Depends(require_tenant)
+        +quota_check(tid) → 429 or pass
+        +return TenantContext
+    }
+    note for check_quota "先于 meter_api_call 执行\n超量 → HTTPException(429)\n未超量 → 透传 TenantContext"
+
+    %% ============================================================
+    %% 现有：metering.py（复用，不改）
+    %% ============================================================
+
+    class UsageMeter {
+        <<existing, metering.py>>
+        +record_api_call(tenant_id, endpoint) None
+        +record_entity(tenant_id) None
+        +get_record(tenant_id, period_start, period_end) MeteringRecord
+        +get_endpoint_breakdown(tenant_id, period_start) dict
+        +export(tenant_id, ...) str
+        +reset(tenant_id, ...) None
+    }
+
+    class MeteringRecord {
+        <<Pydantic BaseModel>>
+        +str tenant_id
+        +int api_calls
+        +int registered_entities
+        +str period_start
+        +str period_end
+        +str updated_at
+    }
+
+    class PeriodWindow {
+        <<Pydantic BaseModel>>
+        +str period
+        +str period_start
+        +str period_end
+    }
+
+    %% ============================================================
+    %% 现有：tenant.py（复用，不改）
+    %% ============================================================
+
+    class TenantContext {
+        <<Pydantic BaseModel>>
+        +str id
+        +UserInfo user
+    }
+
+    class require_tenant {
+        <<FastAPI Depends function>>
+        +Depends(require_auth)
+        +resolve tenant_id
+        +return TenantContext
+    }
+
+    %% ============================================================
+    %% 现有：api_auth.py（复用，不改）
+    %% ============================================================
+
+    class UserInfo {
+        <<Pydantic BaseModel>>
+        +str identity
+        +str role = "user"
+        +str? tenant_id = None
+    }
+
+    class require_auth {
+        <<FastAPI Depends function>>
+        +JWT or X-API-Key
+        +return UserInfo
+    }
+
+    class require_admin {
+        <<FastAPI Depends function>>
+        +Depends(require_auth)
+        +role == "admin" else 403
+        +return UserInfo
+    }
+
+    %% ============================================================
+    %% 修改：api.py 中的 meter_api_call & create_app
+    %% ============================================================
+
+    class meter_api_call {
+        <<MODIFIED, api.py>>
+        +Depends(check_quota) 🔄 原为 Depends(require_tenant)
+        +record_api_call(tid, endpoint)
+        +return TenantContext
+    }
+    note for meter_api_call "依赖链变为：\nrequire_tenant → check_quota → meter_api_call"
+
+    class create_app {
+        <<api.py factory>>
+        +init QuotaConfig from env
+        +init UsageMeter
+        +register endpoints
+        +return FastAPI app
+    }
+
+    %% ============================================================
+    %% 关系
+    %% ============================================================
+
+    QuotaConfig "1" --> "1" QuotaPolicy : _global
+    QuotaConfig "1" --> "*" QuotaPolicy : _tenants
+
+    check_quota ..> require_tenant : Depends
+    check_quota ..> QuotaConfig : get_policy()
+    check_quota ..> UsageMeter : get_record()
+
+    meter_api_call ..> check_quota : Depends（替代 require_tenant）
+    meter_api_call ..> UsageMeter : record_api_call()
+
+    require_tenant ..> require_auth : Depends
+    require_tenant ..> UserInfo : 读取 tenant_id
+
+    require_admin ..> require_auth : Depends
+
+    TenantContext "1" --> "1" UserInfo : user
+
+    create_app ..> QuotaConfig : init
+    create_app ..> UsageMeter : init
+    create_app ..> meter_api_call : 注册到端点
+    create_app ..> check_quota : 注册到端点
+
+    UsageMeter ..> MeteringRecord : returns
+    UsageMeter ..> PeriodWindow : uses

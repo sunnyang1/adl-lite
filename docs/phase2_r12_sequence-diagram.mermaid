@@ -1,0 +1,152 @@
+sequenceDiagram
+    actor Client
+    participant Router as FastAPI Router
+    participant require_tenant
+    participant QuotaConfig
+    participant UsageMeter
+    participant check_quota
+    participant meter_api_call
+    participant Handler as Endpoint Handler
+    participant Engine as ConsensusEngine
+
+    %% ============================================================
+    %% 场景 1：正常请求（配额未超）
+    %% ============================================================
+
+    rect rgb(240, 255, 240)
+        Note over Client,Engine: 场景 1：正常请求 — POST /api/v1/consensus/register（配额未超）
+
+        Client->>Router: POST /register {adl_id, scope, domain}
+        Router->>require_tenant: Depends(require_tenant)
+        require_tenant->>require_tenant: JWT decode / API-key resolve
+        require_tenant-->>Router: TenantContext(id="acme", user=...)
+
+        Router->>check_quota: Depends(check_quota)
+        check_quota->>QuotaConfig: get_policy("acme")
+        QuotaConfig-->>check_quota: QuotaPolicy(max_api_calls=10000, max_entities=None)
+
+        alt max_api_calls is not None or max_entities is not None
+            check_quota->>UsageMeter: get_record("acme", period_start, period_end)
+            UsageMeter-->>check_quota: MeteringRecord(api_calls=5120, registered_entities=42)
+            check_quota->>check_quota: 5120 < 10000 → OK
+        else all None (unlimited, fast path)
+            Note over check_quota: 跳过 UsageMeter 查询<br/>直接返回 TenantContext
+        end
+
+        check_quota-->>Router: TenantContext(id="acme")
+
+        Router->>meter_api_call: Depends(meter_api_call)
+        meter_api_call->>UsageMeter: record_api_call("acme", "/api/v1/consensus/register")
+        UsageMeter-->>meter_api_call: OK
+        meter_api_call-->>Router: TenantContext(id="acme")
+
+        Router->>Handler: register_capability(req, caller)
+        Handler->>Engine: _get_engine("acme")
+        Handler->>Handler: 执行注册逻辑
+        Handler->>UsageMeter: record_entity("acme")
+        UsageMeter-->>Handler: OK
+        Handler-->>Client: 200 StatusResponse
+    end
+
+    %% ============================================================
+    %% 场景 2：配额超量 → 429
+    %% ============================================================
+
+    rect rgb(255, 240, 240)
+        Note over Client,Engine: 场景 2：配额超量 — POST /api/v1/consensus/register（api_calls 超限）
+
+        Client->>Router: POST /register {adl_id, scope, domain}
+        Router->>require_tenant: Depends(require_tenant)
+        require_tenant-->>Router: TenantContext(id="acme")
+
+        Router->>check_quota: Depends(check_quota)
+        check_quota->>QuotaConfig: get_policy("acme")
+        QuotaConfig-->>check_quota: QuotaPolicy(max_api_calls=10000)
+
+        check_quota->>UsageMeter: get_record("acme", period_start, period_end)
+        UsageMeter-->>check_quota: MeteringRecord(api_calls=10000, registered_entities=42)
+
+        check_quota->>check_quota: 10000 >= 10000 → QUOTA EXCEEDED!
+        check_quota-->>Client: HTTP 429 Too Many Requests
+        Note over Client,check_quota: {"detail": {"error":"quota_exceeded",<br/>"detail":"Quota exceeded: api_calls",<br/>"quota":{"max_api_calls":10000},<br/>"current":{"api_calls":10000,"registered_entities":42},<br/>"retry_after":"2026-09-01T00:00:00Z"}}
+
+        Note over meter_api_call,Handler: meter_api_call 和 Handler 均不执行
+    end
+
+    %% ============================================================
+    %% 场景 3：控制面端点 — 不受配额限制
+    %% ============================================================
+
+    rect rgb(240, 240, 255)
+        Note over Client,Engine: 场景 3：控制面 — POST /mode/dev（admin-only，免配额）
+
+        Client->>Router: POST /mode/dev
+        Router->>Router: require_admin
+        Note over Router: Depends(require_admin) → role="admin" OK
+        Note over Router: 直接进入 Handler，不经过<br/>require_tenant / check_quota / meter_api_call
+
+        Router->>Handler: set_dev_mode(user)
+        Handler->>Engine: _get_engine("default")
+        Engine-->>Handler: engine.set_dev_mode()
+        Handler-->>Client: 200 {"mode":"dev","n_min":1}
+    end
+
+    %% ============================================================
+    %% 场景 4：usage 端点 — 同样受配额限制
+    %% ============================================================
+
+    rect rgb(255, 255, 240)
+        Note over Client,Engine: 场景 4：GET /tenants/{tid}/usage — 纳入配额链（修改后）
+
+        Client->>Router: GET /tenants/acme/usage
+        Router->>require_tenant: Depends(require_tenant)
+        require_tenant-->>Router: TenantContext(id="acme")
+
+        Router->>check_quota: Depends(check_quota)
+        check_quota->>QuotaConfig: get_policy("acme")
+        QuotaConfig-->>check_quota: QuotaPolicy(max_api_calls=10000)
+        check_quota->>UsageMeter: get_record("acme", ...)
+        UsageMeter-->>check_quota: api_calls=5120 < 10000 → OK
+        check_quota-->>Router: TenantContext(id="acme")
+
+        Router->>meter_api_call: Depends(meter_api_call)
+        meter_api_call->>UsageMeter: record_api_call("acme", "/api/v1/tenants/acme/usage")
+        UsageMeter-->>meter_api_call: OK
+        meter_api_call-->>Router: TenantContext(id="acme")
+
+        Router->>Handler: get_tenant_usage("acme", caller)
+        Handler->>Handler: 鉴权：caller.id == "acme" → OK
+        Handler->>UsageMeter: get_record("acme", period_start, period_end)
+        UsageMeter-->>Handler: MeteringRecord(...)
+        Handler-->>Client: 200 MeteringRecord
+    end
+
+    %% ============================================================
+    %% 场景 5：租户级覆盖 — tenant A 超量，tenant B 正常
+    %% ============================================================
+
+    rect rgb(255, 245, 230)
+        Note over Client,Engine: 场景 5：租户级覆盖 — acme 超量，widgetco 正常
+
+        Note over QuotaConfig: configure_quota("acme", max_api_calls=100)<br/>configure_quota("widgetco", max_api_calls=10000)
+
+        Client->>Router: POST /register (tenant=acme)
+        Router->>require_tenant: resolve → "acme"
+        Router->>check_quota: get_policy("acme")
+        QuotaConfig-->>check_quota: max_api_calls=100（租户覆盖）
+        check_quota->>UsageMeter: get_record("acme", ...)
+        UsageMeter-->>check_quota: api_calls=100 → EXCEEDED!
+        check_quota-->>Client: HTTP 429
+
+        Client->>Router: POST /register (tenant=widgetco)
+        Router->>require_tenant: resolve → "widgetco"
+        Router->>check_quota: get_policy("widgetco")
+        QuotaConfig-->>check_quota: max_api_calls=10000（租户覆盖）
+        check_quota->>UsageMeter: get_record("widgetco", ...)
+        UsageMeter-->>check_quota: api_calls=5000 < 10000 → OK
+        check_quota-->>Router: TenantContext
+
+        Router->>meter_api_call: record_api_call("widgetco", ...)
+        Router->>Handler: 正常处理
+        Handler-->>Client: 200
+    end

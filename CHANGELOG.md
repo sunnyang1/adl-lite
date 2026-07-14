@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 2 Slice-2 — tenant quota enforcement (R12)**:
+  - `adl_lite/quota.py` (new): `QuotaPolicy` (`max_api_calls` / `max_entities` / `period`),
+    thread-safe `QuotaConfig` singleton, `check_quota` FastAPI dependency that raises
+    `HTTPException(429)` when a tenant exceeds its limit (response body carries `detail`,
+    `quota`, `current`, `retry_after`; a standard `Retry-After` header is also set), and
+    `configure_quota`.
+  - `adl_lite/api.py`: `meter_api_call` now depends on `check_quota` and records usage under
+    the tenant's configured `period` (daily / monthly); the usage and export endpoints are also
+    gated by `check_quota`; `create_app` gains `quota_max_api_calls` / `quota_max_entities` /
+    `quota_period`.
+  - `adl_lite/config.py`: `get_api_config` reads `QUOTA_MAX_API_CALLS` / `QUOTA_MAX_ENTITIES` /
+    `QUOTA_PERIOD`.
+  - `adl_lite/metering.py`: `record_api_call` / `record_entity` accept a `period` argument so
+    daily and monthly quotas align with the recorded window (previously daily quotas never
+    fired because usage was always recorded under the monthly window).
+  - Default behaviour (no quota configured) is unlimited, so single-tenant deployments see
+    zero regression.
+
 - **Phase 5 formal-methods extension**:
   - TLA+ bounded checking now covers CRDT merge and consensus/multi-agent
     transitions in addition to the original single-chain spec:

@@ -55,22 +55,34 @@ from .did_resolver import (
     verify_did_signature,
 )
 from .embeddings import EmbeddingBackend, OpenAIBackend, SentenceTransformerBackend
-from .exceptions import (
+from .exceptions import (  # type: ignore[attr-defined]
     ADLConfigError,
     ADLConsensusError,
     ADLError,
     ADLMemoryError,
+    ADLNeo4jError,  # type: ignore[attr-defined]
     ADLOntologyError,
     ADLParseError,
     ADLTemplateError,
+    ADLTrustValidationError,  # type: ignore[attr-defined]
+    ADLUnsupportedDIDMethodError,  # type: ignore[attr-defined]
     ADLValidationError,
 )
+from .graph_backends import GraphBackend, NetworkXGraphAdapter, SQLGraphAdapter
 from .jsonld_export import export_jsonld
 from .key_registry import GitSignatureVerifier, KeyRegistry, TransparencyAnchor
 from .ld_proof import create_event_proof, sign_event, verify_event_proof
 from .logging_config import get_logger
 from .memory import ADLMemory, HotIndex, WarmIndex
 from .merkle import MerkleProof, MerkleTree, compute_chain_merkle_root
+from .metering import (
+    DEFAULT_PERIOD,
+    MeteringRecord,
+    PeriodWindow,
+    UsageMeter,
+    compute_period_window,
+    get_usage_meter,
+)
 from .near_duplicate import (
     check_near_duplicate,
     check_near_duplicate_embedding,
@@ -79,9 +91,22 @@ from .near_duplicate import (
 from .neo4j_adapter import Neo4jGraphAdapter
 from .owl_export import export_owl
 from .owl_import import parse_owl_rdfxml, parse_owl_turtle
+from .quota import (
+    QuotaConfig,
+    QuotaPolicy,
+    check_quota,
+    configure_quota,
+    get_quota_config,
+)
 from .rdfstar_export import document_to_rdfstar_turtle, sparqlstar_query_template
 from .relation_validator import RelationValidator
 from .shacl_validation import validate_adl_document
+from .tenant import (
+    DEFAULT_TENANT,
+    TenantContext,
+    get_tenant_registry,
+    require_tenant,
+)
 from .vector_index import VectorIndex
 
 # FDE Platform extensions (optional — imports are safe even if modules don't exist yet)
@@ -91,6 +116,22 @@ except ImportError:
     tenant_manager = None  # type: ignore[assignment]
     pipeline_engine = None  # type: ignore[assignment]
     agent_runner = None  # type: ignore[assignment]
+
+# Trust-model layer (Phase-1 foundation) — independent validation layer on top of
+# the existing ConsensusEngine. Imports are guarded so a missing transitive dep
+# never breaks package import.
+try:
+    from .trust_model import (
+        ConsensusConfig,
+        TrustValidator,
+    )
+    from .trust_model import (
+        ValidationResult as TrustValidationResult,
+    )
+except ImportError:  # pragma: no cover
+    ConsensusConfig = None  # type: ignore
+    TrustValidator = None  # type: ignore
+    TrustValidationResult = None  # type: ignore
 
 from .l2_template import L2Template, L2TemplateValidator
 from .models import (
@@ -220,6 +261,23 @@ __all__ = [
     "ADLMemory",
     "HotIndex",
     "WarmIndex",
+    # Multi-tenant (Phase-2)
+    "DEFAULT_TENANT",
+    "TenantContext",
+    "require_tenant",
+    "get_tenant_registry",
+    # Quota enforcement (Phase-2, R12)
+    "QuotaPolicy",
+    "QuotaConfig",
+    "check_quota",
+    "configure_quota",
+    "get_quota_config",
+    "DEFAULT_PERIOD",
+    "MeteringRecord",
+    "PeriodWindow",
+    "UsageMeter",
+    "compute_period_window",
+    "get_usage_meter",
     # Logging
     "get_logger",
     # Exceptions
@@ -231,4 +289,15 @@ __all__ = [
     "ADLMemoryError",
     "ADLConfigError",
     "ADLTemplateError",
+    "ADLNeo4jError",
+    "ADLTrustValidationError",
+    "ADLUnsupportedDIDMethodError",
+    # Trust model (Phase-1 foundation)
+    "ConsensusConfig",
+    "TrustValidator",
+    "TrustValidationResult",
+    # Graph backends (pluggable persistence)
+    "GraphBackend",
+    "NetworkXGraphAdapter",
+    "SQLGraphAdapter",
 ]
