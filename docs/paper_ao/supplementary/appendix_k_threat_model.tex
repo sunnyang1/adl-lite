@@ -7,7 +7,7 @@ This appendix provides the complete threat model discussion, including Phase~1.5
 ADL Lite's current phase (v0.2) assumes the following trust boundaries:
 
 \begin{enumerate}[label=(\arabic*)]
-    \item \textbf{Trusted storage.} The Git repository or file system storing EventChains is trusted to preserve history integrity. Force-pushes or rebases can rewrite history, but (a) signed Git commits provide tamper-evidence via GPG signatures, and (b) ADL Lite's chain verification detects any modification because the hash chain breaks at the point of alteration. The authoritative chain is determined by agent quorum, not Git HEAD.
+    \item \textbf{Trusted storage.} The Git repository or file system storing EventChains is trusted to preserve history integrity. Force-pushes or rebases can rewrite history, but (a) signed Git commits provide tamper-evidence via GPG signatures, and (b) ADL Lite's chain verification detects any modification because the hash chain breaks at the point of alteration. In planned Phase 3, the authoritative chain will be determined by agent quorum, not Git HEAD.
     \item \textbf{Trusted authoring environment.} We assume that agents are uncompromised. A compromised agent can inject arbitrary events, but those events are recorded---the chain provides \emph{tamper-evident records} of what occurred, even if what occurred was malicious.
     \item \textbf{Clock skew tolerance.} Event ordering is determined by cryptographic linkage (\texttt{previous\_event\_id}), not by timestamps. Clock skew between agents does not affect chain validity. Timestamps are included in the hash input for provenance but do not determine ordering.
 \end{enumerate}
@@ -23,6 +23,40 @@ In Phase~1, actor identity is a self-declared string carried in the \texttt{acto
 \textbf{Replay attacks.} A replayed event---copying an existing event and re-appending it---breaks the hash chain because the replayed event's \texttt{previous\_event\_id} differs from the current chain tail. $\text{VerifyIntegrity}(C)$ detects this as a linkage break at the point of insertion. Even if an attacker recomputes hashes, the replayed event's $\text{event\_id}$ duplicates an existing one, violating well-formedness axiom~(5) (pairwise distinct \texttt{event\_id} values).
 
 \textbf{Equivocation.} An agent can post contradictory events across forks (e.g., validating capability $X$ on chain $C_1$ while deprecating it on chain $C_2$). ADL Lite does not prevent this; it \emph{records} them. Equivocation becomes part of the public audit trail and can be queried by $\text{actors}(V)$ aggregation. Resolution is social: the community observes the contradiction and deprecates the inconsistent branch. Equivocation evidence is a feature, not a bug---it exposes dishonest behaviour for community judgment rather than suppressing it silently.
+
+\subsection{Identity Attack Tree}
+
+We decompose identity-related threats into a structured attack tree (Figure~
+ef{fig:identity-attack-tree}) with four root goals: (G1)~impersonate a legitimate actor, (G2)~fragment a concept's identity across repositories, (G3)~erase the audit trail of a concept, and (G4)~inflate confidence through Sybil validators. Each goal is refined into concrete attack vectors and mapped to the phase that mitigates them.
+
+	extbf{G1: Impersonate a legitimate actor.}
+egin{itemize}[leftmargin=2em]
+    \item 	extbf{A1.1 String collision.} Choose an actor string identical to an existing validator (e.g., 	exttt{agent\_3}). \emph{Mitigation:} social detection of divergent event patterns; no technical prevention in Phase~1. Phase~1.5 (signed Git commits) binds the string to a cryptographic key; Phase~3 (DIDs) makes impersonation cryptographically infeasible without private-key theft.
+    \item 	extbf{A1.2 Key theft.} Steal the Ed25519 private key of a Phase~1.5 validator. \emph{Mitigation:} Phase~2 adds key rotation and revocation events; Phase~3 adds transparency logs for key-history audit.
+    \item 	extbf{A1.3 DID document takeover.} Compromise the web server hosting a 	exttt{did:web} document. \emph{Mitigation:} Phase~3 uses multi-signature DID documents and key transparency logs; the attack cost rises to compromising multiple independent infrastructure providers.
+\end{itemize}
+
+	extbf{G2: Fragment a concept's identity across repositories.}
+egin{itemize}[leftmargin=2em]
+    \item 	extbf{A2.1 Formatting drift.} Re-export a chain with CRLF line endings, causing hash mismatch on re-import. \emph{Mitigation:} 	exttt{canon\_version} pins the serialization policy; the import layer normalises before verification.
+    \item 	extbf{A2.2 Metadata injection.} Retroactively add a 	exttt{signature} field to legacy genesis events during migration. \emph{Mitigation:} ADL Lite enforces write-once genesis semantics; migrations must append new events rather than mutate existing ones.
+    \item 	extbf{A2.3 Fork confusion.} Create a child fork and claim it is the original concept. \emph{Mitigation:} the parent chain retains the original genesis hash; the child has a new genesis hash and a 	exttt{fork-of} relation pointing to the parent, making lineage traceable.
+\end{itemize}
+
+	extbf{G3: Erase the audit trail of a concept.}
+egin{itemize}[leftmargin=2em]
+    \item 	extbf{A3.1 Genesis replacement.} Force-push a rebased history with a new genesis event. \emph{Mitigation:} Phase~1 detects the hash break; Phase~1.5 detects the anchor mismatch; Phase~3 prevents rewrite via BFT quorum.
+    \item 	extbf{A3.2 Selective omission.} Withhold evidence events that contradict a validator's claim. \emph{Mitigation:} no technical prevention in Phase~1--1.5; Phase~3 introduces threshold gossip protocols that make omission detectable by a quorum.
+    \item 	extbf{A3.3 Truncation attack.} Truncate the chain after the genesis event to hide later validations. \emph{Mitigation:} the truncated chain is well-formed but shorter; peer recovery restores the full chain from distributed copies.
+\end{itemize}
+
+	extbf{G4: Inflate confidence through Sybil validators.}
+egin{itemize}[leftmargin=2em]
+    \item 	extbf{A4.1 Pseudonymous self-validation.} Create $k$ pseudonyms and validate the same concept from each. \emph{Mitigation:} Phase~1 has no prevention; Phase~1.5 raises the cost to $k$ key pairs; Phase~3 makes this economically expensive via staking.
+    \item 	extbf{A4.2 Collusion ring.} Coordinate $k$ real actors to validate mutually without independent review. \emph{Mitigation:} no technical prevention in Phase~1--1.5; Phase~3 uses reputation-weighted staking and slashing to disincentivise collusion rings.
+\end{itemize}
+
+The attack tree demonstrates that Phase~1 provides \emph{detection} for all content-tampering and trail-integrity attacks, but \emph{prevention} only for hash-corruption attacks. Identity attacks (G1, G2, G4) require Phase~1.5 or Phase~3 for meaningful mitigation. This honest progression is deliberate: the system is deployable today with minimal infrastructure, and security properties strengthen incrementally.
 
 \subsection{Phase~1.5: Near-Term Authentication Bridge}\label{app:phase-1.5}
 
@@ -80,9 +114,9 @@ The precondition $\text{pre}(\text{VALIDATE}) = \langle N_{\text{vals}}, \text{G
 
 \subsection{Known Limitations and Planned Mitigations}
 
-\textbf{Limitation 1: No actor identity verification (Phase~3).} Currently, event actors are self-declared strings. An agent can claim to be another agent when appending events. Planned Phase~3 will add W3C Linked Data Proofs \cite{linked_data_proofs}: each event will carry an Ed25519 signature over canonicalized event JSON, verifiable against a public key published via Decentralised Identifiers (DIDs) \cite{dids} or key transparency logs \cite{key_transparency}. Key revocation will be published to transparency logs, and Merkle tree batch verification will provide $O(\log n)$ audit complexity for signature validation. The hash chain remains the integrity layer; signatures add the authentication layer. Integration with Git-based workflows will use Git's existing GPG commit signing as a stopgap: signed Git commits bound to signed ADL events create a two-layer attestation (Git commit signs the file; ADL event signs the content).
+\textbf{Limitation 1: No actor identity verification (Phase~3).} Currently, event actors are self-declared strings. An agent can claim to be another agent when appending events. Planned Phase~3 will add W3C Linked Data Proofs \cite{linked_data_proofs}: each event will carry an Ed25519 signature over canonicalised event JSON, verifiable against a public key published via Decentralised Identifiers (DIDs) \cite{dids} or key transparency logs \cite{key_transparency}. Key revocation will be published to transparency logs, and Merkle tree batch verification will provide $O(\log n)$ audit complexity for signature validation. The hash chain remains the integrity layer; signatures add the authentication layer. Integration with Git-based workflows will use Git's existing GPG commit signing as a stopgap: signed Git commits bound to signed ADL events create a two-layer attestation (Git commit signs the file; ADL event signs the content).
 
-\textbf{Limitation 2: No Byzantine resilience.} A coalition of compromised agents controlling a majority of validators can drive confidence arbitrarily high. ADL Lite does not implement Byzantine fault tolerance. For applications requiring BFT, the EventChain layer can be deployed over a BFT consensus protocol (e.g., PBFT \cite{pbft}) at the transport layer, with ADL Lite providing the semantic governance layer above.
+\textbf{Limitation 2: No Byzantine resilience.} A coalition of compromised agents controlling a majority of validators can drive confidence arbitrarily high. ADL Lite does not implement Byzantine fault tolerance. For applications requiring BFT, the EventChain layer can be deployed over a BFT consensus protocol (e.g., PBFT \cite{pbft}) at the transport layer, with ADL Lite providing the semantic audit layer above.
 
 \textbf{Limitation 3: No equivocation prevention.} An agent can post contradictory events (e.g., validating and deprecating the same capability) across different chains. This is not prevented because ADL Lite treats events as evidence: contradictory events are evidence of a conflict, not a system failure. Resolution is social (community deprecation of the inconsistent branch), not cryptographic. Phase~3 signatures will make equivocation \emph{cryptographically attributable} (the same key signs both contradictory events), but will not prevent it by protocol design.
 
@@ -98,17 +132,25 @@ The precondition $\text{pre}(\text{VALIDATE}) = \langle N_{\text{vals}}, \text{G
 \toprule
 \textbf{Threat} & \textbf{Phase 1} & \textbf{Phase 1.5} & \textbf{Phase 3} \\
 \midrule
+\multicolumn{4}{l}{\textit{Content integrity threats}} \\
 Content tampering & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
 Event reordering & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
 Event deletion & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
-Actor impersonation & $\times$ & $\triangle$ & $\checkmark$ \\
-Equivocation & $\circ$ & $\circ$ & $\triangle$ \\
-Clock skew & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
-Genesis replacement & $\circ$ & $\triangle$ & $\checkmark$ \\
-Byzantine majority & $\times$ & $\times$ & $\triangle$ \\
-Replay attack & $\circ$ & $\triangle$ & $\checkmark$ \\
 Timestamp manipulation & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+Clock skew & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+\midrule
+\multicolumn{4}{l}{\textit{Identity threats}} \\
+Actor impersonation & $\times$ & $\triangle$ & $\checkmark$ \\
+Genesis replacement & $\circ$ & $\triangle$ & $\checkmark$ \\
+Replay attack & $\circ$ & $\triangle$ & $\checkmark$ \\
+Identity fragmentation (G2) & $\circ$ & $\triangle$ & $\checkmark$ \\
+Sybil self-validation (G4) & $\times$ & $\triangle$ & $\triangle$ \\
+\midrule
+\multicolumn{4}{l}{\textit{Governance threats}} \\
+Equivocation & $\circ$ & $\circ$ & $\triangle$ \\
+Byzantine majority & $\times$ & $\times$ & $\triangle$ \\
 Collusion attack & $\times$ & $\times$ & $\triangle$ \\
+Selective omission (G3) & $\circ$ & $\circ$ & $\triangle$ \\
 Social engineering & $\times$ & $\times$ & $\times$ \\
 \bottomrule
 \end{tabular}
@@ -129,7 +171,7 @@ ADL Lite employs a multi-layer recovery strategy for chain corruption scenarios.
     \item \textbf{Git reflog recovery.} Each chain version is preserved in Git's history. \texttt{git reflog} can restore any prior state. If the corrupted chain is the current HEAD, the last known well-formed version can be checked out.
     \item \textbf{Distributed peer recovery.} In multi-agent deployments, each agent maintains a local copy. The authoritative chain is selected by agent quorum: the longest well-formed chain (verified by $\text{VerifyIntegrity}$) from the set of peer copies is adopted.
     \item \textbf{Partial repair.} If only tail events are corrupted, the chain can be truncated to the last well-formed prefix $C[1..k]$. The truncation is recorded as an \texttt{EVIDENCE} event noting ``integrity violation detected at event $k+1$; chain truncated.'' Truncated events remain in Git history.
-    \item \textbf{Rollback governance.} Any recovery action produces a governance event under the same precondition rules as normal operations, ensuring auditable recovery.
+    \item \textbf{Rollback audit.} Any recovery action produces an audit event under the same precondition rules as normal operations, ensuring auditable recovery.
 \end{enumerate}
 
 \textbf{Limitations.} Phase~1 assumes at least one well-formed copy exists. Total data loss causes capability cessation (\S\ref{subsec:ontological-dependence}). Automated reconciliation of conflicting well-formed copies is deferred to Phase~3 (CRDT merge, Theorem~9). Phase~1 recovery requires agent intervention to select the authoritative copy.

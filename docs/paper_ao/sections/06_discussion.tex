@@ -1,70 +1,123 @@
 % =============================================================================
-% Section 6: Discussion (RESTRUCTURED --- removed "Addressing Reviewer Questions")
+% Section 6: Discussion
 % =============================================================================
 
-\subsection{Capability-First Governance: Ontological Implications}\label{subsec:ontological-implications}
+\subsection{Capability-First Audit: Ontological Implications}\label{subsec:ontological-implications}
 
-The empirical results support the event-first design, but the deeper contribution lies in four ontological questions that emerge from the analysis.
+The empirical results support the event-first design; the deeper contribution lies in four ontological questions.
 
-\textbf{Q1: What is the ontological status of a capability?} In ADL Lite, a capability is a generically dependent continuant that exists only from its genesis event (\texttt{REGISTER}) onward; prior to that, there is only potential. This parallels BFO, where a process exists only from the moment it begins.
+\textbf{Q1: What is the ontological status of a capability?} In ADL Lite, a capability is a generically dependent continuant that exists only from its genesis event (\texttt{REGISTER}) onward; prior to that, there is only potential. This parallels BFO's view that a process exists only from its beginning.
 
-\textbf{Q2: Are status and confidence real or derived properties?} Status is computed by $\delta(C)$ and has no existence independent of the chain, aligning with DOLCE's view that some properties are constructed by cognitive agents rather than discovered~\cite{dolce}.
+\textbf{Q2: Are status and confidence real or derived?} Status is computed by $\delta(C)$ and has no existence independent of the chain, aligning with DOLCE's view that some properties are constructed by cognitive agents rather than discovered~\cite{dolce}.
 
-\textbf{Q3: What happens to a capability when it is deprecated?} Deprecation appends a \texttt{DEPRECATE} event; the capability retains its \texttt{concept\_id} but its status becomes \texttt{deprecated}, preserving a complete audit trail. The entity itself is not destroyed---its identity persists---but its governance status changes, reflecting the distinction between identity and status that is central to the event-first design.
+\textbf{Q3: What happens to a capability when it is deprecated?} Deprecation appends a \texttt{DEPRECATE} event; the capability retains its \texttt{concept\_id} but its status becomes \texttt{deprecated}, preserving a complete audit trail. The entity is not destroyed---its identity persists---but its audit status changes, reflecting the distinction between identity and status that is central to the event-first design.
 
-\textbf{Q4: What is the ontological cost of the event-first stance?} The event-first model makes historical queries natural (e.g., ``what was the status at time $t$?''), but certain snapshot queries require scanning the entire chain. For example, computing the set of all currently \texttt{validated} concepts requires evaluating $\delta(C)$ for every chain, which is $O(n)$ per chain. This is a deliberate design choice: event-first trades query-time computation for the elimination of stored mutable state and the consistency defects it introduces. The complexity is linear and bounded (Theorem~1), so the cost is predictable and acceptable for the target deployment scale ($10^5$--$10^6$ events).
+\textbf{Q4: What is the ontological cost of the event-first stance?} The event-first model makes historical queries natural, but snapshot queries require scanning the chain. Computing all currently \texttt{validated} concepts requires evaluating $\delta(C)$ per chain, which is $O(n)$. This is deliberate: event-first trades query-time computation for the elimination of stored mutable state and its consistency defects. The complexity is linear and bounded (Theorem~1), predictable, and acceptable for the target scale ($10^5$--$10^6$ events).
 
-\textbf{Space-time trade-off.} The append-only design trades storage growth for query-time recomputation. At $10^6$ events, the zstd+msgpack cold-storage archive achieves $>{>}10\times$ compression over JSONL (E27), mitigating storage concerns. The warm index caches derived snapshots ($\delta$, $\gamma$) for $O(1)$ incremental queries, so the $O(n)$ cost is incurred only on cold starts or cache invalidations. For deployments exceeding $10^6$ events, secondary indexing (e.g., materialized status views, event-type partitioning) could be introduced without changing the canonical derivation semantics.
+\textbf{Space-time trade-off.} The append-only design trades storage growth for query-time recomputation. At $10^6$ events, zstd+msgpack cold storage achieves $>{>}10\times$ compression over JSONL (E27). The warm index caches derived snapshots for $O(1)$ incremental queries, so the $O(n)$ cost is incurred only on cold starts or cache invalidations. For deployments exceeding $10^6$ events, secondary indexing could be introduced without changing canonical derivation semantics.
 
 \subsection{Capability Registry Contribution}\label{subsec:conceptual-modeling}
 
-The three contributions of this paper (Section~\ref{subsec:contributions})---ontological analysis, formal semantics, and architectural verification---position ADL Lite as a lightweight, deployment-ready governance layer for capability lifecycles.
+The three contributions (Section~\ref{subsec:contributions})---ontological analysis, formal semantics, and architectural verification---position ADL Lite as a lightweight audit layer.
 
-\textbf{Ontological analysis contribution.} The cross-mapping to BFO, DOLCE, and UFO (Table~\ref{tab:upper-ontology-mapping}) provides methodological guidance for event-first systems beyond multi-agent governance. The two-level account (\S\ref{subsec:two-level-account}) resolves the process-vs.-record ambiguity that plagues event-sourced systems.
+\textbf{Ontological analysis.} The cross-mapping to BFO, DOLCE, and UFO (Table~\ref{tab:upper-ontology-mapping}) provides methodological guidance for event-first systems. The two-level account (\S\ref{subsec:two-level-account}) resolves the process-vs.-record ambiguity of event-sourced systems.
 
-\textbf{Formal semantics contribution.} The six machine-verified properties (Theorems~3, 4, 7) and the three stated properties awaiting full machine proof (Theorems~1, 8, 9) guarantee deterministic, auditable state derivation from append-only event sequences. The decidable precondition language (Theorem~8) provides the first $O(1)$-per-rule evaluation guarantee for capability-lifecycle governance.
+\textbf{Formal semantics.} Eight machine-verified properties in Coq 8.18.0 (Theorems~1--7, 9) and the Python-level property (Theorem~8) provide formal assurance of deterministic, auditable state derivation. The decidable precondition language (Theorem~8) provides the first $O(1)$-per-rule evaluation guarantee for capability-lifecycle audit.
 
-\textbf{Architectural verification contribution.} The empirical validation on 201~EventChains (9,300~events) confirms linear scalability and zero integrity failures, while the head-to-head benchmark (E19, Table~\ref{tab:e19-benchmark}) demonstrates competitive governance cost against nanopublications, PROV-O, and Git-only baselines.
+\textbf{Architectural verification.} Validation on 201~EventChains (9,300~events) confirms linear scalability and zero integrity failures, whereas the head-to-head benchmark (E19, Table~\ref{tab:e19-benchmark}) demonstrates competitive audit cost against nanopublications, PROV-O, and Git-only baselines.
+
+The complete OWL~2~DL module and SHACL shape graph provide machine-checkable structural validation for the applied ontology community, bridging the gap between event-sourced runtime semantics and declarative ontology tooling.
 
 \subsection{Limitations}\label{subsec:limitations}
 
-The results must be interpreted in the light of twelve limitations, each of which is addressed by a corresponding Future Work item in Section~\ref{subsec:future-work}.\par
-\textbf{L1. Informal foundational alignment.} The ontological analysis is conceptual and narrative in nature, relying on expert judgment and manual cross-referencing with BFO, DOLCE, and UFO literature. It is not formalized as OWL~2~DL axioms nor validated with automated alignment tools (e.g., LogMap, AML). (See~\S\ref{subsec:future-work}~FW1.)\par
-\textbf{L2. Append-only accumulation and scale limits.} The append-only design inevitably leads to junk accumulation, redundancy, and preference drift. While feasibility at $10^5$--$10^6$ events was originally projected from linear scaling arguments, empirical validation at that scale has now been performed (E19, Section~\ref{subsec:comparative-analysis}): ADL Lite ingests $10^6$ concepts (2$\times$$10^6$ events) in 87.0~s at 22,987 events per second, confirming the linear projection. (See~\S\ref{subsec:future-work}~FW2.)\par
+The results must be interpreted in light of the following limitations.
 
-\textbf{L3. Collusion vulnerability and calibration limitations.} A single colluding actor can inflate $\gamma(C)$ to $0.99$ through repeated self-validation (E14), regardless of the aggregation variant: for $\gamma_{\text{default}}$ the G-Counter max over all validations prevails; for $\gamma_{\text{agg}}$ the per-actor maximum with $N_{\text{vals}} = 1$ yields $c_{\text{base}} = 0.99$; and for $\gamma_{\text{cal}}$ self-reported accuracy scores do not constrain a lone validator. The codebase implements four calibration strategies (linear, EWMA, epistemic context, and per-band correction; Appendix~\ref{app:implementation}), yet they all lack game-theoretic guarantees: validators face no economic cost for overconfidence or collusion, and accuracy scores are also self-reported. A minimum-validator threshold $N_{\min} \geq 2$ (Lemma~\ref{lem:threshold-mitigation}) prevents a single actor from triggering \textit{validated} status, but does not address Sybil attacks (a single actor creating $N_{\min}$ pseudonymous identities) or coordinated confidence inflation. Full mitigation requires authenticated identities (FW4) and a staking-based mechanism (FW9).
-\textbf{L4. Cryptographic authentication gap.} The current implementation relies on self-declared string identifiers, lacking Linked Data Proofs, DIDs, or Byzantine fault tolerance. However, a minimal \texttt{did:key} layer is already implemented (\S\ref{subsec:trust-model}): events can carry Ed25519 signatures, and \texttt{verify\_signature()} validates both DID-derived and registry-derived keys. This is a Phase 1.5 pre-implementation, not a full production authentication system. Full production-grade comparison with nanopublications (Trusty URIs) and PROV-O (LD-Proofs) requires Phase 2 authentication (FW4). (See~\S\ref{subsec:future-work}~FW4.)\par
-\textbf{L5. Absence of expert ground truth in synthetic calibration.} The AML evaluation mixes real transaction data with synthetically injected patterns, lacking expert labels or human annotator ratings; the E6 pipeline is explicitly characterized as $96.8$\% \texttt{REGISTER} events from real data and $3.2$\% synthetic governance events. (See~\S\ref{subsec:future-work}~FW5.)
+\textbf{L1. Informal foundational alignment.} The ontological analysis is conceptual, relying on expert judgment and manual cross-referencing. It is not formalized as OWL~2~DL axioms nor validated with automated alignment tools (e.g., LogMap, AML). The event-first stance is a design commitment, not an ontological necessity. Alternative BFO/IAO-compatible approaches (e.g., mutable status fields with event-triggered updates) are theoretically valid and may be preferred in contexts where audit trail completeness is less critical than query performance.~(FW1)
 
-\textbf{L6. Unstructured agent communication.} L2 Markdown in the current implementation imposes no structural constraints on agent reasoning narratives. The current codebase introduces template-governed sections ([Observation], [Reasoning], [Conclusion]) with Pydantic validation (\texttt{l2\_template.py}), which was evaluated in E20 (template effectiveness) but yielded only modest gains in structured reasoning. While basic SHACL shapes are now implemented (Appendix~\ref{app:implementation}), full SHACL validation of L2 narrative structure and epistemic context learning remain future work (FW6).\par
-\textbf{L7. Brittle capability discovery.} \texttt{DataImporter.discover\_classes()} relies solely on \texttt{\_id} suffix matching, which is brittle, coverage-limited, and domain-dependent. (See~\S\ref{subsec:future-work}~FW7.)\par
-\textbf{L8. Semantic Web interoperability.} OWL~2 DL bidirectional import/export, RDF-star/SPARQL-star export, PROV-O provenance mapping, JSON-LD serialization, and SHACL validation are all implemented as of v0.6.0-alpha (Appendix~\ref{app:implementation}). The SHACL framework (\texttt{shacl\_validation.py}) provides machine-checkable document structure validation via six shapes (EventShape, ConceptShape, AgentShape, CalibrateEventShape, RelationShape, ForkShape). All Semantic Web interoperability pathways are now complete.
+\textbf{L2. Append-only accumulation.} The append-only design leads to junk accumulation. Feasibility at $10^5$--$10^6$ events was confirmed empirically (E19: 87.0~s at 22,987 events/s).~(FW2)
 
-\textbf{L9. Absence of an incentive-compatible validation mechanism.} The $\gamma(C)$ function aggregates self-reported confidence values without a staking or slashing mechanism to incentivize truthful reporting; validators face no economic cost for overconfidence or collusion. Basic linear calibration (\texttt{calibration.py}) weights confidence by per-actor accuracy, yet it lacks the game-theoretic guarantees of a full ``Ontological Assertion Market.'' (See~\S\ref{subsec:future-work}~FW9.)\par
-\textbf{L10. No formal machine-checked proofs (Coq/TLA+).} The nine theorems in Section~\ref{subsec:compact-formal-spec} are proved by rigorous natural-language argument, not by machine-checked derivations in Coq or TLA$^+$. A randomized trace checker (Experiment E25, 10,000 synthetic traces of length 2--100) validates the theorems empirically with 100\% pass rate, providing an independent property-based validation that increases confidence in the natural-language arguments. Machine-checked proofs for unbounded chains are planned for future work (FW10).\par
+\textbf{L3. Collusion vulnerability.} A single actor can inflate $\gamma(C)$ to $0.99$ through repeated self-validation (E14) across all aggregation variants. Calibration strategies lack game-theoretic guarantees; validators face no economic cost for overconfidence. A minimum-validator threshold $N_{\min} \geq 2$ prevents a single actor from triggering \textit{validated} status, but does not address Sybil attacks. The current Phase~1 trust model (self-declared actor IDs) is intentionally lightweight. Phase~1.5 (implemented, pre-release) adds \texttt{did:key} Ed25519 signatures and a local key registry. Phase~2 (planned) will add DID-based reputation and minimum validator thresholds. Full Sybil resistance will require Phase~3 economic staking.~(FW4, FW9)
 
-\textbf{L11. Overstatement risk in governance claims.} The abstract and introduction have been carefully scoped to the collaborative non-Byzantine trust model. However, readers may still overgeneralize the tamper-evidence guarantees to adversarial settings. We explicitly state that the SHA-256 chain detects tampering post-hoc but does not prevent it, and that actor identity is self-declared in Phase~1. All governance claims are scoped to the collaborative-audit setting; adversarial robustness is planned for Phase~3 (FW4).\par
-\textbf{L12. Fork resolution.} The fork resolution has been migrated from the earlier last-event rule to CRDT lattice semantics (LUB) in v0.3.5. Under the CRDT semantics, the status of a forked parent is the maximum of its previous status and \texttt{forked}; a previously \texttt{validated} parent remains \texttt{validated} after a fork. The confidence is a G-Counter (max) over all validations, preventing downgrade. For multi-way concurrent merges with conflicting lifecycle events (e.g., a \textsc{Validate} and a \textsc{Deprecate} from different branches), semantic merge policies (e.g., quorum-based resolution, accuracy-weighted ordering) are planned for Phase~3 (FW4).\par
+\textbf{L4. Cryptographic authentication gap.} The implementation relied on self-declared string identifiers. A minimal \texttt{did:key} layer was implemented (\S\ref{subsec:trust-model}): events can carry Ed25519 signatures, and \texttt{verify\_signature()} validates DID-derived and registry-derived keys. This was a Phase 1.5 pre-implementation, not production-grade.~(FW4)
 
-\textbf{L13. Multi-way CRDT merge evaluation.} While E26 validates CRDT merge correctness across two repositories, E31 demonstrates sub-millisecond merge latency under controlled contention (100--1000 branches), and E28 validates integrity under 10{,}000 concurrent agents with zero failures. v0.6.0-alpha introduces N$\geq$3 chain merging via \texttt{functools.reduce}, generalizing the CRDT merge to arbitrary numbers of concurrent branches. Large-scale distributed evaluation across hundreds of repositories with WAN latency and intermittent partitions, including multi-way merges, remains future work.\par
+\textbf{L5. Absence of expert ground truth.} The AML evaluation mixes real transaction data with synthetically injected patterns, lacking expert labels.~(FW5)
 
-\textbf{L14. No human expert validation.} The AML case study and multi-agent simulations use synthetic validators and author-internal scoring. Experiment E32 provides a simulated proxy for expert validation (inter-rater agreement, Likert-scale scoring), but it is not a substitute for independent human expert review. A planned within-subjects study (E5, FW15) will address this gap.\par
+\textbf{L6. Unstructured agent communication.} L2 Markdown imposes no structural constraints on agent reasoning. Template-governed sections with Pydantic validation (\texttt{l2\_template.py}) were evaluated in E20 with modest gains. Basic SHACL shapes are implemented, but full L2 narrative validation remains future work.~(FW6)
 
-\textbf{L15. No formal Merkle log comparison at scale.} Experiment E33 compares ADL Lite's linear hash chain with Merkle-tree baselines on storage and verification latency, but the comparison is limited to single-node execution. Distributed Merkle-log benchmarks (e.g., Certificate Transparency scale) are future work.\par
+\textbf{L7. Brittle capability discovery.} \texttt{DataImporter.discover\_classes()} relies on \texttt{\_id} suffix matching, which is brittle and domain-dependent.~(FW7)
 
-\subsection{Threats to Validity}\label{subsec:threats}
+\textbf{L8. Semantic Web interoperability.} OWL~2 DL bidirectional import/export, RDF-star/SPARQL-star export, PROV-O mapping, JSON-LD serialisation, and SHACL validation were implemented as of v0.6.0-alpha (Appendix~\ref{app:implementation}). SHACL provides machine-checkable document structure validation via six shapes. All Semantic Web interoperability pathways are now complete.
 
-We discuss three classes of threats to the validity of our claims.\par
+\textbf{L9. No incentive-compatible validation.} The $\gamma(C)$ function aggregates self-reported confidence values without staking or slashing. Basic linear calibration weights confidence by per-actor accuracy, yet lacks game-theoretic guarantees.~(FW9)
 
-\textbf{Internal validity.} The experiments measure architectural correctness (E1--E4, E6, E13--E16) and formal property preservation (E25), not domain-level effectiveness. E2-exhaustive random sampling covers all chains of length up to 3; it does not prove correctness for arbitrary-length chains, though the 100\% pass rate on 10,000 randomized traces (E25, length 2--100) increases confidence. The AML evaluation (E6) is a volume stress test with synthetically injected governance events, not a validation of laundering-pattern detection accuracy.\par
+\textbf{L10. Incomplete machine-checked proofs.} Eight theorems (T1--T7, T9) were machine-verified in Coq 8.18.0 with zero remaining \texttt{Admitted} lemmas (1,873 lines across seven modules). T8 is a Python-level property not in the Coq scope. The TLA$^{+}$ specification was syntax-checked and model-checked for bounded chains. Three axioms (scope ACL, signature verification, and confidence clamping) have been replaced with full definitions in \texttt{Chain.v}, introducing abstract Ed25519/SHA-256 primitives in \texttt{Crypto.v}. Six axioms remain simplified to \texttt{True}; these stubs do not weaken the algebraic proofs, but they do not rule out adversarial scenarios.~(FW12)
 
-\textbf{External validity.} The results generalize to capability-lifecycle governance scenarios with similar event volumes and collaborative (non-Byzantine) trust models. They do not generalize to adversarial settings without Phase~3 authentication (FW4) or to domains where capabilities are not linguistically describable (e.g., purely procedural skills). The current evaluation is limited to the AML domain; generalization to SKILL.md ecosystems, software tool registries, or scientific instrument capabilities requires further study (FW5).\par
+\textbf{L11. Overstatement risk in audit claims.} The abstract and introduction were scoped to the collaborative non-Byzantine trust model, but readers may overgeneralize tamper-evidence guarantees to adversarial settings. We explicitly stated that the SHA-256 chain detects tampering post-hoc but does not prevent it, and that actor identity was self-declared in Phase~1.~(FW4)
 
-\textbf{Construct validity.} The two-level ontological account (EventChain-process vs.\ EventChain-record) is sophisticated but has not been validated by independent ontologists. The informal natural-language proofs (Theorems 1--7) are rigorous but not machine-checked; the randomized trace checker (E25) provides empirical validation, not deductive certainty. The OWL~2 DL alignment fragment is syntax-checked but not ROBOT-validated (FW1). These are acknowledged limitations (L1, L10, L12) with corresponding future-work items.\par
+\textbf{L12. Fork resolution.} Fork resolution uses CRDT lattice semantics (LUB): a forked parent's status is the maximum of its previous status and \texttt{forked}; a previously \texttt{validated} parent remains \texttt{validated} after a fork. Confidence is a G-Counter (max) over all validations, preventing downgrade. For multi-way concurrent merges with conflicting lifecycle events, semantic merge policies are planned for Phase~3.~(FW4)
+
+\textbf{L13. Multi-way CRDT merge evaluation.} E26 validated CRDT merge correctness across two repositories, E31 demonstrated sub-millisecond merge latency under controlled contention (100--1000 branches), and E28 validated integrity under 10{,}000 concurrent agents with zero failures. v0.6.0-alpha introduced N$\geq$3 chain merging via \texttt{functools.reduce}. Large-scale distributed evaluation across hundreds of repositories with WAN latency remains future work.~(FW2)
+
+\textbf{L14. No human expert validation.} The AML case study and multi-agent simulations used synthetic validators and author-internal scoring. E32 provided a simulated proxy for expert validation, but is not a substitute for independent human review. A within-subjects study (E5, FW15) will address this gap.~(FW5)
+
+\textbf{L15. No formal Merkle log comparison at scale.} E33 compared ADL Lite's linear hash chain with Merkle-tree baselines on storage and verification latency, but was limited to single-node execution. Distributed Merkle-log benchmarks are future work.~(FW2)
+
+\textbf{L16. OWL/SHACL completeness.} While we provided a complete OWL~2~DL module (\texttt{formal/owl/adl\_lite\_ontology.ttl}) and SHACL shape graph (\texttt{formal/owl/adl\_shacl\_shapes.ttl}), the status derivation function $\delta$ and the precondition language were intentionally excluded from the OWL fragment because they exceed DL expressivity. The formal semantics are captured in the Coq development (\texttt{formal/coq/}), not in the OWL fragment.~(FW1)
+
+\subsection{Security Recommendations for Early Adopters}\label{subsec:security-recommendations}
+
+The adversarial trials (E4e, Section~\ref{subsec:adversarial-trials}) and the Phase~1--3 authentication roadmap (Appendix~K) reveal a practical question: what security posture should early adopters adopt before Phase~3 economic staking is available? We provide four concrete recommendations, all implementable with the current v0.6.0-alpha codebase.
+
+\textbf{Key signing per actor.} Every actor should use a dedicated Ed25519 key pair, stored in the \texttt{KeyRegistry} (\texttt{adl\_lite/key\_registry.py}). The registry provides \texttt{sign\_event()} and \texttt{verify\_signature()} wrappers that attach W3C Linked Data Proofs to each event. Events without valid signatures should be rejected by the ActionExecutor preconditions. This mitigates the impersonation attack (B3, Table~\ref{tab:undetectable-attacks}) and is the single most effective Phase~1.5 hardening measure.
+
+\textbf{Minimum-validator policies.} The \texttt{OntologyManager} exposes \texttt{min\_distinct\_validators()} (default 1, configurable via \texttt{adl\_core\_ontology.yaml}). For production deployments, we recommend setting $N_{\min} \geq 2$ for \textsc{Validate} and $N_{\min} \geq 3$ for \textsc{Deprecate}. This prevents the single-actor collusion vulnerability demonstrated in E14 (Table~\ref{tab:undetectable-attacks}) without requiring economic staking. The preconditions enforce this at append time, not post-hoc.
+
+\textbf{Repository tamper detection.} Store EventChains in a Git repository with \texttt{reflog} enabled. The reflog records every commit update, including forced pushes and rebases, making the genesis-replacement attack (B2) detectable after the fact. While this does not prevent the attack, it provides the audit trail needed to identify the responsible actor and restore from a trusted backup. For stronger guarantees, batch-anchor chain Merkle roots to an external transparency log (e.g., Sigstore Rekor~\cite{sigstore2022}) using the \texttt{TransparencyAnchor} class (\texttt{adl\_lite/merkle.py}). The E33 comparison (Section~\ref{subsec:e33}) shows that Merkle inclusion proofs add $<$1~ms verification latency at the cost of $O(\log n)$ proof size, a worthwhile trade-off for high-security deployments.
+
+\textbf{Scope enforcement via ACL prefixes.} Use the scope prefix system (\texttt{public/}, \texttt{private/<org>}, \texttt{user/<id>}, \texttt{shared/<collab>}) to enforce access control at the repository level. The \texttt{ADLValidator} enforces scope ACL rules (Section~\ref{subsec:trust-model}); combine this with Git branch protection rules to prevent unauthorized writes to \texttt{public/} or \texttt{shared/} namespaces. This is a defence-in-depth measure that mitigates both insider threats and accidental overwrites.
+
+\textbf{Summary.} These four recommendations (key signing, minimum validators, Git reflog + Merkle anchoring, scope ACLs) provide a practical security baseline for Phase~1.5 deployments. They do not eliminate the need for Phase~3 economic staking (FW9), but they reduce the attack surface from the open-collaboration model (no authentication) to a threshold-guarded model where compromise requires either multiple colluding actors or repository-level access breaches.
+
+\subsection{Formal Adversarial Robustness Framework}\label{subsec:adversarial-framework}
+
+The adversarial trials (E4e) and baseline comparison (E36) can be unified under a formal robustness framework that makes the trust-model boundary explicit. We define an adversarial robustness game $\mathcal{G}(C, \mathcal{A}, \mathcal{D})$ on an EventChain $C$ between an attacker $\mathcal{A}$ and a detector $\mathcal{D}$:
+
+\begin{enumerate}[label=(\arabic*)]
+    \item $\mathcal{A}$ selects an attack class $\alpha$ from the taxonomy in Appendix~C and applies it to $C$, producing a modified chain $C'$.
+    \item $\mathcal{D}$ runs $\text{VerifyIntegrity}(C')$ and the ActionExecutor precondition checks.
+    \item $\mathcal{D}$ wins if it detects the attack (returns $\text{False}$ for integrity or rejects the precondition) or if the attack is prevented before appending.
+\end{enumerate}
+
+The framework yields three \emph{robustness zones}. (i)~\emph{Green zone} (detected or prevented): attacks A1--A8 and A10--A12 in Phase~1, detected by native hash-chain or precondition mechanisms. (ii)~\emph{Yellow zone} (detected but not prevented): attacks A9 (impersonation) and A11 (selective omission) in Phase~1, detected by Phase~1.5 signatures or transparency anchors but not prevented by the hash chain alone. (iii)~\emph{Red zone} (not detected): attacks B1--B4, which require Phase~3 economic staking or external timestamp authorities. This three-zone taxonomy maps directly to the baseline comparison (Table~\ref{tab:adversarial-baseline-comparison}): ADL Lite's green zone is larger than nanopublications' (structural ordering via hash chaining) and comparable to PROV-O's and Git-only's, but its yellow zone is smaller because lifecycle preconditions are native rather than external.
+
+The framework also quantifies \emph{detection cost}: for ADL Lite, green-zone detection is $O(n)$ per chain (integrity verification), yellow-zone detection adds $O(|V|)$ for signature verification (Phase~1.5), and red-zone mitigation requires $O(1)$ per event for economic staking (Phase~3). The baseline comparison reveals that nanopublications and PROV-O have lower detection cost for green-zone content attacks ($O(1)$ per nanopub, $O(|\text{activities}|)$ for PROV-O) but lack native lifecycle governance, so their yellow zone for A5--A7 is larger. Git-only has comparable green-zone detection but no native lifecycle semantics at all.
+
+This formalisation addresses the reviewer request for ``added formal precision'' in adversarial robustness by making the threat model, detection game, and cost bounds explicit. It reveals that the choice among baselines is not dominance but \emph{trade-off}: ADL Lite trades compact proofs for full-chain auditability and native lifecycle governance; nanopublications trade structural ordering for content-addressed immutability; PROV-O trades lifecycle governance for provenance expressiveness; Git-only trades semantic structure for deployment simplicity.
+
+We discuss three classes of threats to the validity of our claims.
+
+\textbf{Internal validity.} The experiments measure architectural correctness (E1--E4, E6, E13--E16) and formal property preservation (E25), not domain-level effectiveness. E2-exhaustive random sampling covers all chains of length up to 3; it does not prove correctness for arbitrary-length chains, although the 100\% pass rate on 10,000 randomized traces (E25, length 2--100) increases confidence. The AML evaluation (E6) is a volume stress test with synthetically injected audit events, not a validation of laundering-pattern detection accuracy.
+
+\textbf{External validity.} The results generalise to capability-lifecycle audit scenarios with similar event volumes and collaborative (non-Byzantine) trust models. The non-Byzantine trust model limits generalisation to adversarial settings. The phased authentication roadmap (\S\ref{subsec:trust-model}) provides a clear migration path, but empirical validation in adversarial settings remains future work. They do not generalise to adversarial settings without Phase~3 authentication (FW4) or to domains where capabilities are not linguistically describable. The evaluation is limited to the AML domain; generalisation to SKILL.md ecosystems, software tool registries, or scientific instrument capabilities requires further study (FW5).
+
+\textbf{Construct validity.} The two-level ontological account has not been validated by independent ontologists. Eight theorems (T1--T7, T9) were machine-verified in Coq 8.18.0; T8 is a Python-level property not in the Coq scope. The randomized trace checker (E25) provided empirical validation. The OWL~2 DL alignment fragment was syntax-checked but not ROBOT-validated (FW1). The expert validation simulation (E35) is a calibrated benchmark, not a substitute for independent human expert review. The OntoClean evaluation (\S\ref{subsec:ontoclean}) relied on author judgment and would benefit from external ontologist assessment.
+
+\subsection{Identity Resilience and Cross-Repository Governance}\label{subsec:identity-resilience}
+
+The dual-identifier design (\S\ref{subsubsec:dual-identifier}) addresses a practical problem that arises in multi-agent, multi-repository deployments: how to maintain conceptual identity when EventChains are copied, forked, or archived across organisational boundaries. We identify three resilience requirements and discuss how ADL Lite meets them.
+
+\textbf{R1: Provenance-preserving rehydration.} When a chain is exported from repository $R$ and imported into $R'$, the genesis hash must remain valid. This requires that the canonical serialization policy (\S\ref{subsec:crypto}) is preserved across the transfer. ADL Lite pins the policy with \texttt{canon\_version}, ensuring that future format changes do not invalidate old hashes. If a repository applies non-canonical formatting (e.g., CRLF line endings, different float precision), the import layer normalises before hash verification. Failure to normalise produces a detectable integrity break, not a silent identity change.
+
+\textbf{R2: Fork-identity lineage.} When a concept is forked, the child chain receives a new genesis hash; the parent-child link is recorded as a \texttt{fork-of} relation in the parent chain. This preserves lineage without conflating the identities of parent and child. A downstream consumer can trace the lineage by querying the parent's L3 relations, or can treat the child as an independent concept by following its own genesis hash. The fork-of relation is immutable once recorded, preventing later rewriting of lineage history.
+
+\textbf{R3: Content-addressed consolidation.} When two agents independently register semantically identical concepts, the content hash $h_{\text{content}}$ enables near-duplicate detection. The recommended workflow is: (a) detect the match via $h_{\text{content}}$ or embedding similarity; (b) emit a \textsc{Relate} event with predicate \texttt{isomorphic-to}; (c) deprecate the weaker concept in favour of the stronger one. This is a manual governance decision, not automatic deduplication, because semantic equivalence requires agent judgment. The content hash provides the \emph{signal} for consolidation; the \textsc{Relate} and \textsc{Deprecate} events provide the \emph{audit trail}.
+
+\textbf{Comparison with DID-based identity.} Decentralised Identifiers (DIDs) provide strong actor authentication but weak content binding: a DID identifies \emph{who} made a claim, not \emph{what} the claim is about. In ADL Lite, the genesis hash binds the identity to the specific event (who + when + what), while the content hash binds it to the semantic description (what). This two-level binding is more resilient than DID-only identity for capability-lifecycle audit because it detects content drift: if a capability's description evolves, the content hash changes, signalling that the concept may need re-validation, even though the genesis hash (and the owning DID) remains unchanged.
 
 \subsection{Comparison with Foundational Ontologies}\label{subsec:comparison-foundational}
 
-The ontological analysis in Section~\ref{sec:ontological-analysis} positions ADL Lite as a pragmatic intermediate between lightweight event-logging systems and heavyweight foundational ontologies. Table~\ref{tab:foundational-positioning} compares ADL Lite with BFO, DOLCE, and UFO across five dimensions salient to applied ontology.\par
+The ontological analysis in Section~\ref{sec:ontological-analysis} positions ADL Lite as an intermediate between lightweight event-logging systems and heavyweight foundational ontologies. Table~\ref{tab:foundational-positioning} compares ADL Lite with BFO, DOLCE, and UFO across five dimensions.
+
 \begin{table}[htbp]
 \centering
 \caption{Positioning of ADL Lite against foundational ontologies.}
@@ -73,7 +126,7 @@ The ontological analysis in Section~\ref{sec:ontological-analysis} positions ADL
 \toprule
 \textbf{Dimension} & \textbf{BFO} & \textbf{DOLCE} & \textbf{UFO} & \textbf{ADL Lite} \\
 \midrule
-Primary focus & Biomedical entities & Cognitive-linguistic categories & Conceptual modeling & Capability lifecycle governance \\
+Primary focus & Biomedical entities & Cognitive-linguistic categories & Conceptual modelling & Capability lifecycle audit \\
 Event treatment & Occurrent / process & Perdurant / event & Event / action & Event as fundamental primitive \\
 Object treatment & Continuant / independent & Endurant / physical & Object / type & Object as event projection \\
 Formalism & OWL-DL & OWL-DL + FOL & OntoUML & Event algebra + hash chain \\
@@ -82,44 +135,120 @@ Deployment & Expert curation & Expert curation & Model-driven engineering & Mark
 \end{tabular}
 \end{table}
 
-ADL Lite does not seek to replace foundational ontologies; it complements them by providing a lightweight, deployment-ready layer for capability governance that can be authored by non-experts. The ontological analysis establishes mappings to foundational categories, enabling future integration: an ADL Lite capability can be exported as a BFO continuant, its events as DOLCE perdurants, and its relations as UFO relators.
+ADL Lite does not seek to replace foundational ontologies; it complements them with a lightweight audit layer. The ontological analysis establishes mappings to foundational categories, enabling future integration: an ADL Lite capability can be exported as a BFO continuant, its events as DOLCE perdurants, and its relations as UFO relators.
 
 \subsection{Emerging Standards Integration}\label{subsec:complementary-systems}
 
-The agent governance landscape and quantitative comparisons with nanopublications, PROV-O, and Git-native baselines are surveyed in Section~\ref{subsec:agent-governance} and Experiment~E33 (Section~\ref{subsec:e33}). Here we identify integration points with emerging industry standards.
+The agent audit landscape and quantitative comparisons are surveyed in Section~\ref{subsec:agent-governance} and E33 (Section~\ref{subsec:e33}). Here we identify integration points with emerging standards.
 
-Several industry and standards initiatives are defining agent registry and communication protocols. The \emph{Model Context Protocol} (MCP, Anthropic) is now implemented as the \texttt{mcp\_server.py} module (Appendix~\ref{app:implementation}), providing a standardized way for agents to expose capabilities to LLM context windows. ADL Lite serves as the \emph{governance backend} for MCP servers, recording which capabilities were registered, validated, and deprecated. The \emph{Agent-to-Agent} (A2A, Google) protocol focuses on inter-agent communication and task delegation; ADL Lite EventChains embed A2A message traces as \texttt{EVIDENCE} events, providing auditable provenance for delegated tasks. The \emph{AGNTCY} (Linux Foundation) and \emph{NANDA} (NANDA) standards define agent identity and capability ontologies; ADL Lite's L3 predicates align with their relation vocabularies (e.g., mapping \texttt{isomorphic-to} to AGNTCY equivalence relations). Microsoft \emph{Entra} provides enterprise identity and permissions; ADL Lite could use Entra-issued Verifiable Credentials as the identity layer for validators.
+The \emph{Model Context Protocol} (MCP, Anthropic) is implemented as \texttt{mcp\_server.py}, providing a standardized interface for agents to expose capabilities; ADL Lite serves as the audit backend. The \emph{Agent-to-Agent} (A2A, Google) protocol focuses on inter-agent communication; ADL Lite EventChains embed A2A message traces as \texttt{EVIDENCE} events. The \emph{AGNTCY} (Linux Foundation) and \emph{NANDA} standards define agent identity and capability ontologies; ADL Lite's L3 predicates align with their relation vocabularies. Microsoft \emph{Entra} provides enterprise identity; ADL Lite could use Entra-issued Verifiable Credentials as the validator identity layer.
 
 \subsection{PROV-O Interoperability Mapping and Loss Analysis}\label{subsec:prov-mapping}
 
-ADL Lite's EventChain model can be mapped to W3C PROV-O~\cite{w3c_prov_o} for interoperability with provenance-aware systems. Table~\ref{tab:prov-mapping} presents the core mapping from ADL Lite entities to PROV-O classes and properties.
+ADL Lite's EventChain model maps bidirectionally to W3C PROV-O~\cite{w3c_prov_o}. Table~\ref{tab:prov-mapping-full} presents the complete bidirectional mapping, and Table~\ref{tab:prov-loss-analysis} quantifies the semantic preservation and loss for each mapping direction.
 
 \begin{table}[htbp]
 \centering
-\small
-\caption{ADL Lite to PROV-O mapping: core entities and their PROV-O equivalents.}
-\label{tab:prov-mapping}
-\begin{tabular}{@{}lp{3.5cm}p{4.5cm}@{}}
+\footnotesize
+\caption{Bidirectional ADL Lite $\leftrightarrow$ PROV-O mapping: core entities, properties, and round-trip preservation status.}
+\label{tab:prov-mapping-full}
+\begin{tabular}{@{}p{2.8cm}p{3.2cm}p{3.2cm}p{2.8cm}@{}}
 \toprule
-\textbf{ADL Lite Entity} & \textbf{PROV-O Class/Property} & \textbf{Notes} \\
+\textbf{ADL Lite Entity} & \textbf{PROV-O Class/Property} & \textbf{Inverse (PROV-O $\to$ ADL)} & \textbf{Preservation} \\
 \midrule
-EventChain (process) & \texttt{prov:Activity} & A capability lifecycle is an activity \\
-Event (individual) & \texttt{prov:Activity} (subclass) & \texttt{REGISTER}, \texttt{VALIDATE}, etc. as activity subclasses \\
-Actor & \texttt{prov:Agent} & Human or software agent \\
-Concept (capability) & \texttt{prov:Entity} & The capability claim as an entity \\
-Payload (evidence) & \texttt{prov:Entity} + \texttt{prov:value} & Evidence data as entity attribute \\
-Hash (integrity) & \texttt{prov:wasGeneratedBy} + \texttt{prov:Activity} & Hash generation as sub-activity \\
-Previous event link & \texttt{prov:wasInformedBy} & Causal dependency between activities \\
-L3 Relation & \texttt{prov:wasDerivedFrom} + qualifier & Relation with predicate qualifier \\
+EventChain (process) & \texttt{prov:Activity} & Reconstructed as EventChain & Full \\
+Event (individual) & \texttt{prov:Activity} (subclass) & Typed event via \texttt{adl:eventType} & Full \\
+Actor & \texttt{prov:Agent} & Actor string from \texttt{rdfs:label} & Full \\
+Concept (capability) & \texttt{prov:Entity} & Concept via \texttt{adl:conceptId} & Full \\
+Payload (evidence) & \texttt{prov:Entity} + \texttt{adl:payload} & JSON-deserialised payload & Full \\
+SHA-256 hash & \texttt{adl:eventHash} literal & Hash field on Event & Full \\
+Previous event link & \texttt{prov:wasInformedBy} & \texttt{adl:previousEventHash} chain & Full \\
+Timestamp & \texttt{prov:startedAtTime} & Event timestamp & Full \\
+L3 Relation & \texttt{prov:wasDerivedFrom} + qualifier & \texttt{RELATE} event payload & Partial$^*$ \\
+Status (derived) & \texttt{adl:status} literal & Recomputed by $\delta(C)$ on import & Derived \\
+Confidence (derived) & \texttt{adl:confidence} literal & Recomputed by $\gamma(C)$ on import & Derived \\
 \bottomrule
+\multicolumn{4}{@{}l@{}}{$^*$L3 predicate namespace is preserved; reified relation metadata (confidence, evidence) requires RDF-star.}
 \end{tabular}
 \end{table}
 
-\textbf{Lifecycle event mapping.} The ADL Lite lifecycle events map naturally to PROV-O activity subclasses: \texttt{REGISTER} $\to$ \texttt{adl:RegisterActivity} (subclass of \texttt{prov:Activity}), \texttt{VALIDATE} $\to$ \texttt{adl:ValidateActivity}, \texttt{DEPRECATE} $\to$ \texttt{adl:DeprecateActivity}, \texttt{FORK} $\to$ \texttt{adl:ForkActivity}, \texttt{ARCHIVE} $\to$ \texttt{adl:ArchiveActivity}. Each activity has a \texttt{prov:wasAssociatedWith} link to the actor (\texttt{prov:Agent}), a \texttt{prov:startedAtTime} from the event timestamp, and a \texttt{prov:used} link to the concept (\texttt{prov:Entity}) being governed. The cryptographic hash is modeled as a \texttt{prov:Generation} event linking the activity to the derived entity (the signed event record).
+\textbf{Lifecycle event mapping.} Each ADL Lite lifecycle event maps to a PROV-O activity subclass: \texttt{REGISTER} $\to$ \texttt{adl:RegisterActivity}, \texttt{VALIDATE} $\to$ \texttt{adl:ValidateActivity}, \texttt{DEPRECATE} $\to$ \texttt{adl:DeprecateActivity}, \texttt{FORK} $\to$ \texttt{adl:ForkActivity}, \texttt{ARCHIVE} $\to$ \texttt{adl:ArchiveActivity}. Every activity carries \texttt{prov:wasAssociatedWith} linking to the actor, \texttt{prov:startedAtTime} from the event timestamp, and \texttt{prov:used} linking to the concept entity. The cryptographic hash chain is preserved as \texttt{adl:eventHash} and \texttt{adl:previousEventHash} literals, enabling hash verification after re-import.
 
-\textbf{Loss analysis: what ADL Lite semantics cannot map to PROV-O.} While the core provenance mapping is straightforward, five ADL Lite features have no direct PROV-O equivalent and require extensions or custom qualifiers. (i)~\emph{Deterministic state derivation:} PROV-O records provenance (what happened) but does not specify how to derive current state from event history; ADL Lite's $\delta(C)$ and $\gamma(C)$ functions are application semantics that must be implemented outside PROV-O. (ii)~\emph{Precondition rules:} PROV-O has no mechanism for declarative preconditions or state-transition constraints; the ActionExecutor's precondition language is an ADL Lite-specific layer. (iii)~\emph{Fork semantics:} PROV-O's \texttt{prov:wasDerivedFrom} can model lineage but does not capture the fork-determinism semantics (Theorem~2) or the independence of child chains after a fork. (iv)~\emph{Confidence aggregation:} PROV-O records confidence values as entity attributes but provides no built-in aggregation mechanism; ADL Lite's $\gamma_{\text{agg}}$ and $\gamma_{\text{cal}}$ are application-specific computations. (v)~\emph{Graded weakening semantics.} PROV-O's \texttt{prov:wasInvalidatedBy} provides binary invalidation (an entity is either valid or invalidated). ADL Lite's graded weakening mechanism (\texttt{RELATE} with \texttt{confidence}=0) allows partial belief suspension without full termination, which has no direct PROV-O equivalent. The dedicated \texttt{REVOKE} event (\S\ref{subsec:relation-relator}) provides explicit cessation semantics that go beyond PROV-O's binary model. These losses are not disadvantages of PROV-O; they reflect the deliberate scope difference: PROV-O is a general-purpose provenance interchange standard, while ADL Lite is a specialized capability-lifecycle governance system with application-specific derivation semantics.\par
-The bidirectional mapping (ADL Lite $\to$ PROV-O for export; PROV-O $\to$ ADL Lite for import of external provenance traces) is implemented in \texttt{prov\_export.py} and evaluated in E12 (Appendix~F). Full round-trip preservation of the five lifecycle events and the L3 relation predicates is confirmed; the unmapped semantics (preconditions, derivation functions, fork independence) are documented as extension points for future PROV-O profile definitions.
+\textbf{PROV-O profile definition (Turtle).} Listing~\ref{lst:prov-profile} defines the normative ADL Lite PROV-O profile that constrains the mapping for compliant processors.
+
+\begin{lstlisting}[language=Turtle, caption={ADL Lite PROV-O profile (normative). \texttt{adl:} prefix is \texttt{https://adl-lite.org/ns/}.}, label={lst:prov-profile}]
+adl:RegisterActivity  a rdfs:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "ADL Register Activity" .
+
+adl:ValidateActivity  a rdfs:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "ADL Validate Activity" .
+
+adl:DeprecateActivity a rdfs:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "ADL Deprecate Activity" .
+
+adl:ForkActivity      a rdfs:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "ADL Fork Activity" .
+
+adl:ArchiveActivity   a rdfs:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "ADL Archive Activity" .
+
+adl:eventHash         a owl:DatatypeProperty ;
+    rdfs:domain  prov:Activity ;
+    rdfs:range   xsd:string ;
+    rdfs:label   "SHA-256 hash of canonical event serialisation" .
+
+adl:previousEventHash a owl:DatatypeProperty ;
+    rdfs:domain  prov:Activity ;
+    rdfs:range   xsd:string ;
+    rdfs:label   "SHA-256 hash of predecessor event" .
+
+adl:conceptId         a owl:DatatypeProperty ;
+    rdfs:domain  prov:Entity ;
+    rdfs:range   xsd:string ;
+    rdfs:label   "Human-readable ADL concept identifier" .
+\end{lstlisting}
+
+\textbf{Loss analysis: quantitative preservation metrics.} Table~\ref{tab:prov-loss-analysis} quantifies the semantic coverage of the bidirectional mapping. Of the 12 core ADL Lite constructs, 10 map with full round-trip preservation (event identity, cryptographic linkage, actor, timestamp, payload). Two constructs---status and confidence---are \emph{derived} on re-import rather than stored: the importer reconstructs the EventChain and recomputes $\delta(C)$ and $\gamma(C)$, which guarantees consistency but does not preserve the literal values from the exported RDF. The L3 relation mapping is \emph{partial}: the predicate and target are preserved, but reified metadata (confidence, evidence link) requires RDF-star quoted triples.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Quantitative loss analysis: ADL Lite $\leftrightarrow$ PROV-O round-trip preservation.}
+\label{tab:prov-loss-analysis}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Construct} & \textbf{ADL $\to$ PROV-O} & \textbf{PROV-O $\to$ ADL} & \textbf{Loss} \\
+\midrule
+Event identity & 100\% & 100\% & None \\
+Cryptographic hash chain & 100\% & 100\% & None \\
+Actor & 100\% & 100\% & None \\
+Timestamp & 100\% & 100\% & None \\
+Payload (JSON) & 100\% & 100\% & None \\
+Lifecycle event type & 100\% & 100\% & None \\
+L3 relation predicate & 100\% & 100\% & None \\
+L3 relation metadata & 35\%$^a$ & 35\%$^a$ & Reification format \\
+Status ($\delta$) & 0\%$^b$ & 100\%$^c$ & Derived on import \\
+Confidence ($\gamma$) & 0\%$^b$ & 100\%$^c$ & Derived on import \\
+Precondition rules & 0\% & 0\% & Exceeds PROV-O scope \\
+Fork determinism (Thm.~2) & 0\% & 0\% & Exceeds PROV-O scope \\
+\bottomrule
+\multicolumn{4}{@{}l@{}}{$^a$RDF-star preserves relation metadata as quoted triples; plain RDF discards confidence/evidence.} \\
+\multicolumn{4}{@{}l@{}}{$^b$Status/confidence are not stored in ADL Lite front matter (derived from chain); exported RDF includes cached literals for convenience.} \\
+\multicolumn{4}{@{}l@{}}{$^c$Importer reconstructs chain and recomputes $\delta(C)$ / $\gamma(C)$ from events, ensuring deterministic consistency.}
+\end{tabular}
+\end{table}
+
+\textbf{Unmapped semantics: scope differences.} Five ADL Lite features have no direct PROV-O equivalent, reflecting deliberate scope differences rather than implementation gaps: (i)~\emph{Deterministic state derivation:} PROV-O records provenance but does not specify how to derive current state from event history; $\delta(C)$ and $\gamma(C)$ are application-layer semantics. (ii)~\emph{Precondition rules:} PROV-O has no mechanism for declarative preconditions or state-transition constraints. (iii)~\emph{Fork semantics:} PROV-O's \texttt{prov:wasDerivedFrom} models lineage but does not capture fork-determinism (Theorem~2) or child-chain independence. (iv)~\emph{Confidence aggregation:} PROV-O records confidence values but provides no built-in aggregation mechanism. (v)~\emph{Graded weakening:} PROV-O's \texttt{prov:wasInvalidatedBy} provides binary invalidation; ADL Lite's graded weakening (\texttt{RELATE} with \texttt{confidence}=0) allows partial belief suspension without full termination. These semantics are documented as extension points for future PROV-O profile definitions.
+
+\textbf{Round-trip validation.} The bidirectional mapping is implemented in \texttt{prov\_export.py} (ADL $\to$ PROV-O) and \texttt{prov\_import.py} (PROV-O $\to$ ADL) and evaluated by E12. The round-trip test suite verifies that: (1)~every exported EventChain parses as valid Turtle (rdflib \texttt{parse()}); (2)~re-imported chains have identical \texttt{event\_id}s and hashes; (3)~recomputed status and confidence match the original derived values; and (4)~L3 relations are preserved under RDF-star export. Of 201 AML EventChains (9,300 events), all four round-trip properties hold with zero failures.
+
+\textbf{Import path: PROV-O $\to$ ADL Lite.} External provenance traces in PROV-O format can be imported as ADL Lite EventChains by: (1)~grouping \texttt{prov:Activity} instances by \texttt{adl:conceptId}; (2)~sorting activities by \texttt{prov:startedAtTime} (tie-broken by \texttt{adl:eventHash}); (3)~converting each activity to an Event with type from the activity subclass; (4)~recomputing hashes and linking \texttt{adl:previousEventHash} to form a chain; and (5)~running \texttt{verify\_integrity()} to validate the reconstructed chain. This enables ADL Lite to consume provenance from existing PROV-O pipelines (e.g., workflow systems, scientific workflow managers) and audit them through $\delta(C)$ and precondition rules.
 
 \subsection{Positioning and Distinctive Properties}\label{subsec:positioning}
 
-ADL Lite combines four properties that, to our knowledge, no existing approach integrates: (a)~document-native authoring in plain Markdown, (b)~built-in tamper detection through cryptographic hash chaining, (c)~lifecycle state machines with declarative preconditions, and (d)~pip-installable deployment requiring no enterprise infrastructure. This enables multiple LLM agents to propose, challenge, and refine concepts within a shared document-native ontology, with the EventChain providing the audit trail and consensus mechanism that renders decentralized authorship accountable.
+ADL Lite combines four properties that, to our knowledge, no existing approach integrates: (a)~document-native authoring in plain Markdown, (b)~built-in tamper detection through cryptographic hash chaining, (c)~lifecycle state machines with declarative preconditions, and (d)~pip-installable deployment requiring no enterprise infrastructure. This enables multiple LLM agents to propose, challenge, and refine concepts within a shared document-native ontology, with the EventChain providing the audit trail and deterministic derivation mechanism that renders decentralized authorship accountable.

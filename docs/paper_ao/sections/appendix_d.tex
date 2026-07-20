@@ -11,7 +11,7 @@ Individual reproduction scripts are provided in \texttt{scripts/reproduce/}:
     \item \texttt{reproduce\_all.sh}: Master orchestrator that runs all sub-scripts and prints a unified PASS/FAIL summary.
 \end{itemize}
 
-Hardware specifications for all reported timings are documented in \path{docs/experiments/HARDWARE_SPECS.md}: Apple M2 (8P+4E cores), 16~GB RAM, Python 3.10, macOS 14.
+Hardware specifications for all reported timings are documented in \path{docs/experiments/HARDWARE\_SPECS.md}: an Apple M2 (8P+4E cores), 16~GB RAM, Python 3.10, macOS 14.
 
 \subsection{Reproducibility Package}
 
@@ -26,7 +26,7 @@ The complete reproducibility package is available at \url{[GitHub/DOI link]}. It
     \item \texttt{REPRODUCIBILITY.md}: Step-by-step instructions.
 \end{enumerate}
 
-\textbf{Double-blind review replication package.} During the anonymous review period, the artifact is available via an anonymous GitHub repository (\path{anonymous-4-open-science/adl-lite-repro}) and a persistent Zenodo deposit (DOI: 10.5281/zenodo.XXXXXX) with the author identity redacted. The repository contains the complete source code, all experiment scripts, the pre-processed AML dataset, and the LaTeX source of this paper. The Docker image \path{anonymous-4-open-science/adl-lite-repro} on Docker Hub reproduces all experiments in Table~\ref{tab:results} with one command: \texttt{docker run --rm anonymous-4-open-science/adl-lite-repro}. After acceptance, the repository will be transferred to the authors' institutional GitHub organization with a permanent DOI redirect. The replication package excludes only the (empty) \texttt{.adl/} directory that stores per-user calibration profiles and API keys, which are created automatically on first run.
+\textbf{Double-blind review replication package.} During the anonymous review period, the artifact is available via an anonymous GitHub repository (\path{anonymous-4-open-science/adl-lite-repro}) and a persistent Zenodo deposit (DOI: 10.5281/zenodo.XXXXXX) with the author identity redacted. The repository contains the complete source code, all experiment scripts, the pre-processed AML dataset, and the LaTeX source of this paper. The Docker image \path{anonymous-4-open-science/adl-lite-repro} on Docker Hub reproduces all experiments in Table~\ref{tab:results} with one command: \texttt{docker run --rm anonymous-4-open-science/adl-lite-repro}. After acceptance, the repository will be transferred to the authors' institutional GitHub organisation with a permanent DOI redirect. The replication package excludes only the (empty) \texttt{.adl/} directory that stores per-user calibration profiles and API keys, which are created automatically on first run.
 
 \subsection{Docker Environment}
 
@@ -51,16 +51,16 @@ docker run --rm adl-lite-repro python -m experiments.runner E6 --verbose
 
 To reproduce the head-to-head benchmark (E19):
 \begin{verbatim}
-docker run --rm adl-lite-repro python -m experiments.e19_governance_benchmark
+docker run --rm adl-lite-repro python -m experiments.e19_audit_benchmark
 \end{verbatim}
 
 Expected runtime on Apple M2 (8P+4E cores), 16~GB RAM: ~5 minutes for E1--E21, ~15 minutes for E19 (includes nanopub and PROV-O setup), ~2 minutes for adversarial suite (A1--A12).
 
 \subsection{Synthetic Event Injection Strategy (E6)}
 
-The IBM AML HI-Small dataset provides raw transaction records, not capability-lifecycle events. To evaluate the EventChain architecture, we synthetically injected governance events that simulate a realistic multi-agent capability-lifecycle workflow. The injection strategy is as follows.
+The IBM AML HI-Small dataset provides raw transaction records, not capability-lifecycle events. To evaluate the EventChain architecture, we synthetically injected audit events that simulate a realistic multi-agent capability-lifecycle workflow. The injection strategy is as follows.
 
-\textbf{Injection ratio.} Of the 9,300 total events across 201 chains, 96.8\% (9,000 events) are \textsc{Register} events derived directly from the raw transaction records (one \textsc{Register} per account). The remaining 3.2\% (300 events) are synthetically injected governance events distributed as shown in Table~\ref{tab:synthetic-events}.
+\textbf{Injection ratio.} Of the 9,300 total events across 201 chains, 96.8\% (9,000 events) are \textsc{Register} events derived directly from the raw transaction records (one \textsc{Register} event per account). The remaining 3.2\% (300 events) are synthetically injected audit events distributed as shown in Table~\ref{tab:synthetic-events}.
 
 \begin{table}[htbp]
 \centering
@@ -80,6 +80,6 @@ The IBM AML HI-Small dataset provides raw transaction records, not capability-li
 \end{tabular}
 \end{table}
 
-\textbf{Injection logic.} For each account chain, we injected events according to the lifecycle transition matrix (Table~\ref{tab:lifecycle-matrix}): (i)~every chain receives at least one \textsc{Validate} event after the genesis \textsc{Register}; (ii)~10\% of validated chains receive a \textsc{Deprecate} event; (iii)~5\% of validated chains receive a \textsc{Fork} event; (iv)~\textsc{Evidence} and \textsc{Relate} events are interleaved at random indices between lifecycle events. Confidence values for \textsc{Validate} events are sampled uniformly from $[0.50, 0.95]$ to reflect realistic validator uncertainty, with a small fraction ($\approx$5\%) at $1.0$ to test the clamp boundary. The synthetic events are not intended to model real AML expert behavior; they are architectural stress tests that exercise the full lifecycle transition graph.
+\textbf{Injection logic.} For each account chain, we injected events according to the lifecycle transition matrix (Table~\ref{tab:lifecycle-matrix}): (i)~every chain receives at least one \textsc{Validate} event after the genesis \textsc{Register}; (ii)~10\% of validated chains receive a \textsc{Deprecate} event; (iii)~5\% of validated chains receive a \textsc{Fork} event; (iv)~\textsc{Evidence} and \textsc{Relate} events are interleaved at random indices between lifecycle events. Confidence values for \textsc{Validate} events are sampled uniformly from $[0.50, 0.95]$ to reflect realistic validator uncertainty, with a small fraction ($\approx$5\%) at $1.0$ to test the clamp boundary. The synthetic events are not intended to model real AML expert behaviour. They are architectural stress tests that exercise the full lifecycle transition graph.
 
-\textbf{Validation of injection realism.} The uniform confidence distribution is a conservative lower bound on validator diversity: real experts would likely show higher variance and domain-specific clustering. The 60/20/10/6.7/3.3 split is inspired by open-source software governance patterns (many validations, fewer deprecations, rare forks), not by AML domain data. Domain-level evaluation with human AML experts (E5) is in progress to replace these synthetic assumptions with empirical distributions.
+\textbf{Validation of injection realism.} The uniform confidence distribution is a conservative lower bound on validator diversity: real experts would likely show higher variance and domain-specific clustering. The 60/20/10/6.7/3.3 split is inspired by open-source software audit patterns (many validations, fewer deprecations, rare forks), not by AML domain data. Domain-level evaluation with human AML experts (E5) is in progress to replace these synthetic assumptions with empirical distributions.

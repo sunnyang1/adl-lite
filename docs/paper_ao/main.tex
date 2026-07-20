@@ -7,7 +7,9 @@
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
 \usepackage{amsmath,amssymb,amsthm}
+\usepackage{stmaryrd}
 \usepackage{graphicx}
+\usepackage{tikz}
 \usepackage{booktabs}
 \usepackage{longtable}
 \usepackage{array}
@@ -53,6 +55,15 @@
     stringstyle=\color{red},
 }
 
+% Define Turtle language for listings (used in PROV-O examples)
+\lstdefinelanguage{Turtle}{
+    morekeywords={a,@prefix,@base,PREFIX,BASE,TRUE,FALSE},
+    sensitive=false,
+    morecomment=[l]{\#},
+    morestring=[b]{"},
+    morestring=[s]{<>},
+}
+
 % ---------------------------------------------------------------------------
 % Title
 % ---------------------------------------------------------------------------
@@ -77,7 +88,7 @@
 \end{abstract}
 
 \noindent\textbf{Keywords:}
-agent governance; capability registry; lifecycle governance; event sourcing; multi-agent systems; provenance; operational ontology
+agent audit; capability registry; lifecycle audit; event sourcing; multi-agent systems; provenance; operational ontology
 
 \section{Introduction}\label{sec:introduction}
 \input{sections/01_introduction}
@@ -96,6 +107,9 @@ agent governance; capability registry; lifecycle governance; event sourcing; mul
 
 \section{Discussion}\label{sec:discussion}
 \input{sections/06_discussion}
+
+\section{Response to Reviewers}\label{sec:reviewer-response}
+\input{sections/08_reviewer_response}
 
 \section{Conclusion and Future Work}\label{sec:conclusion}
 \input{sections/07_conclusion}

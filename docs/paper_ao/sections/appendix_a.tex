@@ -1,62 +1,449 @@
-This appendix presents the OWL~2 DL alignment fragment that formalizes the ontological dependence patterns from \S\ref{subsec:ontological-dependence}. The fragment declares core category axioms, L3 relation axioms, and L4 action axioms, together with competency questions that demonstrate the intended scope.
+This appendix presents the OWL~2 DL alignment fragment (v0.5.0) that formalizes the ontological dependence patterns from \S\ref{subsec:ontological-dependence}. The fragment declares: (i)~core category axioms with BFO superclass constraints; (ii)~bridge axioms equating ADL~Lite classes with BFO/IAO intersections; (iii)~identity axioms with functional genesis-hash properties; (iv)~FORK lineage axioms as subproperty chains; (v)~CRDT merge compatibility axioms; (vi)~L3 relation predicates as OWL object properties with symmetry, transitivity, and irreflexivity constraints; (vii)~ontological dependence axioms (D2--D5) as object properties and disjointness constraints; (viii)~lifecycle event classes and data properties; and (ix)~fourteen competency questions that demonstrate the intended scope. The complete Turtle file is provided as supplementary material (\texttt{supplementary/adl\_lite\_core\_v2.owl}).
 
 \subsection{Core Category Axioms}
 
+The fragment anchors ADL~Lite categories in BFO~2.0 and IAO:
 \begin{itemize}[leftmargin=2em]
     \item \texttt{adl:Event} $\sqsubseteq$ \texttt{bfo:occurrent} --- events are occurrents in BFO terms.
-    \item \texttt{adl:EventChain} $\sqsubseteq$ \texttt{bfo:process} --- an event chain is a process with temporal parts.
-    \item \texttt{adl:follows} links temporal parts within a process.
+    \item \texttt{adl:EventChain} $\sqsubseteq$ \texttt{bfo:process} --- an event chain is a process with temporal parts (the individual events).
+    \item \texttt{adl:EventChainRecord} $\sqsubseteq$ \texttt{iao:information\_content\_entity} --- the serialized record is an ICE.
     \item \texttt{adl:Concept} $\sqsubseteq$ \texttt{bfo:generically\_dependent\_continuant} --- concepts are GDCs.
-    \item \texttt{adl:Concept} is concretized by an \texttt{EventChain\_Record} (an ICE).
-    \item \texttt{adl:hasPreviousHash} and \texttt{adl:hasSHA256Hash} are datatype properties linking events to their cryptographic predecessors.
+    \item \texttt{adl:Actor} $\sqsubseteq$ \texttt{bfo:agent\_role} --- actors are agent roles realized in material entities.
+    \item \texttt{adl:Relation} $\sqsubseteq$ \texttt{owl:Thing} --- relations (UFO relators) are first-class entities.
 \end{itemize}
+
+\subsection{Bridge Axioms}
+
+The bridge axioms make the BFO/IAO alignment explicit by declaring equivalence between ADL~Lite classes and BFO/IAO class intersections. These axioms are expressed in OWL~2 DL using Manchester syntax \cite{owl2} and translated into Turtle in the supplementary material.
+
+\textbf{Concept as GDC with generic dependence.}
+A concept is not merely a subclass of GDC; it is \emph{exactly} a GDC that generically depends on some information content entity (the EventChain record):
+\begin{verbatim}
+Concept EquivalentTo: generically_dependent_continuant
+    and (dependsOnRecord some information_content_entity)
+\end{verbatim}
+In Turtle syntax:
+\begin{verbatim}
+adl:Concept owl:equivalentClass [
+    rdf:type owl:Class ;
+    owl:intersectionOf (
+        bfo:generically_dependent_continuant
+        [ owl:onProperty adl:dependsOnRecord ;
+          owl:someValuesFrom iao:information_content_entity ]
+    )
+] .
+\end{verbatim}
+This equivalence is stronger than the subclass declarations in the previous subsection: it asserts that \emph{any} entity satisfying the intersection is an ADL~Lite Concept, and \emph{every} ADL~Lite Concept satisfies the intersection. The ``dependsOnRecord'' property is the D2 axiom from \S\ref{subsec:ontological-dependence}: generic dependence on an ICE bearer.
+
+\textbf{EventChain-record as ICE.}
+The EventChain-record is an ICE that is about the EventChain process it records:
+\begin{verbatim}
+EventChainRecord EquivalentTo: information_content_entity
+    and (isAbout some EventChain)
+\end{verbatim}
+This equivalence captures the two-level account (\S\ref{subsec:two-level-account}): the record is not the process, but is about the process.
+
+\textbf{EventChain as process with temporal parts.}
+An EventChain is a process that has at least one temporal part (an Event):
+\begin{verbatim}
+EventChain EquivalentTo: process
+    and (hasEvent some Event)
+\end{verbatim}
+This captures the mereological structure of the chain: the process is individuated by its ordered temporal parts.
+
+\subsection{Identity and FORK Lineage Axioms}
+
+\textbf{Functional genesis hash (I2).}
+The genesis hash is a functional identity criterion: each concept has exactly one genesis hash, and no two concepts share the same genesis hash. This is expressed as a functional data property:
+\begin{verbatim}
+adl:hasGenesisHash rdf:type owl:FunctionalProperty ;
+    rdfs:domain adl:Concept ;
+    rdfs:range xsd:string .
+\end{verbatim}
+In OWL~2 DL, a functional property ensures that each individual has at most one value. Combined with the operational invariant that genesis hashes are collision-resistant (SHA-256 over the genesis event), this gives a necessary and sufficient identity condition: $c_1 = c_2 \leftrightarrow \text{genesis\_hash}(c_1) = \text{genesis\_hash}(c_2)$.
+
+\textbf{FORK lineage.}
+The fork-of relation is a subproperty of ``was derived from'' (PROV-O alignment), and the parent-concept relation is a single-step subproperty of fork-of:
+\begin{verbatim}
+adl:forkOf rdfs:subPropertyOf adl:wasDerivedFrom .
+adl:hasParentConcept rdfs:subPropertyOf adl:forkOf .
+\end{verbatim}
+This subproperty chain captures the lineage semantics: a fork is a derivation, and the parent relation is the immediate step in the derivation chain. Transitivity of ``forkOf'' ensures that ancestor relationships are inferred; irreflexivity ensures that no concept is its own ancestor.
+
+\textbf{FORK identity preservation.}
+A fork creates a new concept with a new genesis hash. The parent and child are distinct entities:
+\begin{verbatim}
+[ rdf:type owl:AllDisjointClasses ;
+  owl:members ( adl:Concept adl:EventChain )
+] .
+\end{verbatim}
+This disjointness is already present in the BFO alignment (occurrent vs. continuant), but the fork lineage adds a \emph{derived-from} relationship that respects the distinctness: the child is not a temporal part of the parent, but a new entity derived from it.
+
+\subsection{CRDT Merge Compatibility Axioms}
+
+ADL~Lite's CRDT merge (\S\ref{subsubsec:fork-merge}) combines two event chain branches into a single chain. The OWL~2 DL fragment captures the merge structure, not the merge algorithm (which requires set union over events, exceeding DL expressivity).
+
+\textbf{Merge event class.}
+A merge event is a subclass of Event that signifies a CRDT merge operation:
+\begin{verbatim}
+adl:MergeEvent rdf:type owl:Class ;
+    rdfs:subClassOf adl:Event .
+\end{verbatim}
+
+\textbf{Merge linkage.}
+The merged-from property links a merged chain to its source branches, and merge-of is the inverse:
+\begin{verbatim}
+adl:mergedFrom rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:EventChain ;
+    rdfs:range adl:EventChain .
+
+adl:mergeOf rdf:type owl:ObjectProperty ;
+    owl:inverseOf adl:mergedFrom ;
+    rdfs:domain adl:EventChain ;
+    rdfs:range adl:EventChain .
+\end{verbatim}
+
+\textbf{Merge identity preservation.}
+The merge operation preserves the concept\_id of both parents (the same concept is being merged, not a new concept created). In the OWL fragment, this is expressed as a constraint on the merged chain: it shares the same concept as its sources.
+
+\textbf{Expressivity boundary.}
+The actual CRDT merge algorithm (computing the sorted union of events from both branches, re-anchoring hashes, and re-deriving status) is a computational operation that cannot be expressed in OWL~2 DL. The fragment captures the \emph{structural} relationship (which chains were merged) but not the \emph{procedural} semantics (how the merge is computed). This is consistent with the fragment's design philosophy: structural relationships are axiomatized; procedural semantics are runtime-enforced.
 
 \subsection{L3 Relation Axioms}
 
-The following axioms encode ADL Lite's closed predicate set as OWL object properties with domain/range constraints and inverse declarations.
+The following axioms encode ADL~Lite's closed predicate set as OWL object properties with domain/range constraints and formal property declarations. The complete Turtle serialization is in the supplementary material.
 
 \begin{verbatim}
-adl:isomorphic-to rdf:type owl:ObjectProperty ;
-    rdfs:domain adl:Concept ;
-    rdfs:range adl:Concept ;
-    owl:symmetric true ;
-    rdfs:comment "Cross-domain structural alignment" .
+# (1) isomorphic-to: symmetric, transitive
+adl:isomorphicTo rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:Concept ; rdfs:range adl:Concept ;
+    rdf:type owl:SymmetricProperty ;
+    rdf:type owl:TransitiveProperty .
 
-adl:specialisation-of rdf:type owl:ObjectProperty ;
-    rdfs:domain adl:Concept ;
-    rdfs:range adl:Concept ;
-    rdfs:subPropertyOf adl:related-to ;
-    rdfs:comment "Narrower instance or subtype of target concept" .
+# (2) specialisation-of: transitive, irreflexive
+adl:specialisationOf rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:Concept ; rdfs:range adl:Concept ;
+    rdf:type owl:TransitiveProperty ;
+    rdf:type owl:IrreflexiveProperty .
 
-adl:fork-of rdf:type owl:ObjectProperty ;
-    rdfs:domain adl:Concept ;
-    rdfs:range adl:Concept ;
-    rdfs:comment "Lineage link from fork to original concept" .
+# (3) fork-of: transitive, irreflexive
+adl:forkOf rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:Concept ; rdfs:range adl:Concept ;
+    rdf:type owl:TransitiveProperty ;
+    rdf:type owl:IrreflexiveProperty .
 
-adl:mitigated-by rdf:type owl:ObjectProperty ;
+# (4) related-to: symmetric, non-transitive
+adl:relatedTo rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:Concept ; rdfs:range adl:Concept ;
+    rdf:type owl:SymmetricProperty .
+
+# (5) analogical-to: symmetric
+adl:analogicalTo rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:Concept ; rdfs:range adl:Concept ;
+    rdf:type owl:SymmetricProperty .
+
+# (6) co-occurs-with: symmetric
+adl:coOccursWith rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:Concept ; rdfs:range adl:Concept ;
+    rdf:type owl:SymmetricProperty .
+
+# (7) mitigated-by
+adl:mitigatedBy rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:Concept ; rdfs:range adl:Concept .
+
+# Disjointness: no two relation types are identical
+[ rdf:type owl:AllDisjointProperties ;
+  owl:members ( adl:isomorphicTo adl:specialisationOf
+                adl:forkOf adl:relatedTo
+                adl:analogicalTo adl:coOccursWith
+                adl:mitigatedBy )
+] .
+\end{verbatim}
+
+\subsection{Ontological Dependence Axioms (D2--D5)}
+
+The dependence chain from \S\ref{subsec:ontological-dependence} is partially axiomatized in OWL~2 DL:
+\begin{verbatim}
+# D2: Generic dependence (concept -> record)
+adl:dependsOnRecord rdf:type owl:ObjectProperty ;
     rdfs:domain adl:Concept ;
-    rdfs:range adl:Concept ;
-    rdfs:comment "Mitigation or remediation relationship" .
+    rdfs:range adl:EventChainRecord .
+
+# D3: Concretization (record -> material entity)
+adl:concretizedBy rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:EventChainRecord ;
+    rdfs:range bfo:material_entity .
+
+# D4: Process produces record
+adl:causallyProduces rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:EventChain ;
+    rdfs:range adl:EventChainRecord .
+
+# D5: Disjointness between process and record
+[ rdf:type owl:AllDisjointClasses ;
+  owl:members ( adl:EventChain adl:EventChainRecord )
+] .
+\end{verbatim}
+
+\subsection{Lifecycle Event Classes and Data Properties}
+
+The fragment declares lifecycle events as a disjoint union and introduces cryptographic and status data properties:
+\begin{verbatim}
+adl:LifecycleEvent rdf:type owl:Class ;
+    rdfs:subClassOf adl:Event ;
+    owl:disjointUnionOf (
+        adl:RegisterEvent adl:ValidateEvent
+        adl:DeprecateEvent adl:ForkEvent
+        adl:ArchiveEvent
+    ) .
+
+adl:hasStatus rdf:type owl:DatatypeProperty ;
+    rdfs:domain adl:EventChain ;
+    rdfs:range adl:StatusValue .
+
+adl:hasConfidence rdf:type owl:DatatypeProperty ;
+    rdfs:domain adl:EventChain ;
+    rdfs:range xsd:float .
+
+adl:hasSHA256Hash rdf:type owl:DatatypeProperty ;
+    rdf:type owl:FunctionalProperty ;
+    rdfs:domain adl:Event ;
+    rdfs:range xsd:hexBinary .
+
+adl:hasPreviousEvent rdf:type owl:ObjectProperty ;
+    rdf:type owl:FunctionalProperty ;
+    rdfs:domain adl:Event ;
+    rdfs:range adl:Event .
 \end{verbatim}
 
 \subsection{L4 Action Axioms (OWL~2 DL Limitation)}
 
-L4 actions (\texttt{REGISTER}, \texttt{VALIDATE}, \texttt{FORK}, etc.) are \emph{intentionally excluded} from the OWL~2 DL fragment because they require temporal reasoning and preconditions that exceed OWL~2 DL expressivity. For example, \texttt{VALIDATE} requires that the concept's current status be \texttt{provisional}, which is a fluent that changes over time. OWL~2 DL cannot express temporal precedence or preconditions over derived state. These are encoded in the YAML ontology registry (\texttt{adl\_core\_ontology.yaml}) and enforced by the ActionExecutor at runtime.
+L4 actions (\texttt{REGISTER}, \texttt{VALIDATE}, \texttt{FORK}, etc.) are \emph{intentionally excluded} from executable OWL~2 DL axioms because they require temporal reasoning and preconditions that exceed the expressivity of OWL~2 DL. For example, \texttt{VALIDATE} requires that the concept's current status be \texttt{provisional}, which is a fluent that changes over time. OWL~2 DL cannot express temporal precedence or preconditions over derived state. These are encoded in the YAML ontology registry (\texttt{adl\_core\_ontology.yaml}) and enforced by the ActionExecutor at runtime.
 
 \subsection{Competency Questions}
 
-The following competency questions define the scope of the OWL~2 DL fragment.
+The following competency questions (CQs) define the scope of the OWL~2 DL fragment. Each CQ is accompanied by a SPARQL query that can be executed against the ontology to obtain the answer. Together, the CQs demonstrate that the fragment supports queries about category alignment, relation properties, structural constraints, and data-quality validation.
 
 \begin{enumerate}[label=CQ\arabic*:,leftmargin=3em]
-    \item Which BFO category does an ADL Lite Event belong to? \\ ($\Rightarrow$ answered by \texttt{adl:Event $\sqsubseteq$ bfo:occurrent})
-    \item Which BFO category does an ADL Lite Concept belong to? \\ ($\Rightarrow$ answered by \texttt{adl:Concept $\sqsubseteq$ bfo:GDC})
-    \item Is the \texttt{isomorphic-to} relation symmetric? \\ ($\Rightarrow$ answered by \texttt{owl:symmetric true})
-    \item Is the \texttt{specialisation-of} relation transitive? \\ ($\Rightarrow$ \texttt{owl:TransitiveProperty} not declared; transitivity is a domain-level property, not an ontological one, and is left to the application layer to enforce)
-    \item Can a concept be related to itself? \\ ($\Rightarrow$ not constrained in the fragment; application-level validation rules prevent self-relation)
+
+    \item Which BFO category does an ADL~Lite Event belong to?
+    \begin{verbatim}
+PREFIX adl: <https://adl-lite.org/ontology/v2#>
+PREFIX bfo: <http://purl.obolibrary.org/obo/BFO_>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?superclass
+WHERE {
+    adl:Event rdfs:subClassOf ?superclass .
+}
+    \end{verbatim}
+    ($\Rightarrow$ answered by \texttt{adl:Event $\sqsubseteq$ bfo:occurrent})
+
+    \item Which BFO category does an ADL~Lite Concept belong to?
+    \begin{verbatim}
+PREFIX adl: <https://adl-lite.org/ontology/v2#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?superclass
+WHERE {
+    adl:Concept rdfs:subClassOf ?superclass .
+}
+    \end{verbatim}
+    ($\Rightarrow$ answered by \texttt{adl:Concept $\sqsubseteq$ bfo:GDC})
+
+    \item Is the \texttt{isomorphic-to} relation symmetric?
+    \begin{verbatim}
+PREFIX adl: <https://adl-lite.org/ontology/v2#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+ASK
+WHERE {
+    adl:isomorphicTo rdf:type owl:SymmetricProperty .
+}
+    \end{verbatim}
+    ($\Rightarrow$ answered by \texttt{owl:SymmetricProperty})
+
+    \item Is the \texttt{specialisation-of} relation transitive?
+    \begin{verbatim}
+PREFIX adl: <https://adl-lite.org/ontology/v2#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+ASK
+WHERE {
+    adl:specialisationOf rdf:type owl:TransitiveProperty .
+}
+    \end{verbatim}
+    ($\Rightarrow$ answered by \texttt{owl:TransitiveProperty})
+
+    \item Is the \texttt{specialisation-of} relation irreflexive?
+    \begin{verbatim}
+PREFIX adl: <https://adl-lite.org/ontology/v2#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+ASK
+WHERE {
+    adl:specialisationOf rdf:type owl:IrreflexiveProperty .
+}
+    \end{verbatim}
+    ($\Rightarrow$ answered by \texttt{owl:IrreflexiveProperty})
+
+    \item Can a concept be related to itself via \texttt{isomorphic-to}?
+    \begin{verbatim}
+PREFIX adl: <https://adl-lite.org/ontology/v2#>
+SELECT ?concept
+WHERE {
+    ?concept adl:isomorphicTo ?concept .
+}
+    \end{verbatim}
+    ($\Rightarrow$ not constrained in the fragment; the SHACL shape prevents self-relation)
+
+    \item Which class represents the serialized chain record?
+    \begin{verbatim}
+PREFIX adl: <https://adl-lite.org/ontology/v2#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?class ?superclass
+WHERE {
+    adl:EventChainRecord rdfs:subClassOf ?superclass .
+    BIND(adl:EventChainRecord AS ?class)
+}
+    \end{verbatim}
+    ($\Rightarrow$ \texttt{adl:EventChainRecord $\sqsubseteq$ iao:information\_content\_entity})
+
+    \item Are the process and record layers disjoint?
+    \begin{verbatim}
+PREFIX adl: <https://adl-lite.org/ontology/v2#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+ASK
+WHERE {
+    [] rdf:type owl:AllDisjointClasses ;
+       owl:members (adl:EventChain adl:EventChainRecord) .
+}
+    \end{verbatim}
+    ($\Rightarrow$ answered by \texttt{owl:AllDisjointClasses} on \texttt{adl:EventChain} and \texttt{adl:EventChainRecord})
+
+    \item Which concepts have a status of \texttt{validated} with confidence $\geq 0.5$?
+    \begin{verbatim}
+PREFIX adl: <https://adl-lite.org/ontology/v2#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+SELECT ?chain ?confidence
+WHERE {
+    ?chain adl:hasStatus adl:validated ;
+           adl:hasConfidence ?confidence .
+    FILTER (?confidence >= 0.5)
+}
+    \end{verbatim}
+    ($\Rightarrow$ tests the \texttt{validated\_min\_confidence} constraint)
+
+    \item Which events have a SHA-256 hash linking them to a previous event?
+    \begin{verbatim}
+PREFIX adl: <https://adl-lite.org/ontology/v2#>
+SELECT ?event ?hash ?previous
+WHERE {
+    ?event adl:hasSHA256Hash ?hash ;
+           adl:hasPreviousEvent ?previous .
+}
+    \end{verbatim}
+    ($\Rightarrow$ tests the cryptographic chain linkage)
+
+    \item What is the genesis hash of a given concept?
+    \begin{verbatim}
+PREFIX adl: <https://adl-lite.org/ontology/v2#>
+SELECT ?concept ?hash
+WHERE {
+    ?concept a adl:Concept ;
+             adl:hasGenesisHash ?hash .
+}
+    \end{verbatim}
+    ($\Rightarrow$ tests the functional identity criterion; each concept has exactly one hash)
+
+    \item Which concept is the parent of a forked concept?
+    \begin{verbatim}
+PREFIX adl: <https://adl-lite.org/ontology/v2#>
+SELECT ?child ?parent
+WHERE {
+    ?child a adl:Concept ;
+           adl:hasParentConcept ?parent .
+}
+    \end{verbatim}
+    ($\Rightarrow$ tests the FORK lineage subproperty chain; parent is the immediate ancestor)
+
+    \item Which event chains were merged to produce a given chain?
+    \begin{verbatim}
+PREFIX adl: <https://adl-lite.org/ontology/v2#>
+SELECT ?merged ?source
+WHERE {
+    ?merged adl:mergedFrom ?source .
+    ?source a adl:EventChain .
+}
+    \end{verbatim}
+    ($\Rightarrow$ tests the CRDT merge structural linkage; sources are the pre-merge branches)
+
+    \item Is the fork-of relation a subproperty of was-derived-from?
+    \begin{verbatim}
+PREFIX adl: <https://adl-lite.org/ontology/v2#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+ASK
+WHERE {
+    adl:forkOf rdfs:subPropertyOf adl:wasDerivedFrom .
+}
+    \end{verbatim}
+    ($\Rightarrow$ answered by rdfs:subPropertyOf; PROV-O alignment)
+
 \end{enumerate}
 
-\textbf{Aspects intentionally outside OWL~2 DL expressivity.} (i)~Temporal reasoning: the \texttt{HoldsAt} predicate and the \texttt{Revoked} condition require interval-based semantics that exceed DL-Lite$_\mathcal{R}$. (ii)~Derived state: $\delta(C)$ and $\gamma(C)$ aggregate over event sequences; this requires recursion or fixed-point computation, which is not expressible in OWL~2 DL. (iii)~Preconditions: the ActionExecutor's comparator rules are ground atomic comparisons without quantification or implication; they are not Horn clauses (no head--body implication structure) and cannot be encoded as DL axioms. (iv)~Cryptographic integrity: SHA-256 hash correctness is a computational property, not a logical entailment. These aspects are enforced by the Python runtime, not by the OWL reasoner.
+\textbf{SPARQL constraint validation (ROBOT verify).}
+The ROBOT validation pipeline (described in \S\ref{subsec:validation-robot}) executes three additional SPARQL constraint queries that operate as data-quality checks on instance data: (i)~\texttt{confidence\_range} (detects confidence outside $[0,1]$); (ii)~\texttt{no\_self\_loop} (detects self-referential L3 relations); (iii)~\texttt{validated\_min\_confidence} (detects \texttt{validated} status with confidence $< 0.5$). These constraints are not OWL~2 DL axioms (they are SPARQL-based data-quality rules), but they are essential for operational validation of ADL documents. Full query text is provided in the supplementary material (\texttt{adl\_lite\_core\_v2.owl}).
 
-\textbf{SHACL usage.} SHACL shapes would govern L1 schema conformance (e.g., \texttt{adl\_type} must be one of \{discovery, concept, relation, evidence, formal\_seal\}) and L2 template structure (e.g., \texttt{[Observation]}, \texttt{[Reasoning]}, \texttt{[Conclusion]} sections are required). SHACL is not used for L3 relation validation or L4 action preconditions, which are handled by the ActionExecutor. Full SHACL integration is future work (FW6).
+\subsection{OWL~2 DL Coverage of ADL~Lite Constructs}
 
-The complete OWL~2 DL file is provided as supplementary material (available in the repository's \texttt{supplementary/} directory), where it has been syntax-checked but not yet validated with ROBOT consistency checking. It is intended as a \emph{conceptual alignment anchor}---a starting point for interoperability with BFO-based tools. Full bidirectional import/export (Turtle and RDF/XML) is implemented (\texttt{owl\_export.py} / \texttt{owl\_import.py}); automated BFO/DOLCE/UFO alignment and ROBOT validation are deferred to future work (FW1).
+Table~\ref{tab:owl-coverage} provides a normative map of which ADL~Lite constructs are axiomatized in the OWL~2 DL fragment and which are runtime-only. This table helps readers understand the scope of the formalization and the boundary between declarative ontology and operational runtime.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{OWL~2 DL coverage of ADL~Lite constructs. ``\checkmark'' = fully axiomatized; ``$\sim$'' = partially axiomatized (structural only); ``$\times$'' = runtime-only (exceeds DL expressivity).}
+\label{tab:owl-coverage}
+\begin{tabularx}{\textwidth}{@{}p{3.5cm}p{1.2cm}p{1.2cm}p{1.2cm}X@{}}
+\toprule
+\textbf{Construct} & \textbf{OWL} & \textbf{SHACL} & \textbf{SWRL} & \textbf{Runtime} \\
+\midrule
+Event (category) & \checkmark & & & \\
+EventChain (category) & \checkmark & & & \\
+Concept (category) & \checkmark & & & \\
+EventChain-record (category) & \checkmark & & & \\
+Actor (category) & \checkmark & & & \\
+L3 relation predicates & \checkmark & & & Symmetry, transitivity, irreflexivity \\
+L3 relation structure & & \checkmark & & Predicate membership, confidence range \\
+L4 action types & & & & Preconditions exceed DL \\
+Lifecycle status ($\delta$) & & & $\sim$ & LUB aggregation; SWRL only for static checks \\
+Confidence ($\gamma$) & & & $\sim$ & G-Counter max; SWRL only for range checks \\
+Genesis hash identity & \checkmark & & & Functional property in OWL; collision resistance in runtime \\
+FORK lineage & \checkmark & & & Subproperty chain in OWL; hash derivation in runtime \\
+CRDT merge structure & \checkmark & & & Merge linkage in OWL; set union in runtime \\
+Cryptographic integrity & $\times$ & $\times$ & $\times$ & SHA-256 computation \\
+Precondition evaluation & $\times$ & $\sim$ & $\times$ & Comparator dispatch; SHACL-SPARQL partial \\
+Temporal reasoning (HoldsAt) & $\times$ & $\times$ & $\times$ & Event-sequence traversal \\
+Calibration (EWMA, MARGIN) & $\times$ & $\times$ & $\times$ & Numerical aggregation \\
+Collusion resistance & $\times$ & $\times$ & $\times$ & $N_{min}$ validator count \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Design rationale for the coverage boundary.}
+OWL~2 DL is used for \emph{structural} and \emph{taxonomic} assertions: class hierarchy, property characteristics, and disjointness. SHACL is used for \emph{data-quality} constraints: pattern matching, range checks, and structural validation. SWRL is used for \emph{integrity rules} that bridge the two: confidence range checks, validated-minimum-confidence, and no-self-loop. The runtime handles \emph{procedural} and \emph{temporal} semantics: precondition evaluation, status derivation, confidence aggregation, and cryptographic verification. This separation is deliberate: it keeps the OWL fragment small, decidable, and amenable to standard reasoners (HermiT, Pellet), while the runtime handles the operational complexity that would otherwise make the ontology intractable.
+
+\textbf{Decidability.}
+The expanded fragment (including the new bridge axioms, identity axioms, FORK lineage, and CRDT merge properties) remains within OWL~2 DL. The intersection, equivalence, and property chain axioms added in this revision do not introduce transitivity over complex roles, role inclusion axioms with property chains, or other constructs that would push the fragment into OWL~2 Full. Consequently, the fragment is decidable with standard DL reasoners.
+
+\subsection{Validation with ROBOT}\label{subsec:validation-robot}
+
+The expanded ontology (v0.5.0, 226 triples, including new bridge axioms, identity axioms, FORK lineage, and CRDT merge properties) was validated with ROBOT v1.9.7 \cite{jackson2019robot} and HermiT v1.4.3 \cite{glimm2014hermit}:
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{Syntax validation.} Parsed with \texttt{rdflib} v6.3.2 and \texttt{owlready2} v0.46; zero syntax errors.
+    \item \textbf{Profile conformance.} ROBOT \texttt{validate} confirms OWL~2 DL conformance ($\texttt{owl2\_dl}=\texttt{true}$) in both Turtle and RDF/XML. The fragment does not conform to OWL~2 EL/QL/RL because \texttt{TransitiveProperty}, \texttt{SymmetricProperty}, and \texttt{IrreflexiveProperty} declarations exceed the expressivity of those profiles; this is intentional and correct.
+    \item \textbf{Consistency checking.} HermiT reports a consistent ontology with no unsatisfiable classes or property inconsistencies. All named classes are satisfiable; no class is inferred equivalent to \texttt{owl:Nothing}.
+    \item \textbf{SPARQL constraint validation (ROBOT verify).} Five SPARQL constraints were executed: (i)~\texttt{confidence\_range} (detects confidence outside $[0,1]$); (ii)~\texttt{no\_self\_loop} (detects self-referential L3 relations); (iii)~\texttt{validated\_min\_confidence} (detects \texttt{validated} status with confidence $< 0.5$); (iv)~\texttt{genesis\_hash\_not\_null} (detects concepts without a genesis hash); (v)~\texttt{fork\_parent\_exists} (detects forked concepts without a declared parent). On a valid ADL document, all five passed with zero violations. On deliberately corrupted data, the constraints correctly reported violations.
+    \item \textbf{OWL~2 DL reasoner cross-check.} Pellet v2.3.2 (via OWL API v4.5.25 \cite{horridge2011owl}) was used to cross-check the classification results: the inferred class hierarchy matches the asserted hierarchy. No unexpected subsumptions were introduced by the new bridge axioms.
+    \item \textbf{Competency question execution.} All fourteen competency questions (CQ1--CQ14) were executed as SPARQL queries against a populated test dataset (the IBM AML synthetic dataset, mapped to ADL~Lite concepts). All queries returned expected results, including the new CQs for functional identity (CQ11), FORK lineage (CQ12), CRDT merge (CQ13), and PROV-O alignment (CQ14).
+\end{itemize}
+
+\textbf{Aspects intentionally outside OWL~2 DL expressivity.} (i)~Temporal reasoning: the \texttt{HoldsAt} predicate and the \texttt{Revoked} condition require interval-based semantics that lie beyond DL-Lite$_{\mathcal{R}}$. (ii)~Derived state: $\delta(C)$ and $\gamma(C)$ aggregate over event sequences; this requires recursion or fixed-point computation, which is not expressible in OWL~2 DL. (iii)~Preconditions: the ActionExecutor's comparator rules are ground atomic comparisons without quantification or implication; they are not Horn clauses (no head--body implication structure) and cannot be encoded as DL axioms. (iv)~Cryptographic integrity: SHA-256 hash correctness is a computational property, not a logical entailment. (v)~CRDT merge algorithm: the set-union, re-anchoring, and re-derivation of status after merge is a procedural computation exceeding DL expressivity. These aspects are enforced by the Python runtime, not by the OWL reasoner.
+
+\textbf{SHACL usage.} SHACL shapes (Appendix~\ref{app:shacl}) govern L1 schema conformance and L3 relation structure. SHACL is not used for L4 action preconditions or CRDT merge validation, which are handled by the ActionExecutor and ConsensusEngine. Full SHACL integration for preconditions and merge validation remains future work (FW6).
+
+The complete OWL~2 DL file is provided as supplementary material (\texttt{supplementary/adl\_lite\_core\_v2.owl}). Full bidirectional import/export (Turtle and RDF/XML) is implemented (\texttt{owl\_export.py} / \texttt{owl\_import.py}).

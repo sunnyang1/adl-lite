@@ -1,0 +1,82 @@
+% =============================================================================
+% Section 8: Consolidated Response to Reviewer Questions (Round 3 Major Revision)
+% =============================================================================
+
+This section provides a consolidated response to the ten specific questions raised by the reviewer during Round 3 (Major Revision). Each question is reproduced verbatim (paraphrased), followed by a concise answer and a pointer to the section(s) where the detailed treatment appears. The response is organized by the four thematic groups used in the revision plan: Identity, Formalization, Semantics, and Empirical.
+
+\subsection{Identity Group}\label{subsec:response-identity}
+
+\textbf{Q1 (FORK / CRDT identity preservation).} How does ADL Lite preserve the identity of a concept when it is forked, and what are the identity conditions for the merged result of two CRDT branches?
+
+\textbf{Answer.} A fork creates a child EventChain with a \emph{new} genesis hash, ensuring parent $\neq$ child (different identities). The parent-child link is recorded as a \texttt{fork-of} L3 relation in the parent chain, preserving lineage without identity conflation. The child inherits the parent's \texttt{concept\_id} prefix but receives a fresh genesis hash computed as $h_{\text{child}} = \text{SHA\text{-}256}(\text{FORK\_event} \| h_{\text{parent}})$. For CRDT merge, the merge result preserves the shared \texttt{concept\_id} of both parents; its identity is the union of the two event sets (LWW-Set deduplication by \texttt{event\_id}), sorted and re-anchored. Merge never produces a new identity; it preserves the existing \texttt{concept\_id} while unifying the histories. Full formalization: Section~\ref{subsec:identity-resilience} (R2--R3) and Appendix~A (OWL axioms for \texttt{forkOf} and \texttt{wasDerivedFrom}).
+
+\textbf{Q4 (OntoClean meta-properties).} The OntoClean table in the original submission contained only six classes with one-line rationales. Can the authors provide a rigorous meta-property justification for all core classes, including constraints and consequences?
+
+\textbf{Answer.} The OntoClean analysis has been expanded from 6 to 10 classes (Event, EventChain-process, EventChain-record, Concept, Relation, Action, Actor, Payload, Hash, Status) with rigorous justifications for each meta-property (R, I, U, D). For each class, we provide: (i)~rigidity---whether the property is essential and can change without identity change; (ii)~identity criteria---UUID, genesis hash, or ordered sequence; (iii)~unity---whether the class is a mereological sum or integrated whole; (iv)~dependence---generic or specific, on what bearers, and on how many simultaneously. Forbidden combinations (e.g., +R but $-$I is impossible) are derived, and design consequences (genesis-hash identity, GDC dependence on ICE) are shown. Full treatment: Section~\ref{subsec:ontoclean}.
+
+\subsection{Formalization Group}\label{subsec:response-formalization}
+
+\textbf{Q2 ($\gamma$ algebra structure).} What is the algebraic structure of the confidence aggregation function $\gamma(C)$? Is it associative, commutative, idempotent? What are the bounds?
+
+\textbf{Answer.} $\gamma(C)$ is a family of three aggregation variants: $\gamma_{\text{default}}$ (max), $\gamma_{\text{agg}}$ (min of MAX and base+bonus), and $\gamma_{\text{cal}}$ (accuracy-weighted average). All three are bounded to $[0, 1]$. The default variant is a G-Counter (max), which is associative, commutative, and idempotent: $\gamma(C \| e) = \gamma(C)$ when $\text{confidence}(e) \leq \gamma(C)$. The aggregated variant is also associative and commutative because it operates on the set of validator contributions, not their order. The calibrated variant is associative and commutative because it is a weighted average over the validator set. Cache invariants: the snapshot caches the last verified prefix; incremental update only re-verifies new events. Full treatment: Section~\ref{subsec:compact-formal-spec} and E25 microbenchmark (Section~\ref{subsec:boundary-experiments}).
+
+\textbf{Q3 (Coq mechanization clarity).} Which of the nine theorems (T1--T9) are fully mechanized in Coq, and which rely on Python tests or TLA+ model checking? Please provide a clear table.
+
+\textbf{Answer.} Eight theorems (T1--T7, T9) are fully mechanized in Coq 8.18.0 with zero remaining \texttt{Admitted} lemmas (1,873 lines across seven modules). T8 is a Python-level property (precondition $O(1)$ evaluation) not in the Coq scope. TLA+ serves as model-checking \emph{confirmation} for bounded instances (chain length $\leq 20$), not as standalone proof. The distinction between unbounded Coq proofs (structural induction, valid for arbitrary length) and bounded Python/TLA+ confirmation (empirical, finite-state) is explicitly stated in Section~\ref{subsec:artifacts}. Full theorem inventory: \texttt{formal/coq/PROOFS.md}.
+
+\textbf{Q5 (L3 relation: relator vs. quality).} Are L3 relations relators (existentially dependent entities) or qualities (dependent continuants)? What are their identity and termination conditions?
+
+\textbf{Answer.} L3 relations are \emph{relators} in the UFO sense: existentially dependent entities that mediate between two or more relata. A relator's identity is given by its originating \textsc{Relate} event: $r = r' \iff \text{RELATE\_event}(r).\text{event\_id} = \text{RELATE\_event}(r').\text{event\_id}$. The relator exhibits mutual rigid dependence on both relata: it cannot exist unless both relata exist, and its termination is effected by a \textsc{Revoke} event (or by the deprecation of either relatum). This is distinct from a quality, which is a dependent continuant inhering in a single bearer. The relator interpretation is justified by the binary nature of L3 relations (each \textsc{Relate} event links exactly two concepts) and the need for a mediating entity that carries its own evidence and confidence metadata. Full treatment: Section~\ref{subsec:two-level-account} (two-level account) and Section~\ref{subsec:ontoclean} (meta-property D for Relation).
+
+\subsection{Semantics Group}\label{subsec:response-semantics}
+
+\textbf{Q6 (HoldsAt termination modes).} The paper uses HoldsAt for status derivation. Does ADL Lite support both cessation (the status no longer holds) and weakening (the status holds but with reduced confidence)? How is this formalized?
+
+\textbf{Answer.} ADL Lite supports both modes. \emph{Cessation} is triggered by a \textsc{Deprecate} or \textsc{Archive} event: the status $\delta(C)$ advances to \texttt{deprecated} or \texttt{archived} on the lifecycle lattice, and the concept is excluded from the validated registry. Cessation is monotonic: status never regresses. \emph{Weakening} is supported via the graded weakening mechanism: a \textsc{Relate} event with $\text{confidence} = 0$ suspends belief in the relation without terminating it. The $\delta$ invariant is preserved under both modes because $\delta$ is the LUB over the lifecycle lattice, and \textsc{Relate} events map to \texttt{provisional} (they do not affect the LUB). The $\gamma$ invariant is also preserved: confidence is a G-Counter (max), so a zero-confidence event cannot downgrade a previously higher confidence. Query recommendation: use cessation semantics for audit (status is definitive); use weakening only for consumer-side filtering (status is provisional but relation confidence is low). Full treatment: Section~\ref{subsec:compact-formal-spec} (HoldsAt semantics) and E35 (Section~\ref{subsec:e35}).
+
+\textbf{Q7 (Clock skew and event ordering).} How does ADL Lite handle clock skew across distributed agents? Is timestamp ordering used for consensus?
+
+\textbf{Answer.} Event timestamps use ISO 8601 UTC; there is no global clock assumption. Precondition evaluation uses snapshot-derived state (L1 front matter), not timestamps. For CRDT merge, events are sorted by \texttt{event\_id} (UUIDv4), not by timestamp, ensuring deterministic ordering across agents even under clock skew. The timestamp is for audit/replay and human readability, not for consensus. Event IDs are generated locally by each agent using a thread-safe counter and UUIDv4, guaranteeing uniqueness without coordination. The LWW-Set merge uses \texttt{event\_id} as the tiebreaker, making merge deterministic regardless of timestamp differences. Full treatment: Section~\ref{subsec:identity-resilience} and CRDT merge specification (Theorem~9, Appendix~E).
+
+\subsection{Empirical Group}\label{subsec:response-empirical}
+
+\textbf{Q8 (Controlled comparison).} The comparison against nanopubs and PROV-O is limited to four audit tasks. Can the authors provide a controlled comparison covering the full lifecycle (register, validate, deprecate, fork, audit) and including PROV-O with signatures?
+
+\textbf{Answer.} The comparison has been expanded in two ways. (i)~Table~\ref{tab:comparative-eval} now includes a ``Fork workflow'' row, revealing that ADL Lite provides native \textsc{FORK} events with deterministic child status, while nanopublications lack the concept entirely and PROV-O only provides \texttt{wasDerivedFrom} lineage without lifecycle semantics. (ii)~Table~\ref{tab:lifecycle-comparison} presents a dedicated five-task lifecycle comparison (register $\to$ validate $\to$ deprecate $\to$ fork $\to$ audit query) across ADL Lite, Nanopubs+Trusty URIs, PROV-O+LD-Proofs, and Git-only. The comparison includes signature overhead: PROV-O with LD-Proofs requires external tooling for signature verification, whereas ADL Lite's Ed25519 signatures are native to the EventChain data structure. The E19 benchmark (Table~\ref{tab:e19-benchmark}) remains the measured head-to-head on four audit tasks; the lifecycle comparison is qualitative, supported by the architecture analysis in Section~\ref{subsec:comparative-analysis} and Appendix~F.
+
+\textbf{Q9 (AML data licensing).} What is the licensing status of the IBM AML dataset used in E6? Is it reproducible by third parties?
+
+\textbf{Answer.} The IBM AML Synthetic Dataset (HI-Small) is synthetic data generated by IBM for research purposes, available under CC-BY-SA 4.0. No real customer data is included. The full transformation pipeline (raw CSV $\rightarrow$ feature extraction $\rightarrow$ event generation $\rightarrow$ ADL Markdown) and all intermediate artifacts are included in the repository (\texttt{data/aml/}) and released under the same CC-BY-SA 4.0 license. Any third party can reproduce E6 by running \texttt{python -m experiments.runner E6} after installing the package. Full provenance: Section~\ref{subsec:scalability}.
+
+\textbf{Q10 (Adversarial guidance for early adopters).} The undetectable attacks (B1--B4) are concerning. What concrete security recommendations can the authors provide for practitioners deploying ADL Lite before Phase 3?
+
+\textbf{Answer.} Section~\ref{subsec:security-recommendations} provides four concrete recommendations: (1)~use Ed25519 key signing per actor (\texttt{KeyRegistry}, mitigates impersonation); (2)~enforce minimum-validator thresholds ($N_{\min} \geq 2$ for \textsc{Validate}, $N_{\min} \geq 3$ for \textsc{Deprecate}, mitigates collusion); (3)~enable Git reflog and batch-anchor Merkle roots to Sigstore Rekor (mitigates genesis replacement); (4)~use scope ACL prefixes (\texttt{public/}, \texttt{private/}, \texttt{shared/}) with Git branch protection (mitigates unauthorized writes). These measures reduce the attack surface from open collaboration to a threshold-guarded model without requiring economic staking. They are all implementable in v0.6.0-alpha. Full treatment: Section~\ref{subsec:security-recommendations} and Appendix~K (threat model and phased roadmap).
+
+\subsection{Summary of Changes}\label{subsec:response-summary}
+
+Table~\ref{tab:revision-summary} maps each reviewer question to the section(s) and workstream(s) where it was addressed.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Round 3 Major Revision: question-to-section mapping.}
+\label{tab:revision-summary}
+\begin{tabularx}{\textwidth}{@{}p{1.5cm}p{3.5cm}XX@{}}
+\toprule
+\textbf{Q} & \textbf{Topic} & \textbf{Primary Section} & \textbf{Workstream} \\
+\midrule
+Q1 & FORK/CRDT identity & Section~\ref{subsec:identity-resilience}, Appendix~A & WS2 + WS3 \\
+Q2 & $\gamma$ algebra & Section~\ref{subsec:compact-formal-spec}, E25 & WS4 \\
+Q3 & Coq mechanization & Section~\ref{subsec:artifacts}, \texttt{formal/coq/} & WS4 \\
+Q4 & OntoClean & Section~\ref{subsec:ontoclean} & WS2 \\
+Q5 & L3 relator identity & Section~\ref{subsec:two-level-account}, Section~\ref{subsec:ontoclean} & WS1 + WS4 \\
+Q6 & HoldsAt termination & Section~\ref{subsec:compact-formal-spec}, E35 & WS4 + WS5 \\
+Q7 & Clock skew & Section~\ref{subsec:identity-resilience}, Theorem~9 & WS4 + WS5 \\
+Q8 & Controlled comparison & Section~\ref{subsec:comparative-analysis}, Table~\ref{tab:lifecycle-comparison} & WS5 \\
+Q9 & AML licensing & Section~\ref{subsec:scalability} & WS5 \\
+Q10 & Adversarial guidance & Section~\ref{subsec:security-recommendations}, Appendix~K & WS5 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+All ten questions have been addressed with either new sections, expanded tables, or formal proofs. No reviewer question remains unanswered. The paper length increased from 105 to 110 pages, with zero fatal LaTeX errors and six new references. The Coq proof corpus (2,246 lines, 18 theorems, 82 lemmas) and the Python test suite (1,311 tests, 77\% coverage) were both extended to cover the new material.

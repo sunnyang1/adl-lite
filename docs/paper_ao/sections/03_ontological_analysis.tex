@@ -34,7 +34,13 @@ In BFO, an \emph{occurrent} unfolds in time and is ontologically distinct from \
 
 \subsubsection{Concept as Generically Dependent Continuant}
 
-An ADL Lite concept is a \emph{generically dependent continuant} (GDC) in BFO terms \cite{bfo}: it depends on some continuant for its existence, but not on any \emph{specific} one. It depends on its EventChain \emph{as an ICE}---the serialized chain record borne by the Markdown file---rather than on the occurrent process itself.\footnote{In BFO and IAO \cite{iao}, the dependence chain is: concept $\xrightarrow{\text{GDC}}$ ICE(EventChain-record) $\xrightarrow{\text{concretized\_by}}$ Markdown\_file. A GDC cannot depend on an occurrent, but can depend on the ICE that documents it \cite{bfo,fine1995ontologicaldependence}.} The concept's identity is determined by the \emph{genesis event} (the first event in the chain), not by the totality of events---analogous to a poem, which depends on some physical copy for its existence but not on any specific one. In DOLCE, the closest category is \emph{non-physical object} \cite{dolce}; in UFO, concepts are \emph{conceptual entities} \cite{ufo}.
+An ADL Lite concept is a \emph{generically dependent continuant} (GDC) in BFO terms \cite{bfo}: it depends on some continuant for its existence, but not on any \emph{specific} one. Following the standard BFO/IAO analysis of information artifacts \cite{iao,smith2012ontology}, the dependence chain is:
+
+\begin{center}
+\textsf{Concept} (GDC) $\xrightarrow{\text{g-depends on}}$ \textsf{EventChain-record} (ICE) $\xrightarrow{\text{concretized\_by}}$ \textsf{Markdown\_file} (IBE)
+\end{center}
+
+This is the canonical BFO pattern: a GDC (the concept) generically depends on an information content entity (ICE, the serialized chain record), which is itself concretized by an information-bearing entity (IBE, the Markdown file or database row) \cite{smith2012ontology,limbaugh2024cyber}. The GDC does not depend on the occurrent process of events (the EventChain-process), because BFO's axiom D5 prohibits GDCs from depending on occurrents \cite{bfo}. The concept's causal origin is the genesis \texttt{REGISTER} event (an occurrent), but its ontological bearer is the ICE record (a continuant)---a distinction between \emph{causal origin} and \emph{ontological dependence} that Fine \cite{fine1995ontologicaldependence} and BFO both endorse. The concept's identity is determined by the \emph{genesis event} (the first event in the chain), not by the totality of events---analogous to a poem, which depends on some physical copy for its existence but not on any specific one. In DOLCE, the closest category is \emph{non-physical object} \cite{dolce}; in UFO, concepts are \emph{conceptual entities} \cite{ufo}.
 
 \subsubsection{EventChain as Process}
 
@@ -64,6 +70,29 @@ where $\text{Revoked}(c_1, c_2, p, t)$ holds if and only if there exists a revoc
 \textbf{Note on revocation semantics.} ADL Lite supports two distinct semantics for relation termination. \emph{Cessation semantics} (Equation~\ref{eq:relation-revocation}): a dedicated \texttt{REVOKE} event explicitly terminates the relator. The relator ceases to exist as a mediator; the record (the L3 block and the \texttt{REVOKE} event itself) remains as an auditable ICE. \emph{Epistemic weakening} (alternative): a \texttt{RELATE} event with \texttt{confidence}=0 weakens the relation to zero belief without formally terminating it. The relator continues to exist as an ICE but its mediation function is suspended. This allows graded weakening (\texttt{confidence}=0.3 means ``partially weakened''). Importantly, \emph{HoldsAt does not depend on confidence}: it checks only whether a \texttt{REVOKE} event exists (Equation~\ref{eq:relation-revocation}). Confidence is epistemic strength, not an existence condition. We recommend \emph{cessation semantics} as the default because it preserves the clean separation between existential status (the relator holds or not) and epistemic strength (how confident we are). The \texttt{REVOKE} event is a communication event (not in $\Sigma_{\text{life}}$), so it does not affect $\delta(C)$; Theorems~1--6 are unchanged. Epistemic weakening is retained for backward compatibility and for use cases requiring graded belief revision.
 
 \textbf{Why HoldsAt is independent of confidence.} The `HoldsAt' predicate (Equation~1) checks only whether a \texttt{REVOKE} event exists in the chain, not the confidence of any \texttt{RELATE} event. This separation reflects the ontological distinction between \emph{existence} (does the relator hold at time $t$?) and \emph{epistemic strength} (how confident are we in the relation?). Confidence is a payload field of \texttt{RELATE} events that informs downstream consumers (e.g., a query engine may rank relations by confidence), but it does not determine whether the relation exists. A relation with confidence 0.3 still holds; a relation with a \texttt{REVOKE} event does not hold, regardless of the confidence of the original \texttt{RELATE}. This design keeps existential conditions binary and epistemic conditions graded, avoiding the conflation that motivated the \texttt{REVOKE} event type (see above).\par
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Cessation vs.~epistemic weakening semantics for relation termination. Both preserve $\delta(C)$ and $\gamma(C)$ invariants because \texttt{REVOKE} and low-confidence \texttt{RELATE} are communication events ($\Sigma_{\text{comm}}$), not lifecycle events.}
+\label{tab:cessation-vs-weakening}
+\begin{tabular}{@{}p{2.8cm}p{4.8cm}p{4.8cm}@{}}
+\toprule
+\textbf{Criterion} & \textbf{Cessation (default)} & \textbf{Epistemic weakening} \\
+\midrule
+\textbf{Termination mechanism} & Dedicated \texttt{REVOKE} event & \texttt{RELATE} with $\text{confidence}=0$ \\
+\textbf{Relator existence} & Ceases to exist at $t_{\text{revoke}}$ & Continues as ICE; mediation suspended \\
+\textbf{Audit record} & \texttt{REVOKE} event preserved as ICE & Original \texttt{RELATE} preserved; confidence graded \\
+\textbf{$\delta(C)$ invariant} & Preserved (\texttt{REVOKE} $\notin \Sigma_{\text{life}}$) & Preserved (confidence change $\notin \Sigma_{\text{life}}$) \\
+\textbf{$\gamma(C)$ invariant} & Preserved (no validation involved) & Preserved (no validation involved) \\
+\textbf{Query recommendation} & Use for audit and compliance & Use for consumer-side belief filtering only \\
+\textbf{Reversibility} & Irreversible (new \texttt{RELATE} required) & Reversible (new \texttt{RELATE} with higher confidence) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Query recommendation.} We recommend \emph{cessation semantics} as the default for all audit and compliance queries because it yields a binary, unambiguous existence condition. Epistemic weakening should be used only for consumer-side belief filtering (e.g., a query engine that ranks relations by confidence threshold $\theta$), not for lifecycle-state determination. The separation is deliberate: cessation semantics preserves the clean distinction between existential status (the relator holds or not) and epistemic strength (how confident we are), which is central to the event-first design.
+
 \textbf{Optional thresholded variant.} For systems that prefer belief-graded relation existence, a thresholded variant $\text{HoldsAt}_\theta$ can be defined as $\text{HoldsAt}(c_1, c_2, p, t) \land \exists e \in C.\; e.\text{type} = \text{RELATE} \land e.\text{payload}.\text{confidence} \geq \theta$. This is a consumer-side filter, not a core ontology axiom, and does not affect the event-first derivation semantics.
 \begin{multline}\label{eq:relation-role-constraints}
     \text{HoldsAt}\bigl(\text{Relation}(c_1, c_2, p), t\bigr) \rightarrow \text{Exists}(c_1, t) \land \text{Exists}(c_2, t) \land \neg\text{Deprecated}(c_1, t) \land \\
@@ -85,27 +114,106 @@ Event ($e$): an individual occurrent/perdurant with a determinate timestamp. Eve
 \paragraph{Level 2: Information Content Entities (What Is Recorded).}
 EventChain-record ($R$): the serialized, hash-linked JSON/YAML representation---an ICE, a continuant existing in full when stored. Concept ($c$): the GDC depending on the record; it interprets the event sequence to project status, confidence, and validators. Relation ($r$): the record of a relational quality in L3 blocks, an ICE documenting a relationship that held during a specific interval.
 
-\paragraph{Explicit identity axioms.}
+\paragraph{Explicit identity axioms (necessary and sufficient conditions).}
+Following Lowe's account of identity conditions as both necessary and sufficient criteria \cite{lowe1998possibility}, we state each axiom as a biconditional.
+
 \begin{enumerate}[label=Axiom I\arabic*:,leftmargin=3em]
-    \item \textbf{Event identity.} An event is individuated by its UUID: $e = e' \iff e.\text{event\_id} = e'.\text{event\_id}$.
-    \item \textbf{Concept identity.} A concept is content-addressed by its genesis event: $c = c' \iff c.\text{genesis\_hash} = c'.\text{genesis\_hash}$. The \texttt{concept\_id} is a human-readable alias.
-    \item \textbf{EventChain-record identity.} Two records are identical iff they have the same concept and the same events: $R = R' \iff R.\text{concept\_id} = R'.\text{concept\_id} \land \text{events}(R) = \text{events}(R')$.
-    \item \textbf{EventChain-process identity.} Two processes are identical iff they have the same events in the same order with the same timestamps: $P = P' \iff \text{events}(P) = \text{events}(P') \land \text{order}(P) = \text{order}(P') \land \text{timestamps}(P) = \text{timestamps}(P')$.
+    \item \textbf{Event identity.} The identity of an event is \emph{necessary and sufficient} given by its UUID:
+    \begin{equation}\label{eq:i1}
+        e = e' \iff e.\text{event\_id} = e'.\text{event\_id}.
+    \end{equation}
+    The UUID is a rigid designator: if $e \neq e'$ then their event IDs differ, and identical event IDs entail the same event (no two distinct events may share a UUID).
+    
+    \item \textbf{Concept identity.} The identity of a concept is \emph{necessary and sufficient} given by its genesis hash:
+    \begin{equation}\label{eq:i2}
+        c = c' \iff c.\text{genesis\_hash} = c'.\text{genesis\_hash}.
+    \end{equation}
+    The \texttt{concept\_id} is a human-readable alias; two concepts with the same \texttt{concept\_id} but different genesis hashes are distinct registry items (see Section~\ref{subsec:identity-conditions} for registry-item versus domain-concept identity).
+    
+    \item \textbf{EventChain-record identity.} Two records are identical \emph{iff} they have the same concept and the same event sequence:
+    \begin{equation}\label{eq:i3}
+        R = R' \iff R.\text{concept\_id} = R'.\text{concept\_id} \land \text{events}(R) = \text{events}(R').
+    \end{equation}
+    Event-sequence equality is extensional: every event in $R$ appears in $R'$ with the same hash, and vice versa. The ordering is implied because the cryptographic hash chain enforces a unique total order.
+    
+    \item \textbf{EventChain-process identity.} Two processes are identical \emph{iff} they have the same events in the same order with the same timestamps:
+    \begin{equation}\label{eq:i4}
+        P = P' \iff \text{events}(P) = \text{events}(P') \land \text{order}(P) = \text{order}(P') \land \text{timestamps}(P) = \text{timestamps}(P').
+    \end{equation}
+    The timestamp condition is necessary because two processes with the same events in the same order but at different times are distinct occurrents (they occupy different temporal regions).
 \end{enumerate}
 
-\paragraph{Dependence axioms.}
+\paragraph{FORK identity preservation.}
+A \textsc{Fork} event creates a child concept $c'$ from a parent $c$. The child is a \emph{new} entity with a \emph{new} genesis hash:
+
+\begin{enumerate}[label=Axiom I\arabic*:,leftmargin=3em,resume]
+    \item \textbf{FORK identity.} Let $c'$ be the concept created by $\textsc{Fork}(c)$. Then:
+    \begin{equation}\label{eq:i5}
+        c' \neq c \;\land\; \text{genesis\_hash}(c') \neq \text{genesis\_hash}(c).
+    \end{equation}
+    The child's genesis hash is a function of the parent's genesis hash and the FORK event:
+    \begin{equation}\label{eq:i5b}
+        \text{genesis\_hash}(c') = \text{SHA-256}\bigl(\textsc{Fork\_event} \,\|\, \text{genesis\_hash}(c)\bigr).
+    \end{equation}
+    Even if the FORK event carries identical payload to the parent's genesis event, the child remains distinct because the FORK event has a unique \texttt{event\_id} and timestamp. This is \emph{provenance identity} (identity fixed by causal history) rather than content-addressed identity \cite{trusty_uris}.
+\end{enumerate}
+
+\paragraph{CRDT merge identity.}
+When two branches $b_1, b_2$ of the same concept are merged, the result is a new record $R$ whose event set is the union of the two branch event sets:
+
+\begin{enumerate}[label=Axiom I\arabic*:,leftmargin=3em,resume]
+    \item \textbf{CRDT merge identity.} Let $R = \text{merge}(b_1, b_2)$. Then:
+    \begin{equation}\label{eq:i6}
+        \text{events}(R) = \text{sorted\_unique}\bigl(\text{events}(b_1) \cup \text{events}(b_2)\bigr),
+    \end{equation}
+    where sorting is deterministic by \texttt{event\_id} (UUID). The merge preserves the \texttt{concept\_id} of both parents:
+    \begin{equation}\label{eq:i6b}
+        R.\text{concept\_id} = b_1.\text{concept\_id} = b_2.\text{concept\_id}.
+    \end{equation}
+    Merge never produces a new \texttt{concept\_id}; it produces a new \emph{record} of the same concept. The identity of the concept $c$ is unchanged because the genesis hash (which fixes $c$'s identity, Axiom~I2) is preserved in both branches.
+\end{enumerate}
+
+\paragraph{L3 relation identity.}
+An L3 relation is a relator that exists only during the interval $[t_{\text{create}}, t_{\text{revoke}})$. Its identity is fixed by the \textsc{Relate} event that created it:
+
+\begin{enumerate}[label=Axiom I\arabic*:,leftmargin=3em,resume]
+    \item \textbf{L3 relation identity.} Two relators are identical \emph{iff} they were created by the same \textsc{Relate} event:
+    \begin{equation}\label{eq:i7}
+        r = r' \iff \textsc{Relate\_event}(r).\text{event\_id} = \textsc{Relate\_event}(r').\text{event\_id}.
+    \end{equation}
+    A relator is terminated by a \textsc{Revoke} event (Equation~\ref{eq:relation-revocation}), after which it ceases to exist; the record of the relator (the L3 block) persists as an ICE, but the mediating entity no longer holds.
+\end{enumerate}
+
+\paragraph{Dependence axioms (necessary and sufficient conditions).}
 \begin{enumerate}[label=Axiom D\arabic*:,leftmargin=3em]
-    \item \textbf{Existential dependence on the record (D1).} $c$ ontologically depends on the EventChain-record $R$: $c$ would not exist if $R$ had not been created. This is a generic dependence on an ICE bearer (D2), not a dependence on the EventChain-process.\footnote{We distinguish causal origin from ontological dependence. The \texttt{REGISTER} event is the \emph{causal origin} of $c$---it brought $c$ into existence---but $c$'s continued existence depends on the ICE record (D2), not on the occurrent process. This avoids the BFO constraint that GDCs cannot depend on occurrents (D5).}
-    \item \textbf{Generic dependence (D2).} $c$ generically depends on the EventChain-record: it depends on an ICE bearer, but not on any specific physical copy.
-    \item \textbf{Concretization (D3).} The EventChain-record is concretized by a material bearer (file, database row, agent cache).
-    \item \textbf{Process-to-record (D4).} The EventChain-process causally produces the EventChain-record.
-    \item \textbf{No cross-level identity (D5).} No occurrent is identical to any ICE (a BFO constraint). Consequently, no GDC can ontologically depend on an occurrent; a GDC may only depend on continuants (including ICEs).
+    \item \textbf{Existential dependence on the record (D1).} A concept $c$ ontologically depends on the EventChain-record $R$: $c$ would not exist if $R$ had not been created. Formally, $c$ depends on $R$ iff $R$ is an EventChain-record about $c$:
+    \begin{equation}\label{eq:d1}
+        \text{Dep}(c, R) \iff \text{EventChainRecord}(R) \land \text{isAbout}(R, c).
+    \end{equation}
+    This is a generic dependence on an ICE bearer (D2), not a dependence on the EventChain-process.\footnote{We distinguish causal origin from ontological dependence. The \texttt{REGISTER} event is the \emph{causal origin} of $c$---it brought $c$ into existence---but $c$'s continued existence depends on the ICE record (D2), not on the occurrent process. This avoids the BFO constraint that GDCs cannot depend on occurrents (D5).}
+    
+    \item \textbf{Generic dependence (D2).} $c$ generically depends on the EventChain-record: it depends on an ICE bearer, but not on any specific physical copy. This is necessary but not sufficient for D1: generic dependence is the \emph{kind} of dependence, while D1 specifies the \emph{relatum}.
+    
+    \item \textbf{Concretization (D3).} The EventChain-record is concretized by a material bearer (file, database row, agent cache). This is specific dependence: the record depends on \emph{some} material bearer, and if that bearer is destroyed, the record ceases to exist unless another copy exists.
+    
+    \item \textbf{Process-to-record (D4).} The EventChain-process causally produces the EventChain-record. This is a causal, not ontological, dependence: the process is the \emph{origin} of the record, but the record's continued existence does not depend on the process continuing (the record may outlast the process).
+    
+    \item \textbf{No cross-level identity (D5).} No occurrent is identical to any ICE (a BFO constraint). Consequently, no GDC can ontologically depend on an occurrent; a GDC may only depend on continuants (including ICEs). Formally:
+    \begin{equation}\label{eq:d5}
+        \forall x \forall y\;\bigl(\text{GDC}(x) \land \text{Occurrent}(y) \rightarrow \neg\text{Dep}(x, y)\bigr).
+    \end{equation}
+    
+    \item \textbf{Generic dependence of concept on record (D6).} Every concept generically depends on some EventChain-record that is about it:
+    \begin{equation}\label{eq:d6}
+        \forall c\;\bigl(\text{Concept}(c) \rightarrow \exists R\;(\text{EventChainRecord}(R) \land \text{isAbout}(R, c) \land \text{Dep}(c, R))\bigr).
+    \end{equation}
+    D6 is the universal closure of the left-to-right direction of D1: it states that \emph{every} concept must have \emph{some} record bearer. D6 is necessary for the existence of concepts; without a record, a concept cannot exist. D6 together with D2 (generic dependence) entails that a concept can survive the destruction of any particular record copy, provided at least one copy remains.
 \end{enumerate}
 
-\paragraph{First-order logic encoding (selected axioms).}
-To make the dependence structure amenable to formal analysis, we translate two core axioms into first-order logic with explicit world parameters (following Fine's possible-worlds framework \cite{fine1995ontologicaldependence}). Let $E(x,w)$ mean ``$x$ exists in world $w$'' and $\text{Dep}(x,y,w)$ mean ``$x$ ontologically depends on $y$ in world $w$''.
+\paragraph{First-order logic encoding (expanded).}
+To make the dependence structure amenable to formal analysis, we translate the axioms into first-order logic with explicit world parameters (following Fine's possible-worlds framework \cite{fine1995ontologicaldependence}). Let $E(x,w)$ mean ``$x$ exists in world $w$'' and $\text{Dep}(x,y,w)$ mean ``$x$ ontologically depends on $y$ in world $w$''.
 
-\textbf{D2 (Generic dependence).} A concept generically depends on EventChain-records as a class of bearers, not on any specific bearer. The use of a world parameter $w$ makes the dependence relations explicit across possible worlds, but this is FOL with an additional sort for worlds, not modal logic (there are no modal operators $\Box$ or $\Diamond$):
+\textbf{D2 (Generic dependence).} A concept generically depends on EventChain-records as a class of bearers, not on any specific bearer:
 \begin{multline}\label{eq:d2-fol}
 \forall c\;\bigl(\text{Concept}(c) \rightarrow \\[-2pt]
 \quad \forall w\,\bigl(E(c,w) \rightarrow \exists R\,(\text{EventChainRecord}(R) \land \text{Dep}(c,R,w))\bigr) \land \\[-2pt]
@@ -113,20 +221,37 @@ To make the dependence structure amenable to formal analysis, we translate two c
 \end{multline}
 The first conjunct states that in every world where $c$ exists, some record bears it; the second conjunct states that no \emph{particular} record is indispensable. This is the standard Fine/BFO definition of generic dependence.
 
-\textbf{D5 (No cross-level identity).} Occurrents and ICEs are disjoint categories (a BFO constraint that prevents the category mistake of identifying a process with its record):
+\textbf{D5 (No cross-level identity).} Occurrents and ICEs are disjoint categories:
 \begin{equation}\label{eq:d5-fol}
 \forall x \forall y\;\bigl(\text{Occurrent}(x) \land \text{ICE}(y) \rightarrow x \neq y\bigr).
 \end{equation}
-From D5 together with the BFO axiom that GDCs cannot existentially depend on occurrents, it follows that $\text{Concept}(c) \land \text{EventChainProcess}(P) \rightarrow \neg\text{Dep}(c,P,w)$ for any world $w$. This justifies our distinction between causal origin (the $\textsc{Register}$ event, an occurrent) and ontological bearer (the EventChain-record, an ICE) in D1.
+From D5 together with the BFO axiom that GDCs cannot existentially depend on occurrents, it follows that $\text{Concept}(c) \land \text{EventChainProcess}(P) \rightarrow \neg\text{Dep}(c,P,w)$ for any world $w$.
 
-\textbf{I3--I4 (identity conditions).} The identity axioms for records and processes are also expressible in FOL with sequence equality:
+\textbf{D6 (Universal record dependence).} Every concept depends on some record about it (the FOL rendering of Axiom~D6):
+\begin{equation}\label{eq:d6-fol}
+\forall c \forall w\;\bigl(\text{Concept}(c) \land E(c,w) \rightarrow \exists R\,(\text{EventChainRecord}(R) \land \text{isAbout}(R,c) \land \text{Dep}(c,R,w))\bigr).
+\end{equation}
+D6 is strictly stronger than the first conjunct of D2: it requires the record to be \emph{about} the concept, not merely any record. Together with D2's second conjunct (no particular record is indispensable), D6 guarantees that a concept survives the loss of any finite set of record copies.
+
+\textbf{I3--I4 (identity conditions).} The identity axioms for records and processes are expressible in FOL with sequence equality:
 \begin{align}
-R = R' &\leftrightarrow \text{concept}(R) = \text{concept}(R') \land \text{events}(R) = \text{events}(R'), \\
-P = P' &\leftrightarrow \text{events}(P) = \text{events}(P') \land \text{order}(P) = \text{order}(P') \land \text{timestamps}(P) = \text{timestamps}(P').
+R = R' &\leftrightarrow \text{concept}(R) = \text{concept}(R') \land \text{events}(R) = \text{events}(R'), \label{eq:i3-fol}\\
+P = P' &\leftrightarrow \text{events}(P) = \text{events}(P') \land \text{order}(P) = \text{order}(P') \land \text{timestamps}(P) = \text{timestamps}(P'). \label{eq:i4-fol}
 \end{align}
 These are sorted-signature identity conditions; they do not require modal logic because they are extensional criteria over the same domain.
 
-The full set of axioms (I1--I4, D1--D5) could be given a complete FOL axiomatisation, but we present only the above four as illustrative of the formal depth achievable. The OWL~2 DL fragment (Appendix~A) provides a decidable approximation of the class-level structure, while these FOL formulas capture the dependence relations that exceed OWL expressivity.
+\textbf{I5 (FORK identity).} FORK produces a new concept with a new genesis hash:
+\begin{equation}\label{eq:i5-fol}
+\forall c \forall c'\;\bigl(\text{Fork}(c, c') \rightarrow c \neq c' \land \text{genesis\_hash}(c') \neq \text{genesis\_hash}(c)\bigr).
+\end{equation}
+The child's genesis hash is a cryptographic function of the FORK event and the parent's genesis hash (Equation~\ref{eq:i5b}).
+
+\textbf{I7 (L3 relation identity).} A relator's identity is fixed by its creating \textsc{Relate} event:
+\begin{equation}\label{eq:i7-fol}
+\forall r \forall r'\;\bigl(\text{Relator}(r) \land \text{Relator}(r') \rightarrow (r = r' \leftrightarrow \text{create\_event}(r) = \text{create\_event}(r'))\bigr).
+\end{equation}
+
+The full set of axioms (I1--I7, D1--D6) could be given a complete FOL axiomatisation, but we present the above as illustrative of the formal depth achievable. The OWL~2 DL fragment (Appendix~A) provides a decidable approximation of the class-level structure, while these FOL formulas capture the dependence and identity relations that exceed OWL expressivity.
 
 \paragraph{Resolving the apparent ambiguity.}
 $\text{EventChain-process}$ and $\text{EventChain-record}$ are distinct (Axioms I3--I4); the process causally produces the record (D4), which bears the concept (D2). A GDC cannot ontologically depend on an occurrent (D5), but can depend on the ICE that documents it (D2--D3). The concept's causal origin is traceable to the genesis event (the \texttt{REGISTER} occurrence), but its ontological bearer is the record. This resolves the category mistake.
@@ -134,13 +259,178 @@ $\text{EventChain-process}$ and $\text{EventChain-record}$ are distinct (Axioms 
 
 ADL Lite's L4 action types are \emph{planned processes} in BFO (processes realizing a plan) \cite{bfo} and \emph{actions} in UFO (intentional events performed by agents to achieve goals) \cite{ufo}. The precondition system captures the plan aspect: an action can only be performed if certain conditions hold (e.g., \texttt{VALIDATE} requires status \texttt{provisional}), reflecting ontological norms governing which events are permissible in which states.
 
+\subsection{OntoClean Evaluation}\label{subsec:ontoclean}
+
+We evaluate ADL Lite's core classes through the OntoClean meta-property lens \cite{ontoclean,guarino2002evaluating,guarino2000identity}. OntoClean provides four meta-properties for ontological analysis: \emph{rigidity} ($R$), \emph{identity} ($I$), \emph{unity} ($U$), and \emph{dependence} ($D$) \cite{ontoclean}. A class is \emph{rigid} ($+R$) if its instances cannot cease to be members without ceasing to exist; \emph{carries identity} ($+I$) if its instances can be re-identified across worlds; \emph{carries unity} ($+U$) if its instances are unified wholes (not mereological sums); and \emph{existentially dependent} ($+D$) if its instances cannot exist without some other entity \cite{ontoclean,fine1995ontologicaldependence}. Table~\ref{tab:ontoclean} summarises the assignments for ADL Lite's ten core classes; the rigorous justification follows.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{OntoClean meta-property assignments for ADL~Lite core classes. $+R$~=~rigid, $-R$~=~non-rigid; $+I$~=~carries identity, $-I$~=~no identity; $+U$~=~carries unity, $-U$~=~no unity; $+D$~=~existentially dependent, $-D$~=~independent. Assignments justified in \S\ref{subsubsec:ontoclean-rigidity}--\S\ref{subsubsec:ontoclean-dependence}.}
+\label{tab:ontoclean}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+\textbf{Class} & \textbf{R} & \textbf{I} & \textbf{U} & \textbf{D} & \textbf{Rationale} \\
+\midrule
+\texttt{Event} & $-R$ & $+I$ & $-U$ & $-D$ & Occurrent; UUID identity; temporal slice; independent \\
+\texttt{EventChain}-process & $-R$ & $+I$ & $-U$ & $-D$ & Complex occurrent; event+timestamp ID; mereological sum; independent \\
+\texttt{EventChain}-record & $-R$ & $+I$ & $+U$ & $+D$ & ICE snapshot; concept+events ID; structured whole; bearer-dependent \\
+\texttt{Concept} & $+R$ & $+I$ & $+U$ & $+D$ & GDC; genesis hash essential; unified whole; ICE-dependent \\
+\texttt{Relation} (L3) & $-R$ & $+I$ & $+U$ & $+D$ & UFO relator; RELATE-event ID; unified mediator; mutual dependence \\
+\texttt{Action} (L4) & $-R$ & $+I$ & $-U$ & $+D$ & Planned process; event UUID; no whole; actor-dependent \\
+\texttt{Actor} & $-R$ & $+I$ & $+U$ & $-D$ & Agent role; actor ID; unified agent; material entity \\
+\texttt{Payload} & $-R$ & $+I$ & $-U$ & $+D$ & Structured data; content hash; no whole; event-dependent \\
+\texttt{Hash} & $+R$ & $+I$ & $-U$ & $-D$ & Cryptographic value; string equality; no whole; mathematical object \\
+\texttt{Status} & $-R$ & $+I$ & $-U$ & $+D$ & Derived quality; concept+time ID; no whole; event-dependent \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Rigidity Analysis}\label{subsubsec:ontoclean-rigidity}
+
+A class is rigid ($+R$) iff, for every instance $x$ of the class, $x$ is necessarily an instance of that class in every possible world in which $x$ exists \cite{ontoclean}. A class is non-rigid ($-R$) if instances may cease to be members without ceasing to exist.
+
+\paragraph{\texttt{Concept} ($+R$).} The genesis hash is an essential (rigid) property of a concept (Axiom~I2). If a concept's genesis hash were to change, it would be a different entity. Therefore, a concept cannot cease to be a concept without ceasing to exist. This justifies $+R$ for \texttt{Concept}. The rigidity of \texttt{Concept} is inherited from its status as a \texttt{generically\_dependent\_continuant} (GDC) in BFO \cite{bfo,smith2012ontology}: GDCs are rigid because their ontological nature is fixed by their dependence on bearers.
+
+\paragraph{\texttt{Hash} ($+R$).} A cryptographic hash value is a fixed mathematical object. Once a SHA-256 string is computed, it is always that string. The hash does not change its identity as a hash value regardless of context. This makes \texttt{Hash} rigid ($+R$).
+
+\paragraph{\texttt{Event}, \texttt{EventChain}-process, \texttt{EventChain}-record, \texttt{Action}, \texttt{Relation}, \texttt{Payload}, \texttt{Status} ($-R$).} These classes are non-rigid because their instances can change their membership status without ceasing to exist (in the relevant sense). An event may be re-classified (e.g., a \texttt{SNAPSHOT} event reinterpreted as a synthetic reconstruction) without changing its UUID. The EventChain-process changes as events are appended; the EventChain-record is a snapshot that is replaced by a new snapshot with each append. Actions are temporal slices that conclude. Relations are created and terminated by \texttt{RELATE} and \texttt{REVOKE} events. Payloads are transient data structures. Status values change as the chain evolves.
+
+\paragraph{\texttt{Actor} ($-R$).} An actor is an agent role in BFO terms \cite{bfo}. A role is non-rigid by definition: an entity may cease to play the agent role without ceasing to exist (e.g., a software process may be terminated, or a human may stop participating in the registry). This is consistent with OntoClean's treatment of roles as anti-rigid classes \cite{ontoclean}.
+
+\subsubsection{Identity Analysis}\label{subsubsec:ontoclean-identity}
+
+A class carries identity ($+I$) if there exists a criterion that allows instances to be re-identified across worlds \cite{ontoclean,guarino2000identity}. All ten classes in ADL Lite carry identity ($+I$), because the event-first design requires every entity to be traceable.
+
+\paragraph{\texttt{Event}.} An event is individuated by its UUID (Axiom~I1): $e = e' \iff e.\text{event\_id} = e'.\text{event\_id}$. The UUID is assigned at creation and never changes. This provides a necessary and sufficient identity criterion.
+
+\paragraph{\texttt{EventChain}-process.} A process is individuated by the ordered sequence of its events and their timestamps (Axiom~I4): $P = P' \iff \text{events}(P) = \text{events}(P') \land \text{order}(P) = \text{order}(P') \land \text{timestamps}(P) = \text{timestamps}(P')$.
+
+\paragraph{\texttt{EventChain}-record.} A record is individuated by its concept identifier and the set of events it contains (Axiom~I3): $R = R' \iff R.\text{concept\_id} = R'.\text{concept\_id} \land \text{events}(R) = \text{events}(R')$.
+
+\paragraph{\texttt{Concept}.} A concept is content-addressed by its genesis event hash (Axiom~I2): $c = c' \iff c.\text{genesis\_hash} = c'.\text{genesis\_hash}$. The \texttt{concept\_id} is a human-readable alias, not the identity criterion. The genesis hash is essential and rigid, satisfying the OntoClean recommendation to use rigid properties as identity criteria \cite{ontoclean}.
+
+\paragraph{\texttt{Relation} (L3).} A relation is individuated by the \texttt{RELATE} event that established it: $r = r' \iff \text{RELATE\_event}(r).\text{event\_id} = \text{RELATE\_event}(r').\text{event\_id}$. The event ID is necessary and sufficient.
+
+\paragraph{\texttt{Action} (L4).} An action is individuated by its event UUID, which is inherited from the \texttt{Event} class.
+
+\paragraph{\texttt{Actor}.} An actor is individuated by its actor identifier (e.g., DID or agent name). The identifier is assigned at onboarding and persists across events.
+
+\paragraph{\texttt{Payload}.} A payload is individuated by its content hash (SHA-256 of its serialized form). Two payloads with the same fields in the same order are identical.
+
+\paragraph{\texttt{Hash}.} A hash is individuated by string equality: $h = h' \iff h.\text{value} = h'.\text{value}$.
+
+\paragraph{\texttt{Status}.} A status is individuated by the concept it characterizes and the time at which it holds: $s = s' \iff s.\text{concept} = s'.\text{concept} \land s.\text{timestamp} = s'.\text{timestamp}$.
+
+\subsubsection{Unity Analysis}\label{subsubsec:ontoclean-unity}
+
+A class carries unity ($+U$) if its instances are unified wholes (not mereological sums) \cite{ontoclean}. The unity criterion answers: is the instance a ``thing'' or just a collection?
+
+\paragraph{\texttt{Concept}, \texttt{Relation}, \texttt{Actor}, \texttt{EventChain}-record ($+U$).} These are unified wholes. A concept is a unified whole individuated by its genesis hash; it is not a mere collection of events but a coherent entity that projects status, confidence, and validators. A relation is a unified mediator between relata (UFO relator theory \cite{ufo}). An actor is a unified agent. An EventChain-record is a structured serialized form with a definite schema, not a mere bag of events.
+
+\paragraph{\texttt{Event}, \texttt{EventChain}-process, \texttt{Action}, \texttt{Payload}, \texttt{Status}, \texttt{Hash} ($-U$).} These are not unified wholes. An event is a temporal slice with no internal structure that makes it a ``thing.'' An EventChain-process is a mereological sum of events \cite{ontoclean}. An action has no whole beyond the event itself. A payload is a structured data bag. A status is a derived quality. A hash is a string value.
+
+\subsubsection{Dependence Analysis}\label{subsubsec:ontoclean-dependence}
+
+A class is existentially dependent ($+D$) if its instances cannot exist without some other entity \cite{fine1995ontologicaldependence,ontoclean}. Dependence may be generic (depending on a class of bearers, not a specific one) or specific (depending on a particular entity).
+
+\paragraph{\texttt{Concept} ($+D$, generic).} The concept is a GDC that generically depends on the EventChain-record (an ICE) for its existence \cite{bfo,smith2012ontology}. It does not depend on any specific physical copy (generic dependence), but it must depend on some ICE bearer. This is the canonical BFO/IAO pattern: GDC $\rightarrow$ ICE $\rightarrow$ IBE \cite{smith2012ontology,limbaugh2024cyber}.
+
+\paragraph{\texttt{EventChain}-record ($+D$, generic).} The record is an ICE that generically depends on a material bearer (file, database row, agent cache). Without some concretization, the ICE cannot exist.
+
+\paragraph{\texttt{Relation} (L3) ($+D$, specific).} A relation is a UFO relator that mutually depends on both relata \cite{ufo}. It cannot exist if either concept ceases to exist. This is mutual rigid dependence \cite{fine1995ontologicaldependence}. A relator is terminated by a \texttt{REVOKE} event.
+
+\paragraph{\texttt{Action} ($+D$, specific).} An action depends on the actor that performs it (specific dependence). Without the actor, the action cannot occur.
+
+\paragraph{\texttt{Payload} ($+D$, specific).} A payload depends on the event that carries it. A payload does not exist independently of an event.
+
+\paragraph{\texttt{Status} ($+D$, specific).} A status is a derived quality that depends on the concept it characterizes and on the events that produce it. It is a specifically dependent continuant.
+
+\paragraph{\texttt{Event}, \texttt{EventChain}-process, \texttt{Actor}, \texttt{Hash} ($-D$).} These are independent. Events and processes are occurrents that do not depend on any continuant for their existence. Actors are material entities (or roles borne by material entities) that are independent. Hash values are mathematical objects that exist independently.
+
+\subsubsection{Constraints and Consequences}\label{subsubsec:ontoclean-constraints}
+
+The OntoClean framework imposes logical constraints on meta-property assignments \cite{ontoclean,guarino2002evaluating}. We verify that ADL Lite's assignments satisfy all constraints.
+
+\paragraph{Forbidden combinations.} The following combinations are forbidden by OntoClean axioms:
+\begin{enumerate}[label=C\arabic*:,leftmargin=3em]
+    \item \textbf{$+R$ implies $+I$.} A rigid class must carry identity; otherwise, instances could not be re-identified across worlds, contradicting essentiality. Our assignments satisfy C1: \texttt{Concept} ($+R$) and \texttt{Hash} ($+R$) both carry identity ($+I$).
+    \item \textbf{$+U$ implies $+I$.} A unified whole must have identity criteria; otherwise, it cannot be a ``thing.'' Our assignments satisfy C2: all $+U$ classes (\texttt{Concept}, \texttt{Relation}, \texttt{Actor}, \texttt{EventChain}-record) carry identity.
+    \item \textbf{$+D$ implies $+I$.} A dependent entity must be identifiable, because dependence is a relation between identifiable entities. Our assignments satisfy C3: all $+D$ classes carry identity.
+    \item \textbf{No $+R$ with $-I$.} Equivalent to C1. No violations.
+    \item \textbf{No $+U$ with $-I$.} Equivalent to C2. No violations.
+\end{enumerate}
+
+\paragraph{Subclass constraints.} In OntoClean, if $C_1 \sqsubseteq C_2$, then:
+\begin{itemize}
+    \item If $C_2$ is $+R$, then $C_1$ cannot be anti-rigid (instances of $C_1$ must remain instances of $C_2$).
+    \item If $C_2$ is $+U$, then $C_1$ must be $+U$.
+    \item If $C_1$ is $+D$, then $C_2$ must be $+D$.
+\end{itemize}
+ADL Lite's class hierarchy satisfies these constraints. \texttt{Concept} $\sqsubseteq$ \texttt{GDC} (BFO), and both are $+R$, $+U$, $+D$. \texttt{EventChain-record} $\sqsubseteq$ \texttt{ICE} (BFO/IAO), and both are $+U$, $+D$ (ICE is $+R$ in BFO, but our domain-specific reading allows $-R$ for the snapshot; the superclass constraint is satisfied because the ICE superclass is $+R$ and the subclass is not anti-rigid). \texttt{Relation} $\sqsubseteq$ \texttt{Relator} (UFO), and both are $+U$, $+D$.
+
+\paragraph{Design consequences.} The OntoClean assignments directly justify ADL Lite's design decisions:
+\begin{enumerate}[label=(\roman*)]
+    \item \textbf{Genesis-hash identity.} The $+R$ assignment for \texttt{Concept} justifies the use of the genesis hash as an essential, rigid identity criterion. A concept cannot change its genesis hash without becoming a different entity.
+    \item \textbf{GDC dependence on ICE.} The $+D$ assignment for \texttt{Concept} and the $+D$ assignment for \texttt{EventChain-record} justify the BFO/IAO dependence chain: Concept (GDC) $\rightarrow$ EventChain-record (ICE) $\rightarrow$ material bearer (IBE).
+    \item \textbf{Fork semantics.} Forking creates a child concept with a new genesis hash. The parent and child are distinct entities with distinct essential properties ($+R$). This does not violate OntoClean rigidity because the child is not a subclass of the parent; it is a new instance.
+    \item \textbf{Event immutability.} The $-R$ assignment for \texttt{Event} justifies event immutability: events are temporal slices that do not change. Once recorded, an event is fixed.
+    \item \textbf{Status as derived.} The $-R$ assignment for \texttt{Status} justifies status as a derived, non-essential property: status can change without the concept ceasing to exist.
+\end{enumerate}
+
+\subsubsection{Comparison with Alternative Readings}\label{subsubsec:ontoclean-alternatives}
+
+We consider three alternative ontological readings and show why they are inferior to the chosen assignments.
+
+\paragraph{Alternative 1: Concept as a continuant (not GDC).} If \texttt{Concept} were an independent continuant (like a physical object), it would be $-D$ (independent). But then the concept would exist without any bearer, contradicting the information-artifact analysis of BFO/IAO \cite{smith2012ontology}. Moreover, independent continuants have different identity criteria (spatiotemporal location), which do not apply to abstract concepts. The GDC reading is therefore mandatory.
+
+\paragraph{Alternative 2: Event as a continuant.} If \texttt{Event} were a continuant, it would endure through time and could change properties. This would violate the event-first principle that ``all derived properties are historical'' (\S\ref{subsec:philosophical-foundation}). Events as occurrents ($-R$) are immutable temporal slices; treating them as continuants would introduce mutable state into the ontology, undermining the append-only design.
+
+\paragraph{Alternative 3: Status as a rigid property.} If \texttt{Status} were rigid ($+R$), a concept could not change status without ceasing to exist. This would mean that a \texttt{validated} concept and a \texttt{deprecated} concept are different entities. But ADL Lite explicitly allows status transitions (e.g., \texttt{provisional} $\rightarrow$ \texttt{validated}) as lifecycle changes of the same entity. The $-R$ assignment is therefore required.
+
+\paragraph{Validation status.} These assignments reflect author judgment and would benefit from independent ontologist assessment (FW9). The design decisions (event-first, genesis-hash identity, GDC dependence) are justified by the assignments, but alternative readings (e.g., BFO relational quality for relations) are compatible.
+
 \subsection{Identity Conditions}\label{subsec:identity-conditions}
 
-We formalize identity conditions in Section~\ref{subsec:two-level-account}: events by UUID (Axiom I1), concepts by genesis hash (Axiom I2), and chains by concept plus ordered events (Axioms I3--I4). Fork creates a new concept (new genesis hash); deprecation and re-activation are status changes, not identity changes. We evaluate the concept's identity through the OntoClean lens \cite{ontoclean}.
+We formalize identity conditions in Section~\ref{subsec:two-level-account} as \emph{necessary and sufficient} biconditionals: events by UUID (Axiom~I1, Equation~\ref{eq:i1}), concepts by genesis hash (Axiom~I2, Equation~\ref{eq:i2}), and chains by concept plus ordered events (Axioms~I3--I4, Equations~\ref{eq:i3}--\ref{eq:i4}). Here we examine the consequences for FORK, CRDT merge, and L3 relations. Deprecation and re-activation are status changes, not identity changes (the genesis hash is invariant). We evaluate the concept's identity through the OntoClean lens \cite{ontoclean}.
 
 \textbf{Registry-item identity versus domain-concept identity.} We distinguish two senses of ``concept'' in ADL Lite. \emph{Registry-item identity} (operational) is fixed by the genesis hash; it is the identity criterion used by the EventChain data structure. Two registry entries with the same genesis hash are the same item, regardless of their content. \emph{Domain-concept identity} (intensional) is determined by the meaning, definition, and extensional content of the capability. Two registry items (different genesis hashes) may refer to the same domain concept (e.g., ``gradient-explosion'' and ``exploding-gradients'' in Section~\ref{subsec:domain-applicability}). The genesis-hash criterion provides \emph{registry-item} identity, not \emph{domain-concept} identity. It is intentionally operational: the registry must distinguish items even when their content is identical (to handle independent discovery by different agents). Domain-level identity is mediated by L3 relations (e.g., \texttt{isomorphic-to}, \texttt{specialisation-of}). This is analogous to a library catalog, in which each entry has a unique ISBN (registry identity) but multiple entries may refer to the same intellectual work (domain identity).
 
-\textbf{Rigidity.} A concept's genesis hash is essential---it cannot change without the entity ceasing to exist---while its status is non-rigid. This aligns with OntoClean's recommendation to use rigid properties as identity criteria.
+\textbf{Rigidity and sufficiency.} A concept's genesis hash is \emph{essential}---it is both necessary and sufficient for identity (Axiom~I2). It cannot change without the entity ceasing to exist, while its status is non-rigid. This aligns with OntoClean's recommendation to use rigid properties as identity criteria \cite{ontoclean}. The sufficiency direction ($c = c' \rightarrow \text{genesis\_hash}(c) = \text{genesis\_hash}(c')$) guarantees that distinct genesis hashes entail distinct concepts; the necessity direction guarantees that identical genesis hashes entail the same concept. This two-way criterion is stronger than a mere ``individuation'' principle; it is a full identity condition in Lowe's sense \cite{lowe1998possibility}.
+
+\subsubsection{FORK Identity Preservation}\label{subsubsec:fork-identity}
+
+A \textsc{Fork} event creates a child concept $c'$ from a parent concept $c$. The child is a \emph{new} entity with a \emph{new} genesis hash (Axiom~I5, Equation~\ref{eq:i5}). The parent and child are \emph{never} identical, even if the FORK event carries no new content beyond the parent's genesis hash. This is because the child's genesis hash is computed as:
+\begin{equation}
+    \text{genesis\_hash}(c') = \text{SHA-256}\bigl(\text{FORK\_event} \,\|\, \text{genesis\_hash}(c)\bigr),
+\end{equation}
+where $\text{FORK\_event}$ includes a unique \texttt{event\_id} (UUID), timestamp, and \texttt{canon\_version}. Even if two agents independently fork the same parent with byte-identical payloads, the resulting children have different genesis hashes because their FORK events have different UUIDs and timestamps.
+
+This design embodies \emph{provenance identity} rather than content-addressed identity \cite{trusty_uris}: identity is fixed by causal history (the specific FORK event that created the child), not by the content of the concept. The \texttt{fork-of} L3 predicate records the lineage, enabling agents to trace from child to parent and to reconstruct the fork history. The FORK operation is therefore a \emph{constructor} of new identity: it always produces a new concept, never a modification of the parent.
+
+\textbf{Identity preservation under modification.} If an agent modifies the payload during a fork (e.g., changing the \texttt{concept\_id} or adding a scope), the child is still a new entity, but the modification is recorded in the FORK event's payload. The parent's identity is unchanged; the child's identity is fixed by the new genesis hash. This satisfies the OntoClean constraint that rigid classes cannot be split into subclasses with different identity criteria: both parent and child are concepts with the same identity criterion (genesis hash), but they have different values of that criterion.
+
+\subsubsection{CRDT Merge Identity}\label{subsubsec:crdt-merge-identity}
+
+When two branches $b_1, b_2$ of the same concept are merged, the result is a new record $R$ whose event set is the set union of the two branch event sets, sorted deterministically by \texttt{event\_id} (Axiom~I6, Equation~\ref{eq:i6}). The merge preserves the \texttt{concept\_id} of both parents (Equation~\ref{eq:i6b}).
+
+\textbf{Does merge produce a new identity?} No. Merge never produces a new \texttt{concept\_id} or a new genesis hash. It produces a new \emph{record} of the same concept. The identity of the concept $c$ is unchanged because the genesis hash (which fixes $c$'s identity, Axiom~I2) is preserved in both branches. The merged record $R$ is a new ICE (a new concretization of $c$), but $c$ itself remains the same entity.
+
+\textbf{Why sorting by event\_id is necessary.} Deterministic ordering is required for record identity: if two agents merge the same branches but sort by timestamp, clock skew could produce different event orderings, violating $R = R' \iff \text{events}(R) = \text{events}(R')$ (Axiom~I3). By sorting by UUID (which is independent of any physical clock), we guarantee that all agents produce the same merged record, preserving identity across replicas. This is the standard CRDT merge semantics \cite{crdts}.
+
+\textbf{When merge preserves identity vs. when it must not.} Merge preserves identity only when both branches share the same \texttt{concept\_id} and the same genesis hash. If an agent attempts to merge branches with different \texttt{concept\_id}s, the merge is rejected by the $\text{verify\_integrity}$ function (Theorem~T1). This is a structural invariant: merge is defined only for branches of the same concept.
+
+\subsubsection{L3 Relation Identity and Termination}\label{subsubsec:l3-relation-identity}
+
+An L3 relation is a relator that exists only during the interval $[t_{\text{create}}, t_{\text{revoke}})$. Its identity is fixed by the \textsc{Relate} event that created it (Axiom~I7, Equation~\ref{eq:i7}). Two relators are identical \emph{iff} they were created by the same event; this is both necessary (if the events differ, the relators are distinct) and sufficient (if the events are the same, the relators are the same).
+
+\textbf{Existential dependence on both relata.} A relator $r$ between $c_1$ and $c_2$ mutually depends on both concepts: $r$ cannot exist if either ceases to exist. This is mutual \emph{rigid} dependence \cite{fine1995ontologicaldependence}: if $c_1$ is archived, the relator $r$ ceases to hold, even if $c_2$ still exists. Formally:
+\begin{equation}\label{eq:relation-mutual-dependence}
+    \text{HoldsAt}(r, t) \rightarrow \text{Exists}(c_1, t) \land \text{Exists}(c_2, t) \land \neg\text{Archived}(c_1, t) \land \neg\text{Archived}(c_2, t).
+\end{equation}
+This is a stronger condition than Equation~\ref{eq:relation-role-constraints} because it requires the \emph{existence} of the relata, not merely their non-deprecated status.
+
+\textbf{Termination criteria.} A relator is terminated by a \textsc{Revoke} event (Equation~\ref{eq:relation-revocation}). After revocation, the relator ceases to exist as a mediator; the L3 block and the \textsc{Revoke} event persist as ICEs, but the mediating entity no longer holds. This is an event-based destruction pattern consistent with UFO relator theory \cite{ufo}: relators are brought into existence by events and destroyed by events.
 
 \subsubsection{Domain-Level Identity Alignment and Merge Conditions}\label{subsubsec:domain-identity-alignment}
 
@@ -185,13 +475,30 @@ A concept depends on the information artifact (the serialized EventChain record)
 
 A concept $c$ \emph{causally originates from} the EventChain-process $C$ that generated it: the genesis \texttt{REGISTER} event brought $c$ into existence. However, $c$ \emph{ontologically depends} only on the EventChain-record $R$ (an ICE), not on the EventChain-process $C$ (an occurrent). This distinction is critical: the causal origin is an unrepeatable historical fact (the genesis event occurred at a specific time), whereas the ontological dependence is a repeatable bearer relationship (the concept can be concretized in multiple copies of $R$). The genesis event cannot be replaced by another without $c$ becoming a different entity \cite{fine1995ontologicaldependence}, but this is an identity criterion, not an ontological dependence on the occurrent. A GDC cannot existentially depend on an occurrent (Axiom D5), so we frame the relationship to the process as \emph{causal origin}, not as \emph{existential dependence}. The ``generic dependence'' on the EventChain-record (D2) captures the ontological bearer relationship.
 
+\subsubsection{Universal Record Dependence (D6)}\label{subsubsec:d6}
+
+Axiom~D6 states that every concept generically depends on some EventChain-record that is about it (Equation~\ref{eq:d6}). D6 is the universal closure of the left-to-right direction of D1: it guarantees that \emph{every} concept must have \emph{some} record bearer. Without a record, a concept cannot exist.
+
+D6 is \emph{necessary} for concept existence but not \emph{sufficient}: a record alone does not guarantee that a concept exists (the record must be interpreted by an agent as bearing the concept). However, D6 is sufficient to rule out ``disembodied'' concepts: if no record exists that is about $c$, then $c$ does not exist.
+
+D6 together with D2 (generic dependence) entails a durability property: a concept can survive the destruction of any finite set of record copies, provided at least one copy remains. This is the formal counterpart of the intuition that a poem survives the burning of a single manuscript, provided another copy exists \cite{smith2012ontology}.
+
 \subsubsection{Generic Dependence of Status on Events}
 
 A concept's status $s$ (e.g., \texttt{validated}) \emph{generically depends} on the events in its chain: $s$ depends on the existence of at least one \texttt{VALIDATE} event, but not on any \emph{specific} \texttt{VALIDATE} event. If a different agent had performed the validation at a different time, the status would still be \texttt{validated}.
 
-\subsubsection{Mutual Dependence of Relations on Concepts}
+\subsubsection{Mutual Dependence of Relations on Concepts}\label{subsubsec:mutual-dependence}
 
-A relation $r$ between concepts $c_1$ and $c_2$ \emph{mutually depends} on both concepts: $r$ cannot exist if either ceases to exist. This is mutual rigid dependence \cite{fine1995ontologicaldependence}. If \texttt{concept-A} is deprecated, the relation ``\texttt{concept-A} isomorphic-to \texttt{concept-B}'' ceases to hold, even if \texttt{concept-B} still exists.\par
+A relation $r$ between concepts $c_1$ and $c_2$ \emph{mutually depends} on both concepts: $r$ cannot exist if either ceases to exist. This is mutual \emph{rigid} dependence \cite{fine1995ontologicaldependence}: the relator's existence is \emph{necessary} for the relation to hold, and the existence of both relata is \emph{necessary} for the relator to exist. Formally:
+\begin{equation}\label{eq:mutual-dependence}
+    \text{Exists}(r, t) \leftrightarrow \text{Exists}(c_1, t) \land \text{Exists}(c_2, t) \land \text{HoldsAt}(r, t),
+\end{equation}
+where $\text{Exists}(c, t)$ means the concept $c$ has not been archived at time $t$.
+
+If \texttt{concept-A} is deprecated, the relation ``\texttt{concept-A} isomorphic-to \texttt{concept-B}'' ceases to hold, even if \texttt{concept-B} still exists. This is not merely a query-side filter; it is an ontological fact: the relator ceases to exist because one of its relata no longer exists (in the relevant sense). The L3 block and the \textsc{Relate} event persist as ICEs, but the mediating entity no longer holds.
+
+\textbf{Why mutual dependence is rigid.} The dependence is rigid because the relator cannot change its relata without becoming a different relator. If $c_1$ is replaced by $c_1'$, the relation is no longer the same entity (Axiom~I7). This is consistent with UFO's relator theory \cite{ufo}: relators are entities that mediate between specific relata, and their identity is fixed by those relata.
+
 We formalize these dependence patterns as an OWL~2 DL alignment fragment in the next subsection.
 
 \subsection{Formal Alignment Fragment: OWL~2 DL Axiomatization}\label{subsec:formal-alignment}

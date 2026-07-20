@@ -36,16 +36,16 @@ Timestamp ordering & EventChain linkage & Not expressible in SHACL & N/A \\
 \end{tabular}
 \end{table}
 
-\textbf{Coverage summary.} Five of the eight constraints can be expressed in SHACL Core, providing standardisable validation that any SHACL engine can execute without SPARQL support. Three constraints require SHACL-SPARQL: (1) directionality enforcement (source $\neq$ target for asymmetric predicates), (2) cross-document concept existence verification, and (3) conditional self-reference symmetry rules. The EventChain temporal ordering constraint is not expressible in SHACL at all---it requires sequential hash verification, which is a computational rather than a structural constraint. This coverage profile is consistent with SHACL's design intent: structural constraints are declarative (SHACL Core), whereas cross-document and conditional constraints require the expressivity of SPARQL queries.
+\textbf{Coverage summary.} Five of the eight constraints can be expressed in SHACL Core, providing standardisable validation that any SHACL engine can execute without SPARQL support. Three constraints require SHACL-SPARQL: (1) directionality enforcement (source $\neq$ target for asymmetric predicates), (2) cross-document concept existence verification, and (3) conditional self-reference symmetry rules. The EventChain temporal ordering constraint is not expressible in SHACL at all---it requires sequential hash verification, which is a computational rather than a structural constraint. This coverage profile is consistent with SHACL's design intent: structural constraints are declarative (SHACL Core), whereas cross-document and conditional constraints require SPARQL-level expressivity.
 
 \subsection{Validation Pipeline}
 
-The SHACL shapes are implemented in \texttt{adl\_lite/shacl\_validation.py} and executed via the \texttt{pyshacl} library against exported relation triples. The shape definitions are generated programmatically from \texttt{adl\_core\_ontology.yaml} rather than being stored as a static \texttt{.ttl} file; they can be serialised on demand using \texttt{adl\_lite/shacl\_validation.py}.
+The SHACL shapes are implemented in \texttt{adl\_lite/shacl\_validation.py} and executed via the \texttt{pyshacl} library against exported relation triples. The shape definitions are generated programmatically from \texttt{adl\_core\_ontology.yaml} rather than being stored as a static \texttt{.ttl} file. They can be serialized on demand using \texttt{adl\_lite/shacl\_validation.py}.
 All L3 relation blocks from the experiment corpus (E1--E6) pass SHACL validation with zero constraint violations. The validation pipeline is integrated into the CI workflow via \texttt{scripts/reproduce/reproduce\_shacl.sh}.
 
 \subsection{Implementation}
 
-The SHACL shape graph is generated programmatically by \texttt{adl\_lite/shacl\_validation.py} from the predicate registry in \texttt{adl\_core\_ontology.yaml}. It can be serialised to Turtle format on demand and contains:
+The SHACL shape graph can be serialized to Turtle format on demand and contains:
 \begin{itemize}[leftmargin=2em]
     \item \textbf{ADLCoreRelationShape:} Validates individual L3 relation blocks against constraints S1--S5.
     \item \textbf{ADLChainIntegrityShape:} Validates that exported PROV-O activity sequences preserve the original EventChain temporal ordering (structural check only; cryptographic verification is performed outside SHACL).

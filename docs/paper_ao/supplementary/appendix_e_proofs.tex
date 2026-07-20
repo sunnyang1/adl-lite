@@ -6,7 +6,7 @@ This appendix provides the full natural-language proofs, well-formedness axioms,
 
 Let $\Sigma = \Sigma_{\text{life}} \cup \Sigma_{\text{comm}}$ be the event alphabet. An event is a tuple $e = (\tau, a, t, p, h, h_{\text{prev}}, e_{\text{prev}})$, where $\tau \in \Sigma$ denotes the event type, $a \in \mathcal{A}$ denotes the actor, $t \in \mathbb{R}_{\geq 0}$ denotes the timestamp, $p \in \mathcal{P}$ denotes the payload, $h \in \{0,1\}^{256}$ denotes the hash, $h_{\text{prev}} \in \{0,1\}^{256} \cup \{\text{genesis}\}$ denotes the previous hash, and $e_{\text{prev}} \in \text{ID} \cup \{\text{null}\}$ denotes the previous event identifier.
 
-A chain $C = [e_1, \ldots, e_n]$ is well-formed, denoted $\text{WF}(C)$, if it satisfies the following eight axioms:
+A chain $C = [e_1, \ldots, e_n]$ is well-formed, denoted $\text{WF}(C)$, if it satisfies the following 13 axioms:
 \begin{enumerate}[label=(\arabic*)]
     \item $e_1.h_{\text{prev}} = \text{genesis}$ and $e_1.e_{\text{prev}} = \text{null}$. (Genesis anchoring)
     \item All events in $C$ share the same $\text{concept\_id}$. (Concept identity)
@@ -16,9 +16,14 @@ A chain $C = [e_1, \ldots, e_n]$ is well-formed, denoted $\text{WF}(C)$, if it s
     \item For all $i$: $e_i.a \neq \text{null} \land e_i.a \neq \text{""}$. (Actor non-empty)
     \item For all $i > 1$: $e_i.t \geq e_{i-1}.t$. (Timestamp monotonicity)
     \item For all $i$: $e_i.p$ conforms to the schema defined for $e_i.\tau$ in \texttt{adl\_core\_ontology.yaml}. (Payload type safety)
+    \item For all $i$: $e_i.a$ has a valid scope prefix (\texttt{public}, \texttt{private/...}, \texttt{user/...}, or \texttt{shared/...}). (Scope ACL)
+    \item For all $i$: if $e_i$ carries a signature, it is a valid Ed25519 signature over $\text{SHA-256}(\text{Canon}(e_i))$; events without signatures are exempt. (Signature verification)
+    \item For all $i$: $e_i.\text{confidence} \in [0, \text{MAX\_SCALED}]$. (Confidence clamped)
+    \item Lifecycle transitions in $C$ follow the status machine edges and are monotonic. (Lifecycle monotonicity)
+    \item Events reconstructed from YAML front matter are tagged \texttt{synthetic=True}; status transitions require at least $N_{\min}$ distinct validators. (Synthetic tagging and collusion resistance)
 \end{enumerate}
 
-The canonicalization function $\text{Canon}(e)$ serializes $e$ as UTF-8 JSON with sorted keys, six-decimal-place float rounding, and all fields (including the timestamp) included.
+The canonicalisation function $\text{Canon}(e)$ serialises $e$ as UTF-8 JSON with sorted keys, six-decimal-place float rounding, and all fields (including the timestamp) included.
 
 \subsection{Status Derivation $\delta$}
 
@@ -26,19 +31,19 @@ The status space is $S = \{\text{provisional},\; \text{validated},\; \text{depre
 \begin{equation}
     \delta(C) = \begin{cases}
         \text{provisional} & \text{if } C_{\text{life}} = [] \\
-        f(\tau_{\text{last}}) & \text{otherwise}
+        \bigsqcup_{e \in C_{\text{life}}} f(e.\tau) & \text{otherwise}
     \end{cases}
 \end{equation}
-where $\tau_{\text{last}}$ denotes the event type of the last element of $C_{\text{life}}$, and $f$ maps $\text{REGISTER} \to \text{provisional}$, $\text{VALIDATE} \to \text{validated}$, $\text{DEPRECATE} \to \text{deprecated}$, $\text{FORK} \to \text{forked}$, $\text{ARCHIVE} \to \text{archived}$.
+where $\bigsqcup$ denotes the least upper bound (LUB) over the status lattice, and $f$ maps $\text{REGISTER} \to \text{provisional}$, $\text{VALIDATE} \to \text{validated}$, $\text{DEPRECATE} \to \text{deprecated}$, $\text{FORK} \to \text{forked}$, $\text{ARCHIVE} \to \text{archived}$. Because the status lattice is a total order (provisional $<$ forked $<$ validated $<$ deprecated $<$ archived), the LUB is equivalent to $\max$ over the lattice ranks: $\delta(C) = \max\{f(e.\tau) \mid e \in C_{\text{life}}\}$.
 
 \textbf{Algorithm.} The status derivation $\delta(C)$ is implemented as the following deterministic procedure:
 \begin{enumerate}[label=\arabic*.]
     \item \textbf{Input:} Well-formed EventChain $C = [e_1, \ldots, e_n]$
     \item Compute $C_{\text{life}} \gets \{e \in C \mid e.\tau \in \Sigma_{\text{life}}\}$
     \item \textbf{If} $C_{\text{life}} = \emptyset$: \textbf{return} $\text{provisional}$
-    \item \textbf{Else:} let $e_{\text{last}} \gets \text{last}(C_{\text{life}})$; \textbf{return} $f(e_{\text{last}}.\tau)$
+    \item \textbf{Else:} \textbf{return} $\max\{f(e.\tau) \mid e \in C_{\text{life}}\}$ (the LUB over all lifecycle events in $C$)
 \end{enumerate}
-This procedure executes in $O(n)$ time where $n = |C|$, and requires $O(1)$ additional space beyond the input chain.
+This procedure executes in $O(|C_{\text{life}}|)$ time, which is $O(|C|)$ in the worst case, and requires $O(1)$ additional space beyond the input chain. The Python implementation uses an incremental cache that updates in $O(1)$ per append (\texttt{\_update\_crdt\_caches}), justified by the inductive proof in Appendix~E.
 
 \subsection{Confidence Aggregation $\gamma_{\text{agg}}$}
 
@@ -70,21 +75,21 @@ where $\beta = 0.05$ is the bonus per distinct validator beyond the first. The p
 
 The per-actor maxima ensure that duplicate validations from the same actor do not compound. The base confidence floor of 0.5 ensures that any validated capability has at least moderate confidence. The bonus of $\beta = 0.05$ per additional distinct validator rewards independent confirmation.
 
-\textbf{Operational assumptions.} The term ``independent validation'' in Theorem~5 is an \emph{operational} assumption about distinct actors, not a claim of statistical independence, within the context of capability governance. It means that each validator is a different agent (identified by a distinct \texttt{actor} string), and the bonus term rewards the \emph{diversity} of validators rather than their \emph{statistical independence}. ADL Lite does not test for statistical independence (e.g., correlation between validators' judgments); that calibration is addressed by the calibration layer (Appendix~\ref{app:implementation}). The $\operatorname{argmax}$ semantics for duplicate validators from the same actor prevent overcounting of correlated judgments by the same source.
+\textbf{Operational assumptions.} The term ``independent validation'' in Theorem~5 is an \emph{operational} assumption about distinct actors, not a claim of statistical independence, within the context of capability audit. It means that each validator is a different agent (identified by a distinct \texttt{actor} string), and the bonus term rewards the \emph{diversity} of validators rather than their \emph{statistical independence}. ADL Lite does not test for statistical independence (e.g., correlation between validators' judgments); that calibration is addressed by the calibration layer (Appendix~\ref{app:implementation}). The $\operatorname{argmax}$ semantics for duplicate validators from the same actor prevent overcounting of correlated judgments by the same source.
 
-\textbf{Parameter rationale and sensitivity.} The base floor $c_{\text{base}} \geq 0.5$ is chosen to align with social-science consensus thresholds: a majority belief (more than 50\% agreement) is conventionally treated as the minimum bar for collective acceptance \cite{guha2016schemaorg}. The bonus increment of $0.05$ is calibrated so that ten independent validators yield $c_{\text{base}} + 0.05 \times 9 \approx 0.95$ (assuming $c_{\text{base}} \approx 0.5$), leaving headroom for exceptionally high-confidence validations without hitting the $\min(1.0, \cdot)$ cap prematurely. This design reflects a heuristic trade-off: larger increments (e.g., $0.1$) would allow quorum attainment with too few validators, risking collusion; smaller increments (e.g., $0.01$) would require impractically large validator pools. The parameters are therefore \emph{heuristic} rather than derived from an optimization objective.
+\textbf{Parameter rationale and sensitivity.} The base floor $c_{\text{base}} \geq 0.5$ is chosen to align with social-science consensus thresholds: a majority belief (more than 50\% agreement) is conventionally treated as the minimum bar for collective acceptance \cite{guha2016schemaorg}. The bonus increment of $0.05$ is calibrated so that ten independent validators yield $c_{\text{base}} + 0.05 \times 9 \approx 0.95$ (assuming $c_{\text{base}} \approx 0.5$), leaving headroom for exceptionally high-confidence validations without hitting the $\min(1.0, \cdot)$ cap prematurely. This design reflects a heuristic trade-off: larger increments (e.g., $0.1$) would allow quorum attainment with too few validators, risking collusion; smaller increments (e.g., $0.01$) would require impractically large validator pools. The parameters are therefore \emph{heuristic} rather than derived from an optimisation objective.
 
 Sensitivity analysis confirms that Theorems~4--6 hold for any bonus $\beta \in (0, 0.1]$ and any floor $c_{\text{min}} \in [0.3, 0.7]$. With the precondition $c \geq c_{\text{base}}$ in Theorem~5, strict monotonicity is preserved for all $\beta > 0$; the $\beta \leq c_{\text{min}} / 10$ bound required by the earlier formulation is no longer necessary. Future work (FW9, Section~\ref{subsec:future-work}) will replace these fixed parameters with staking-calibrated, per-actor adaptive weights.
 
 \subsection{Fork and Confluence Semantics}
 
-A fork operation $\text{Fork}(C, a)$, parameterized by an initiating agent $a$, transforms a concept chain $C$ into a parent-child pair:
+A fork operation $\text{Fork}(C, a)$, parameterised by an initiating agent $a$, transforms a concept chain $C$ into a parent-child pair:
 \begin{align}
     \text{Fork}(C, a) &= (C_{\text{fork}}, C') \\
     C_{\text{fork}} &= C \oplus [e_{\text{FORK}}] \\
     C' &= [e'_{\text{REG}}]
 \end{align}
-where $e_{\text{FORK}}$ carries payload $\{\text{fork\_target}: C'.\text{concept\_id}, \text{reason}: \dots\}$ and $e'_{\text{REG}}$ initializes the new concept with a fresh $\text{concept\_id}$.
+where $e_{\text{FORK}}$ carries payload $\{\text{fork\_target}: C'.\text{concept\_id}, \text{reason}: \dots\}$ and $e'_{\text{REG}}$ initialises the new concept with a fresh $\text{concept\_id}$.
 
 \textbf{Identity inheritance.} The child chain inherits a derived identity from the parent. Let $C$ have $\text{concept\_id} = \text{disc-capital-trap}$. The fork operation produces:
 \begin{align}
@@ -103,14 +108,25 @@ where $\perp$ denotes independence: each child chain's derived state depends onl
 
 \subsection{Core Theorem Proofs}
 
-\textbf{Theorem~\ref{thm:determinism} (Determinism).} For any well-formed chain $C$, $\delta(C)$ is unique and depends only on the last lifecycle event in $C$.
+\textbf{Theorem~\ref{thm:determinism} (Determinism).} For any well-formed chain $C$, $\delta(C)$ is unique and equals the LUB of all lifecycle events in $C$: $\delta(C) = \bigsqcup_{e \in C_{\text{life}}} f(e.\tau)$.
 \begin{proof}
-By definition, $\delta$ filters $C$ to $C_{\text{life}}$ (deterministic), checks emptiness (deterministic), and applies the total function $f$ to the last element (unique for ordered sequences).
+By definition, $\delta$ filters $C$ to $C_{\text{life}}$ (deterministic), and computes the LUB over $f(e.\tau)$ for all $e \in C_{\text{life}}$. Since the status lattice is a total order, the LUB is equivalent to $\max$, which is a deterministic function of the multiset of lifecycle event types. Hence $\delta(C)$ is uniquely determined for any well-formed chain.
 \end{proof}
 
-\textbf{Theorem~\ref{thm:confluence} (Fork Determinism).} Let $C$ fork to $(C_{\text{fork}}, C')$. Then $\delta(C_{\text{fork}}) = \text{forked}$ and $\delta(C') = \text{provisional}$.
+\textbf{Lemma~E2 (Incremental LUB Correctness / Arbitrary-Length Status Derivation).} For any well-formed chain $C$ and any event $e$, the incremental status update equals the full LUB recomputation: $\delta(C \oplus [e]) = \max(\delta(C), f(e.\tau))$.
 \begin{proof}
-Since $e_{\text{FORK}} \in \Sigma_{\text{life}}$ is the last lifecycle event in $C_{\text{fork}}$, we have $f(\text{FORK}) = \text{forked}$. As $C'$ contains only $e'_{\text{REG}}$, it follows that $f(\text{REGISTER}) = \text{provisional}$.
+We proceed by structural induction on $C$.
+
+\textit{Base case ($C = []$):} By definition, $\delta([]) = \text{provisional}$. Appending $e$ yields $[e]$, and $\delta([e]) = f(e.\tau) = \max(\text{provisional}, f(e.\tau))$.
+
+\textit{Inductive step:} Assume the property holds for $C$ (IH). For $C \oplus [e_{\text{new}}]$, let $s = \delta(C)$ and $s' = f(e_{\text{new}}.\tau)$. The derived status of the extended chain is the LUB of all lifecycle events in $C \oplus [e_{\text{new}}]$, which equals $\max(\text{LUB}(C_{\text{life}}), s') = \max(s, s')$. By the IH, $\delta(C)$ is correct, so the incremental update $\max(s, s')$ equals the full recomputation. This justifies the $O(1)$ cache update in the Python implementation (\texttt{\_update\_crdt\_caches}).
+
+The Coq development (\texttt{Invariants.v}) formalises this as Theorem~\texttt{E2\_inductive\_status\_derivation}, using the algebraic property that $\text{status\_lub}(ss \oplus [s]) = \max(\text{status\_lub}(ss), s)$ for any status list $ss$ and status $s$.
+\end{proof}
+
+\textbf{Theorem~\ref{thm:confluence} (Fork Determinism).} Let $C$ fork to $(C_{\text{fork}}, C')$. Then $\delta(C_{\text{fork}}) = \max(\delta(C), \text{forked})$ and $\delta(C') = \text{provisional}$.
+\begin{proof}
+By definition, $C_{\text{fork}} = C \oplus [e_{\text{FORK}}]$. Since $e_{\text{FORK}} \in \Sigma_{\text{life}}$, applying $\delta$ (Eq.~\ref{eq:delta-def}) yields $\delta(C_{\text{fork}}) = \max(\delta(C), \text{forked})$. As $C'$ contains only $e'_{\text{REG}}$, it follows that $\delta(C') = \text{provisional}$.
 \end{proof}
 
 \textbf{Theorem~\ref{thm:monotonicity-status} (Transition Monotonicity).} For any well-formed $C$ and event $e_{\text{new}}$, the transition from $s = \delta(C)$ to $s' = \delta(C \oplus [e_{\text{new}}])$ is valid iff $e_{\text{new}}.\tau \in \Sigma_{\text{life}}$.
@@ -132,7 +148,7 @@ Let $N'_{\text{vals}} = N_{\text{vals}} + 1$. The proof assumes the new actor is
 
 \textbf{Theorem~\ref{thm:consistency} (Status--Confidence Consistency).} If $\delta(C) = \text{validated}$, then $\gamma_{\text{agg}}(C) \geq 0.5$.
 \begin{proof}
-$\delta(C) = \text{validated}$ implies that the last lifecycle event is \texttt{VALIDATE}, so $V \neq \emptyset$. Thus $c_{\text{base}} = \max(0.5, \text{mean}(\cdot)) \geq 0.5$. By Theorem~4, the final value is at least $c_{\text{base}} \geq 0.5$.
+$\delta(C) = \text{validated}$ implies that the LUB of all lifecycle events in $C$ is $\text{validated}$, so at least one lifecycle event maps to $\text{validated}$ (i.e., at least one \texttt{VALIDATE} event exists). Thus $V \neq \emptyset$. Therefore $c_{\text{base}} = \max(0.5, \text{mean}(\cdot)) \geq 0.5$. By Theorem~4, the final value is at least $c_{\text{base}} \geq 0.5$.
 \end{proof}
 
 \textbf{Theorem~\ref{thm:wf-preservation} (Well-Formedness Preservation).} For any well-formed chain $C$ and any event $e_{\text{new}}$ satisfying the preconditions of its action type, the extended chain $C' = C \oplus [e_{\text{new}}]$ is well-formed.
@@ -153,19 +169,64 @@ Thus $\text{WF}(C')$ holds.
 
 \subsection{CRDT Convergence}
 
-\textbf{Theorem~\ref{thm:crdt-convergence-appendix} (CRDT Convergence).} For any well-formed concurrent branches $B_1, B_2$ derived from the same genesis event, the LWW-Set merge satisfies:
-\begin{align}
-    \text{Merge}(B_1, B_2) &= \text{Merge}(B_2, B_1) \quad \text{(commutativity)} \\
-    \text{Merge}(\text{Merge}(B_1, B_2), B_3) &= \text{Merge}(B_1, \text{Merge}(B_2, B_3)) \quad \text{(associativity)} \\
-    \text{Merge}(B_1, B_1) &= B_1 \quad \text{(idempotence)}
-\end{align}
-Furthermore, after merge, $\delta(\text{Merge}(B_1, B_2))$ is uniquely determined.
+\textbf{Theorem~\ref{thm:crdt-convergence-appendix} (CRDT Convergence).} For any well-formed concurrent branches $B_1, B_2$ derived from the same genesis event, the LWW-Set merge satisfies commutativity, associativity, and idempotence, and $\delta(\text{Merge}(B_1, B_2))$ is uniquely determined.
 \begin{proof}
-Events are deduplicated by $\text{event\_id}$, so the union is idempotent. Union is commutative and associative by set semantics. $\delta$ depends only on the last lifecycle event in the merged set; for equal-timestamp ties, $\text{event\_id}$ provides a total order, making $\delta$ deterministic.
+Let $B_1, B_2$ be well-formed chains sharing the same genesis event $e_0$ (same \texttt{concept\_id} and genesis hash). Let $\text{Merge}$ be defined by Eq.~\ref{eq:lww-merge} from the main text, and $\text{Reanchor}$ by the re-anchor operation.
+
+\emph{Assumptions.}
+\begin{enumerate}[label=(A\arabic*),leftmargin=2em]
+    \item $B_1$ and $B_2$ satisfy $\Phi$ (well-formedness), including pairwise distinct \texttt{event\_id} values within each branch.
+    \item The genesis event $e_0$ is shared: $e_0 \in B_1 \cap B_2$.
+    \item $\text{Merge}(B_1, B_2) = \text{Linearize}(\text{Dedup}(B_1 \cup B_2))$ as defined in Eq.~\ref{eq:lww-merge}.
+    \item The total order $\prec$ is reflexive, antisymmetric, transitive, and total (Eq.~\ref{eq:total-order}).
+\end{enumerate}
+
+\emph{Key lemma (Deduplication is a congruence).} For any sets $X, Y$ of events, if $e_1, e_2 \in X \cup Y$ with $e_1.\text{event\_id} = e_2.\text{event\_id}$, then $e_1 = e_2$. This holds because $\Phi$ guarantees that within each branch, all \texttt{event\_id} values are distinct, and the genesis event is shared. If two events from different branches share an \texttt{event\_id}, they must be the same event (identical payload, hash, and predecessor linkage), because event IDs are generated as SHA-256 hashes of canonicalized content, which is collision-resistant.
+
+\emph{Proof steps.}
+\begin{enumerate}[label=Step~\arabic*:,leftmargin=2em]
+    \item \textbf{Commutativity:} $\text{Merge}(B_1, B_2) = \text{Linearize}(\text{Dedup}(B_1 \cup B_2)) = \text{Linearize}(\text{Dedup}(B_2 \cup B_1)) = \text{Merge}(B_2, B_1)$ because set union is commutative and deduplication is symmetric.
+    \item \textbf{Associativity:} $\text{Merge}(B_1, \text{Merge}(B_2, B_3)) = \text{Linearize}(\text{Dedup}(B_1 \cup \text{Linearize}(\text{Dedup}(B_2 \cup B_3))))$. Because $\text{Linearize}$ is idempotent on already-linearized sets and $\text{Dedup}$ commutes with union over the same ordering $\prec$, this equals $\text{Linearize}(\text{Dedup}(B_1 \cup B_2 \cup B_3)) = \text{Merge}(\text{Merge}(B_1, B_2), B_3)$.
+    \item \textbf{Idempotence:} $\text{Merge}(B_1, B_1) = \text{Linearize}(\text{Dedup}(B_1 \cup B_1)) = \text{Linearize}(B_1) = B_1$ because $\text{Dedup}(B_1) = B_1$ (distinct \texttt{event\_id} values by $\Phi$) and $\text{Linearize}$ preserves the order of an already-sorted chain.
+    \item \textbf{Status determinism after merge:} The merged set $\text{Merge}(B_1, B_2)$ contains all lifecycle events from both branches. By Theorem~\ref{thm:determinism}, $\delta$ is the LUB over the status lattice of all lifecycle events in the merged set. Since LUB is a commutative and associative operation on the lattice, the order of merging does not affect the final LUB. Therefore $\delta(\text{Merge}(B_1, B_2))$ is uniquely determined and independent of merge order.
+    \item \textbf{Re-anchor correctness:} After linearization, $\text{Reanchor}$ recomputes cryptographic linkage by chaining each event to its predecessor in the new ordering. Because $\text{Canon}$ is deterministic and SHA-256 is collision-resistant, the recomputed hash chain is unique for the given linearization. No event content is modified, so the post-merge chain preserves all auditable data from both parents.
+\end{enumerate}
 \end{proof}
 
-\textbf{Corollary (Event-Level CRDT).} Each event $e$ is a trivial CRDT: it is immutable (no update operation), so trivially convergent. The chain $C$ as an append-only log is a grow-only set (G-Set) CRDT.
+\textbf{Corollary (Event-Level G-Set CRDT).} Each ADL Lite event is immutable (hash-locked). Consequently, the EventChain $C$ as an append-only log is a grow-only set (G-Set) CRDT: the merge of two chains is the union of their event sets, with no concurrent updates to resolve. The G-Set properties follow directly from the set-theoretic properties of union: commutativity, associativity, and idempotence. Moreover, $\delta(\text{Merge}(B_1, B_2))$ is uniquely determined (Theorem~\ref{thm:determinism}), independent of merge order.
+
+\subsection{Confidence as State-Based G-Counter CRDT (T10)}
+
+\textbf{Theorem~\ref{thm:confidence-gcounter} (Confidence State-Based G-Counter).} For a well-formed chain $C$, the function $\gamma(C)$ derived as a G-Counter over $\textsc{Validate}$ and $\textsc{Snapshot}$ events satisfies the state-based G-Counter CRDT specification: $(\Sigma, \text{inc}, \text{merge}, s_0)$ with $s_0 = \langle\{e_0\}, 0\rangle$.
+
+\begin{proof}
+Let $C = \langle E, \gamma_C \rangle$ be a well-formed chain with $E = \{e_1, \dots, e_n\}$. We verify the state-based G-Counter properties against the formal specification $(\Sigma, \text{inc}, \text{merge}, s_0)$ from the main text (Eq.~\ref{eq:gcounter-ops}):
+
+\begin{enumerate}[label=Step~\arabic*:,leftmargin=2em]
+    \item \textbf{State type correctness:} For any chain $C$, $\text{inc}(C)$ appends a valid $\textsc{Validate}$ or $\textsc{Snapshot}$ event, producing $C'$ with $\gamma(C') = \max(\gamma(C), e_{\text{new}}.p.\text{confidence})$. Because $\max$ is well-defined for any two real numbers, the new state is well-typed in $\Sigma$.
+    \item \textbf{Monotonicity of increment:} The increment operation is monotonic because $\max(a, b) \geq a$ for all $a, b$. Thus $\gamma(C') \geq \gamma(C)$, and the state order is preserved.
+    \item \textbf{Commutativity of merge:} For two chains $C_1, C_2$, $\text{merge}(C_1, C_2) = \max(\gamma(C_1), \gamma(C_2)) = \max(\gamma(C_2), \gamma(C_1)) = \text{merge}(C_2, C_1)$.
+    \item \textbf{Associativity of merge:} $\text{merge}(C_1, \text{merge}(C_2, C_3)) = \max(\gamma(C_1), \max(\gamma(C_2), \gamma(C_3))) = \max(\max(\gamma(C_1), \gamma(C_2)), \gamma(C_3)) = \text{merge}(\text{merge}(C_1, C_2), C_3)$.
+    \item \textbf{Idempotence of merge:} $\text{merge}(C, C) = \max(\gamma(C), \gamma(C)) = \gamma(C)$, so the merge of a chain with itself is identity.
+\end{enumerate}
+
+All five properties hold, satisfying the state-based G-Counter specification. The confidence is therefore a valid CRDT with convergence to the maximum per-actor confidence across all merged branches.
+\end{proof}
+
+\subsection{Independence of Ordering (T11)}
+
+\textbf{Theorem~\ref{thm:delta-independence} (Independence of Ordering).} Let $C$ be a well-formed chain containing only lifecycle events (i.e., all events in $C$ are in $\Sigma_{\text{life}}$). Then $\delta(C)$ is independent of the total order $\prec$ by which $C$ is traversed, and depends only on the multiset of event types in $C$.
+
+\begin{proof}
+Let $C = \{e_1, e_2, \dots, e_n\}$ be a well-formed chain where each $e_i.\tau \in \Sigma_{\text{life}}$. By Theorem~\ref{thm:determinism}, $\delta(C) = \bigsqcup_{i=1}^{n} f(e_i.\tau)$. The LUB operation $\bigsqcup$ on a finite join-semilattice is a binary operation that is both commutative and associative (by definition of a join-semilattice). Therefore, the LUB of a finite set of elements is independent of the order in which the binary LUBs are computed. Formally, for any permutation $\pi$ of $\{1, \dots, n\}$:
+
+\[
+\bigsqcup_{i=1}^{n} f(e_i.\tau) = \bigsqcup_{i=1}^{n} f(e_{\pi(i)}.\tau)
+\]
+
+Since $\delta(C)$ depends only on the set of event types $\{e_i.\tau\}$, not on their temporal ordering, the total order $\prec$ does not affect the final status. The timestamp adjustment rule (Eq.~\ref{eq:timestamp-adjust}) ensures that even when events are reordered across branches, the LUB semantics remain unchanged.
+\end{proof}
 
 \subsection{Machine-Checking Scope}
 
-TLC verifies Theorems 1--3 (determinism, fork determinism, transition monotonicity) for all event sequences of length $\leq 20$ over the closed alphabet $\Sigma$. Theorems 4--6 (boundedness, confidence monotonicity, status--confidence consistency), Theorem 8 (precondition evaluation complexity), and Lemmas 1--2 (collusion vulnerability, threshold mitigation) are proved by rigorous natural-language argument. Theorem 9 (CRDT convergence) is verified by executable assertions in the Python implementation. Full machine-checked proofs for unbounded chains are planned for future work (FW10, FW12).
+TLC verifies Theorems 1--3 (determinism, fork determinism, transition monotonicity) and the E2 inductive invariant (\texttt{Inv\_E2\_Incremental}) for all event sequences of length $\leq 20$ over the closed alphabet $\Sigma$. The E2 inductive invariant checks that appending any event computes the status incrementally as $\max(\delta(C), f(e.\tau))$, which equals the full LUB recomputation. Theorems 4--6 (boundedness, confidence monotonicity, status--confidence consistency), Theorem 8 (precondition evaluation complexity), and Lemmas 1--2 (collusion vulnerability, threshold mitigation) are proved by rigorous natural-language argument. Theorem 9 (CRDT convergence), Theorem 10 (confidence as state-based G-CRDT), and Theorem 11 (independence of ordering) are machine-verified in Coq (\texttt{CRDT.v}, \texttt{Confidence.v}, \texttt{Status.v}, respectively) for unbounded chains and validated by executable assertions in the Python implementation (1,311 tests, all passing). Full machine-checked proofs for unbounded chains are provided by the Coq development (T1, T3, T4, T7, T9, T10, T11, and E2); TLA\textsuperscript{+} provides bounded model-checking complement.

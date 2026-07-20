@@ -22,7 +22,7 @@ where $\operatorname{lub}(C_{\text{life}}) = \max_{\prec}\{f(e.\textit{type}) \m
 
 \textbf{Proof strategy.} Direct proof using the totality of the lifecycle subsequence and the antisymmetry of the lattice order.
 
-\textbf{Key lemma ($C_{\text{life}}$ is totally ordered).} Because $\Phi(C)$ enforces cryptographic linkage (WF$_3$), every event in $C$ has a unique predecessor $e_{\text{prev}}$ with hash $e.h_{\text{prev}} = e_{\text{prev}}.h$. The transitive closure of this linkage induces a total order on all events, and hence the filtered subsequence $C_{\text{life}} = \operatorname{filter}(C, \Sigma_{\text{life}})$ inherits this total order.
+\textbf{Key lemma (Total order of $C_{\text{life}}$).} Because $\Phi(C)$ enforces cryptographic linkage (WF$_3$), every event in $C$ has a unique predecessor $e_{\text{prev}}$ with hash $e.h_{\text{prev}} = e_{\text{prev}}.h$. The transitive closure of this linkage induces a total order on all events, and hence the filtered subsequence $C_{\text{life}} = \operatorname{filter}(C, \Sigma_{\text{life}})$ inherits this total order.
 
 \textbf{Proof steps.}
 \begin{enumerate}[label=Step~\arabic*:,leftmargin=2em]
@@ -50,7 +50,7 @@ Let $\operatorname{fork}(C) = (C_{\text{fork}}, C')$ where $C_{\text{fork}} = C 
     \item The status lattice order is: $\textit{provisional} \prec \textit{forked} \prec \textit{validated} \prec \textit{archived}$, with $\textit{deprecated}$ incomparable to $\textit{validated}$ (status machine in Section~\ref{subsec:compact-formal-spec}).
 \end{enumerate}
 
-\textbf{Proof strategy.} Case analysis on the parent status $s$ and direct application of the LUB semantics to the parent; direct derivation for the child.
+\textbf{Proof strategy.} Case analysis on the parent status $s$ with direct application of the LUB semantics to the parent, and direct derivation for the child.
 
 \textbf{Key lemma (LUB absorption).} For any $s \in S$, $\max(s, \textit{forked}) = s$ if $s \succ \textit{forked}$, and $\max(s, \textit{forked}) = \textit{forked}$ if $s \prec \textit{forked}$. This follows from the linearity of the sub-lattice spanned by $\{\textit{provisional}, \textit{forked}, \textit{validated}\}$.
 
@@ -59,7 +59,7 @@ Let $\operatorname{fork}(C) = (C_{\text{fork}}, C')$ where $C_{\text{fork}} = C 
     \item The parent chain $C_{\text{fork}}$ is $C \oplus [e_{\textsc{Fork}}]$, so its lifecycle subsequence is $C_{\text{fork,life}} = C_{\text{life}} \oplus [e_{\textsc{Fork}}]$. By definition, $\delta(C_{\text{fork}}) = \max_{\prec}\{f(e.\textit{type}) \mid e \in C_{\text{fork,life}}\} = \max(s, f(\textsc{Fork})) = \max(s, \textit{forked})$.
     \item Case $s = \textit{validated}$ (order 3): since $\textit{validated} \succ \textit{forked}$ (order 2), $\max(\textit{validated}, \textit{forked}) = \textit{validated}$. The parent remains validated.
     \item Case $s = \textit{provisional}$ (order 1): since $\textit{provisional} \prec \textit{forked}$, $\max(\textit{provisional}, \textit{forked}) = \textit{forked}$. The parent becomes forked.
-    \item Case $s = \textit{deprecated}$: $\textit{deprecated}$ is incomparable to $\textit{forked}$ in the status machine; however, the ActionExecutor precondition system (enforced by the ActionExecutor precondition system) forbids fork from deprecated, so this case is unreachable for well-formed chains.
+    \item Case $s = \textit{deprecated}$: $\textit{deprecated}$ is incomparable to $\textit{forked}$ in the status machine; however, the ActionExecutor precondition system forbids fork from deprecated, so this case is unreachable for well-formed chains.
     \item The child chain $C' = [e'_{\textsc{Register}}]$ has exactly one lifecycle event, so $\delta(C') = f(\textsc{Register}) = \textit{provisional}$ by direct evaluation.
     \item Independence: $C_{\text{fork}}$ and $C'$ share no events after the fork point (they are disjoint sets). The derivation of $\delta(C_{\text{fork}})$ depends only on $C$ and $e_{\textsc{Fork}}$; the derivation of $\delta(C')$ depends only on $e'_{\textsc{Register}}$. The two derivations are independent per-chain and can be evaluated in parallel.
 \end{enumerate}
@@ -80,7 +80,7 @@ Let $C$ be well-formed with $\delta(C) = s$, and let $e_{\text{new}}$ satisfy $\
 \begin{enumerate}[label=(A\arabic*),leftmargin=2em]
     \item $C$ is well-formed with $\delta(C) = s$.
     \item $e_{\text{new}}$ satisfies $\Phi(C \oplus [e_{\text{new}}])$ (the extended chain is well-formed).
-    \item The ActionExecutor precondition system enforces the status machine edges (enforced by the ActionExecutor precondition system).
+    \item The ActionExecutor precondition system enforces the status machine edges.
     \item The status machine is a directed graph with no self-loops on non-lifecycle events and no backward edges on lifecycle transitions.
 \end{enumerate}
 
@@ -90,7 +90,7 @@ Let $C$ be well-formed with $\delta(C) = s$, and let $e_{\text{new}}$ satisfy $\
 
 \textbf{Proof steps.}
 \begin{enumerate}[label=Step~\arabic*:,leftmargin=2em]
-    \item \textbf{Base case} ($|C| = 1$, $C = [e_{\textsc{Register}}]$): $\delta(C) = \textit{provisional}$. Any new lifecycle event is permitted by the ActionExecutor only if the transition $(\textit{provisional}, s')$ is a valid edge in the status machine. From the genesis state, valid edges are to $\textit{validated}$, $\textit{deprecated}$, and $\textit{archived}$ (enforced by the ActionExecutor precondition system). Non-lifecycle events (e.g., \textsc{Evidence}, \textsc{Relate}) do not change $\delta$.
+    \item \textbf{Base case} ($|C| = 1$, $C = [e_{\textsc{Register}}]$): $\delta(C) = \textit{provisional}$. Any new lifecycle event is permitted by the ActionExecutor only if the transition $(\textit{provisional}, s')$ is a valid edge in the status machine. From the genesis state, valid edges are to $\textit{validated}$, $\textit{deprecated}$, and $\textit{archived}$. Non-lifecycle events (e.g., \textsc{Evidence}, \textsc{Relate}) do not change $\delta$.
     \item \textbf{Inductive hypothesis:} Assume the theorem holds for all chains of length $\leq n$. Consider a chain $C$ of length $n$ with $\delta(C) = s$.
     \item \textbf{Case (i):} $e_{\text{new}}.\textit{type} \notin \Sigma_{\text{life}}$. By the Key Lemma, $(C \oplus [e_{\text{new}}])_{\text{life}} = C_{\text{life}}$. Therefore $\delta(C \oplus [e_{\text{new}}]) = \max_{\prec}\{f(e.\textit{type}) \mid e \in C_{\text{life}}\} = \delta(C) = s$. The status is unchanged.
     \item \textbf{Case (ii):} $e_{\text{new}}.\textit{type} \in \Sigma_{\text{life}}$. Then $(C \oplus [e_{\text{new}}])_{\text{life}} = C_{\text{life}} \oplus [e_{\text{new}}]$, and $\delta(C \oplus [e_{\text{new}}]) = \max(s, f(e_{\text{new}}.\textit{type})) = s'$. The ActionExecutor precondition system permits this append only if $(s, s')$ is a valid edge in the status machine (enforced by the \texttt{PreconditionRule} comparator \textsc{IN} against the allowed-next-status set).
@@ -113,7 +113,7 @@ For any well-formed chain $C$, $\gamma_{\text{agg}}(C) \in [0, 1]$.
 \begin{enumerate}[label=(A\arabic*),leftmargin=2em]
     \item $C$ is well-formed (Definition~5).
     \item The confidence aggregation formula is $\gamma_{\text{agg}}(C) = \min(1.0, c_{\text{base}} + 0.05 \times (N_{\text{vals}} - 1))$, where $c_{\text{base}} = \max(0.5, \text{mean}\{\phi(a, V)\})$ and $\phi(a, V) = \max\{e.\textit{payload}[\text{``confidence''}] \mid e \in V \land e.\textit{actor} = a\}$.
-    \item The ActionExecutor precondition system enforces that every \textsc{Validate} event carries confidence $c \in [0, 1]$ (enforced by the ActionExecutor precondition system).
+    \item The ActionExecutor precondition system enforces that every \textsc{Validate} event carries confidence $c \in [0, 1]$.
     \item $N_{\text{vals}} = |\{a \mid \exists e \in V : e.\textit{actor} = a\}|$ is the number of distinct validators.
 \end{enumerate}
 
@@ -182,13 +182,13 @@ If $\delta(C) = \textit{validated}$, then $\gamma_{\text{agg}}(C) > 0$ (in fact,
 \begin{enumerate}[label=(A\arabic*),leftmargin=2em]
     \item $C$ is well-formed with $\delta(C) = \textit{validated}$.
     \item The status map $f: \Sigma_{\text{life}} \to S$ assigns $f(\textsc{Validate}) = \textit{validated}$ and $f(t) \neq \textit{validated}$ for all $t \neq \textsc{Validate}$ (defined in Section~\ref{subsec:compact-formal-spec}).
-    \item The ActionExecutor precondition system enforces that every \textsc{Validate} event carries confidence $c \geq 0.5$ (enforced by the ActionExecutor precondition system).
+    \item The ActionExecutor precondition system enforces that every \textsc{Validate} event carries confidence $c \geq 0.5$.
     \item The confidence aggregation formula is $\gamma_{\text{agg}}(C) = \min(1.0, c_{\text{base}} + 0.05 \times (N_{\text{vals}} - 1))$ with $c_{\text{base}} = \max(0.5, \text{mean}\{\phi(a, V)\})$.
 \end{enumerate}
 
 \textbf{Proof strategy.} Direct proof by contrapositive: show that $\delta(C) = \textit{validated}$ implies $V \neq \emptyset$, then apply the confidence floor.
 
-\textbf{Key lemma (Validate-uniqueness of validated status).} The only lifecycle event type that maps to $\textit{validated}$ under $f$ is \textsc{Validate}. Formally, $f^{-1}(\{\textit{validated}\}) = \{\textsc{Validate}\}$. This follows directly from the definition of $f$ (A2).
+\textbf{Key lemma (Uniqueness of \textsc{Validate} for validated status).} The only lifecycle event type that maps to $\textit{validated}$ under $f$ is \textsc{Validate}. Formally, $f^{-1}(\{\textit{validated}\}) = \{\textsc{Validate}\}$. This follows directly from the definition of $f$ (A2).
 
 \textbf{Proof steps.}
 \begin{enumerate}[label=Step~\arabic*:,leftmargin=2em]
@@ -239,7 +239,7 @@ For any well-formed concurrent branches $B_1, B_2$ from the same genesis, the LW
 %-------------------------------------------------------------------------------
 
 \begin{corollary}[Event-Level G-Set CRDT]\label{cor:gset-crdt}
-Each ADL Lite event is immutable (hash-locked), so the EventChain $C$ as an append-only log is a grow-only set (G-Set) CRDT: the merge of two chains is the union of their event sets, with no concurrent updates to resolve. Formally, let $B_1, B_2$ be well-formed concurrent branches from the same genesis. Then $\text{Merge}(B_1, B_2) = B_1 \cup B_2$ (deduplicated by \textit{event\_id}) is a G-Set CRDT satisfying:
+Each ADL Lite event is immutable (hash-locked). Consequently, the EventChain $C$ as an append-only log is a grow-only set (G-Set) CRDT: the merge of two chains is the union of their event sets, with no concurrent updates to resolve. Formally, let $B_1, B_2$ be well-formed concurrent branches from the same genesis. Then $\text{Merge}(B_1, B_2) = B_1 \cup B_2$ (deduplicated by \textit{event\_id}) is a G-Set CRDT satisfying:
 \begin{enumerate}[label=(\roman*)]
     \item \textbf{Commutativity:} $\text{Merge}(B_1, B_2) = \text{Merge}(B_2, B_1)$ because set union is commutative.
     \item \textbf{Associativity:} $\text{Merge}(B_1, \text{Merge}(B_2, B_3)) = \text{Merge}(\text{Merge}(B_1, B_2), B_3)$ because set union is associative.
@@ -298,7 +298,7 @@ The default confidence aggregation $\gamma_{\text{default}}(C) = \max\{e.\text{p
     \item The $\max$ operator is defined over finite sets of real numbers as the least upper bound in the standard order.
 \end{enumerate}
 
-\textbf{Proof strategy.} Direct proof by lifting the algebraic properties of $\max$ from pairs to finite sets via structural induction on set cardinality.
+\textbf{Proof strategy.} Direct proof by lifting the algebraic properties of $\max$ from pairs to finite sets via structural induction on the cardinality of the set.
 
 \textbf{Key lemma (Max over union).} For any finite sets $A, B$ of real numbers, $\max(A \cup B) = \max(\max(A), \max(B))$. This follows because the maximum of a union is the maximum of the two set maxima.
 
@@ -344,7 +344,9 @@ The bonus-formula aggregate $\gamma_{\text{agg}}$ is commutative over the set of
 \textbf{Complexity.} Computing $\gamma_{\text{agg}}$ over a union is $O(|V_1| + |V_2|)$ to compute per-actor maxima, plus $O(N_{\text{vals}})$ for the mean and bonus.
 \end{proof}
 
-\textbf{Sybil vulnerability in Phase 1.} The current non-Byzantine model does not prevent Sybil attacks: a single actor can create multiple pseudonyms and append multiple \textsc{Validate} events, each with high confidence, driving $\gamma_{\text{agg}}$ to $0.99$ with as few as $10$ distinct pseudonyms (since $c_{\text{base}} \geq 0.5$ and $0.05 \times 9 = 0.45$). This is a known Phase 1 limitation (L3, Section~\ref{subsec:limitations}), explicitly demonstrated in adversarial experiment E14 (Table~\ref{tab:undetectable-attacks}). The mitigation is scoped to Phase 3: staking-based validation (FW9) and per-actor reputation calibration (Appendix~\ref{app:implementation}). Under the staking model, each validator must deposit a stake to register, and the cost of creating a Sybil identity is proportional to the stake amount. The calibration layer ($\gamma_{\text{cal}}$) weights each validator by a per-actor accuracy score, so a new Sybil identity with no history receives a low accuracy weight and contributes negligibly to the aggregate confidence.
+\textbf{Sybil vulnerability in Phase 1.} The current non-Byzantine model does not prevent Sybil attacks: a single actor can create multiple pseudonyms and append multiple \textsc{Validate} events, each with high confidence, driving $\gamma_{\text{agg}}$ to $0.99$ with as few as $10$ distinct pseudonyms (since $c_{\text{base}} \geq 0.5$ and $0.05 \times 9 = 0.45$). This is a known Phase 1 limitation (L3, Section~\ref{subsec:limitations}), explicitly demonstrated in adversarial experiment E14 (Table~\ref{tab:undetectable-attacks}).
+
+The mitigation is scoped to Phase 3: staking-based validation (FW9) and per-actor reputation calibration (Appendix~\ref{app:implementation}). Under the staking model, each validator must deposit a stake to register, and the cost of creating a Sybil identity is proportional to the stake amount. The calibration layer ($\gamma_{\text{cal}}$) weights each validator by a per-actor accuracy score, so a new Sybil identity with no history receives a low accuracy weight and contributes negligibly to the aggregate confidence.
 
 %-------------------------------------------------------------------------------
 \subsection{Theorem~\ref{thm:wf-preservation}: Well-Formedness Preservation}
@@ -357,13 +359,13 @@ For any well-formed chain $C$ and any event $e_{\text{new}}$ satisfying the prec
 \begin{proof}
 \textbf{Assumptions.}
 \begin{enumerate}[label=(A\arabic*),leftmargin=2em]
-    \item $C$ is well-formed: $\text{WF}(C)$ holds, satisfying all eight well-formedness axioms (Definition~5).
+    \item $C$ is well-formed: $\text{WF}(C)$ holds, satisfying all 13 well-formedness conditions (Definition~5).
     \item $e_{\text{new}}$ satisfies the preconditions of its action type (enforced by ActionExecutor).
     \item The append operation $C' = C \oplus [e_{\text{new}}]$ is atomic: either $e_{\text{new}}$ is fully appended or the chain is unchanged.
-    \item The cryptographic hash function SHA-256 is collision-resistant and the canonicalization function $\text{Canon}$ is deterministic.
+    \item The cryptographic hash function SHA-256 is collision-resistant and the canonicalisation function $\text{Canon}$ is deterministic.
 \end{enumerate}
 
-\textbf{Proof strategy.} Direct proof by exhaustive verification of each well-formedness axiom $\text{WF}_1$ through $\text{WF}_8$ for the extended chain $C'$.
+\textbf{Proof strategy.} Direct proof by exhaustive verification of each well-formedness condition $\text{WF}_1$ through $\text{WF}_{13}$ for the extended chain $C'$.
 
 \textbf{Key lemma (Append-locality).} Appending $e_{\text{new}}$ to $C$ modifies only the tail of the chain: all existing events $e_1, \ldots, e_n \in C$ are unchanged in $C'$, and only $e_{\text{new}}$ is added. This holds because the EventChain data structure is append-only (no in-place mutation).
 
@@ -374,34 +376,39 @@ For any well-formed chain $C$ and any event $e_{\text{new}}$ satisfying the prec
     \item $\text{WF}_3$ (Cryptographic linkage): Let $e_n$ be the last event of $C$. The append operation sets $e_{\text{new}}.h_{\text{prev}} = e_n.h$ and $e_{\text{new}}.e_{\text{prev}} = e_n.\textit{event\_id}$. All prior linkages in $C$ are unchanged by the Key Lemma. Therefore $C'$ satisfies cryptographic linkage.
     \item $\text{WF}_4$ (Hash correctness): $e_{\text{new}}.h$ is computed as $\text{SHA-256}(\text{Canon}(e_{\text{new}}))$ by the Event constructor. All existing hashes in $C$ are unchanged by the Key Lemma. Therefore all events in $C'$ have correct hashes.
     \item $\text{WF}_5$ (Distinct event IDs): $e_{\text{new}}.\textit{event\_id}$ is generated as a fresh UUID (version 4) at construction time. The probability of collision with any existing $\textit{event\_id}$ in $C$ is negligible ($< 2^{-122}$), and the append operation performs an explicit uniqueness check before insertion. Therefore all \textit{event\_id} values in $C'$ are pairwise distinct.
-    \item $\text{WF}_6$ (Non-null actor): The ActionExecutor rejects events with empty actor fields ($a = \text{null}$ or $a = \text{``''}$) as part of payload validation (enforced by the ActionExecutor precondition system). Therefore $e_{\text{new}}.a \neq \text{null}$ and $e_{\text{new}}.a \neq \text{``''}$.
+    \item $\text{WF}_6$ (Non-null actor): The ActionExecutor rejects events with empty actor fields ($a = \text{null}$ or $a = \text{``''}$) as part of payload validation. Therefore $e_{\text{new}}.a \neq \text{null}$ and $e_{\text{new}}.a \neq \text{``''}$.
     \item $\text{WF}_7$ (Timestamp monotonicity): The append operation enforces $e_{\text{new}}.t \geq e_n.t$ where $e_n$ is the previous last event. If $e_{\text{new}}.t < e_n.t$, the append is rejected. All existing timestamps in $C$ are monotonic by $\text{WF}_7(C)$. Therefore timestamps in $C'$ are monotonic.
     \item $\text{WF}_8$ (Payload schema conformance): The ActionExecutor checks payload schema conformance via Pydantic validation before appending. If $e_{\text{new}}.p$ does not conform to the schema for $e_{\text{new}}.\tau$, the append is rejected. Therefore $\text{SchemaValid}(e_{\text{new}}.\tau, e_{\text{new}}.p)$ holds.
+    \item $\text{WF}_9$ (Scope ACL): The ActionExecutor validates that every event's actor has a valid scope prefix (\texttt{public}, \texttt{private/...}, \texttt{user/...}, or \texttt{shared/...}). All existing events in $C$ satisfy scope ACL by $\text{WF}_9(C)$, and $e_{\text{new}}$ is checked at append time. Therefore $C'$ satisfies scope ACL.
+    \item $\text{WF}_{10}$ (Signature verification): Events carrying an Ed25519 signature are verified against their SHA-256 hash using the event's public key; events without signatures are exempt. All existing events in $C$ satisfy signature verification by $\text{WF}_{10}(C)$, and $e_{\text{new}}$ is verified by the ActionExecutor if it carries a signature. Therefore $C'$ satisfies signature verification.
+    \item $\text{WF}_{11}$ (Confidence clamped): The ActionExecutor enforces $e_{\text{new}}.\text{confidence} \leq \text{MAX\_SCALED}$ as part of the valid-append check. All existing events in $C$ are bounded by $\text{WF}_{11}(C)$. Therefore $C'$ satisfies confidence clamping.
+    \item $\text{WF}_{12}$ (SHACL constraints and status transitions): The ActionExecutor enforces SHACL shape validation and validates status transitions against the ontology registry before appending. Therefore $\text{WF}_{12}(C')$ holds.
+    \item $\text{WF}_{13}$ (Lifecycle monotonicity, collusion resistance, and synthetic tagging): The ActionExecutor enforces monotonic lifecycle transitions (no backward edges), minimum distinct validators ($N_{\min}$) for collusion resistance, and synthetic-event tagging for parser-reconstructed events. Therefore $\text{WF}_{13}(C')$ holds.
 \end{enumerate}
 
-Since all eight well-formedness axioms hold for $C'$, we conclude $\text{WF}(C')$.
+Since all 13 well-formedness conditions hold for $C'$, we conclude $\text{WF}(C')$.
 
-\textbf{Complexity.} Each $\text{WF}_i$ check is $O(1)$ except $\text{WF}_5$ (distinctness), which is $O(n)$ with a hash set, and $\text{WF}_8$ (schema validation), which is $O(|p|)$ where $|p|$ is the payload size. The total append validation is $O(n + |p|)$.
+\textbf{Complexity.} Each $\text{WF}_i$ check is $O(1)$ except for three cases: $\text{WF}_5$ (distinctness) is $O(n)$ with a hash set; $\text{WF}_8$ (schema validation) is $O(|p|)$ where $|p|$ is the payload size; and $\text{WF}_{10}$ (signature verification) is $O(1)$ per signature. The total append validation is $O(n + |p|)$.
 \end{proof}
 
 %-------------------------------------------------------------------------------
 \subsection{Summary of Proof Dependencies}
 %-------------------------------------------------------------------------------
 
-The nine theorems form a dependency graph: Theorem~\ref{thm:determinism} (foundational) $\to$ Theorem~\ref{thm:confluence} (fork) $\to$ Theorem~\ref{thm:monotonicity-status} (preconditions); Theorem~\ref{thm:boundedness} (independent) $\to$ Theorem~\ref{thm:monotonicity-confidence} (cap argument) $\to$ Theorem~\ref{thm:consistency} (status--confidence); and Theorem~\ref{thm:wf-preservation} (Well-Formedness Preservation). The optional CRDT property (Theorem~\ref{thm:crdt-convergence-appendix}) and the G-Set corollary depend on Theorem~\ref{thm:determinism} and $\Phi$ respectively. Together, these proofs establish that ADL Lite's derivation semantics is deterministic, fork-deterministic, transition-monotonic, bounded, confidence-monotonic, status--confidence consistent, and well-formedness-preserving.
+The nine theorems form a dependency graph. Theorem~\ref{thm:determinism} (foundational) $\to$ Theorem~\ref{thm:confluence} (fork) $\to$ Theorem~\ref{thm:monotonicity-status} (preconditions) is the first chain. Theorem~\ref{thm:boundedness} (independent) $\to$ Theorem~\ref{thm:monotonicity-confidence} (cap argument) $\to$ Theorem~\ref{thm:consistency} (status--confidence) is the second. Theorem~\ref{thm:wf-preservation} (Well-Formedness Preservation) is independent. The optional CRDT property (Theorem~\ref{thm:crdt-convergence-appendix}) and the G-Set corollary depend on Theorem~\ref{thm:determinism} and $\Phi$ respectively. Together, these proofs establish that ADL Lite's derivation semantics is deterministic, fork-deterministic, transition-monotonic, bounded, confidence-monotonic, status--confidence consistent, and well-formedness-preserving.
 
 %-------------------------------------------------------------------------------
-\subsection{Randomized Trace-Checker Artifact (E25)}
+\subsection{Randomised Trace-Checker Artifact (E25)}
 %-------------------------------------------------------------------------------
 \label{subsec:trace-checker}
 
-A randomized trace-checker (Experiment E25, `experiments/proof\_trace\_checker.py`) generates 10,000 synthetic EventChains of length 2--100 and verifies Theorems 1--7 empirically. All 10,000 traces passed all checks (100\% pass rate). This is not a machine-checked proof (Coq/TLA+), but it provides reproducible property-based validation. Machine-checked proofs for unbounded chains remain future work (FW10).
+A randomized trace-checker (Experiment E25, \texttt{experiments/proof\_trace\_checker.py}) generates 10,000 synthetic EventChains of length 2--100 and verifies Theorems 1--7 empirically. All 10,000 traces passed all checks (100\% pass rate). E25 complements the Coq machine proofs (T1--T7, T9) with property-based empirical validation; it does not replace the deductive proofs. All six previously stubbed axioms in \texttt{Chain.v} (precondition evaluation, SHACL constraints, status transitions, lifecycle monotonicity, collusion resistance, and synthetic tagging) have been replaced with their full definitions and preservation proofs, and abstract Ed25519/SHA-256 cryptographic primitives have been introduced in \texttt{Crypto.v}. The Coq development now contains zero remaining \texttt{Admitted} lemmas.
 
 %-------------------------------------------------------------------------------
 \subsection{Sensitivity Analysis: Confidence Aggregation Parameters}
 %-------------------------------------------------------------------------------
 
-Table~\ref{tab:sensitivity} reports $\gamma_{\text{agg}}(C)$ under three $(\beta, c_{\min})$ combinations for four validator-confidence scenarios (three validators each), where $c_{\text{base}} = \max(c_{\min}, \text{mean}(\phi))$ and $\gamma_{\text{agg}}(C) = \min(1.0, c_{\text{base}} + \beta \times (N_{\text{vals}} - 1))$.
+Table~\ref{tab:sensitivity} reports $\gamma_{\text{agg}}(C)$ under three $(\beta, c_{\min})$ combinations for four validator-confidence scenarios (three validators each). Here, $c_{\text{base}} = \max(c_{\min}, \text{mean}(\phi))$ and $\gamma_{\text{agg}}(C) = \min(1.0, c_{\text{base}} + \beta \times (N_{\text{vals}} - 1))$.
 
 \begin{table}[htbp]
 \centering
@@ -419,13 +426,13 @@ $[0.5, 0.7, 0.9]$ (mixed)   & 0.76 & 0.80 & 0.86 \\
 \end{tabular}
 \end{table}
 
-Theorems~\ref{thm:boundedness}--\ref{thm:consistency} hold for all entries because $\gamma_{\text{agg}}(C) \in [0,1]$ by the cap, monotonicity holds because $\beta > 0$, and status--confidence consistency holds because $c_{\min} \geq 0.3$ ensures any validated concept has $c_{\text{base}} \geq c_{\min}$. Strict monotonicity is preserved for all $\beta > 0$ under the precondition $c \geq c_{\text{base}}$.
+Theorems~\ref{thm:boundedness}--\ref{thm:consistency} hold for all entries. Boundedness follows because $\gamma_{\text{agg}}(C) \in [0,1]$ by the cap. Monotonicity holds because $\beta > 0$. Status--confidence consistency holds because $c_{\min} \geq 0.3$ ensures any validated concept has $c_{\text{base}} \geq c_{\min}$. Strict monotonicity is preserved for all $\beta > 0$ under the precondition $c \geq c_{\text{base}}$.
 
 %-------------------------------------------------------------------------------
 \subsection{Small-Step Operational Semantics of Precondition Evaluation}
 %-------------------------------------------------------------------------------
 
-We present the complete small-step operational semantics for the precondition language. The semantics is defined over an evaluation context $\mathcal{E} = (\sigma, \rho)$ where $\sigma = \text{Snapshot}(C)$ is the derived snapshot (a finite map from field names to values in $\mathcal{D}$) and $\rho = \text{ActionRegistry}$ is the closed action registry (a finite map from action names to action definitions). The transition relation $\langle e, \mathcal{E} \rangle \Downarrow v$ means that expression $e$ evaluates to value $v$ in context $\mathcal{E}$.
+We present the complete small-step operational semantics for the precondition language. The semantics is defined over an evaluation context $\mathcal{E} = (\sigma, \rho)$. Here, $\sigma = \text{Snapshot}(C)$ is the derived snapshot (a finite map from field names to values in $\mathcal{D}$), and $\rho = \text{ActionRegistry}$ is the closed action registry (a finite map from action names to action definitions). The transition relation $\langle e, \mathcal{E} \rangle \Downarrow v$ means that expression $e$ evaluates to value $v$ in context $\mathcal{E}$.
 
 \textbf{Values and environments.} The domain of values is $\mathcal{D} = \text{Scalar} \cup \text{Set} \cup \{\text{null}\}$. The environment $\sigma$ is a partial function $\sigma: \text{Field} \rightharpoonup \mathcal{D}$. The action registry $\rho$ is a total function $\rho: \text{ActionName} \to \text{ActionDef}$. An action definition $\text{ActionDef} = (\text{allowed\_on}, \text{required\_params}, \text{preconditions})$ where $\text{preconditions}$ is a list of precondition rules.
 
@@ -452,9 +459,9 @@ We present the complete small-step operational semantics for the precondition la
     \text{apply}(\kappa, x, y) &= \text{false} \quad \text{otherwise (type mismatch)}
 \end{align*}
 
-\textbf{Type safety.} Type mismatches (e.g., comparing a string with GT) are handled by the `otherwise` clause: the comparison returns `false` rather than raising an exception. This is a deliberate design choice: the precondition language is a guard, not a general-purpose programming language, and a type mismatch is treated as a failed guard. The Pydantic payload validation layer (outside the precondition language) ensures that type-correct values are passed to the comparators; the `otherwise` clause is a defense-in-depth mechanism for direct API access that bypasses Pydantic.
+\textbf{Type safety.} Type mismatches (e.g., comparing a string with GT) are handled by the \texttt{otherwise} clause: the comparison returns \texttt{false} rather than raising an exception. This is a deliberate design choice: the precondition language is a guard, not a general-purpose programming language, and a type mismatch is treated as a failed guard. The Pydantic payload validation layer (outside the precondition language) ensures that type-correct values are passed to the comparators. The \texttt{otherwise} clause serves as a defence-in-depth mechanism for direct API access that bypasses Pydantic.
 
-\textbf{No external references.} The precondition language is closed: `lookup(f, sigma)` references only the snapshot `sigma` derived from the local chain $C$. There is no rule for `lookup(f, sigma)` where $f$ references an external chain, database, or network resource. This local-scope restriction ensures that precondition evaluation is referentially transparent, deterministic, and executable without consensus or network access.
+\textbf{No external references.} The precondition language is closed: \texttt{lookup(f, sigma)} references only the snapshot \texttt{sigma} derived from the local chain $C$. There is no rule for \texttt{lookup(f, sigma)} where $f$ references an external chain, database, or network resource. This local-scope restriction ensures that precondition evaluation is referentially transparent, deterministic, and executable without consensus or network access.
 
 \textbf{Complexity.} The evaluation rules above define a terminating rewrite system: each rule reduces the size of the expression (either by looking up a field, dispatching a comparator, or short-circuiting a conjunction). Since the precondition language contains no recursion, no quantification, and no external references, evaluation always terminates in $O(1)$ time per rule and $O(k)$ time for a list of $k$ rules (Theorem~8).
 
@@ -520,4 +527,4 @@ For any precondition $P$ with $k$ rules and any snapshot $\sigma$ with $m$ field
 \textbf{Comparison to known fragments.} The precondition language is a \emph{variable-free ground fragment} of propositional logic: each rule $\langle f, \kappa, v \rangle$ is a ground atomic comparison, and the conjunction of $k$ rules is a variable-free conjunction of such atoms. Ground atomic satisfiability is trivially decidable in linear time (each atom is evaluated independently). The precondition language is a strict subset even of ground Horn clauses: it has no implication (no rule head--body structure), no negation (except NEQ as a primitive comparator), and no disjunction. Therefore, the $O(k)$ decidability bound is conservative and consistent with the linear-time evaluation of variable-free propositional formulas.
 \end{proof}
 
-\textbf{Note on expressivity.} The variable-free, recursion-free, quantification-free design is intentional. The precondition language is a \textit{guard}, not a general-purpose programming language. It is designed to be fast, deterministic, and safe (no \texttt{eval}, no external references). This design choice trades expressivity for decidability and security, which is appropriate for a multi-agent consensus system where preconditions must be evaluated locally without network access.
+\textbf{Note on expressivity.} The variable-free, recursion-free, quantification-free design is intentional. The precondition language is a \textit{guard}, not a general-purpose programming language. It is designed to be fast, deterministic, and safe (no \texttt{eval}, no external references). This design choice trades expressivity for decidability and security, which is appropriate for a multi-agent audit system where preconditions must be evaluated locally without network access.
