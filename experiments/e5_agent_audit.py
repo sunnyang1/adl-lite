@@ -26,9 +26,9 @@ from .registry import register
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 
 
-@register("E5")
-class E5AgentAudit(BaseExperiment):
-    experiment_id = "E5"
+@register("E5a")
+class E5aAgentAudit(BaseExperiment):
+    experiment_id = "E5a"
     name = "Multi-agent event chain auditability"
     description = "5-agent simulation with event chains — integrity + coverage"
 

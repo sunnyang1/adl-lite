@@ -68,6 +68,9 @@ dev = [
 experiments = [
     "openai>=1.0",
     "anthropic>=0.25",
+    # E19 governance benchmark (optional, heavy) — graceful degradation when absent.
+    "pygit2>=1.12",
+    "prov>=2.0.0",
 ]
 experiments-embeddings = [
     "sentence-transformers>=2.2",

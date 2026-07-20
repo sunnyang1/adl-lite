@@ -31,16 +31,62 @@ import os
 import tempfile
 import time
 from collections.abc import Callable
-from typing import Any
-
-import pygit2
-from rdflib import Graph, Literal, Namespace, URIRef
-from rdflib.namespace import RDF, RDFS
+from typing import TYPE_CHECKING, Any
 
 from adl_lite.models import Event, EventChain, EventType
 
 from .base import BaseExperiment, ExperimentResult
 from .registry import register
+
+# Static-type-checker view of the lazily-imported optional dependencies.
+# At runtime these names are bound inside _require_e19_deps() via ``global``;
+# under TYPE_CHECKING the imports below give mypy the same module-level names.
+if TYPE_CHECKING:
+    import pygit2  # noqa: F401
+    from rdflib import Graph, Literal, Namespace, URIRef  # noqa: F401
+    from rdflib.namespace import RDF, RDFS  # noqa: F401
+
+    NP = Namespace("http://www.nanopub.org/nschema#")
+
+
+# ============================================================================
+# Optional heavy dependencies (pygit2 / rdflib / prov) are imported LAZILY inside
+# _require_e19_deps() and the helper functions. This keeps the module importable
+# in a clean environment so the experiment runner can still list E19 and report
+# it as "unavailable" instead of crashing. See base.BaseExperiment.is_available().
+# ============================================================================
+
+
+def _require_e19_deps() -> None:
+    """Lazily import E19's heavy optional dependencies.
+
+    Raises:
+        ImportError: with a clear, actionable message listing any missing
+            optional packages and the install command.
+    """
+    import importlib.util
+
+    missing: list[str] = []
+    for mod in ("pygit2", "rdflib", "prov"):
+        if importlib.util.find_spec(mod) is None:
+            missing.append(mod)
+    if missing:
+        raise ImportError(
+            "Experiment E19 requires optional dependencies that are not installed: "
+            + ", ".join(missing)
+            + ". Install with: pip install -e '.[experiments]'"
+        )
+    # Import into module globals so the helper functions can reference them.
+    global pygit2, Graph, Literal, Namespace, URIRef, RDF, RDFS, NP
+    import pygit2  # noqa: F401
+    from rdflib import Graph, Literal, Namespace, URIRef  # noqa: F401
+    from rdflib.namespace import RDF, RDFS  # noqa: F401
+
+    # Module-level constants that depend on the lazily-imported ``rdflib`` must be
+    # defined here (after the import) rather than at module top-level, otherwise
+    # importing this module in a clean environment raises NameError.
+    NP = Namespace("http://www.nanopub.org/nschema#")
+
 
 # ============================================================================
 # S1: ADL Lite baseline
@@ -74,9 +120,6 @@ def _s1_adl_deprecate(chain: EventChain, actor: str) -> None:
 def _s1_adl_status(chain: EventChain) -> tuple[str, float]:
     """Return (status, confidence) from the chain."""
     return chain.status.name, chain.confidence
-
-
-NP = Namespace("http://www.nanopub.org/nschema#")
 
 
 def _s2_nanopub_register(concept_id: str) -> Graph:
@@ -229,7 +272,20 @@ class E19GovernanceBenchmark(BaseExperiment):
         "ADL Lite vs. nanopub vs. PROV-O vs. Git-only on 4 governance tasks — all metrics measured"
     )
 
+    def is_available(self) -> bool:
+        """E19 requires optional dependencies (pygit2, rdflib, prov)."""
+        import importlib.util
+
+        return (
+            importlib.util.find_spec("pygit2") is not None
+            and importlib.util.find_spec("rdflib") is not None
+            and importlib.util.find_spec("prov") is not None
+        )
+
     def run(self) -> ExperimentResult:
+        # Fail fast with a clear error if optional dependencies are missing.
+        _require_e19_deps()
+
         raw_data = []
         systems = ["S1", "S2", "S3", "S4"]
         tasks = ["T1", "T2", "T3", "T4"]

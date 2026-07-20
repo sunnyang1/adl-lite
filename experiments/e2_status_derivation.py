@@ -18,8 +18,9 @@ from .base import BaseExperiment, ExperimentResult
 from .registry import register
 
 # Ground truth: given a sequence of event types, what status should the chain have?
-# Rule: the LAST lifecycle event in the sequence determines status.
-# Communication events (ANNOUNCE, PUBLISH, RELATE, EVIDENCE) do not affect status.
+# Rule: LUB (max) over lifecycle lattice.  Communication events (ANNOUNCE, PUBLISH,
+# RELATE, EVIDENCE, SEAL, SNAPSHOT) map to PROVISIONAL and do not affect the LUB.
+# This matches the CRDT join-semantics in EventChain._update_crdt_caches.
 
 LIFECYCLE_EVENTS = {
     EventType.REGISTER: DiscoveryStatus.PROVISIONAL,
@@ -29,16 +30,34 @@ LIFECYCLE_EVENTS = {
     EventType.ARCHIVE: DiscoveryStatus.ARCHIVED,
 }
 
+STATUS_ORDER = {
+    DiscoveryStatus.PROVISIONAL: 0,
+    DiscoveryStatus.FORKED: 1,
+    DiscoveryStatus.VALIDATED: 2,
+    DiscoveryStatus.DEPRECATED: 3,
+    DiscoveryStatus.ARCHIVED: 4,
+}
+
 # All event types we enumerate over
 ALL_TYPES = list(EventType)
 
 
 def _expected_status(events: list[EventType]) -> DiscoveryStatus:
-    """Ground truth: last lifecycle event wins, empty chain = PROVISIONAL."""
-    for et in reversed(events):
+    """Ground truth: LUB of all lifecycle event statuses. Empty chain = PROVISIONAL.
+
+    This is the CRDT join-semantics: status is the max over the lifecycle lattice,
+    never regressing.  It is *not* "last lifecycle event wins" because the lattice
+    order is monotonic (e.g. VALIDATE then FORK stays VALIDATED, not FORKED).
+    """
+    max_order = -1
+    for et in events:
         if et in LIFECYCLE_EVENTS:
-            return LIFECYCLE_EVENTS[et]
-    return DiscoveryStatus.PROVISIONAL
+            order = STATUS_ORDER[LIFECYCLE_EVENTS[et]]
+            if order > max_order:
+                max_order = order
+    if max_order < 0:
+        return DiscoveryStatus.PROVISIONAL
+    return DiscoveryStatus([s for s, o in STATUS_ORDER.items() if o == max_order][0])
 
 
 @register("E2")

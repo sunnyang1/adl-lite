@@ -174,6 +174,15 @@ class BaseExperiment:
 
         return warnings
 
+    def is_available(self) -> bool:
+        """Whether this experiment's required optional dependencies are present.
+
+        Override in experiments that need heavy optional dependencies (e.g. E19
+        needs ``pygit2`` / ``prov``). The default is ``True`` (no special deps),
+        which lets the runner list and run the experiment unconditionally.
+        """
+        return True
+
     def _run_wrapper(self) -> ExperimentResult:
         start = time.perf_counter()
         try:
