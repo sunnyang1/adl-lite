@@ -1325,6 +1325,7 @@ class ConceptSkeleton(BaseModel):
     evidence_count: int = 0
     confidence: float = 0.0
     novelty: float = 0.0
+    tenant_id: str | None = None  # Owning tenant (set from doc._tenant_id)
 
     @classmethod
     def from_front_matter(cls, fm: ADLFrontMatter) -> ConceptSkeleton:
@@ -1431,6 +1432,7 @@ class ADLDocument(BaseModel):
         sk = ConceptSkeleton.from_front_matter(self.front_matter)
         sk.relation_summary = [f"{r.source}--{r.relation}-->{r.target}" for r in self.relations]
         sk.evidence_count = len(self.evidence)
+        sk.tenant_id = getattr(self, "_tenant_id", None)
         return sk
 
     def validate_semantics(self) -> list[str]:

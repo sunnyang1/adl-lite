@@ -101,6 +101,44 @@ class ADLConfigError(ADLError):
 
 
 # ---------------------------------------------------------------------------
+# GraphQL / persistence errors
+# ---------------------------------------------------------------------------
+
+
+class ADLNeo4jError(ADLError):
+    """Raised when a Neo4j graph backend operation fails.
+
+    Examples:
+        - Driver connectivity / verification failure
+        - Cypher query execution error
+        - Missing ``neo4j`` extra dependency
+    """
+
+
+# ---------------------------------------------------------------------------
+# Trust-model errors
+# ---------------------------------------------------------------------------
+
+
+class ADLTrustValidationError(ADLError):
+    """Raised when trust-model validation of an event chain fails hard.
+
+    Soft, recoverable validation problems are reported via
+    :class:`~adl_lite.trust_model.ValidationResult` (the ``errors`` list).
+    This exception is reserved for situations where validation cannot even be
+    attempted (e.g. an unsupported DID method that the trust layer must reject).
+    """
+
+
+class ADLUnsupportedDIDMethodError(ADLTrustValidationError):
+    """Raised when a DID method is not supported by the current validation layer.
+
+    Example:
+        - ``did:ethr`` is not supported by the Phase-1 trust layer.
+    """
+
+
+# ---------------------------------------------------------------------------
 # Re-export aliases for backward compatibility
 # ---------------------------------------------------------------------------
 

@@ -593,7 +593,13 @@ def _cmd_consensus_verify(args: argparse.Namespace) -> int:
 
 
 def _cmd_neo4j_status(args: argparse.Namespace) -> int:
-    """Check Neo4j connection status and node count."""
+    """Check Neo4j connection status and node count.
+
+    Three exit paths:
+      * driver not installed  -> graceful degradation message + exit 1
+      * connection failure    -> readable error + exit 1
+      * success               -> prints status + node count, exit 0
+    """
     from .config import get_neo4j_config
     from .neo4j_adapter import Neo4jGraphAdapter
 
@@ -605,14 +611,65 @@ def _cmd_neo4j_status(args: argparse.Namespace) -> int:
     try:
         adapter = Neo4jGraphAdapter(uri=uri, user=user, password=password)
         count = adapter.node_count()
-        print("Neo4j connection OK")
-        print(f"  URI:  {uri}")
-        print(f"  Nodes: {count}")
-        adapter.close()
-        return 0
+    except ImportError as exc:
+        # Driver library not installed -> graceful degradation (non-zero exit).
+        print(
+            "Neo4j driver not installed. Enable the graph backend with:\n"
+            "    pip install adl-lite[neo4j]",
+            file=sys.stderr,
+        )
+        print(f"(detail: {exc})", file=sys.stderr)
+        return 1
     except Exception as exc:
         print(f"Neo4j connection FAILED: {exc}", file=sys.stderr)
         return 1
+    finally:
+        try:
+            adapter.close()
+        except Exception:
+            pass
+
+    print("Neo4j connection OK")
+    print(f"  URI:   {uri}")
+    print(f"  Nodes: {count}")
+    return 0
+
+
+def _cmd_neo4j_check(args: argparse.Namespace) -> int:
+    """Brief Neo4j connectivity health check (alias of `status` focused on liveness)."""
+    from .config import get_neo4j_config
+    from .neo4j_adapter import Neo4jGraphAdapter
+
+    config = get_neo4j_config()
+    uri = args.uri or config["uri"]
+    user = args.user or config["user"]
+    password = args.password or config["password"]
+
+    try:
+        adapter = Neo4jGraphAdapter(uri=uri, user=user, password=password)
+        ok = adapter.verify_connectivity()
+    except ImportError as exc:
+        print(
+            "Neo4j driver not installed. Enable the graph backend with:\n"
+            "    pip install adl-lite[neo4j]",
+            file=sys.stderr,
+        )
+        print(f"(detail: {exc})", file=sys.stderr)
+        return 1
+    except Exception as exc:
+        print(f"Neo4j health check FAILED: {exc}", file=sys.stderr)
+        return 1
+    finally:
+        try:
+            adapter.close()
+        except Exception:
+            pass
+
+    if ok:
+        print("Neo4j health check OK")
+        return 0
+    print("Neo4j health check FAILED: connectivity verification returned False", file=sys.stderr)
+    return 1
 
 
 def _cmd_neo4j_rebuild(args: argparse.Namespace) -> int:
@@ -861,6 +918,14 @@ def _build_parser() -> argparse.ArgumentParser:
     p_neo4j_status.add_argument("--user", default=None, help="Neo4j username (overrides env)")
     p_neo4j_status.add_argument("--password", default=None, help="Neo4j password (overrides env)")
     p_neo4j_status.set_defaults(func=_cmd_neo4j_status)
+
+    p_neo4j_check = p_neo4j_sub.add_parser(
+        "check", help="Brief Neo4j connectivity health check (liveness)"
+    )
+    p_neo4j_check.add_argument("--uri", default=None, help="Neo4j connection URI (overrides env)")
+    p_neo4j_check.add_argument("--user", default=None, help="Neo4j username (overrides env)")
+    p_neo4j_check.add_argument("--password", default=None, help="Neo4j password (overrides env)")
+    p_neo4j_check.set_defaults(func=_cmd_neo4j_check)
 
     p_neo4j_rebuild = p_neo4j_sub.add_parser(
         "rebuild", help="Rebuild Neo4j graph from SQLite relations"

@@ -23,9 +23,10 @@ import sqlite3
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from .cold_storage import ColdStorage
+from .graph_backends import GraphBackend
 
 if TYPE_CHECKING:
     from .vector_index import VectorIndex
@@ -95,6 +96,7 @@ class HotIndex:
         status: DiscoveryStatus | None = None,
         domain: str | None = None,
         scope_prefix: str | None = None,
+        tenant_id: str | None = None,
     ) -> list[ConceptSkeleton]:
         """Fast pre-filter before hitting Warm layer."""
         with self._lock:
@@ -106,6 +108,8 @@ class HotIndex:
             results = [s for s in results if s.domain_tag == domain]
         if scope_prefix:
             results = [s for s in results if s.scope.startswith(scope_prefix)]
+        if tenant_id:
+            results = [s for s in results if getattr(s, "tenant_id", None) == tenant_id]
 
         return results
 
@@ -140,7 +144,8 @@ class WarmIndex:
         novelty     REAL,
         created_at  TEXT,
         updated_at  TEXT,
-        raw_json    TEXT NOT NULL
+        raw_json    TEXT NOT NULL,
+        tenant_id   TEXT
     );
 
     CREATE TABLE IF NOT EXISTS relations (
@@ -163,7 +168,8 @@ class WarmIndex:
         prev_hash        TEXT,
         hash             TEXT,
         payload_json     TEXT,
-        synthetic        INTEGER DEFAULT 0
+        synthetic        INTEGER DEFAULT 0,
+        tenant_id        TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_doc_status ON documents(status);
@@ -178,9 +184,11 @@ class WarmIndex:
     def __init__(
         self,
         db_path: str = ":memory:",
-        graph_backend: Neo4jGraphAdapter | None = None,
+        graph_backend: Literal["networkx", "neo4j"] | Neo4jGraphAdapter | None = None,
+        tenant_id: str | None = None,
     ) -> None:
         self.db_path = db_path
+        self.tenant_id = tenant_id
         self._lock = threading.RLock()
         self._degraded = False  # Whether WarmIndex has degraded to Hot-only mode
         self._last_query_time: float = 0.0
@@ -192,26 +200,63 @@ class WarmIndex:
         self.conn.executescript(self.SCHEMA)
         self.conn.commit()
 
-        # Relation graph: NetworkX by default, Neo4j if graph_backend is provided
-        self.graph_backend = graph_backend
-        if graph_backend is not None:
-            # Use Neo4j — skip NetworkX
+        # Migrate legacy schemas that predate the tenant_id column. SQLite
+        # lacks "ADD COLUMN IF NOT EXISTS", so we probe and ALTER.
+        self._ensure_column("documents", "tenant_id", "TEXT")
+        self._ensure_column("events", "tenant_id", "TEXT")
+        # Tenant indexes are created after the column is guaranteed to exist.
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_doc_tenant ON documents(tenant_id)")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_events_tenant ON events(tenant_id)")
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_doc_tenant_status ON documents(tenant_id, status)"
+        )
+        self.conn.commit()
+
+        # Relation graph backend resolution.
+        #   None / "networkx" -> legacy in-process NetworkX DiGraph (default)
+        #   Neo4jGraphAdapter instance -> reuse the provided adapter
+        #   "neo4j" -> lazily create a Neo4jGraphAdapter (raises ImportError if
+        #             the optional `neo4j` driver is not installed)
+        self.graph_backend: Neo4jGraphAdapter | GraphBackend | None = None
+        self.graph: Any = None
+
+        if graph_backend is None or graph_backend == "networkx":
+            # Default behavior — keep using the in-process NetworkX DiGraph.
+            self.graph_backend = None
+            self.graph = nx.DiGraph() if HAS_NETWORKX else None
+        elif isinstance(graph_backend, Neo4jGraphAdapter):
+            # Explicit adapter instance (reuse connection / test injection).
+            self.graph_backend = graph_backend
             self.graph = None
-        elif HAS_NETWORKX:
-            self.graph = nx.DiGraph()
+        elif graph_backend == "neo4j":
+            # Pluggable Neo4j backend. Raise a clear, actionable error if the
+            # optional driver dependency is not installed.
+            try:
+                import neo4j  # noqa: F401
+            except ImportError:
+                raise ImportError(
+                    "Neo4j support requires the 'neo4j' extra. "
+                    "Install with: pip install adl-lite[neo4j]"
+                ) from None
+            self.graph_backend = Neo4jGraphAdapter()
+            self.graph = None
         else:
-            self.graph = None
+            raise ValueError(
+                "graph_backend must be None, 'networkx', 'neo4j', or a Neo4jGraphAdapter instance"
+            )
 
     # Document storage
 
-    def insert_document(self, doc: ADLDocument) -> None:
+    def insert_document(self, doc: ADLDocument, tenant_id: str | None = None) -> None:
+        tid = tenant_id or getattr(doc, "_tenant_id", None) or self.tenant_id
         with self._lock:
             fm = doc.front_matter
             self.conn.execute(
                 """
                 INSERT OR REPLACE INTO documents
-                (adl_id, adl_type, status, scope, domain, confidence, novelty, created_at, updated_at, raw_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (adl_id, adl_type, status, scope, domain, confidence, novelty,
+                 created_at, updated_at, raw_json, tenant_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     fm.adl_id,
@@ -224,6 +269,7 @@ class WarmIndex:
                     fm.created_at,
                     fm.updated_at,
                     doc.model_dump_json(),
+                    tid,
                 ),
             )
             self.conn.commit()
@@ -258,13 +304,24 @@ class WarmIndex:
             data = json.loads(row["raw_json"])
             return ADLDocument(**data)
 
-    def delete_document(self, adl_id: str) -> None:
+    def delete_document(self, adl_id: str, tenant_id: str | None = None) -> None:
+        tid = tenant_id or self.tenant_id
         with self._lock:
-            self.conn.execute("DELETE FROM documents WHERE adl_id = ?", (adl_id,))
+            if tid is not None:
+                self.conn.execute(
+                    "DELETE FROM documents WHERE adl_id = ? AND tenant_id = ?",
+                    (adl_id, tid),
+                )
+                self.conn.execute(
+                    "DELETE FROM events WHERE concept_id = ? AND tenant_id = ?",
+                    (adl_id, tid),
+                )
+            else:
+                self.conn.execute("DELETE FROM documents WHERE adl_id = ?", (adl_id,))
+                self.conn.execute("DELETE FROM events WHERE concept_id = ?", (adl_id,))
             self.conn.execute(
                 "DELETE FROM relations WHERE source = ? OR target = ?", (adl_id, adl_id)
             )
-            self.conn.execute("DELETE FROM events WHERE concept_id = ?", (adl_id,))
             self.conn.commit()
 
             if self.graph and HAS_NETWORKX:
@@ -275,8 +332,9 @@ class WarmIndex:
     # Event storage (append-only audit log)
     # ------------------------------------------------------------------
 
-    def _store_events(self, chain: EventChain) -> None:
+    def _store_events(self, chain: EventChain, tenant_id: str | None = None) -> None:
         """Persist every event in an EventChain. Thread-safe."""
+        tid = tenant_id or self.tenant_id
         with self._lock:
             for event in chain.events:
                 self.conn.execute(
@@ -284,8 +342,8 @@ class WarmIndex:
                     INSERT OR REPLACE INTO events
                     (event_id, concept_id, event_type, actor, reasoning,
                      timestamp, previous_event_id, prev_hash, hash,
-                     payload_json, synthetic)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     payload_json, synthetic, tenant_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         event.event_id,
@@ -299,6 +357,7 @@ class WarmIndex:
                         event.hash,
                         json.dumps(event.payload, default=str),
                         1 if event.payload.get("synthetic", False) else 0,
+                        tid,
                     ),
                 )
             self.conn.commit()
@@ -484,6 +543,7 @@ class WarmIndex:
         status: DiscoveryStatus | None = None,
         domain: str | None = None,
         scope_prefix: str | None = None,
+        tenant_id: str | None = None,
     ) -> list[str]:
         """
         Multi-stage pre-filtering returning candidate adl_ids. Thread-safe.
@@ -499,6 +559,10 @@ class WarmIndex:
         conditions = []
         params: list = []
 
+        effective_tenant = tenant_id or self.tenant_id
+        if effective_tenant is not None:
+            conditions.append("tenant_id = ?")
+            params.append(effective_tenant)
         if status:
             conditions.append("status = ?")
             params.append(status.value)
@@ -531,6 +595,12 @@ class WarmIndex:
                 )
 
         return [row["adl_id"] for row in rows]
+
+    def _ensure_column(self, table: str, column: str, col_type: str) -> None:
+        """Add ``column`` to ``table`` if it is missing (legacy migration)."""
+        cols = [r["name"] for r in self.conn.execute(f"PRAGMA table_info({table})").fetchall()]
+        if column not in cols:
+            self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
 
     def close(self) -> None:
         self.conn.close()
@@ -580,7 +650,7 @@ class ADLMemory:
         vector_index: VectorIndex | None = None,
     ) -> None:
         self.hot = HotIndex()
-        self.warm = WarmIndex(db_path)
+        self.warm = WarmIndex(db_path, tenant_id=tenant_id)
         self.tenant_id = tenant_id
         self.cold_threshold = cold_threshold
         self.cold = ColdStorage(cold_base_dir) if cold_base_dir else ColdStorage()
@@ -608,7 +678,7 @@ class ADLMemory:
         # Hot: skeleton only
         self.hot.put(doc.to_skeleton())
         # Warm: full document + relations
-        self.warm.insert_document(doc)
+        self.warm.insert_document(doc, tenant_id=self.tenant_id)
         # Vector tier (optional)
         self._index_vector(doc)
 
@@ -639,8 +709,8 @@ class ADLMemory:
         chain = doc.event_chain
         self._maybe_archive(doc, chain)
         self.hot.put(doc.to_skeleton())
-        self.warm.insert_document(doc)
-        self.warm._store_events(chain)
+        self.warm.insert_document(doc, tenant_id=self.tenant_id)
+        self.warm._store_events(chain, tenant_id=self.tenant_id)
         # Vector tier (optional)
         self._index_vector(doc)
 
@@ -718,7 +788,7 @@ class ADLMemory:
     def delete(self, adl_id: str) -> None:
         """Remove from all tiers."""
         self.hot.remove(adl_id)
-        self.warm.delete_document(adl_id)
+        self.warm.delete_document(adl_id, tenant_id=self.tenant_id)
         if self.vector_index is not None:
             try:
                 self.vector_index.delete(adl_id)

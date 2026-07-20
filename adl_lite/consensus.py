@@ -21,10 +21,14 @@ from __future__ import annotations
 import threading
 from datetime import datetime, timezone
 from enum import Enum
+from typing import TYPE_CHECKING, Literal, cast
 
 from .exceptions import ADLConsensusError
 from .models import ADLDocument, DiscoveryStatus, Event, EventChain, EventType
 from .ontology import OntologyManager, default_ontology
+
+if TYPE_CHECKING:
+    from .trust_model import ConsensusConfig, ValidationResult
 
 # ---------------------------------------------------------------------------
 # Enums
@@ -329,3 +333,30 @@ class ConsensusEngine:
         """Valid state transitions from adl_core_ontology.yaml."""
         mgr = ontology or default_ontology()
         return mgr.is_valid_transition(current.value, target.value)
+
+
+def validate_event_chain(
+    chain: EventChain,
+    config: ConsensusConfig | None = None,
+) -> ValidationResult:
+    """Thin convenience wrapper delegating to the trust-model validation layer.
+
+    This is an *additive* convenience over :class:`ConsensusEngine`; it does not
+    change any existing consensus behavior (the ``_effective_n_min`` transition
+    guard is untouched). The mode default falls back to the ``ADL_ENV``
+    environment variable (``"dev"`` / ``"prod"``; default ``"prod"``).
+
+    Returns:
+        A :class:`~adl_lite.trust_model.ValidationResult`.
+    """
+    import os
+
+    from .trust_model import ConsensusConfig, TrustValidator
+
+    if config is None:
+        env_mode = os.getenv("ADL_ENV", "prod").lower()
+        # Narrow the inferred type to the Literal accepted by ConsensusConfig so
+        # static type checkers (mypy) do not flag an incompatible "str" argument.
+        mode = cast(Literal["dev", "prod"], "dev" if env_mode == "dev" else "prod")
+        config = ConsensusConfig(mode=mode)
+    return TrustValidator().validate_event_chain(chain, config)

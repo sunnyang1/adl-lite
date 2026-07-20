@@ -15,7 +15,10 @@ Usage:
 
 from __future__ import annotations
 
+import logging
 from typing import Any
+
+logger = logging.getLogger("adl_lite.neo4j_adapter")
 
 
 class Neo4jGraphAdapter:
@@ -35,12 +38,15 @@ class Neo4jGraphAdapter:
         user: str = "neo4j",
         password: str = "password",
         database: str = "neo4j",
+        driver: Any = None,
     ) -> None:
         self._uri = uri
         self._user = user
         self._password = password
         self._database = database
-        self._driver: Any = None
+        # Allow driver injection for testing / connection reuse. When ``driver`` is
+        # provided it is used as-is; otherwise it is lazily created on first use.
+        self._driver: Any = driver
 
     def _get_driver(self) -> Any:
         """Lazy-initialize the Neo4j driver."""
@@ -52,9 +58,24 @@ class Neo4jGraphAdapter:
             except ImportError:
                 raise ImportError(
                     "Neo4j support requires the 'neo4j' extra. "
-                    "Install with: pip install -e '.[neo4j]'"
+                    "Install with: pip install adl-lite[neo4j]"
                 ) from None
         return self._driver
+
+    def verify_connectivity(self) -> bool:
+        """Verify the Neo4j driver can reach the server.
+
+        Returns True on success, False on any connectivity failure. If the
+        ``neo4j`` driver library is not installed this raises ``ImportError``
+        (graceful degradation is the caller's responsibility).
+        """
+        driver = self._get_driver()
+        try:
+            driver.verify_connectivity()
+            return True
+        except Exception:
+            logger.exception("Neo4j connectivity verification failed")
+            return False
 
     def add_edge(self, source: str, target: str, relation: str, confidence: float) -> None:
         """Add a directed edge from *source* to *target* with the given *relation* and *confidence*."""

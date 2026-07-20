@@ -1,0 +1,103 @@
+classDiagram
+    class UserInfo {
+        <<Pydantic>>
+        +identity: str
+        +role: str = "user"
+        +tenant_id: str | None = None
+    }
+
+    class TenantContext {
+        <<Pydantic>>
+        +id: str
+        +user: UserInfo | None = None
+    }
+
+    class TenantRegistry {
+        -_engines: dict~str, ConsensusEngine~
+        -_lock: Lock
+        -_get_default_state_path: Callable
+        -state_dir: Path | None
+        +__init__(get_default_state_path, state_dir)
+        +_resolve_path(tenant_id: str) Path
+        +_get_engine(tenant_id: str) ConsensusEngine
+        +_save_engine(tenant_id: str, engine: ConsensusEngine) None
+        +reset() None
+    }
+
+    class UsageMeter {
+        -_conn: Connection
+        -period: Literal["daily","monthly"]
+        +__init__(db_path: str, period)
+        +record_api_call(tenant_id: str, endpoint: str|None, period: str) None
+        +record_entity(tenant_id: str, period: str) None
+        +get_record(tenant_id: str, period_start: str, period_end: str) MeteringRecord
+        +reset(tenant_id: str, period_start: str, period_end: str) None
+        +export(tenant_id: str, period_start: str, period_end: str, fmt: str) str|dict
+        -_upsert(tenant_id, period, period_start, period_end, d_api, d_ent) None
+    }
+
+    class MeteringRecord {
+        <<Pydantic>>
+        +tenant_id: str
+        +api_calls: int
+        +registered_entities: int
+        +period_start: str
+        +period_end: str
+        +updated_at: str
+        +period: str
+    }
+
+    class PeriodWindow {
+        +start: datetime
+        +end: datetime
+        +start_iso: str
+        +end_iso: str
+    }
+
+    class WarmIndex {
+        <<modified>>
+        -tenant_id: str | None
+        +__init__(db_path, graph_backend, tenant_id)
+        +insert_document(doc, tenant_id: str|None)
+        +_store_events(chain, tenant_id: str|None)
+        +delete_document(adl_id, tenant_id: str|None)
+        +cascade_filter(status, domain, scope_prefix) list~str~
+    }
+
+    class ADLMemory {
+        <<modified>>
+        +tenant_id: str | None
+        +store(doc) None
+        +store_with_events(doc) None
+        +prefilter(..., tenant_id: str|None) list~ConceptSkeleton~
+    }
+
+    class ConceptSkeleton {
+        <<modified>>
+        +adl_id: str
+        +semantic_type: ADLType
+        +domain_tag: str
+        +status: DiscoveryStatus
+        +scope: str
+        +tenant_id: str | None = None
+    }
+
+    class FastAPIApp {
+        <<create_app>>
+        +register_capability(tenant: TenantContext, _: None)
+        +transition_capability(tenant: TenantContext, _: None)
+        +list_capabilities(tenant: TenantContext, _: None)
+        +get_usage(tenant_id: str, caller: TenantContext, period: str)
+        +export_usage(tenant_id: str, caller: TenantContext, format: str)
+    }
+
+    UserInfo <.. TenantContext : contains
+    TenantRegistry o-- ConsensusEngine : lazy cache
+    UsageMeter ..> MeteringRecord : produces
+    UsageMeter ..> PeriodWindow : compute_period_window
+    WarmIndex ..> ConceptSkeleton : stores
+    ADLMemory o-- WarmIndex : contains
+    ADLMemory ..> ConceptSkeleton : skeletons
+    FastAPIApp ..> TenantRegistry : _get_engine
+    FastAPIApp ..> UsageMeter : record / get
+    FastAPIApp ..> TenantContext : require_tenant

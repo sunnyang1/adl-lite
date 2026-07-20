@@ -1,0 +1,35 @@
+sequenceDiagram
+    participant C as Client
+    participant Auth as require_auth (api_auth)
+    participant T as require_tenant (tenant)
+    participant Reg as TenantRegistry
+    participant Eng as ConsensusEngine
+    participant Meter as UsageMeter
+
+    Note over C,Meter: ① 租户请求：鉴权 → 注入 tenant_id → _get_engine(tid) → 注册表操作 → 计量记录
+    C->>Auth: POST /api/v1/consensus/register (Bearer JWT tenant_id="t1")
+    Auth->>Auth: decode JWT → UserInfo(identity, role, tenant_id="t1")
+    Auth-->>T: UserInfo
+    T->>T: auth_enabled? tenant_id = "t1"
+    T-->>Reg: TenantContext(id="t1")
+    C->>Reg: _get_engine("t1")
+    Reg->>Reg: resolve path = state_dir/t1.json (lazy create/cache)
+    Reg-->>Eng: ConsensusEngine (本租户)
+    C->>Eng: register(doc)
+    Eng-->>C: chain (200)
+    C->>Meter: record_api_call("t1", endpoint="register")
+    Meter->>Meter: UPSERT usage_meter SET api_calls = api_calls + 1
+    Note over C,Meter: 不同租户走不同 state 文件；同一租户请求物理隔离
+
+    Note over C,Meter: ② GET /tenants/{tid}/usage：同租户或 admin 可读
+    C->>Auth: GET /tenants/t1/usage (Bearer JWT tenant_id="t1", role="user")
+    Auth-->>T: UserInfo(tenant_id="t1")
+    T-->>API: TenantContext(id="t1", user)
+    API->>API: authz: caller.id == "t1" OR user.role == "admin"
+    alt 未授权 (异租户且非 admin)
+        API-->>C: 403 Forbidden
+    else 已授权
+        API->>Meter: get_record("t1", period_start, period_end)
+        Meter-->>API: MeteringRecord(api_calls, registered_entities, ...)
+        API-->>C: 200 {tenant_id, api_calls, registered_entities, period_start, period_end}
+    end

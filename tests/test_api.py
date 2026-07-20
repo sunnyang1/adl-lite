@@ -57,6 +57,8 @@ class TestAppCreation:
             "/api/v1/consensus/mode",
             "/api/v1/consensus/mode/dev",
             "/api/v1/consensus/mode/production",
+            "/api/v1/tenants/{tenant_id}/usage",
+            "/api/v1/tenants/{tenant_id}/usage/export",
         ]
         assert len(paths) == len(expected)
         for p in expected:

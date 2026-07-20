@@ -36,6 +36,7 @@ class UserInfo(BaseModel):
 
     identity: str
     role: str = "user"
+    tenant_id: str | None = None  # Resolved tenant (JWT claim / API-key mapping)
 
 
 # ---------------------------------------------------------------------------
@@ -101,17 +102,46 @@ _jwt_secret: str = "change-me"
 _api_keys: set[str] = set()
 _auth_enabled: bool = True
 
+# API-key → tenant id mapping (injected via ``configure_auth``). Used by
+# ``resolve_api_key_tenant`` to attribute a tenant to key-authenticated calls.
+_api_key_tenants: dict[str, str] = {}
+
+
+def is_auth_enabled() -> bool:
+    """Return whether authentication is currently enabled."""
+    return _auth_enabled
+
+
+def resolve_api_key_tenant(key: str) -> str | None:
+    """Resolve the tenant id mapped to an API key, if any.
+
+    Returns the tenant id for ``key`` when present in the ``api_key_tenants``
+    mapping, otherwise ``None``. This is deliberately decoupled from
+    ``verify_api_key`` (which only validates the key identity).
+    """
+    return _api_key_tenants.get(key)
+
 
 def configure_auth(
     jwt_secret: str,
     api_keys: set[str],
     auth_enabled: bool,
+    api_key_tenants: dict[str, str] | None = None,
 ) -> None:
-    """Set module-level auth configuration (called by ``create_app()``)."""
-    global _jwt_secret, _api_keys, _auth_enabled
+    """Set module-level auth configuration (called by ``create_app()``).
+
+    Args:
+        jwt_secret: JWT signing secret.
+        api_keys: Set of valid API keys.
+        auth_enabled: Whether authentication is required.
+        api_key_tenants: Optional mapping of API key → tenant id, used to
+            attribute a tenant to key-authenticated requests.
+    """
+    global _jwt_secret, _api_keys, _auth_enabled, _api_key_tenants
     _jwt_secret = jwt_secret
     _api_keys = api_keys
     _auth_enabled = auth_enabled
+    _api_key_tenants = dict(api_key_tenants) if api_key_tenants else {}
 
 
 def require_auth(
@@ -135,7 +165,9 @@ def require_auth(
         try:
             payload = get_current_user(token, _jwt_secret)
             return UserInfo(
-                identity=payload.get("sub", "unknown"), role=payload.get("role", "user")
+                identity=payload.get("sub", "unknown"),
+                role=payload.get("role", "user"),
+                tenant_id=payload.get("tenant_id"),
             )
         except ExpiredSignatureError:
             raise HTTPException(
@@ -154,7 +186,11 @@ def require_auth(
     if api_key:
         identity = verify_api_key(api_key, _api_keys)
         if identity is not None:
-            return UserInfo(identity=identity, role="user")
+            return UserInfo(
+                identity=identity,
+                role="user",
+                tenant_id=resolve_api_key_tenant(api_key),
+            )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API key",

@@ -77,3 +77,11 @@ formal/coq/_build/
 *.o
 *.a
 *.so
+
+# Coq build artifacts
+formal/coq/.Makefile.coq.d
+formal/coq/.lia.cache
+formal/coq/Makefile.conf
+
+# TLC model-checker state dumps
+states/

@@ -35,7 +35,17 @@ def _extract_turtle_value(line: str, predicate: str) -> str | None:
 
 
 def _extract_turtle_uri(line: str, predicate: str) -> str | None:
-    """Extract a URI value after a predicate in a Turtle line."""
+    """Extract a URI value after a predicate in a Turtle line.
+
+    Supports both angle-bracket full URIs (``predicate <http://...>``) and
+    bare prefixed tokens (``predicate adl:something``).
+    """
+    # Try angle-bracket full URI first: predicate <http://...>
+    pattern_angle = re.escape(predicate) + r"\s+<([^>]+)>"
+    match = re.search(pattern_angle, line)
+    if match:
+        return match.group(1)
+    # Fall back to bare token: predicate adl:something
     pattern = re.escape(predicate) + r"\s+([a-zA-Z0-9_:/-]+)"
     match = re.search(pattern, line)
     if match:
@@ -83,7 +93,7 @@ def parse_owl_turtle(turtle_str: str) -> ADLDocument:
     for line in lines:
         if "adl:hasStatus" in line:
             uri = _extract_turtle_uri(line, "adl:hasStatus")
-            if uri:
+            if uri and uri != "a":
                 status_str = uri.split("/")[-1]
                 if any(status_str == e.value for e in DiscoveryStatus):
                     status = DiscoveryStatus(status_str)
@@ -93,7 +103,7 @@ def parse_owl_turtle(turtle_str: str) -> ADLDocument:
                 confidence = float(val)
         elif "adl:validatedBy" in line:
             uri = _extract_turtle_uri(line, "adl:validatedBy")
-            if uri:
+            if uri and uri != "a":
                 validators.append(uri.split("/")[-1])
         elif "adl:hasDomain" in line:
             domain = _extract_turtle_value(line, "adl:hasDomain") or domain

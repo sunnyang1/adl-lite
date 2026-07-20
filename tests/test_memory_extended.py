@@ -393,14 +393,12 @@ class TestPrefilterTenantId:
     """Tests for ADLMemory.prefilter with tenant_id filtering. Covers lines 734, 743-750."""
 
     def test_prefilter_tenant_id(self, tmp_path: Path):
-        """Call prefilter on ADLMemory with tenant_id parameter,
-        verify tenant-based filtering works correctly.
+        """Call prefilter on ADLMemory with tenant_id parameter.
 
-        ConceptSkeleton doesn't carry tenant_id as a model field.
-        When tenant_id is specified, the filter checks getattr(s, "tenant_id", None).
-        Since skeletons don't have tenant_id, all results are filtered out
-        when a tenant_id is specified — this exercises the tenant_id filter
-        code paths (lines 734, 743-750)."""
+        ConceptSkeleton now carries a ``tenant_id`` field (Phase-2 multi-tenant
+        isolation). When a tenant queries with its own ``tenant_id``, it sees its
+        own documents; a different tenant sees nothing. This exercises the
+        tenant_id filter code paths (lines 734, 743-750)."""
         db = tmp_path / "mem.db"
 
         # First, test with ADLMemory that has NO tenant_id — baseline
@@ -458,15 +456,22 @@ class TestPrefilterTenantId:
         assert hasattr(doc_c, "_tenant_id")
         assert doc_c._tenant_id == "tenant-A"
 
-        # With tenant_id="tenant-A", since ConceptSkeleton lacks tenant_id,
-        # getattr returns None and None != "tenant-A" → all filtered out
+        # With tenant_id="tenant-A", ADLMemory.store attaches tenant_id to the
+        # document and to_skeleton propagates it onto the ConceptSkeleton, so a
+        # tenant querying with its own id correctly sees its own document.
         results_with_tenant = mem.prefilter(status=DiscoveryStatus.VALIDATED, tenant_id="tenant-A")
-        assert len(results_with_tenant) == 0
+        assert len(results_with_tenant) == 1
+        assert results_with_tenant[0].adl_id == "tenant-doc-c"
 
         # Without explicit tenant_id, effective_tenant = self.tenant_id = "tenant-A"
-        # Same filtering applies
+        # → the tenant still sees its own document.
         results_default = mem.prefilter(status=DiscoveryStatus.VALIDATED)
-        assert len(results_default) == 0
+        assert len(results_default) == 1
+        assert results_default[0].adl_id == "tenant-doc-c"
+
+        # A different tenant sees nothing (cross-tenant isolation).
+        results_other = mem.prefilter(status=DiscoveryStatus.VALIDATED, tenant_id="tenant-B")
+        assert len(results_other) == 0
 
         mem.close()
 

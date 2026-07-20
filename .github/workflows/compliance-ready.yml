@@ -1,0 +1,30 @@
+name: Compliance Ready Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  compliance-ready:
+    name: Compliance-ready build gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install project (dev + neo4j extras)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,neo4j]"
+
+      - name: Run compliance-ready gate
+        # Fails the build (non-zero exit) if dependency declarations or the
+        # trust-model production defaults are not compliant.
+        run: python scripts/check_compliance_ready.py
