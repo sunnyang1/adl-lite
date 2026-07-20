@@ -1,5 +1,6 @@
 -R theories ADL
 -R iris ADL.Iris
+theories/Crypto.v
 theories/Status.v
 theories/Event.v
 theories/Confidence.v

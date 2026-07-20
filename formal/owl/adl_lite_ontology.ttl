@@ -1,0 +1,778 @@
+@prefix : <http://adl-lite.org/ontology/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xml: <http://www.w3.org/XML/1998/namespace> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix bfo: <http://purl.obolibrary.org/obo/> .
+@prefix iao: <http://purl.obolibrary.org/obo/> .
+@prefix swrl: <http://www.w3.org/2003/11/swrl#> .
+@prefix swrlb: <http://www.w3.org/2003/11/swrlb#> .
+@prefix adl: <http://adl-lite.org/ontology/> .
+
+@base <http://adl-lite.org/ontology/> .
+
+<http://adl-lite.org/ontology/> rdf:type owl:Ontology ;
+    owl:versionIRI <http://adl-lite.org/ontology/0.5.0/> ;
+    dc:title "ADL Lite Ontology" ;
+    dc:description "OWL 2 DL module for the ADL Lite capability-lifecycle registry. Formalises event-first operational ontology with BFO alignment, IAO information-content-entity alignment, L3 relation predicates, and L4 action types." ;
+    dcterms:creator "ADL Lite Project" ;
+    dcterms:license <https://opensource.org/licenses/MIT> ;
+    owl:versionInfo "0.5.0-alpha" ;
+    owl:imports <http://purl.obolibrary.org/obo/bfo.owl> ;
+    owl:imports <http://purl.obolibrary.org/obo/iao.owl> ;
+    rdfs:comment "This ontology is intentionally scoped to OWL 2 DL expressivity. Temporal reasoning (preconditions, status fluents), derived-state aggregation (δ, γ), and cryptographic hash verification are handled by the ADL Lite runtime, not by the OWL reasoner. See Appendix A of the ADL Lite paper for expressivity limitations." ;
+    rdfs:seeAlso <https://github.com/sunnyang1/adl-lite> .
+
+# ---------------------------------------------------------------------------
+# Annotation Properties
+# ---------------------------------------------------------------------------
+
+:provenanceNote rdf:type owl:AnnotationProperty ;
+    rdfs:label "provenance note" ;
+    rdfs:comment "Human-readable provenance annotation for ontology elements." .
+
+:adlVersion rdf:type owl:AnnotationProperty ;
+    rdfs:label "ADL version" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Version of the ADL Lite specification that introduced this term." .
+
+:sourceFile rdf:type owl:AnnotationProperty ;
+    rdfs:label "source file" ;
+    rdfs:range xsd:anyURI ;
+    rdfs:comment "Path or URI to the source document that defined this term." .
+
+# ---------------------------------------------------------------------------
+# BFO / IAO Alignment — External Classes (declared for reference)
+# ---------------------------------------------------------------------------
+
+bfo:BFO_0000002 rdf:type owl:Class ;
+    rdfs:label "continuant" ;
+    rdfs:comment "BFO class: continuant — an entity that persists through time." .
+
+bfo:BFO_0000003 rdf:type owl:Class ;
+    rdfs:label "occurrent" ;
+    rdfs:comment "BFO class: occurrent — an entity that unfolds in time." .
+
+bfo:BFO_0000015 rdf:type owl:Class ;
+    rdfs:label "process" ;
+    rdfs:subClassOf bfo:BFO_0000003 ;
+    rdfs:comment "BFO class: process — a causally connected occurrent with temporal parts." .
+
+bfo:BFO_0000031 rdf:type owl:Class ;
+    rdfs:label "generically dependent continuant" ;
+    rdfs:subClassOf bfo:BFO_0000002 ;
+    rdfs:comment "BFO class: GDC — a continuant that depends on one or more carriers for its existence." .
+
+iao:IAO_0000030 rdf:type owl:Class ;
+    rdfs:label "information content entity" ;
+    rdfs:subClassOf bfo:BFO_0000031 ;
+    rdfs:comment "IAO class: ICE — an entity that is generically dependent on some artifact and stands in the relation of aboutness." .
+
+bfo:BFO_0000040 rdf:type owl:Class ;
+    rdfs:label "material entity" ;
+    rdfs:subClassOf bfo:BFO_0000002 ;
+    rdfs:comment "BFO class: material entity — an independent continuant that has some portion of matter as part." .
+
+# ---------------------------------------------------------------------------
+# Bridge Axioms: ADL ↔ BFO/IAO alignment
+# ---------------------------------------------------------------------------
+
+# Concept ≡ GDC ⊓ ∃dependsOnRecord.ICE
+# This bridge axiom makes the BFO/IAO alignment explicit: an ADL Concept is
+# exactly a generically dependent continuant that depends on some information
+# content entity (the EventChain record). See §3.2.4 of the paper.
+:Concept owl:equivalentClass [
+    rdf:type owl:Class ;
+    owl:intersectionOf (
+        bfo:BFO_0000031
+        [
+            rdf:type owl:Restriction ;
+            owl:onProperty :dependsOnRecord ;
+            owl:someValuesFrom iao:IAO_0000030
+        ]
+    )
+] .
+
+# D2: Generic dependence (Concept → EventChainRecord)
+:dependsOnRecord rdf:type owl:ObjectProperty ;
+    rdfs:label "depends on record" ;
+    rdfs:domain :Concept ;
+    rdfs:range :EventChainRecord ;
+    rdfs:subPropertyOf :dependsOn ;
+    rdfs:comment "D2 axiom: a concept generically depends on an EventChain record (ICE), not on any specific physical copy." ;
+    :adlVersion "0.5.0" .
+
+# D3: Concretization (EventChainRecord → material entity)
+:concretizedBy rdf:type owl:ObjectProperty ;
+    rdfs:label "concretized by" ;
+    rdfs:domain :EventChainRecord ;
+    rdfs:range bfo:BFO_0000040 ;
+    rdfs:comment "D3 axiom: an ICE is concretized by a material entity (file, database row, agent cache)." ;
+    :adlVersion "0.5.0" .
+
+# D4: Process produces record
+:causallyProduces rdf:type owl:ObjectProperty ;
+    rdfs:label "causally produces" ;
+    rdfs:domain :EventChain ;
+    rdfs:range :EventChainRecord ;
+    rdfs:comment "D4 axiom: the EventChain process causally produces the EventChain record." ;
+    :adlVersion "0.5.0" .
+
+# ---------------------------------------------------------------------------
+# Core ADL Classes
+# ---------------------------------------------------------------------------
+
+:Concept rdf:type owl:Class ;
+    rdfs:label "Concept" ;
+    rdfs:subClassOf bfo:BFO_0000031 ;
+    rdfs:subClassOf [
+        rdf:type owl:Restriction ;
+        owl:onProperty :hasStatus ;
+        owl:cardinality "1"^^xsd:nonNegativeInteger
+    ] ;
+    rdfs:subClassOf [
+        rdf:type owl:Restriction ;
+        owl:onProperty :hasConfidence ;
+        owl:cardinality "1"^^xsd:nonNegativeInteger
+    ] ;
+    rdfs:comment "An ADL capability or discovery. Concepts are generically dependent continuants (GDCs) in BFO terms; their concretisation is an EventChainRecord." ;
+    :adlVersion "0.2" .
+
+:Event rdf:type owl:Class ;
+    rdfs:label "Event" ;
+    rdfs:subClassOf bfo:BFO_0000003 ;
+    rdfs:subClassOf [
+        rdf:type owl:Restriction ;
+        owl:onProperty :hasEventType ;
+        owl:cardinality "1"^^xsd:nonNegativeInteger
+    ] ;
+    rdfs:subClassOf [
+        rdf:type owl:Restriction ;
+        owl:onProperty :hasActor ;
+        owl:minCardinality "1"^^xsd:nonNegativeInteger
+    ] ;
+    rdfs:subClassOf [
+        rdf:type owl:Restriction ;
+        owl:onProperty :hasTimestamp ;
+        owl:cardinality "1"^^xsd:nonNegativeInteger
+    ] ;
+    rdfs:subClassOf [
+        rdf:type owl:Restriction ;
+        owl:onProperty :hasEventHash ;
+        owl:cardinality "1"^^xsd:nonNegativeInteger
+    ] ;
+    rdfs:comment "An atomic occurrence in a capability's lifecycle. Events are occurrents in BFO terms." ;
+    :adlVersion "0.2" .
+
+:EventChain rdf:type owl:Class ;
+    rdfs:label "Event Chain" ;
+    rdfs:subClassOf bfo:BFO_0000015 ;
+    rdfs:subClassOf [
+        rdf:type owl:Restriction ;
+        owl:onProperty :hasEvent ;
+        owl:minCardinality "1"^^xsd:nonNegativeInteger
+    ] ;
+    rdfs:subClassOf [
+        rdf:type owl:Restriction ;
+        owl:onProperty :hasConceptId ;
+        owl:cardinality "1"^^xsd:nonNegativeInteger
+    ] ;
+    rdfs:comment "An append-only, cryptographically linked chain of events. An EventChain is a BFO process with temporal parts (individual Events)." ;
+    :adlVersion "0.2" .
+
+:EventChainRecord rdf:type owl:Class ;
+    rdfs:label "Event Chain Record" ;
+    rdfs:subClassOf iao:IAO_0000030 ;
+    rdfs:subClassOf [
+        rdf:type owl:Restriction ;
+        owl:onProperty :isAbout ;
+        owl:allValuesFrom :EventChain
+    ] ;
+    rdfs:comment "An information content entity (ICE) that concretises an EventChain. The record is the bearer of the chain's cryptographic integrity and derived snapshot." ;
+    :adlVersion "0.5.0" .
+
+:Actor rdf:type owl:Class ;
+    rdfs:label "Actor" ;
+    rdfs:subClassOf prov:Agent ;
+    rdfs:comment "An agent (human or artificial) that participates in ADL events." ;
+    :adlVersion "0.2" .
+
+:Relation rdf:type owl:Class ;
+    rdfs:label "Relation" ;
+    rdfs:subClassOf :Concept ;
+    rdfs:subClassOf [
+        rdf:type owl:Restriction ;
+        owl:onProperty :hasSource ;
+        owl:cardinality "1"^^xsd:nonNegativeInteger
+    ] ;
+    rdfs:subClassOf [
+        rdf:type owl:Restriction ;
+        owl:onProperty :hasTarget ;
+        owl:cardinality "1"^^xsd:nonNegativeInteger
+    ] ;
+    rdfs:subClassOf [
+        rdf:type owl:Restriction ;
+        owl:onProperty :hasRelationPredicate ;
+        owl:cardinality "1"^^xsd:nonNegativeInteger
+    ] ;
+    rdfs:comment "A typed semantic relation between two ADL concepts (L3 block)." ;
+    :adlVersion "0.2" .
+
+:Action rdf:type owl:Class ;
+    rdfs:label "Action" ;
+    rdfs:subClassOf :Event ;
+    rdfs:subClassOf [
+        rdf:type owl:Restriction ;
+        owl:onProperty :hasActionType ;
+        owl:cardinality "1"^^xsd:nonNegativeInteger
+    ] ;
+    rdfs:comment "An L4 action event (register, validate, fork, deprecate, archive, etc.). Actions are intentionally outside full OWL 2 DL axiomatisation because their preconditions require temporal reasoning." ;
+    :adlVersion "0.2" .
+
+:Evidence rdf:type owl:Class ;
+    rdfs:label "Evidence" ;
+    rdfs:subClassOf :Concept ;
+    rdfs:comment "Structured evidence attached to a concept or relation (L3 evidence block)." ;
+    :adlVersion "0.2" .
+
+:FormalSeal rdf:type owl:Class ;
+    rdfs:label "Formal Seal" ;
+    rdfs:subClassOf :Concept ;
+    rdfs:comment "A cryptographic or formal-verification attestation (L3 seal block)." ;
+    :adlVersion "0.2" .
+
+:Discovery rdf:type owl:Class ;
+    rdfs:label "Discovery" ;
+    rdfs:subClassOf :Concept ;
+    rdfs:comment "A newly discovered capability before full validation." ;
+    :adlVersion "0.2" .
+
+# ---------------------------------------------------------------------------
+# Disjointness Axioms
+# ---------------------------------------------------------------------------
+
+# Occurrent vs Continuant — fundamental BFO distinction
+:Event owl:disjointWith bfo:BFO_0000002 .
+:EventChain owl:disjointWith bfo:BFO_0000002 .
+:Concept owl:disjointWith bfo:BFO_0000003 .
+:EventChainRecord owl:disjointWith bfo:BFO_0000003 .
+
+# ---------------------------------------------------------------------------
+# Core Object Properties
+# ---------------------------------------------------------------------------
+
+:hasStatus rdf:type owl:ObjectProperty ;
+    rdfs:label "has status" ;
+    rdfs:domain :Concept ;
+    rdfs:range :DiscoveryStatus ;
+    rdfs:comment "Derived lifecycle status of a concept (provisional, validated, deprecated, forked, archived)." .
+
+:belongsTo rdf:type owl:ObjectProperty ;
+    rdfs:label "belongs to" ;
+    rdfs:domain :Event ;
+    rdfs:range :EventChain ;
+    rdfs:comment "Links an event to the event chain it belongs to." .
+
+:validatedBy rdf:type owl:ObjectProperty ;
+    rdfs:label "validated by" ;
+    rdfs:domain :Concept ;
+    rdfs:range :Actor ;
+    rdfs:comment "Links a validated concept to its validating actor(s)." .
+
+:hasEvent rdf:type owl:ObjectProperty ;
+    rdfs:label "has event" ;
+    rdfs:domain :EventChain ;
+    rdfs:range :Event ;
+    rdfs:comment "Links an event chain to its constituent events." .
+
+:follows rdf:type owl:ObjectProperty ;
+    rdfs:label "follows" ;
+    rdfs:domain :Event ;
+    rdfs:range :Event ;
+    rdfs:subPropertyOf prov:wasInformedBy ;
+    rdf:type owl:TransitiveProperty ;
+    rdfs:comment "Temporal ordering within an event chain (cryptographic predecessor)." .
+
+:hasSource rdf:type owl:ObjectProperty ;
+    rdfs:label "has source" ;
+    rdfs:domain :Relation ;
+    rdfs:range :Concept ;
+    rdfs:comment "Source concept of a typed relation." .
+
+:hasTarget rdf:type owl:ObjectProperty ;
+    rdfs:label "has target" ;
+    rdfs:domain :Relation ;
+    rdfs:range :Concept ;
+    rdfs:comment "Target concept of a typed relation." .
+
+:isAbout rdf:type owl:ObjectProperty ;
+    rdfs:label "is about" ;
+    rdfs:domain iao:IAO_0000030 ;
+    rdfs:range :EventChain ;
+    rdfs:subPropertyOf skos:relatedMatch ;
+    rdfs:comment "IAO alignment: an information content entity is about the event chain it records." .
+
+:concretises rdf:type owl:ObjectProperty ;
+    rdfs:label "concretises" ;
+    rdfs:domain :EventChainRecord ;
+    rdfs:range :EventChain ;
+    rdfs:comment "BFO alignment: an ICE concretises the process it records." .
+
+:wasAssociatedWith rdf:type owl:ObjectProperty ;
+    rdfs:label "was associated with" ;
+    rdfs:subPropertyOf prov:wasAssociatedWith ;
+    rdfs:domain :Event ;
+    rdfs:range :Actor ;
+    rdfs:comment "PROV-O alignment: the actor associated with an event." .
+
+:wasGeneratedBy rdf:type owl:ObjectProperty ;
+    rdfs:label "was generated by" ;
+    rdfs:subPropertyOf prov:wasGeneratedBy ;
+    rdfs:domain :Concept ;
+    rdfs:range :Event ;
+    rdfs:comment "PROV-O alignment: a concept was generated by an event in its chain." .
+
+# ---------------------------------------------------------------------------
+# L3 Relation Predicate Object Properties
+# ---------------------------------------------------------------------------
+
+:isomorphicTo rdf:type owl:ObjectProperty ;
+    rdfs:label "isomorphic to" ;
+    rdfs:domain :Concept ;
+    rdfs:range :Concept ;
+    rdf:type owl:SymmetricProperty ;
+    rdfs:comment "Cross-domain structural alignment (symmetric)." ;
+    :adlVersion "0.2" .
+
+:specialisationOf rdf:type owl:ObjectProperty ;
+    rdfs:label "specialisation of" ;
+    rdfs:domain :Concept ;
+    rdfs:range :Concept ;
+    rdf:type owl:TransitiveProperty ;
+    rdf:type owl:IrreflexiveProperty ;
+    rdfs:subPropertyOf :relatedTo ;
+    rdfs:comment "Narrower instance or subtype of target concept (transitive, irreflexive)." ;
+    :adlVersion "0.2" .
+
+:coOccursWith rdf:type owl:ObjectProperty ;
+    rdfs:label "co-occurs with" ;
+    rdfs:domain :Concept ;
+    rdfs:range :Concept ;
+    rdf:type owl:SymmetricProperty ;
+    rdfs:comment "Statistical or operational co-occurrence (symmetric)." ;
+    :adlVersion "0.2" .
+
+:relatedTo rdf:type owl:ObjectProperty ;
+    rdfs:label "related to" ;
+    rdfs:domain :Concept ;
+    rdfs:range :Concept ;
+    rdf:type owl:SymmetricProperty ;
+    rdfs:comment "Generic domain association (symmetric, weaker than isomorphic-to)." ;
+    :adlVersion "0.2" .
+
+:analogicalTo rdf:type owl:ObjectProperty ;
+    rdfs:label "analogical to" ;
+    rdfs:domain :Concept ;
+    rdfs:range :Concept ;
+    rdf:type owl:SymmetricProperty ;
+    rdfs:comment "Analogical mapping between domains (symmetric)." ;
+    :adlVersion "0.2" .
+
+:analogicalTransfer rdf:type owl:ObjectProperty ;
+    rdfs:label "analogical transfer" ;
+    rdfs:domain :Concept ;
+    rdfs:range :Concept ;
+    rdfs:comment "Mechanism-level analogical transfer (AML corpus)." ;
+    :adlVersion "0.2" .
+
+:dualOf rdf:type owl:ObjectProperty ;
+    rdfs:label "dual of" ;
+    rdfs:domain :Concept ;
+    rdfs:range :Concept ;
+    rdf:type owl:SymmetricProperty ;
+    rdfs:comment "Dual or complementary concept pair (symmetric)." ;
+    :adlVersion "0.2" .
+
+:forkOf rdf:type owl:ObjectProperty ;
+    rdfs:label "fork of" ;
+    rdfs:domain :Concept ;
+    rdfs:range :Concept ;
+    rdf:type owl:TransitiveProperty ;
+    rdf:type owl:IrreflexiveProperty ;
+    rdfs:comment "Lineage link from fork to original concept (transitive, irreflexive)." ;
+    :adlVersion "0.2" .
+
+:mitigatedBy rdf:type owl:ObjectProperty ;
+    rdfs:label "mitigated by" ;
+    rdfs:domain :Concept ;
+    rdfs:range :Concept ;
+    rdfs:comment "Mitigation or remediation relationship." ;
+    :adlVersion "0.2" .
+
+:indexedPhrase rdf:type owl:ObjectProperty ;
+    rdfs:label "indexed phrase" ;
+    rdfs:domain :Concept ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Lexical anchor to warm-index phrase id." ;
+    :adlVersion "0.2" .
+
+:dependsOn rdf:type owl:ObjectProperty ;
+    rdfs:label "depends on" ;
+    rdfs:domain :Concept ;
+    rdfs:range :Concept ;
+    rdfs:comment "Generic ontological dependence (D2 axiom)." ;
+    :adlVersion "0.5.0" .
+
+:feedsInto rdf:type owl:ObjectProperty ;
+    rdfs:label "feeds into" ;
+    rdfs:domain :Concept ;
+    rdfs:range :Concept ;
+    rdf:type owl:TransitiveProperty ;
+    rdfs:comment "Case-study-derived relation: one concept feeds into another (transitive)." ;
+    :adlVersion "0.5.0" .
+
+:complements rdf:type owl:ObjectProperty ;
+    rdfs:label "complements" ;
+    rdfs:domain :Concept ;
+    rdfs:range :Concept ;
+    rdfs:comment "Case-study-derived relation: one concept complements another." ;
+    :adlVersion "0.5.0" .
+
+# ---------------------------------------------------------------------------
+# Datatype Properties
+# ---------------------------------------------------------------------------
+
+:hasConfidence rdf:type owl:DatatypeProperty ;
+    rdfs:label "has confidence" ;
+    rdfs:domain :Concept ;
+    rdfs:range xsd:float ;
+    rdfs:comment "Confidence score in [0.0, 1.0], derived as G-Counter max over VALIDATE/SNAPSHOT events." .
+
+:hasConceptId rdf:type owl:DatatypeProperty ;
+    rdfs:label "has concept ID" ;
+    rdfs:domain :Concept ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Unique alphanumeric identifier for a concept (adl_id)." .
+
+:hasDomain rdf:type owl:DatatypeProperty ;
+    rdfs:label "has domain" ;
+    rdfs:domain :Concept ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Domain tag, e.g. 'financial_aml'." .
+
+:hasScope rdf:type owl:DatatypeProperty ;
+    rdfs:label "has scope" ;
+    rdfs:domain :Concept ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Namespace scope: public, private/<org>, user/<id>, shared/<collab>." .
+
+:hasActor rdf:type owl:DatatypeProperty ;
+    rdfs:label "has actor" ;
+    rdfs:domain :Event ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Identifier of the agent causing the event." .
+
+:hasTimestamp rdf:type owl:DatatypeProperty ;
+    rdfs:label "has timestamp" ;
+    rdfs:domain :Event ;
+    rdfs:range xsd:dateTime ;
+    rdfs:comment "ISO 8601 timestamp of the event." .
+
+:hasEventHash rdf:type owl:DatatypeProperty ;
+    rdfs:label "has event hash" ;
+    rdfs:domain :Event ;
+    rdfs:range xsd:string ;
+    rdfs:comment "SHA-256 cryptographic hash of the event content (64 hex chars)." .
+
+:hasPreviousHash rdf:type owl:DatatypeProperty ;
+    rdfs:label "has previous hash" ;
+    rdfs:domain :Event ;
+    rdfs:range xsd:string ;
+    rdfs:comment "SHA-256 hash of the predecessor event in the chain." .
+
+:hasEventType rdf:type owl:DatatypeProperty ;
+    rdfs:label "has event type" ;
+    rdfs:domain :Event ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Event type: register, validate, deprecate, fork, archive, relate, evidence, seal, calibrate, revoke, etc." .
+
+:hasActionType rdf:type owl:DatatypeProperty ;
+    rdfs:label "has action type" ;
+    rdfs:domain :Action ;
+    rdfs:range xsd:string ;
+    rdfs:comment "L4 action type: register, validate, fork, deprecate, archive, announce, publish, sync_dashboard, listen, relate, evidence, seal, calibrate, revoke." .
+
+:hasRelationPredicate rdf:type owl:DatatypeProperty ;
+    rdfs:label "has relation predicate" ;
+    rdfs:domain :Relation ;
+    rdfs:range xsd:string ;
+    rdfs:comment "String name of the L3 relation predicate." .
+
+:hasMappingType rdf:type owl:DatatypeProperty ;
+    rdfs:label "has mapping type" ;
+    rdfs:domain :Relation ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Mapping type: topological, ontological, structural, engineering, statistical, domain, lexical." .
+
+:hasEvidenceType rdf:type owl:DatatypeProperty ;
+    rdfs:label "has evidence type" ;
+    rdfs:domain :Evidence ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Evidence taxonomy: vector_cluster, simulator_run, human_expert, cross_reference, empirical_observation." .
+
+:hasNovelty rdf:type owl:DatatypeProperty ;
+    rdfs:label "has novelty" ;
+    rdfs:domain :Concept ;
+    rdfs:range xsd:float ;
+    rdfs:comment "Novelty score in [0.0, 1.0]." .
+
+:hasPayload rdf:type owl:DatatypeProperty ;
+    rdfs:label "has payload" ;
+    rdfs:domain :Event ;
+    rdfs:range xsd:string ;
+    rdfs:comment "JSON-serialised event payload (arbitrary key-value data)." .
+
+:hasSignature rdf:type owl:DatatypeProperty ;
+    rdfs:label "has signature" ;
+    rdfs:domain :Event ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Optional Ed25519 base64 signature for DID-authenticated events." .
+
+# ---------------------------------------------------------------------------
+# Identity, FORK Lineage, and CRDT Merge Properties
+# ---------------------------------------------------------------------------
+
+# I2: Functional identity criterion — each concept has exactly one genesis hash
+:hasGenesisHash rdf:type owl:DatatypeProperty ,
+                         owl:FunctionalProperty ;
+    rdfs:label "has genesis hash" ;
+    rdfs:domain :Concept ;
+    rdfs:range xsd:string ;
+    rdfs:comment "SHA-256 genesis hash of the concept; functional property ensuring exactly one identity criterion per concept (Axiom I2)." ;
+    :adlVersion "0.5.0" .
+
+# FORK lineage: forkOf is a subproperty of wasDerivedFrom (PROV-O alignment)
+:wasDerivedFrom rdf:type owl:ObjectProperty ;
+    rdfs:label "was derived from" ;
+    rdfs:domain :Concept ;
+    rdfs:range :Concept ;
+    rdfs:subPropertyOf prov:wasDerivedFrom ;
+    rdfs:comment "PROV-O alignment: a concept (especially a fork) was derived from another concept." ;
+    :adlVersion "0.5.0" .
+
+:forkOf rdfs:subPropertyOf :wasDerivedFrom ;
+    rdfs:comment "Lineage link from fork to original concept (transitive, irreflexive). A fork is a specific kind of derivation." .
+
+:hasParentConcept rdf:type owl:ObjectProperty ;
+    rdfs:label "has parent concept" ;
+    rdfs:domain :Concept ;
+    rdfs:range :Concept ;
+    rdfs:subPropertyOf :forkOf ;
+    rdfs:comment "Links a forked concept directly to its immediate parent concept (single step in the fork lineage)." ;
+    :adlVersion "0.5.0" .
+
+# CRDT merge compatibility
+:MergeEvent rdf:type owl:Class ;
+    rdfs:label "Merge Event" ;
+    rdfs:subClassOf :Event ;
+    rdfs:comment "A CRDT merge event that combines two event chain branches into a single merged chain." ;
+    :adlVersion "0.5.0" .
+
+:mergedFrom rdf:type owl:ObjectProperty ;
+    rdfs:label "merged from" ;
+    rdfs:domain :EventChain ;
+    rdfs:range :EventChain ;
+    rdfs:comment "Links a merged event chain to one of its source branches (CRDT merge)." ;
+    :adlVersion "0.5.0" .
+
+:mergeOf rdf:type owl:ObjectProperty ;
+    rdfs:label "merge of" ;
+    rdfs:domain :EventChain ;
+    rdfs:range :EventChain ;
+    owl:inverseOf :mergedFrom ;
+    rdfs:comment "Inverse of mergedFrom; links a source branch to the merged result (CRDT merge)." ;
+    :adlVersion "0.5.0" .
+
+# ---------------------------------------------------------------------------
+# Named Individuals (Status Enumeration)
+# ---------------------------------------------------------------------------
+
+:status_provisional rdf:type owl:NamedIndividual , :DiscoveryStatus ;
+    rdfs:label "provisional" ;
+    rdfs:comment "Initial status after registration." .
+
+:status_validated rdf:type owl:NamedIndividual , :DiscoveryStatus ;
+    rdfs:label "validated" ;
+    rdfs:comment "Approved by at least N_min validators." .
+
+:status_deprecated rdf:type owl:NamedIndividual , :DiscoveryStatus ;
+    rdfs:label "deprecated" ;
+    rdfs:comment "Marked as obsolete but still queryable." .
+
+:status_forked rdf:type owl:NamedIndividual , :DiscoveryStatus ;
+    rdfs:label "forked" ;
+    rdfs:comment "Forked into competing interpretations." .
+
+:status_archived rdf:type owl:NamedIndividual , :DiscoveryStatus ;
+    rdfs:label "archived" ;
+    rdfs:comment "Frozen and moved to cold storage." .
+
+:DiscoveryStatus rdf:type owl:Class ;
+    rdfs:label "Discovery Status" ;
+    owl:equivalentClass [
+        rdf:type owl:Class ;
+        owl:oneOf (:status_provisional :status_validated :status_deprecated :status_forked :status_archived)
+    ] ;
+    rdfs:comment "Enumeration of lifecycle statuses." .
+
+# ---------------------------------------------------------------------------
+# SWRL Integrity Rules (OWL 2 DL compatible)
+# ---------------------------------------------------------------------------
+
+swrl:varName rdf:type owl:AnnotationProperty .
+
+# Rule 1: ValidatedConfidenceRule
+# If a concept has status validated, then confidence >= 0.5
+[ rdf:type swrl:Imp ;
+  swrl:body (
+    [ rdf:type swrl:IndividualPropertyAtom ;
+      swrl:propertyPredicate :hasStatus ;
+      swrl:argument1 [ rdf:type swrl:Variable ; swrl:varName "c" ] ;
+      swrl:argument2 :status_validated
+    ]
+    [ rdf:type swrl:DatavaluedPropertyAtom ;
+      swrl:propertyPredicate :hasConfidence ;
+      swrl:argument1 [ rdf:type swrl:Variable ; swrl:varName "c" ] ;
+      swrl:argument2 [ rdf:type swrl:Variable ; swrl:varName "conf" ]
+    ]
+  ) ;
+  swrl:head (
+    [ rdf:type swrl:BuiltinAtom ;
+      swrl:builtin swrlb:greaterThanOrEqual ;
+      swrl:arguments (
+        [ rdf:type swrl:Variable ; swrl:varName "conf" ]
+        "0.5"^^xsd:float
+      )
+    ]
+  )
+] .
+
+# Rule 2: NoSelfLoopRule
+# A concept cannot be related to itself via any L3 predicate
+[ rdf:type swrl:Imp ;
+  swrl:body (
+    [ rdf:type swrl:IndividualPropertyAtom ;
+      swrl:propertyPredicate :relatedTo ;
+      swrl:argument1 [ rdf:type swrl:Variable ; swrl:varName "c1" ] ;
+      swrl:argument2 [ rdf:type swrl:Variable ; swrl:varName "c2" ]
+    ]
+  ) ;
+  swrl:head (
+    [ rdf:type swrl:BuiltinAtom ;
+      swrl:builtin swrlb:notEqual ;
+      swrl:arguments (
+        [ rdf:type swrl:Variable ; swrl:varName "c1" ]
+        [ rdf:type swrl:Variable ; swrl:varName "c2" ]
+      )
+    ]
+  )
+] .
+
+# Rule 3: ConfidenceRangeRule
+# Confidence must be in [0, 1]
+[ rdf:type swrl:Imp ;
+  swrl:body (
+    [ rdf:type swrl:DatavaluedPropertyAtom ;
+      swrl:propertyPredicate :hasConfidence ;
+      swrl:argument1 [ rdf:type swrl:Variable ; swrl:varName "c" ] ;
+      swrl:argument2 [ rdf:type swrl:Variable ; swrl:varName "conf" ]
+    ]
+  ) ;
+  swrl:head (
+    [ rdf:type swrl:BuiltinAtom ;
+      swrl:builtin swrlb:greaterThanOrEqual ;
+      swrl:arguments (
+        [ rdf:type swrl:Variable ; swrl:varName "conf" ]
+        "0.0"^^xsd:float
+      )
+    ]
+    [ rdf:type swrl:BuiltinAtom ;
+      swrl:builtin swrlb:lessThanOrEqual ;
+      swrl:arguments (
+        [ rdf:type swrl:Variable ; swrl:varName "conf" ]
+        "1.0"^^xsd:float
+      )
+    ]
+  )
+] .
+
+# ---------------------------------------------------------------------------
+# Competency Questions (as rdfs:comment on the ontology)
+# ---------------------------------------------------------------------------
+
+<http://adl-lite.org/ontology/> rdfs:comment """
+COMPETENCY QUESTIONS
+====================
+
+CQ1: Which BFO category does an ADL Lite Event belong to?
+     => adl:Event rdfs:subClassOf bfo:occurrent
+
+CQ2: Which BFO category does an ADL Lite Concept belong to?
+     => adl:Concept rdfs:subClassOf bfo:generically_dependent_continuant
+
+CQ3: Is the isomorphic-to relation symmetric?
+     => adl:isomorphicTo rdf:type owl:SymmetricProperty
+
+CQ4: Is the specialisation-of relation transitive?
+     => adl:specialisationOf rdf:type owl:TransitiveProperty
+
+CQ5: Can a concept be related to itself?
+     => No — adl:specialisationOf and adl:forkOf are owl:IrreflexiveProperty.
+       Self-relation is additionally blocked by SWRL NoSelfLoopRule.
+
+CQ6: What is the concretisation of an EventChain?
+     => adl:EventChainRecord rdfs:subClassOf iao:information_content_entity
+        and adl:concretises domain adl:EventChainRecord, range adl:EventChain.
+
+CQ7: What is the provenance of a concept's status?
+     => prov:wasGeneratedBy links the concept to the event that produced it.
+        adl:follows links events in temporal order.
+
+CQ9: What is the genesis hash of a given concept?
+     => SELECT ?hash WHERE { ?concept :hasGenesisHash ?hash }
+
+CQ10: Which concept is the parent of a forked concept?
+     => SELECT ?parent WHERE { ?child :hasParentConcept ?parent }
+
+CQ11: Which event chains were merged to produce a given chain?
+     => SELECT ?source WHERE { ?merged :mergedFrom ?source }
+
+CQ12: Is the fork-of relation a subproperty of wasDerivedFrom?
+     => ASK WHERE { :forkOf rdfs:subPropertyOf :wasDerivedFrom }
+
+ASPECTS INTENTIONALLY OUTSIDE OWL 2 DL EXPRESSIVITY
+=====================================================
+
+(i) Temporal reasoning: preconditions (e.g., VALIDATE requires status=provisional)
+    require fluents that change over time; OWL 2 DL cannot express HoldsAt.
+
+(ii) Derived state: δ(C) status and γ(C) confidence aggregate over event sequences
+     via LUB and G-Counter; this requires fixed-point computation not in OWL 2 DL.
+
+(iii) Cryptographic integrity: SHA-256 hash correctness is a computational property,
+      not a logical entailment.
+
+(iv) Calibration: EWMA, MARGIN, and bonus-formula γ_agg are numerical aggregations
+     beyond DL expressivity.
+
+(v) Collusion resistance: N_min validator count and accuracy-weighted confidence
+    are runtime governance constraints.
+
+These aspects are enforced by the ADL Lite Python runtime (ActionExecutor,
+ConsensusEngine, EventChain.verify_integrity), not by the OWL reasoner.
+""" .

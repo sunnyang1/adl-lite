@@ -1,0 +1,40 @@
+@prefix : <http://adl-lite.org/ontology/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix adl: <http://adl-lite.org/ontology/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+
+# ===========================================================================
+# RDF-star / SPARQL-star Companion File for PROV-O Mapping Example
+# ===========================================================================
+# Source: formal/owl/prov_mapping_example.ttl
+# Concept ID: disc-capital-trap
+#
+# This file contains RDF-star quoted triples that embed provenance
+# annotations directly on L3 relation assertions. It requires an
+# RDF-star compatible triple-store (e.g., Apache Jena, GraphDB, Stardog).
+# The base PROV-O graph is in prov_mapping_example.ttl.
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# RDF-star QUOTED TRIPLES (for L3 relation provenance)
+# ---------------------------------------------------------------------------
+# These are RDF-star / SPARQL-star annotations that embed the relation
+# triple and attach event-level provenance to it.
+#
+# Syntax: << :subject :predicate :object >> :property :value .
+# ---------------------------------------------------------------------------
+
+<< adl:disc-capital-trap prov:wasDerivedFrom adl:concept-gradient-explosion >>
+    prov:wasGeneratedBy adl:evt-disc-capital-trap-relate-001 ;
+    adl:eventHash "1111111111111111111111111111111111111111111111111111111111111111" ;
+    adl:hasConfidence "0.91"^^xsd:float ;
+    adl:relationPredicate "isomorphic-to" .
+
+<< adl:disc-capital-trap prov:wasDerivedFrom adl:concept-money-laundering-layering >>
+    prov:wasGeneratedBy adl:evt-disc-capital-trap-relate-002 ;
+    adl:eventHash "2222222222222222222222222222222222222222222222222222222222222222" ;
+    adl:hasConfidence "0.73"^^xsd:float ;
+    adl:relationPredicate "specialisation-of" .

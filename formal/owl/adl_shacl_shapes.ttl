@@ -1,0 +1,450 @@
+@prefix : <http://adl-lite.org/ontology/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix adl: <http://adl-lite.org/ontology/> .
+
+# ---------------------------------------------------------------------------
+# L1 Front-Matter NodeShape
+# Validates the YAML-derived snapshot of an ADL document
+# ---------------------------------------------------------------------------
+
+adl:L1FrontMatterShape a sh:NodeShape ;
+    sh:targetClass adl:Concept ;
+    rdfs:label "L1 Front-Matter Shape" ;
+    rdfs:comment "SHACL shape for ADL Lite L1 front-matter constraints (identity, status, confidence, scope)." ;
+
+    # adl_id must be present and match alphanumeric pattern
+    sh:property [
+        sh:path adl:hasConceptId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:pattern "^[a-zA-Z0-9_-]+$" ;
+        sh:message "adl_id must be a non-empty alphanumeric string with hyphens/underscores only."
+    ] ;
+
+    # adl_type must be one of the core classes
+    sh:property [
+        sh:path rdf:type ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:in (adl:discovery adl:concept adl:relation adl:evidence adl:formal_seal) ;
+        sh:message "adl_type must be one of: discovery, concept, relation, evidence, formal_seal."
+    ] ;
+
+    # status must be a valid lifecycle status
+    sh:property [
+        sh:path adl:hasStatus ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:in (adl:status_provisional adl:status_validated adl:status_deprecated adl:status_forked adl:status_archived) ;
+        sh:message "Status must be one of: provisional, validated, deprecated, forked, archived."
+    ] ;
+
+    # confidence must be in [0.0, 1.0]
+    sh:property [
+        sh:path adl:hasConfidence ;
+        sh:datatype xsd:float ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 1.0 ;
+        sh:message "Confidence must be a float in [0.0, 1.0]."
+    ] ;
+
+    # novelty must be in [0.0, 1.0] if present
+    sh:property [
+        sh:path adl:hasNovelty ;
+        sh:datatype xsd:float ;
+        sh:maxCount 1 ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 1.0 ;
+        sh:message "Novelty must be a float in [0.0, 1.0]."
+    ] ;
+
+    # scope must match one of the allowed prefixes
+    sh:property [
+        sh:path adl:hasScope ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:pattern "^(public|private/.+|user/.+|shared/.+)$" ;
+        sh:message "Scope must be public, private/<org>, user/<id>, or shared/<collab>."
+    ] ;
+
+    # domain is optional but must be string
+    sh:property [
+        sh:path adl:hasDomain ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:message "Domain must be a string if present."
+    ] .
+
+# ---------------------------------------------------------------------------
+# L3 Relation Block NodeShape
+# Validates typed semantic relations between concepts
+# ---------------------------------------------------------------------------
+
+adl:L3RelationShape a sh:NodeShape ;
+    sh:targetClass adl:Relation ;
+    rdfs:label "L3 Relation Block Shape" ;
+    rdfs:comment "SHACL shape for ADL Lite L3 relation blocks (source, target, predicate, confidence, mapping_type)." ;
+
+    # source must be present and non-empty
+    sh:property [
+        sh:path adl:hasSource ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:message "Relation source must be a non-empty IRI referencing a concept."
+    ] ;
+
+    # target must be present and non-empty
+    sh:property [
+        sh:path adl:hasTarget ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:message "Relation target must be a non-empty IRI referencing a concept."
+    ] ;
+
+    # predicate must be from the closed core set
+    sh:property [
+        sh:path adl:hasRelationPredicate ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:in (
+            "isomorphic-to"
+            "specialisation-of"
+            "co-occurs-with"
+            "related-to"
+            "analogical-to"
+            "analogical-transfer"
+            "dual-of"
+            "fork-of"
+            "mitigated-by"
+            "indexed-phrase"
+            "depends-on"
+            "feeds-into"
+            "complements"
+        ) ;
+        sh:message "Relation predicate must be a registered predicate in adl_core_ontology.yaml."
+    ] ;
+
+    # confidence must be in [0.0, 1.0] if present
+    sh:property [
+        sh:path adl:hasConfidence ;
+        sh:datatype xsd:float ;
+        sh:maxCount 1 ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 1.0 ;
+        sh:message "Relation confidence must be a float in [0.0, 1.0]."
+    ] ;
+
+    # mapping_type must be from the allowed set if present
+    sh:property [
+        sh:path adl:hasMappingType ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:in (
+            "topological"
+            "ontological"
+            "structural"
+            "engineering"
+            "statistical"
+            "domain"
+            "lexical"
+        ) ;
+        sh:message "Mapping type must be one of: topological, ontological, structural, engineering, statistical, domain, lexical."
+    ] ;
+
+    # SPARQL constraint: directionality — source and target must differ for irreflexive predicates
+    sh:sparql [
+        sh:message "Source and target must differ for irreflexive predicates (specialisation-of, fork-of)." ;
+        sh:select """
+            PREFIX adl: <http://adl-lite.org/ontology/>
+            SELECT $this
+            WHERE {
+                $this adl:hasRelationPredicate ?pred ;
+                      adl:hasSource ?src ;
+                      adl:hasTarget ?tgt .
+                FILTER (?pred IN ("specialisation-of", "fork-of"))
+                FILTER (str(?src) = str(?tgt))
+            }
+        """
+    ] ;
+
+    # SPARQL constraint: symmetric predicates must have matching bidirectional pairs
+    sh:sparql [
+        sh:message "Symmetric predicates (isomorphic-to, co-occurs-with, related-to, analogical-to, dual-of) should have matching inverse assertions." ;
+        sh:select """
+            PREFIX adl: <http://adl-lite.org/ontology/>
+            SELECT $this
+            WHERE {
+                $this adl:hasRelationPredicate ?pred ;
+                      adl:hasSource ?src ;
+                      adl:hasTarget ?tgt .
+                FILTER (?pred IN ("isomorphic-to", "co-occurs-with", "related-to", "analogical-to", "dual-of"))
+                FILTER NOT EXISTS {
+                    ?other adl:hasRelationPredicate ?pred ;
+                           adl:hasSource ?tgt ;
+                           adl:hasTarget ?src .
+                }
+            }
+        """
+    ] .
+
+# ---------------------------------------------------------------------------
+# L4 Action Block NodeShape
+# Validates typed actions with preconditions and side effects
+# ---------------------------------------------------------------------------
+
+adl:L4ActionShape a sh:NodeShape ;
+    sh:targetClass adl:Action ;
+    rdfs:label "L4 Action Block Shape" ;
+    rdfs:comment "SHACL shape for ADL Lite L4 action blocks (action type, actor, params)." ;
+
+    # action type must be from the closed registry
+    sh:property [
+        sh:path adl:hasActionType ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:in (
+            "register"
+            "validate"
+            "fork"
+            "deprecate"
+            "archive"
+            "announce"
+            "publish"
+            "sync_dashboard"
+            "listen"
+            "relate"
+            "evidence"
+            "seal"
+            "calibrate"
+            "revoke"
+        ) ;
+        sh:message "Action type must be a registered action in adl_core_ontology.yaml."
+    ] ;
+
+    # actor must be non-empty
+    sh:property [
+        sh:path adl:hasActor ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:minLength 1 ;
+        sh:message "Action actor must be a non-empty string."
+    ] ;
+
+    # timestamp must be valid dateTime if present
+    sh:property [
+        sh:path adl:hasTimestamp ;
+        sh:datatype xsd:dateTime ;
+        sh:maxCount 1 ;
+        sh:message "Action timestamp must be a valid xsd:dateTime if present."
+    ] .
+
+# ---------------------------------------------------------------------------
+# Event Hash PropertyShape
+# Validates SHA-256 cryptographic hash format (64 hex chars)
+# ---------------------------------------------------------------------------
+
+adl:EventHashShape a sh:NodeShape ;
+    sh:targetClass adl:Event ;
+    rdfs:label "Event Hash Shape" ;
+    rdfs:comment "SHACL shape validating the SHA-256 hash format on events." ;
+
+    sh:property [
+        sh:path adl:hasEventHash ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:pattern "^[a-f0-9]{64}$" ;
+        sh:message "Event hash must be exactly 64 lowercase hexadecimal characters (SHA-256)."
+    ] ;
+
+    sh:property [
+        sh:path adl:hasPreviousHash ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:pattern "^(genesis|[a-f0-9]{64})$" ;
+        sh:message "Previous hash must be 'genesis' or exactly 64 lowercase hex chars."
+    ] .
+
+# ---------------------------------------------------------------------------
+# EventChain Integrity NodeShape
+# Structural check on event chain ordering (not cryptographic)
+# ---------------------------------------------------------------------------
+
+adl:EventChainShape a sh:NodeShape ;
+    sh:targetClass adl:EventChain ;
+    rdfs:label "Event Chain Shape" ;
+    rdfs:comment "SHACL shape for structural integrity of event chains." ;
+
+    # Must have at least one event
+    sh:property [
+        sh:path adl:hasEvent ;
+        sh:minCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:message "EventChain must contain at least one event."
+    ] ;
+
+    # concept_id must be present
+    sh:property [
+        sh:path adl:hasConceptId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:minLength 1 ;
+        sh:message "EventChain must have a non-empty concept_id."
+    ] .
+
+# ---------------------------------------------------------------------------
+# SPARQL-based Cross-Document Reference Constraint
+# Validates that source/target concepts in relations exist in the corpus
+# ---------------------------------------------------------------------------
+
+adl:CrossDocumentReferenceShape a sh:NodeShape ;
+    sh:targetClass adl:Relation ;
+    rdfs:label "Cross-Document Reference Shape" ;
+    rdfs:comment "SHACL-SPARQL constraint ensuring that relation source and target concepts exist in the ADL corpus. Requires an external concept index or SPARQL endpoint." ;
+
+    # SPARQL constraint: source concept must exist in the corpus
+    sh:sparql [
+        sh:message "Relation source concept does not exist in the ADL corpus." ;
+        sh:select """
+            PREFIX adl: <http://adl-lite.org/ontology/>
+            SELECT $this
+            WHERE {
+                $this adl:hasSource ?src .
+                FILTER NOT EXISTS {
+                    ?src rdf:type ?type .
+                    FILTER (?type IN (adl:Concept, adl:Discovery, adl:Relation, adl:Evidence, adl:FormalSeal))
+                }
+            }
+        """
+    ] ;
+
+    # SPARQL constraint: target concept must exist in the corpus
+    sh:sparql [
+        sh:message "Relation target concept does not exist in the ADL corpus." ;
+        sh:select """
+            PREFIX adl: <http://adl-lite.org/ontology/>
+            SELECT $this
+            WHERE {
+                $this adl:hasTarget ?tgt .
+                FILTER NOT EXISTS {
+                    ?tgt rdf:type ?type .
+                    FILTER (?type IN (adl:Concept, adl:Discovery, adl:Relation, adl:Evidence, adl:FormalSeal))
+                }
+            }
+        """
+    ] .
+
+# ---------------------------------------------------------------------------
+# Calibrate Event Shape (Runtime Governance Extension)
+# ---------------------------------------------------------------------------
+
+adl:CalibrateEventShape a sh:NodeShape ;
+    sh:targetClass adl:CalibrateEvent ;
+    rdfs:label "Calibrate Event Shape" ;
+    rdfs:comment "SHACL shape for CALIBRATE events with observed accuracy." ;
+
+    sh:property [
+        sh:path adl:hasEventType ;
+        sh:hasValue "calibrate" ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "CALIBRATE event must have eventType 'calibrate'."
+    ] ;
+
+    sh:property [
+        sh:path adl:hasConfidence ;
+        sh:datatype xsd:float ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 1.0 ;
+        sh:message "CALIBRATE event must carry observedAccuracy in [0.0, 1.0]."
+    ] .
+
+# ---------------------------------------------------------------------------
+# Fork Event Shape (Runtime Governance Extension)
+# ---------------------------------------------------------------------------
+
+adl:ForkEventShape a sh:NodeShape ;
+    sh:targetClass adl:ForkEvent ;
+    rdfs:label "Fork Event Shape" ;
+    rdfs:comment "SHACL shape for FORK events with source/target concept IDs." ;
+
+    sh:property [
+        sh:path adl:hasEventType ;
+        sh:hasValue "fork" ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "FORK event must have eventType 'fork'."
+    ] ;
+
+    sh:property [
+        sh:path adl:hasSource ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:minLength 1 ;
+        sh:message "FORK event must have a source concept ID."
+    ] ;
+
+    sh:property [
+        sh:path adl:hasTarget ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:minLength 1 ;
+        sh:message "FORK event must have a target concept ID."
+    ] .
+
+# ---------------------------------------------------------------------------
+# Annotation: Coverage Summary
+# ---------------------------------------------------------------------------
+
+adl:SHACLCoverageSummary rdfs:comment """
+SHACL Coverage Summary
+======================
+
+L1 Front Matter (5/5 constraints): Covered by L1FrontMatterShape
+  - adl_id pattern          -> sh:pattern
+  - status enumeration      -> sh:in
+  - confidence range       -> sh:minInclusive + sh:maxInclusive
+  - scope prefix            -> sh:pattern
+  - adl_type enumeration   -> sh:in
+
+L3 Relations (5/7 constraints): Covered by L3RelationShape
+  - predicate in-set        -> sh:in
+  - confidence range        -> sh:minInclusive + sh:maxInclusive
+  - source/target presence  -> sh:minCount + sh:nodeKind
+  - directionality (irreflexive) -> sh:sparql
+  - symmetric pairing       -> sh:sparql
+  - mapping_type in-set     -> sh:in
+  - cross-document existence-> sh:sparql (CrossDocumentReferenceShape)
+
+L4 Actions (3/3 constraints): Covered by L4ActionShape
+  - action in-set           -> sh:in
+  - actor non-empty         -> sh:minLength + sh:minCount
+  - timestamp validity      -> sh:datatype xsd:dateTime
+
+Hash Format (2/2 constraints): Covered by EventHashShape
+  - 64 hex chars            -> sh:pattern
+  - genesis or hex prev     -> sh:pattern
+
+Intentionally NOT in SHACL:
+  - Temporal ordering (prov:wasInformedBy chain) -> computational, not structural
+  - Cryptographic hash verification                -> computational
+  - Status transition validity                     -> temporal/fluent reasoning
+  - Derived confidence (G-Counter)                 -> aggregate computation
+  - Precondition evaluation (comparator rules)     -> runtime logic
+""" .

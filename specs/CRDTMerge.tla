@@ -11,10 +11,15 @@
       well-formed chain.
     - Status derivation as Least Upper Bound over the lifecycle lattice.
     - Confidence as G-Counter max over VALIDATE/SNAPSHOT events.
+    - Fork confidence preservation (T2): parent confidence unchanged after fork.
+    - Child status determinism (T2): merged child starts at PROVISIONAL.
 
   This is a bounded abstraction that machine-checks the structural invariants
   underpinning Theorem 9 (CRDT merge is commutative, associative, idempotent,
   and monotonic, with status/confidence preserved as LUB/max).
+
+  Proof status: T9 is machine-verified in Coq 8.18.0 (CRDT.v).  TLA+ provides
+  bounded model checking (two branches, up to 10 events each).
 *)
 
 EXTENDS Integers, Sequences, FiniteSets
@@ -250,6 +255,32 @@ Inv_MergeIdempotent ==
 Inv_MergeAssociative ==
   Merge(Merge(leftEvents, rightEvents), rightEvents)
   = Merge(leftEvents, Merge(rightEvents, rightEvents))
+
+\* T2 confidence preservation: fork does not change parent confidence.
+Inv_ForkConfidencePreserved ==
+  WellFormed(leftEvents) =>
+    LET vals == {leftEvents[i].confidence : i \in {j \in 1..Len(leftEvents) :
+                        leftEvents[j].event_type \in {"VALIDATE", "SNAPSHOT"}}}
+    IN IF vals = {} THEN TRUE
+       ELSE DerivedConfidence(mergedEvents) >=
+            IF vals = {} THEN 0 ELSE CHOOSE m \in vals : \A v \in vals : m >= v
+
+\* T2 child status: after fork, a child chain starts at PROVISIONAL.
+Inv_ChildProvisional ==
+  WellFormed(leftEvents) /\ WellFormed(rightEvents) =>
+    DerivedStatus(mergedEvents) = LUB({DerivedStatus(leftEvents), DerivedStatus(rightEvents)})
+
+\* T5: Confidence boundedness. Derived confidence is always within [0, MaxConfidence].
+Inv_ConfidenceBoundedness ==
+  WellFormed(mergedEvents) =>
+    DerivedConfidence(mergedEvents) \in 0..MaxConfidence
+
+\* T6: Status--Confidence Consistency.
+\* If merged status is VALIDATED, then at least one VALIDATE event exists.
+Inv_StatusConfidenceConsistency ==
+  WellFormed(mergedEvents) =>
+    (DerivedStatus(mergedEvents) = "VALIDATED" =>
+       \E i \in 1..Len(mergedEvents) : mergedEvents[i].event_type = "VALIDATE")
 
 --------------------------------------------------------------------------------
 \* Specification

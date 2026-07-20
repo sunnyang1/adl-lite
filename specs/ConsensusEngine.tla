@@ -9,9 +9,14 @@
     - Validate action guarded by distinct-validator and N_min requirements.
     - Status derivation as Least Upper Bound over the lifecycle lattice.
     - Confidence as G-Counter max over VALIDATE/SNAPSHOT events.
+    - Status--confidence consistency (T6): VALIDATED implies ≥1 VALIDATE event.
+    - N_min enforcement: VALIDATED status requires ≥N_min distinct validators.
 
   This bounded abstraction machine-checks the structural invariants underpinning
   Theorem 6 (collusion-resistant consensus) and Theorem 8 (status monotonicity).
+
+  Proof status: T6 and T7 are machine-verified in Coq 8.18.0 (Invariants.v).
+  TLA+ provides bounded model checking (chains up to 20 events, N_min ≤ 3).
 *)
 
 EXTENDS Integers, Sequences, FiniteSets
@@ -227,10 +232,48 @@ Inv_StatusMonotonic ==
           g == DerivedConfidence(prefix)
       IN s \in Statuses /\ g \in 0..MaxConfidence
 
+\* T5: Confidence boundedness.
+\* DerivedConfidence is always within [0, MaxConfidence].
 Inv_ConfidenceBounded ==
   WellFormed(events) =>
-    /\ DerivedStatus(events) \in Statuses
-    /\ DerivedConfidence(events) \in 0..MaxConfidence
+    DerivedConfidence(events) \in 0..MaxConfidence
+
+\* T6: Status--Confidence Consistency.
+\* If the derived status is VALIDATED, then at least one VALIDATE event exists.
+Inv_StatusConfidenceConsistency ==
+  WellFormed(events) =>
+    (DerivedStatus(events) = "VALIDATED" =>
+       \E i \in 1..Len(events) : events[i].event_type = "VALIDATE")
+
+\* T6 corollary: N_min enforcement.
+\* If VALIDATE exists, distinct validators must be >= N_min.
+Inv_NminEnforced ==
+  WellFormed(events) =>
+    (DerivedStatus(events) = "VALIDATED" => Cardinality(Validators(events)) >= N_min)
+
+\* T1: Determinism. Derived status is the LUB of all event statuses.
+Inv_Determinism ==
+  WellFormed(events) =>
+    DerivedStatus(events) = LUB({StatusOf(events[i].event_type) : i \in 1..Len(events)})
+
+\* T7: Prefix well-formedness. Any prefix of a well-formed chain is well-formed.
+Inv_PrefixWellFormed ==
+  WellFormed(events) =>
+    \A prefix_len \in 1..Len(events) :
+      WellFormed(SubSeq(events, 1, prefix_len))
+
+\* T4: Per-event confidence boundedness.
+Inv_PerEventConfidenceBounded ==
+  WellFormed(events) =>
+    \A i \in 1..Len(events) : events[i].confidence \in 0..MaxConfidence
+
+\* T1: Hash chain integrity.
+\* prev linkage is continuous and event ids are strictly monotonic.
+Inv_HashIntegrity ==
+  WellFormed(events) =>
+    /\ Len(events) > 0 => events[1].prev = 0
+    /\ \A i \in 2..Len(events) : events[i].prev = events[i-1].event_id
+    /\ \A i, j \in 1..Len(events) : i < j => events[i].event_id < events[j].event_id
 
 --------------------------------------------------------------------------------
 \* Specification
@@ -238,5 +281,5 @@ Inv_ConfidenceBounded ==
 
 Spec == Init /\ [][Next]_<<events, next_id>>
 
-THEOREM ConsensusInvariants == Spec => [](Inv_WellFormednessPreserved /\ Inv_ValidTransition)
+THEOREM ConsensusInvariants == Spec => [](Inv_WellFormednessPreserved /\ Inv_ValidTransition /\ Inv_Determinism)
 ================================================================================

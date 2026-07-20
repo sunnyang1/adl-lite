@@ -3,6 +3,7 @@
    The lattice order is: PROVISIONAL < FORKED < VALIDATED < DEPRECATED < ARCHIVED. *)
 
 Require Import List Arith Lia String.
+Import ListNotations.
 
 Inductive status : Set :=
   | PROVISIONAL
@@ -143,6 +144,65 @@ Proof.
   - apply fold_left_status_max_least.
     + apply Hbound. left; reflexivity.
     + intros s Hin. apply Hbound. right. apply Hin.
+Qed.
+
+(* Helper: status_max with PROVISIONAL is identity. *)
+Lemma status_max_provisional_id : forall (acc : status), status_max acc PROVISIONAL = acc.
+Proof.
+  intros acc. unfold status_max. destruct acc; reflexivity.
+Qed.
+
+(* Helper: status_max yields VALIDATED iff one of the operands is VALIDATED. *)
+Lemma status_max_eq_VALIDATED : forall a b,
+  status_max a b = VALIDATED -> a = VALIDATED \/ b = VALIDATED.
+Proof.
+  intros a b. unfold status_max.
+  destruct a; destruct b; simpl; try discriminate; auto.
+Qed.
+
+(* Lemma: if fold_left status_max ss acc = VALIDATED and acc has rank <= 2,
+   then either VALIDATED is in ss or acc = VALIDATED. *)
+Lemma fold_left_status_max_eq_validated_implies_in : forall (ss : list status) (acc : status),
+  status_rank acc <= 2 ->
+  fold_left status_max ss acc = VALIDATED ->
+  In VALIDATED ss \/ acc = VALIDATED.
+Proof.
+  induction ss as [| s ss' IH]; simpl; intros acc Hrank Heq.
+  - right. apply Heq.
+  - assert (Hrank2 : status_rank (status_max acc s) <= 2).
+    { assert (Hge : status_leq (status_max acc s) (fold_left status_max ss' (status_max acc s))).
+      { apply fold_left_status_max_acc_leq. }
+      rewrite Heq in Hge.
+      unfold status_leq in Hge. simpl in Hge. lia.
+    }
+    apply IH in Heq; auto.
+    destruct Heq as [Hin | Hmax].
+    + left. right. apply Hin.
+    + apply status_max_eq_VALIDATED in Hmax.
+      destruct Hmax as [Hacc | Hs].
+      * right. apply Hacc.
+      * left. rewrite Hs. simpl. left. reflexivity.
+Qed.
+
+(* Lemma: fold_left with status_max distributes over app. *)
+Lemma fold_left_status_max_app : forall (ss1 ss2 : list status) (acc : status),
+  fold_left status_max (ss1 ++ ss2) acc = fold_left status_max ss2 (fold_left status_max ss1 acc).
+Proof.
+  induction ss1 as [| s ss1' IH]; simpl; intros.
+  - reflexivity.
+  - apply IH.
+Qed.
+
+(* Lemma: status_lub (ss ++ [s]) = status_max (status_lub ss) s. *)
+Lemma status_lub_append : forall (ss : list status) (s : status),
+  status_lub (ss ++ [s]) = status_max (status_lub ss) s.
+Proof.
+  intros ss s.
+  destruct ss as [| s0 ss'].
+  - simpl. unfold status_max. simpl. reflexivity.
+  - simpl.
+    rewrite fold_left_status_max_app.
+    simpl. reflexivity.
 Qed.
 
 (* Theorem T3 (status monotonicity): the derived status of a chain is

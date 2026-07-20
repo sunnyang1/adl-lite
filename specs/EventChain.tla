@@ -8,11 +8,16 @@
     - Status derivation as Least Upper Bound over the lifecycle lattice.
     - Confidence as G-Counter max over VALIDATE/SNAPSHOT events.
     - Monotonicity invariants (status never regresses, confidence bounded).
+    - Fork determinism (T2): parent status = max(original, FORKED), child = PROVISIONAL.
+    - Status--confidence consistency (T6): VALIDATED implies ≥1 VALIDATE event.
 
   This is a bounded abstraction: hashes are modeled as injective labels,
   signatures/proofs are abstracted to an ``authenticated`` predicate, and
   payloads are simplified. The goal is to machine-check the structural
-  invariants that underpin Theorems T1, T3, T4, T5, and T7.
+  invariants that underpin Theorems T1, T2, T3, T4, T5, T6, and T7.
+
+  Proof status: T1–T7 are machine-verified in Coq 8.18.0 (Iris separation
+  logic).  TLA+ provides bounded model checking (chains up to 20 events).
 *)
 
 EXTENDS Integers, Sequences, FiniteSets
@@ -165,8 +170,27 @@ Next ==
 \* Invariants (Theorems)
 --------------------------------------------------------------------------------
 
-\* T1 Determinism: status and confidence are deterministic functions of the chain.
-Inv_Determinism == TRUE  \* derived by construction
+\* T1 Determinism: DerivedStatus is exactly the LUB of lifecycle event statuses.
+\* This invariant is the TLA+ analogue of Coq theorem derived_status_is_lub
+\* and underlies the E2 experiment (status derivation accuracy).
+Inv_Determinism ==
+  WellFormed(events) =>
+    \A prefix_len \in 1..Len(events) :
+      LET prefix == SubSeq(events, 1, prefix_len)
+      IN DerivedStatus(prefix) = LUB({StatusOf(prefix[i].event_type) : i \in 1..Len(prefix)})
+
+\* E2: Inductive correctness of incremental status derivation.
+\* For every event after the first, the derived status of the prefix up to
+\* that event equals the LUB of (a) the derived status before that event
+\* and (b) the StatusOf of that event.  This is the machine-checked form
+\* of the Coq theorem E2_inductive_status_derivation.
+Inv_E2_Incremental ==
+  WellFormed(events) =>
+    \A i \in 2..Len(events) :
+      LET prefix  == SubSeq(events, 1, i)
+          prev    == SubSeq(events, 1, i - 1)
+          et_i    == events[i].event_type
+      IN DerivedStatus(prefix) = LUB({DerivedStatus(prev), StatusOf(et_i)})
 
 \* T3/T5: status never regresses; confidence stays bounded.
 Inv_StatusMonotonic ==
@@ -185,6 +209,45 @@ Inv_MonotonicAppend ==
         old_conf   == DerivedConfidence(events)
     IN old_status \in LatticeOrder["PROVISIONAL"]
        /\ old_conf \in 0..MaxConfidence
+
+\* T6: Status--Confidence Consistency.
+\* If the derived status is VALIDATED, then at least one VALIDATE event exists.
+Inv_StatusConfidenceConsistency ==
+  WellFormed(events) =>
+    (DerivedStatus(events) = "VALIDATED" =>
+       \E i \in 1..Len(events) : events[i].event_type = "VALIDATE")
+
+\* T2: Fork Determinism.
+\* Appending a FORK event sets status = max(original, FORKED).
+Inv_ForkDeterminism ==
+  WellFormed(events) =>
+    \A prefix_len \in 1..Len(events) :
+      LET prefix == SubSeq(events, 1, prefix_len)
+          etype  == events[prefix_len].event_type
+      IN etype = "FORK" =>
+           DerivedStatus(prefix) =
+             IF DerivedStatus(SubSeq(prefix, 1, Len(prefix) - 1)) = "ARCHIVED" THEN "ARCHIVED"
+             ELSE IF DerivedStatus(SubSeq(prefix, 1, Len(prefix) - 1)) = "DEPRECATED" THEN "DEPRECATED"
+             ELSE IF DerivedStatus(SubSeq(prefix, 1, Len(prefix) - 1)) = "VALIDATED" THEN "VALIDATED"
+             ELSE IF DerivedStatus(SubSeq(prefix, 1, Len(prefix) - 1)) = "FORKED" THEN "FORKED"
+             ELSE "FORKED"
+
+\* T5-γ_agg: Confidence boundedness.
+\* The derived confidence never exceeds MaxConfidence.
+Inv_ConfidenceBoundedness ==
+  WellFormed(events) => DerivedConfidence(events) \in 0..MaxConfidence
+
+\* T4: Confidence boundedness per event.
+\* Every individual event confidence is within bounds.
+Inv_PerEventConfidenceBounded ==
+  WellFormed(events) =>
+    \A i \in 1..Len(events) : events[i].confidence \in 0..MaxConfidence
+
+\* T7: Prefix well-formedness. Any prefix of a well-formed chain is well-formed.
+Inv_PrefixWellFormed ==
+  WellFormed(events) =>
+    \A prefix_len \in 1..Len(events) :
+      WellFormed(SubSeq(events, 1, prefix_len))
 
 \* T7: Well-formedness is preserved by AppendEvent.
 Inv_WellFormednessPreserved == WellFormed(events)

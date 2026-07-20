@@ -8,7 +8,7 @@
 Require Import List Arith Bool String Lia.
 Require Import Coq.Sorting.Permutation Coq.Sorting.Sorted.
 Import ListNotations.
-Require Import ADL.Event ADL.Chain.
+Require Import ADL.Event ADL.Chain ADL.Confidence ADL.Crypto.
 
 Definition branch := chain.
 
@@ -25,12 +25,14 @@ Proof. decide equality. Defined.
 
 Lemma event_eq_dec : forall e1 e2 : event, {e1 = e2} + {e1 <> e2}.
 Proof.
-  intros [i1 a1 t1 c1 p1] [i2 a2 t2 c2 p2].
+  intros [i1 a1 t1 c1 p1 s1 pk1] [i2 a2 t2 c2 p2 s2 pk2].
   destruct (Nat.eq_dec i1 i2); [ | right; congruence ].
   destruct (string_dec a1 a2); [ | right; congruence ].
   destruct (adl_event_type_eq_dec t1 t2); [ | right; congruence ].
   destruct (Nat.eq_dec c1 c2); [ | right; congruence ].
   destruct (option_eq_dec Nat.eq_dec p1 p2); [ | right; congruence ].
+  destruct (option_eq_dec sig_bytes_eq_dec s1 s2); [ | right; congruence ].
+  destruct (option_eq_dec pubkey_eq_dec pk1 pk2); [ | right; congruence ].
   left. f_equal; auto.
 Qed.
 
@@ -412,7 +414,7 @@ Fixpoint reanchor_aux (es : branch) (prev_id : option nat) : branch :=
   match es with
   | nil => nil
   | e :: es' =>
-      mkEvent (event_id e) (actor e) (event_type e) (confidence e) prev_id
+      mkEvent (event_id e) (actor e) (event_type e) (confidence e) prev_id None None
       :: reanchor_aux es' (Some (event_id e))
   end.
 
@@ -564,6 +566,64 @@ Proof.
   apply in_reanchor_aux_source_content in Hin as [s [Hins Hc]].
   rewrite in_sort_by_id in Hins. apply in_dedup in Hins.
   exists s. split; auto.
+Qed.
+
+(* reanchor_aux clears signatures and public keys to None. *)
+Lemma reanchor_aux_signature_none : forall es prev_id e,
+  In e (reanchor_aux es prev_id) -> signature e = None /\ public_key e = None.
+Proof.
+  intros es prev_id e Hin.
+  revert prev_id Hin.
+  induction es as [| e0 es' IH]; intros prev_id Hin; simpl in Hin.
+  - destruct Hin.
+  - destruct Hin as [Heq | Hin].
+    + destruct Heq. split; simpl; auto.
+    + apply (IH (Some (event_id e0))) in Hin. apply Hin.
+Qed.
+
+(* Scope ACL is preserved by merge because [actor] is part of [event_content]. *)
+Lemma all_events_scope_acl_merge : forall b1 b2,
+  (forall e, In e b1 -> valid_scope (actor e)) ->
+  (forall e, In e b2 -> valid_scope (actor e)) ->
+  forall e, In e (merge_branch b1 b2) -> valid_scope (actor e).
+Proof.
+  intros b1 b2 H1 H2 e Hin.
+  apply in_merge_branch_source_content in Hin as [s [Hins Hc]].
+  apply event_content_eq_iff in Hc as [Hid [Ha [Ht Hc]]].
+  rewrite Ha. apply in_app_or in Hins. destruct Hins as [Hins | Hins].
+  - apply H1. apply Hins.
+  - apply H2. apply Hins.
+Qed.
+
+(* Signature verification is trivial after [reanchor] because signatures are
+   cleared to [None]. *)
+Lemma all_events_signature_verification_merge : forall b1 b2 e,
+  In e (merge_branch b1 b2) -> valid_signature e.
+Proof.
+  intros b1 b2 e Hin.
+  unfold merge_branch in Hin.
+  apply reanchor_aux_signature_none in Hin as [Hs Hpk].
+  unfold valid_signature.
+  destruct (signature e) eqn:Es.
+  - rewrite Hs in Es. discriminate.
+  - destruct (public_key e) eqn:Epk.
+    + rewrite Hpk in Epk. discriminate.
+    + auto.
+Qed.
+
+(* Confidence clamped is preserved by merge because [confidence] is part of
+   [event_content]. *)
+Lemma all_events_confidence_clamped_merge : forall b1 b2,
+  (forall e, In e b1 -> confidence e <= MAX_SCALED) ->
+  (forall e, In e b2 -> confidence e <= MAX_SCALED) ->
+  forall e, In e (merge_branch b1 b2) -> confidence e <= MAX_SCALED.
+Proof.
+  intros b1 b2 H1 H2 e Hin.
+  apply in_merge_branch_source_content in Hin as [s [Hins Hc]].
+  apply event_content_eq_iff in Hc as [Hid [Ha [Ht Hc]]].
+  rewrite Hc. apply in_app_or in Hins. destruct Hins as [Hins | Hins].
+  - apply H1. apply Hins.
+  - apply H2. apply Hins.
 Qed.
 
 Lemma reanchor_aux_eq : forall es1 es2 prev_id,
@@ -811,12 +871,15 @@ Theorem merge_preserves_well_formed : forall b1 b2 : branch,
   well_formed b1 -> well_formed b2 -> well_formed (merge_branch b1 b2).
 Proof.
   intros b1 b2 Hwf1 Hwf2.
-  destruct Hwf1 as [Hv1 [Hd1 [Hi1 [Hp1 _]]]].
-  destruct Hwf2 as [Hv2 [Hd2 [Hi2 [Hp2 _]]]].
+  destruct Hwf1 as [Hv1 [Hd1 [Hi1 [Hp1 [Hscope1 [Hprecond1 [Hsig1 [Hshacl1 [Hstatus1 [Hconf1 [Hmono1 [Hcollusion1 Hsynth1]]]]]]]]]]]].
+  destruct Hwf2 as [Hv2 [Hd2 [Hi2 [Hp2 [Hscope2 [Hprecond2 [Hsig2 [Hshacl2 [Hstatus2 [Hconf2 [Hmono2 [Hcollusion2 Hsynth2]]]]]]]]]]]].
   repeat split.
-  - apply all_events_valid_merge; assumption.
+  all: try exact I.
+  - exact (all_events_valid_merge b1 b2 Hv1 Hv2).
   - apply distinct_ids_merge.
   - apply increasing_ids_merge.
   - apply reanchor_linkage.
-  all: auto.
+  - exact (all_events_scope_acl_merge b1 b2 Hscope1 Hscope2).
+  - exact (all_events_signature_verification_merge b1 b2).
+  - exact (all_events_confidence_clamped_merge b1 b2 Hconf1 Hconf2).
 Qed.
