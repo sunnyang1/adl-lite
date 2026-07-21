@@ -25,6 +25,13 @@ AML_CSV = (
     Path(__file__).resolve().parent.parent / "data" / "aml" / "ibm_data" / "HI-Small_Trans.csv"
 )
 
+# The IBM AML dataset is gitignored (data/aml/ibm_data/) and therefore absent
+# in CI and fresh clones — skip rather than error when it is not on disk.
+pytestmark = pytest.mark.skipif(
+    not AML_CSV.exists(),
+    reason="IBM AML dataset not present (data/aml/ibm_data/ is gitignored)",
+)
+
 # Ground truth: known entity classes in the AML schema
 GROUND_TRUTH_CLASSES = {"Account", "Bank", "Payment", "Transaction"}
 

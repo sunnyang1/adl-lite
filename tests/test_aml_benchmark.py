@@ -23,6 +23,13 @@ AML_CSV = (
     Path(__file__).resolve().parent.parent / "data" / "aml" / "ibm_data" / "HI-Small_Trans.csv"
 )
 
+# The IBM AML dataset is gitignored (data/aml/ibm_data/) and therefore absent
+# in CI and fresh clones — skip rather than error when it is not on disk.
+pytestmark = pytest.mark.skipif(
+    not AML_CSV.exists(),
+    reason="IBM AML dataset not present (data/aml/ibm_data/ is gitignored)",
+)
+
 
 def _detect_patterns(suspicious: dict[str, EventChain]) -> dict[str, list[str]]:
     """Reproduce the pattern detector from e6_aml_pipeline.py."""
