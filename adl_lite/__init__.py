@@ -28,18 +28,15 @@ Quick Start:
 
 __version__ = "0.6.0-alpha"
 
+import importlib as _importlib
+from typing import Any as _Any
+
 from .action_executor import ActionExecutor
 from .calibration import (
     CalibrationProfile,
     MARGINCalibrator,
     aggregated_confidence,
     calibrated_confidence,
-)
-from .canonicalization import (
-    AnthropicLLMBackend,
-    CanonicalizationEngine,
-    LLMBackend,
-    OpenAILLMBackend,
 )
 from .consensus import ConsensusEngine, ForkManager, ForkResolution
 from .crdt import CRDTState, StatusOrder, merge_event_chains
@@ -54,7 +51,6 @@ from .did_resolver import (
     resolve_did_web,
     verify_did_signature,
 )
-from .embeddings import EmbeddingBackend, OpenAIBackend, SentenceTransformerBackend
 from .exceptions import (  # type: ignore[attr-defined]
     ADLConfigError,
     ADLConsensusError,
@@ -83,11 +79,6 @@ from .metering import (
     compute_period_window,
     get_usage_meter,
 )
-from .near_duplicate import (
-    check_near_duplicate,
-    check_near_duplicate_embedding,
-    suggest_merge,
-)
 from .neo4j_adapter import Neo4jGraphAdapter
 from .owl_export import export_owl
 from .owl_import import parse_owl_rdfxml, parse_owl_turtle
@@ -100,14 +91,12 @@ from .quota import (
 )
 from .rdfstar_export import document_to_rdfstar_turtle, sparqlstar_query_template
 from .relation_validator import RelationValidator
-from .shacl_validation import validate_adl_document
 from .tenant import (
     DEFAULT_TENANT,
     TenantContext,
     get_tenant_registry,
     require_tenant,
 )
-from .vector_index import VectorIndex
 
 # FDE Platform extensions (optional — imports are safe even if modules don't exist yet)
 try:
@@ -159,6 +148,47 @@ from .models import (
 from .ontology import OntologyManager
 from .parser import ADLParser, extract_wiki_links, parse_file, parse_text
 from .validator import ADLValidator
+
+# ---------------------------------------------------------------------------
+# PEP 562 lazy loading for symbols whose modules pull optional heavy
+# dependencies (numpy / rdflib / pyshacl / faiss / sentence-transformers).
+# This keeps ``import adl_lite`` working in a bare (core-deps-only) install
+# while preserving the public ``from adl_lite import X`` API unchanged.
+# ---------------------------------------------------------------------------
+_LAZY_ATTRS: dict[str, str] = {
+    # SHACL validation (requires rdflib + pyshacl — the [gov] extra)
+    "validate_adl_document": ".shacl_validation",
+    # Embedding backends (require numpy / sentence-transformers)
+    "EmbeddingBackend": ".embeddings",
+    "OpenAIBackend": ".embeddings",
+    "SentenceTransformerBackend": ".embeddings",
+    # FAISS vector index (requires numpy + faiss-cpu — the [embeddings] extra)
+    "VectorIndex": ".vector_index",
+    # LLM-driven canonicalization
+    "AnthropicLLMBackend": ".canonicalization",
+    "CanonicalizationEngine": ".canonicalization",
+    "LLMBackend": ".canonicalization",
+    "OpenAILLMBackend": ".canonicalization",
+    # Near-duplicate detection (embedding path needs the [embeddings] extra)
+    "check_near_duplicate": ".near_duplicate",
+    "check_near_duplicate_embedding": ".near_duplicate",
+    "suggest_merge": ".near_duplicate",
+}
+
+
+def __getattr__(name: str) -> _Any:
+    module_path = _LAZY_ATTRS.get(name)
+    if module_path is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module = _importlib.import_module(module_path, __name__)
+    value = getattr(module, name)
+    globals()[name] = value  # cache for subsequent attribute access
+    return value
+
+
+def __dir__() -> list[str]:
+    return sorted(set(globals()) | set(_LAZY_ATTRS))
+
 
 __all__ = [
     # Version

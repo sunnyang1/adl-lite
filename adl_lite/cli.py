@@ -592,6 +592,37 @@ def _cmd_consensus_verify(args: argparse.Namespace) -> int:
     return 1
 
 
+def _cmd_mcp(args: argparse.Namespace) -> int:
+    """Start the ADL Lite MCP tool server (requires the [mcp] extra).
+
+    Two exit paths:
+      * mcp package not installed -> install guidance + exit 1
+      * success                   -> blocks serving on the chosen transport
+    """
+    try:
+        from .mcp_server import create_mcp_server
+    except ImportError as exc:
+        print(
+            "The MCP server requires the optional 'mcp' extra.\n"
+            "Install it with: pip install adl-lite[mcp]",
+            file=sys.stderr,
+        )
+        print(f"(detail: {exc})", file=sys.stderr)
+        return 1
+
+    server = create_mcp_server(state_path=args.state_path)
+    if args.transport == "stdio":
+        server.run(transport="stdio")
+    else:
+        # FastMCP reads host/port for streamable-http from its settings.
+        try:
+            server.settings.port = args.port
+        except AttributeError:
+            pass
+        server.run(transport="streamable-http")
+    return 0
+
+
 def _cmd_neo4j_status(args: argparse.Namespace) -> int:
     """Check Neo4j connection status and node count.
 
@@ -731,6 +762,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
+    # NOTE: --strict-template is registered BOTH here (legacy position, kept for
+    # backward compatibility — argparse only applies a subparser's flag default
+    # when the attribute is not already set, so the root value survives) and on
+    # the `validate` subparser (the documented, discoverable position:
+    # `adl-lite validate --strict-template examples/*.md`).
     parser.add_argument(
         "--strict-template",
         action="store_true",
@@ -754,6 +790,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--strict",
         action="store_true",
         help="Reject unknown L3 relation predicates (ontology registry)",
+    )
+    p_validate.add_argument(
+        "--strict-template",
+        action="store_true",
+        help="Enforce strict L2 template validation on all parsed documents",
     )
     p_validate.add_argument(
         "--shacl",
@@ -973,6 +1014,29 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Emit JSON output",
     )
     p_normalize.set_defaults(func=_cmd_normalize)
+
+    p_mcp = sub.add_parser(
+        "mcp",
+        help="Start the MCP tool server (requires the [mcp] extra)",
+    )
+    p_mcp.add_argument(
+        "--transport",
+        choices=["stdio", "streamable-http"],
+        default="stdio",
+        help="Transport mode (default: stdio)",
+    )
+    p_mcp.add_argument(
+        "--state-path",
+        default=None,
+        help="Path to consensus state JSON file (default: .adl/state.json)",
+    )
+    p_mcp.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port for streamable-http transport (default: 8000)",
+    )
+    p_mcp.set_defaults(func=_cmd_mcp)
 
     return parser
 

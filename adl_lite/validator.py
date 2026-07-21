@@ -267,6 +267,10 @@ class ADLValidator:
 
         try:
             conforms, report = validate_adl_document(doc)
+        except ImportError as exc:
+            # pyshacl/rdflib are imported lazily inside shacl_validation; a
+            # missing [gov] extra surfaces here instead of at import time.
+            return [ValidationResult("SHACL", "Warning", f"SHACL validation unavailable: {exc}")]
         except Exception as exc:  # noqa: BLE001
             return [ValidationResult("SHACL", "Error", f"SHACL validation error: {exc}")]
 

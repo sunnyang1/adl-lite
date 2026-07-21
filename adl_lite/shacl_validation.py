@@ -15,13 +15,37 @@ Example usage:
 
 from __future__ import annotations
 
-from pyshacl import validate
-from rdflib import BNode, Graph, Literal, Namespace, URIRef
-from rdflib.namespace import RDF, XSD
+from typing import TYPE_CHECKING
 
 from .models import ADLDocument, DiscoveryStatus
 
-ADL = Namespace("https://adl-lite.org/ns/")
+if TYPE_CHECKING:
+    # rdflib / pyshacl are optional dependencies (the [gov] extra). They are
+    # imported lazily inside the functions below so that ``import adl_lite``
+    # works in a bare (core-deps-only) installation.
+    from rdflib import Graph, Literal, Namespace, URIRef
+
+_ADL_NS = "https://adl-lite.org/ns/"
+
+
+def _require_gov_deps() -> None:
+    """Raise an actionable ImportError when the optional [gov] deps are missing."""
+    try:
+        import pyshacl  # noqa: F401
+        import rdflib  # noqa: F401
+    except ImportError as exc:
+        raise ImportError(
+            "SHACL validation requires the optional 'gov' extra. "
+            "Install with: pip install adl-lite[gov]"
+        ) from exc
+
+
+def _adl_namespace() -> Namespace:
+    """Return the ADL namespace (imports rdflib lazily)."""
+    from rdflib import Namespace
+
+    return Namespace(_ADL_NS)
+
 
 # Inline SHACL shape graph (extracted from Appendix B of the paper)
 _ADL_SHAPES_TURTLE = """
@@ -179,21 +203,13 @@ _shapes_graph: Graph | None = None
 
 def _get_shapes_graph() -> Graph:
     """Lazy-load the ADL SHACL shapes graph."""
+    from rdflib import Graph
+
     global _shapes_graph
     if _shapes_graph is None:
         _shapes_graph = Graph()
         _shapes_graph.parse(data=_ADL_SHAPES_TURTLE, format="turtle")
     return _shapes_graph
-
-
-def _shacl_available() -> bool:
-    """Return True if pyshacl is importable."""
-    try:
-        import pyshacl  # noqa: F401
-
-        return True
-    except ImportError:
-        return False
 
 
 def validate_adl_rdf(rdf_data: str, rdf_format: str = "turtle") -> tuple[bool, str]:
@@ -206,7 +222,15 @@ def validate_adl_rdf(rdf_data: str, rdf_format: str = "turtle") -> tuple[bool, s
 
     Returns:
         (conforms, report_text)
+
+    Raises:
+        ImportError: If pyshacl/rdflib are not installed (the [gov] extra).
     """
+    _require_gov_deps()
+
+    from pyshacl import validate
+    from rdflib import Graph
+
     data_graph = Graph()
     data_graph.parse(data=rdf_data, format=rdf_format)
 
@@ -224,6 +248,8 @@ def validate_adl_rdf(rdf_data: str, rdf_format: str = "turtle") -> tuple[bool, s
 
 def _as_rdf_term(value: str, adl: Namespace) -> URIRef | Literal:
     """Convert a relation source/target string to an RDF term."""
+    from rdflib import URIRef
+
     stripped = value.strip()
     if stripped.startswith(("http://", "https://", "adl://")):
         return URIRef(stripped)
@@ -233,13 +259,16 @@ def _as_rdf_term(value: str, adl: Namespace) -> URIRef | Literal:
 
 def _document_to_rdf_graph(doc: ADLDocument) -> Graph:
     """Build an RDF data graph from an ADLDocument for SHACL validation."""
+    from rdflib import BNode, Graph, Literal
+    from rdflib.namespace import RDF, XSD
+
     from .models import EventType
     from .prov_export import to_prov_o
 
     g = Graph()
     g.parse(data=to_prov_o(doc.event_chain), format="turtle")
 
-    adl = ADL
+    adl = _adl_namespace()
 
     # Status lookup: at minimum we know the document's own status.
     status_lookup: dict[str, DiscoveryStatus] = {
@@ -313,13 +342,11 @@ def validate_adl_document(doc: ADLDocument) -> tuple[bool, str]:
         (conforms, report_text)
 
     Raises:
-        ImportError: If pyshacl is not installed.
+        ImportError: If pyshacl/rdflib are not installed (the [gov] extra).
     """
-    if not _shacl_available():
-        raise ImportError(
-            "SHACL validation requires the optional 'gov' extra. "
-            "Install with: pip install -e '.[gov]'"
-        )
+    _require_gov_deps()
+
+    from pyshacl import validate
 
     data_graph = _document_to_rdf_graph(doc)
     conforms, _, results_text = validate(

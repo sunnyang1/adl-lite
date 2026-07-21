@@ -38,6 +38,35 @@ The capital trap pattern is **isomorphic** to the "gradient explosion" problem i
 - Gradient explosion: small weights amplify errors through multiplicative paths
 - Capital trap: peripheral nodes amplify obscurity through structural camouflage
 
+## Observation
+
+In the monitored AML transaction network, fund flows concentrate on
+structurally peripheral nodes instead of legitimate hub nodes. High-dimensional
+clustering isolates the peripheral-node flows as 3-sigma outliers (E1), and
+Monte Carlo simulation shows the "attention trap" topology forming under 78% of
+adversarial routing strategies (E2). Senior analyst review against 5-year
+historical data confirms the pattern is novel rather than a known layering
+variant (E3).
+
+## Reasoning
+
+Illicit actors route capital through peripheral nodes with high clustering
+coefficient, manufacturing a topological illusion of dispersion while funds
+actually funnel toward a common sink. The mechanism is isomorphic to gradient
+explosion in deep networks: just as small weights amplify error signals along
+multiplicative paths, peripheral nodes amplify obscurity through structural
+camouflage. The mapping preserves cycles, so graph-theoretic results from the
+source domain transfer to the AML setting (see Formal Seal).
+
+## Conclusion
+
+The "Capital Attention Trap" is a distinct, previously unrecorded laundering
+topology: an isomorphic mapping of gradient-explosion dynamics onto
+transaction graphs, specialised from classical money-laundering layering.
+Recommended actions: register as provisional discovery (confidence 84%),
+request cross-agent validation via `adl://shared/ceiec-review`, and complete
+the Lean 4 formal seal for cycle preservation.
+
 ## Related Concepts
 
 - [[Gradient Explosion]] — public domain concept, topologically isomorphic source

@@ -19,7 +19,11 @@ from pathlib import Path
 
 import pytest
 
-from adl_lite.mcp_server import create_mcp_server
+# The MCP SDK is an optional dependency (the [mcp]/[dev] extras). Skip the
+# whole module when it is not installed so collection never fails.
+mcp = pytest.importorskip("mcp")
+
+from adl_lite.mcp_server import create_mcp_server  # noqa: E402
 
 EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples"
 CAPITAL_TRAP = EXAMPLES_DIR / "capital_reflux_trap.md"

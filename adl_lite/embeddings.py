@@ -7,9 +7,13 @@ fast when embedding dependencies are not installed.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
-import numpy as np
+if TYPE_CHECKING:
+    # numpy is an optional dependency (pulled in by the [embeddings] extra).
+    # It is imported lazily inside the backend ``encode`` methods so that
+    # ``import adl_lite`` works in a bare (core-deps-only) installation.
+    import numpy as np
 
 
 @runtime_checkable
@@ -67,6 +71,8 @@ class SentenceTransformerBackend:
         return self._model_name
 
     def encode(self, texts: list[str]) -> np.ndarray:
+        import numpy as np
+
         model = self._load()
         embeddings = model.encode(
             texts,
@@ -117,6 +123,8 @@ class OpenAIBackend:
         return self._model
 
     def encode(self, texts: list[str]) -> np.ndarray:
+        import numpy as np
+
         client = self._get_client()
         response = client.embeddings.create(input=texts, model=self._model)
         vectors = [item.embedding for item in response.data]

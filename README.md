@@ -3,7 +3,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version: 0.6.0-alpha](https://img.shields.io/badge/version-v0.6.0--alpha-blue.svg)](https://github.com/sunnyang1/adl-lite/releases/tag/v0.6.0-alpha)
-[![Tests: 1358 PASS](https://img.shields.io/badge/tests-1358%20PASS-brightgreen.svg)]()
+[![Tests: 1532 PASS](https://img.shields.io/badge/tests-1532%20PASS-brightgreen.svg)]()
 [![Coverage: 87%](https://img.shields.io/badge/coverage-87%25-brightgreen.svg)]()
 [![Applied Ontology: under revision](https://img.shields.io/badge/Journal-Applied%20Ontology-orange.svg)](https://www.iospress.nl/journal/applied-ontology/)
 
@@ -18,7 +18,7 @@ ADL Lite is a **Markdown-native, event-first capability registry** for LLM agent
 ```bash
 git clone https://github.com/sunnyang1/adl-lite.git && cd adl-lite
 pip install -e ".[dev]"        # dev install with pytest + ruff + mypy
-pytest tests/ -m "not slow" -v # 1358 tests, 87% coverage
+pytest tests/ -m "not slow" -v # 1532 tests, 87% coverage
 uvicorn adl_lite.api:app --reload --port 8000  # REST API server
 ```
 
@@ -157,7 +157,7 @@ Markdown file (L1/L2/L3/L4) → ADLParser → EventChain → ConsensusEngine →
 
 ## Experiments
 
-28 registered experiments (E1–E30). Run them:
+30 registered experiments (E1–E35). Run them:
 
 ```bash
 python -m experiments.runner list
@@ -175,8 +175,8 @@ Key results: E21 100k events < 1GB memory, E24 10k synthetic chains T1–T7 vali
 ```
 adl-lite/
 ├── adl_lite/            # Core package (20+ modules)
-├── experiments/         # 28 registered experiments (E1–E30)
-├── tests/               # 1358 tests, 87% coverage
+├── experiments/         # 30 registered experiments (E1–E35)
+├── tests/               # 1532 tests, 87% coverage
 ├── docs/                # Paper submission, runbooks, ontology artifacts
 ├── specs/               # TLA+ formal specifications
 ├── formal/coq/          # Coq/Iris proof skeleton

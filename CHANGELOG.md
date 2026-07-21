@@ -5,6 +5,68 @@ All notable changes to ADL Lite are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0-alpha] — 2026-07-21
+
+### Added
+
+- **Phase 2 — multi-tenant isolation, metering, and trust model**:
+  - `adl_lite/tenant.py` (new): tenant registry and `TenantContext` scoped
+    isolation for the consensus API.
+  - `adl_lite/metering.py` (new): usage metering with daily/monthly period
+    windows (`UsageMeter`, `MeteringRecord`, `compute_period_window`).
+  - `adl_lite/quota.py` (new): per-tenant quota policies enforced as a FastAPI
+    dependency (`check_quota`, HTTP 429 on exceed).
+  - `adl_lite/trust_model.py` (new): Phase-1 trust layer on top of
+    `ConsensusEngine` — DID-based validator identity with method-level
+    diversity checks (`TrustValidator`, `ConsensusConfig`); `did:ethr` is
+    explicitly rejected by trust validation.
+  - `adl_lite/api.py` + `adl_lite/api_auth.py` (new): FastAPI REST API for
+    register/transition/status/history/fork with auth, rate limiting, quota,
+    and metering middleware. Version is now sourced from
+    `adl_lite.__version__` (single source of truth).
+  - `adl_lite/mcp_server.py` (new): FastMCP tool server exposing 10 tools,
+    2 resources, and 1 prompt (`adl-lite mcp` / `python -m adl_lite.mcp_server`).
+  - `adl_lite/graph_backends.py` + `adl_lite/neo4j_adapter.py` (new): pluggable
+    graph persistence (NetworkX / SQL / Neo4j) behind a common `GraphBackend`
+    protocol, with `adl-lite neo4j status|check|rebuild` CLI commands.
+
+- **N≥3 CRDT merge**: `merge_event_chains()` generalised from two branches to
+  an arbitrary number of concurrent branches, preserving commutativity,
+  associativity, idempotence, and status/confidence monotonicity (T9).
+
+- **Merkle batch verification**: `TransparencyAnchor.verify_batch()` verifies
+  many chains against a Merkle anchor with per-chain inclusion proofs;
+  `adl-lite verify-batch` CLI command.
+
+- **Formal methods**:
+  - `formal/coq/theories/Crypto.v`: abstract EUF-CMA signature and
+    collision-resistant hash axioms (3 axioms) underlying the chain-integrity
+    proofs.
+  - OWL 2 DL module: `adl_lite/owl_export.py` / `adl_lite/owl_import.py`
+    round-trip the registry as an OWL 2 DL ontology (BFO/IAO-aligned).
+  - Expanded Coq/Iris proofs and TLA+ specs (`specs/CRDTMerge.tla`,
+    `specs/ConsensusEngine.tla`).
+
+- **Experiments**: E34 (precondition language formalization & O(1) benchmark)
+  and E35 (expert validation simulation — inter-rater agreement); the runner
+  now degrades gracefully when an experiment's optional dependencies are
+  missing (e.g. E19 without `pygit2`).
+
+### Changed
+
+- **Bare-install robustness**: `import adl_lite` no longer requires optional
+  heavy dependencies. `pyshacl`/`rdflib` (`shacl_validation.py`,
+  `prov_export.py`) and `numpy` (`embeddings.py`, `vector_index.py`) are
+  imported lazily; the corresponding top-level symbols
+  (`validate_adl_document`, `VectorIndex`, `EmbeddingBackend`,
+  `CanonicalizationEngine`, near-duplicate helpers, …) resolve via PEP 562
+  lazy loading with actionable `pip install adl-lite[...]` guidance.
+- `adl-lite validate --strict-template` is now a flag of the `validate`
+  subcommand (previously attached to the root parser where it could not be
+  used).
+- `did:ethr` error messages reference the correct extra name
+  (`pip install adl-lite[did]`).
+
 ## [0.5.0-alpha] — 2026-06-25
 
 ### Added

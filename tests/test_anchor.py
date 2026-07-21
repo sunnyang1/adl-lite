@@ -9,39 +9,41 @@ from adl_lite.key_registry import TransparencyAnchor
 from adl_lite.models import Event, EventChain, EventType
 
 
-def test_anchor_idempotent():
+def test_anchor_idempotent(tmp_path):
     chain = EventChain(concept_id="b")
     chain.append(Event(concept_id="b", event_type=EventType.REGISTER))
     chain2 = EventChain(concept_id="a")
     chain2.append(Event(concept_id="a", event_type=EventType.REGISTER))
-    a = TransparencyAnchor()
+    # NOTE: anchor files are written to tmp_path — the default ANCHOR.md path
+    # must never be used in tests (it is a tracked repo file).
+    a = TransparencyAnchor(str(tmp_path / "ANCHOR.md"))
     h1 = a.anchor([chain, chain2])
     h2 = a.anchor([chain2, chain])
     assert h1 == h2
 
 
-def test_verify_anchor():
+def test_verify_anchor(tmp_path):
     chain = EventChain(concept_id="c")
     chain.append(Event(concept_id="c", event_type=EventType.REGISTER))
-    a = TransparencyAnchor()
+    a = TransparencyAnchor(str(tmp_path / "ANCHOR.md"))
     a.anchor([chain])
     assert a.verify_anchor() is True
 
 
-def test_verify_anchor_at_commit():
+def test_verify_anchor_at_commit(tmp_path):
     chain = EventChain(concept_id="c")
     chain.append(Event(concept_id="c", event_type=EventType.REGISTER))
-    a = TransparencyAnchor()
+    a = TransparencyAnchor(str(tmp_path / "ANCHOR.md"))
     a.anchor([chain])
     with patch("subprocess.run") as m:
         m.return_value = MagicMock(stdout=f"`{a._compute_anchor([chain])}`\n", returncode=0)
         assert a.verify_anchor_at_commit("deadbeef") is True
 
 
-def test_anchor_history():
+def test_anchor_history(tmp_path):
     chain = EventChain(concept_id="c")
     chain.append(Event(concept_id="c", event_type=EventType.REGISTER))
-    a = TransparencyAnchor()
+    a = TransparencyAnchor(str(tmp_path / "ANCHOR.md"))
     a.anchor([chain])
 
     call_count = 0
@@ -115,10 +117,10 @@ def test_anchor_merkle_anchormd_format(tmp_path):
     assert "proof=" in content
 
 
-def test_verify_anchor_at_commit_merkle():
+def test_verify_anchor_at_commit_merkle(tmp_path):
     """Mock git show returning Merkle-format ANCHOR.md, verify_anchor_at_commit works."""
     chains = [_make_chain(cid) for cid in ("a", "b")]
-    a = TransparencyAnchor()
+    a = TransparencyAnchor(str(tmp_path / "ANCHOR.md"))
     a.anchor(chains, use_merkle=True)
 
     merkle_root = a._last_tree.root_hex

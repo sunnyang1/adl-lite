@@ -17,9 +17,12 @@ import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import numpy as np
-
 if TYPE_CHECKING:
+    # numpy is an optional dependency (pulled in by the [embeddings] extra).
+    # It is imported lazily inside the methods that need it so that
+    # ``import adl_lite`` works in a bare (core-deps-only) installation.
+    import numpy as np
+
     from .embeddings import EmbeddingBackend
 
 
@@ -113,6 +116,8 @@ class VectorIndex:
         return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
     def _encode(self, texts: list[str]) -> np.ndarray:
+        import numpy as np
+
         if not texts:
             return np.zeros((0, self._dim), dtype=np.float32)
         vectors = self._backend.encode(texts)
@@ -285,6 +290,8 @@ class VectorIndex:
         Returns a list of dicts sorted by similarity descending:
         ``{"adl_id": str, "similarity": float, "text": str}``.
         """
+        import numpy as np
+
         query_vector = self._encode([query])
         distances, indices = self._index.search(
             query_vector, min(top_k * 4 + 10, self._total_count or 1)

@@ -9,7 +9,7 @@ Philosophy: Wittgenstein Tractatus §1.1 — "The world is the totality of facts
 ADL Lite is a Python 3.10+ package that implements a four-layer document model for capability representation and multi-agent consensus. Every concept/capability is an append-only, cryptographically hashed `EventChain`. Status, confidence, validators, and scope are **derived from the chain**, never stored as mutable fields.
 
 - **Name**: `adl-lite`
-- **Version**: `0.5.0-alpha` (per `CHANGELOG.md`; `pyproject.toml` updated on release)
+- **Version**: `0.6.0-alpha` (single source: `adl_lite.__version__`; `pyproject.toml` updated on release)
 - **Description**: ADL Lite — An Event-First Capability-Lifecycle Registry for LLM Agent Ecosystems
 - **License**: MIT
 - **Build backend**: hatchling
@@ -41,17 +41,21 @@ ADL Lite is a Python 3.10+ package that implements a four-layer document model f
 | websockets | 12.0 | WebSocket support |
 
 Development extras (`pip install -e ".[dev]"`):
-- `pytest>=7.0`, `pytest-cov>=4.0`, `pytest-asyncio>=0.23.0`, `pytest-benchmark>=4.0`, `mypy>=1.0`, `ruff>=0.1.0`, `rdflib>=7.0`, `pyshacl>=0.25`
+- `pytest>=7.0`, `pytest-cov>=4.0`, `pytest-asyncio>=0.23.0`, `pytest-benchmark>=4.0`, `mypy>=1.0`, `ruff>=0.1.0`, `rdflib>=7.0`, `pyshacl>=0.25`, `mcp>=1.0`
 
 Optional extras:
-- `pip install -e ".[experiments]"` — LLM clients for experiment scripts
+- `pip install -e ".[experiments]"` — LLM clients for experiment scripts (+ `pygit2`, `prov` for E19)
 - `pip install -e ".[experiments-embeddings]"` — `sentence-transformers>=2.2` for near-duplicate detection
 - `pip install -e ".[embeddings]"` — `sentence-transformers>=2.2`, `faiss-cpu>=1.7`, `openai>=1.0` (vector index + LLM normalization)
 - `pip install -e ".[scale]"` — `faiss-cpu>=1.7`, `zstandard>=0.22`, `msgpack>=1.0` (large-scale cold storage)
 - `pip install -e ".[prod]"` — PostgreSQL drivers (`psycopg[binary]>=3.1.0`, `asyncpg>=0.29.0`)
 - `pip install -e ".[v1]"` — `redis>=5.0`, `celery>=5.3`
+- `pip install -e ".[gov]"` — `rdflib>=7.0`, `pyshacl>=0.25` (SHACL / PROV-O governance)
+- `pip install -e ".[did]"` — `web3`, `eth-account`, `coincurve` (did:ethr resolution)
+- `pip install -e ".[mcp]"` — `mcp>=1.0` (MCP tool server)
+- `pip install -e ".[neo4j]"` — `neo4j>=5.0` (Neo4j graph backend)
 
-**Known dependency gap**: `experiments/e19_governance_benchmark.py` imports `pygit2`, which is **not** declared in `pyproject.toml`. `python -m experiments.runner list|all` fails unless you install `pygit2` manually in your environment.
+**Import contract**: `import adl_lite` works with core dependencies only. Heavy optional deps (`numpy`, `rdflib`, `pyshacl`, `faiss`, `sentence-transformers`) are imported lazily; top-level symbols such as `VectorIndex` or `validate_adl_document` resolve via PEP 562 and raise actionable `ImportError`s (with the right `pip install adl-lite[...]` hint) only when *used* without the matching extra.
 
 ## Build, Install, and Test Commands
 
@@ -74,7 +78,7 @@ mypy adl_lite/ --ignore-missing-imports
 # Pre-commit (runs ruff + mypy)
 pre-commit run --all-files
 
-# List experiments (requires pygit2 to be installed)
+# List experiments (E19 is annotated unavailable when pygit2/prov/rdflib are absent)
 python -m experiments.runner list
 
 # Run a single experiment
@@ -155,6 +159,17 @@ python scripts/consistency_check.py
 | `adl_lite/merkle.py` | SHA-256 Merkle trees with inclusion proofs for batch verification |
 | `adl_lite/relation_validator.py` | L3 relation integrity (Invariant 2) |
 | `adl_lite/cold_storage.py` | JSONL cold storage + archive |
+| `adl_lite/api.py` | FastAPI REST API (`create_app`) — consensus lifecycle endpoints with quota/metering middleware |
+| `adl_lite/api_auth.py` | API auth (API keys / JWT) + rate-limit middleware |
+| `adl_lite/config.py` | Central settings (`pydantic-settings`): Neo4j, API, quota env config |
+| `adl_lite/graph_backends.py` | `GraphBackend` protocol + NetworkX / SQL adapters for pluggable persistence |
+| `adl_lite/mcp_server.py` | FastMCP tool server — 10 tools, 2 resources, 1 prompt (`adl-lite mcp`) |
+| `adl_lite/metering.py` | Usage metering with daily/monthly period windows (`UsageMeter`) |
+| `adl_lite/neo4j_adapter.py` | Neo4j `GraphBackend` adapter (optional `[neo4j]` extra) |
+| `adl_lite/prov_export.py` | PROV-O / RDF-star Turtle export (rdflib lazy, `[gov]` extra) |
+| `adl_lite/quota.py` | Per-tenant quota policies + `check_quota` FastAPI dependency |
+| `adl_lite/tenant.py` | Multi-tenant registry and `TenantContext` isolation (Phase 2) |
+| `adl_lite/trust_model.py` | Phase-1 trust layer — DID validator identity, method-diversity checks |
 | `adl_lite/fde/` | MVP Formal Data Engineering platform (pipeline, importer, tenant, rule engine) |
 | `experiments/base.py` | `BaseExperiment` + `ExperimentResult` |
 | `experiments/registry.py` | `@register("E1")` decorator for experiment discovery |
@@ -265,6 +280,19 @@ adl-lite anchor
 adl-lite anchor --merkle --proofs-dir ./proofs
 adl-lite verify-anchor
 adl-lite verify-inclusion <adl_id> --proof ./proofs/<adl_id>.json
+adl-lite verify-batch --proofs-dir ./proofs
+
+# SHACL validation (requires [gov] extra)
+adl-lite shacl examples/capital_reflux_trap.md
+
+# Neo4j graph backend (requires [neo4j] extra)
+adl-lite neo4j status
+adl-lite neo4j check
+adl-lite neo4j rebuild
+
+# MCP tool server (requires [mcp] extra)
+adl-lite mcp
+adl-lite mcp --transport streamable-http --port 8000
 ```
 
 ## Agent Tools (Python)
@@ -352,8 +380,8 @@ Closed sets:
 ## Testing Strategy
 
 - **Framework**: pytest with `pytest-cov`, `pytest-asyncio`, `pytest-benchmark`
-- **Test files**: ~65 Python files under `tests/`
-- **Test count**: 944 passed + 1 skipped in the current Python 3.12 environment
+- **Test files**: 97 Python files under `tests/`
+- **Test count**: 1532 collected, all passing in the current Python 3.13 environment (1532 passed)
 - **Fixtures**: Minimal shared fixtures in `tests/conftest.py` (path setup only); 3 Markdown fixtures in `tests/fixtures/`
 - **FDE fixtures**: `tests/conftest_fde.py.bak` exists but is **not** auto-loaded by pytest, keeping the main suite lightweight
 - **Theorem tests**:
@@ -371,7 +399,7 @@ pytest tests/ -v
 python -m experiments.runner all
 ```
 
-## Experiments (28 registered in runner, E1–E30)
+## Experiments (30 registered in runner, E1–E35)
 
 ```bash
 python -m experiments.runner all
@@ -407,8 +435,10 @@ python -m experiments.runner all
 | E25 | Microbenchmark: Precondition and Confidence Aggregation | calibration + executor |
 | E29 | Vector Index Recall | `VectorIndex` + `EmbeddingBackend` |
 | E30 | LLM Normalization | `CanonicalizationEngine` + `VectorIndex` |
+| E34 | Precondition Language Formalization & O(1) Benchmark | `ActionExecutor` + `PreconditionRule` |
+| E35 | Expert Validation Simulation — Inter-rater Agreement & Automation Correlation | calibration + consensus |
 
-**Note**: `E19` imports `pygit2`, which is not listed in `pyproject.toml`. Install it manually (`pip install pygit2`) before running `python -m experiments.runner list` or `all`.
+**Note**: `E19` requires the optional heavy deps `pygit2` + `prov` + `rdflib` (declared in the `[experiments]` extra). Without them the runner degrades gracefully: `list` annotates E19 as *unavailable* and `all` records a failed result instead of crashing.
 
 ## CI / CD Pipeline
 
@@ -469,8 +499,11 @@ adl-lite/
 │   ├── adl_core_ontology.yaml
 │   ├── __init__.py
 │   ├── action_executor.py
+│   ├── api.py
+│   ├── api_auth.py
 │   ├── calibration.py
 │   ├── cli.py
+│   ├── config.py
 │   ├── consensus.py
 │   ├── crdt.py
 │   ├── cold_storage.py
@@ -478,30 +511,37 @@ adl-lite/
 │   ├── did_resolver.py
 │   ├── exceptions.py
 │   ├── fde/               # MVP FDE platform
+│   ├── graph_backends.py
 │   ├── jsonld_export.py
 │   ├── key_registry.py
 │   ├── l2_template.py
 │   ├── logging_config.py
+│   ├── mcp_server.py
 │   ├── memory.py
+│   ├── metering.py
 │   ├── models.py
 │   ├── near_duplicate.py
+│   ├── neo4j_adapter.py
 │   ├── ontology.py
 │   ├── owl_export.py
 │   ├── owl_import.py
 │   ├── parser.py
 │   ├── prov_export.py
+│   ├── quota.py
 │   ├── rdfstar_export.py
 │   ├── realtime.py
 │   ├── relation_validator.py
 │   ├── shacl_validation.py
 │   ├── sync_manager.py
+│   ├── tenant.py
 │   ├── tools.py
+│   ├── trust_model.py
 │   ├── validator.py
 │   ├── embeddings.py
 │   ├── vector_index.py
 │   └── canonicalization.py
-├── tests/                 # pytest suite (796 collected, 794 passed + 2 skipped)
-├── experiments/           # 26 registered experiments
+├── tests/                 # pytest suite (1532 collected, all passing)
+├── experiments/           # 30 registered experiments
 ├── examples/              # Sample ADL Markdown files
 ├── data/aml/              # AML dataset + concepts
 ├── docs/                  # Current paper + operational docs

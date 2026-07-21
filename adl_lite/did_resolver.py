@@ -294,7 +294,7 @@ def _require_eth() -> Any:
         import web3  # noqa: F401
     except ImportError as exc:
         raise ImportError(
-            "did:ethr support requires optional dependencies: pip install adl-lite[did-ethr]"
+            "did:ethr support requires optional dependencies: pip install adl-lite[did]"
         ) from exc
     return web3, eth_account
 
@@ -303,15 +303,19 @@ def resolve_did_ethr(did: str, rpc_url: str | None = None, **_kwargs: Any) -> DI
     """
     Resolve a did:ethr DID by reading the Ethereum registry events.
 
-    This is a minimal implementation: it expects the DID to encode an Ethereum
-    address (did:ethr:<address> or did:ethr:<chain-id>:<address>) and derives
-    the secp256k1 public key from known delegate events when possible.
+    MVP status (Phase 1): **resolution only**. This is a minimal implementation:
+    it expects the DID to encode an Ethereum address (did:ethr:<address> or
+    did:ethr:<chain-id>:<address>) and derives the secp256k1 public key from
+    known delegate events when possible. Key recovery is NOT supported in
+    Phase 1 — the returned verification method carries the address with empty
+    ``public_key_bytes``, and ``trust_model`` validation explicitly rejects
+    did:ethr actors (``ADLUnsupportedDIDMethodError``).
 
     For direct address-only DIDs, the public key is not recoverable from the
     address alone; callers should supply a known delegate or rely on signatures
     verified via ``verify_did_signature`` with secp256k1 recovery.
 
-    Optional dependency: web3.py, eth-account.
+    Optional dependency: web3.py, eth-account (``pip install adl-lite[did]``).
     """
     web3, _ = _require_eth()
 
@@ -493,8 +497,7 @@ def _verify_secp256k1_signature(public_key_bytes: bytes, message: bytes, signatu
     except ImportError:
         pass
     raise ImportError(
-        "secp256k1 signature verification requires coincurve or ecdsa: "
-        "pip install adl-lite[did-ethr]"
+        "secp256k1 signature verification requires coincurve or ecdsa: pip install adl-lite[did]"
     )
 
 
@@ -507,7 +510,7 @@ def _verify_ethr_signature(
         from eth_account.messages import encode_defunct
     except ImportError as exc:
         raise ImportError(
-            "did:ethr signature verification requires eth-account: pip install adl-lite[did-ethr]"
+            "did:ethr signature verification requires eth-account: pip install adl-lite[did]"
         ) from exc
 
     if len(signature) != 65:

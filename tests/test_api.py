@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+import adl_lite
 from adl_lite.api import create_app
 
 
@@ -37,7 +38,7 @@ class TestAppCreation:
     def test_app_version_via_openapi(self, client: TestClient):
         resp = client.get("/openapi.json")
         assert resp.status_code == 200
-        assert resp.json()["info"]["version"] == "0.5.0-alpha"
+        assert resp.json()["info"]["version"] == adl_lite.__version__
 
     def test_docs_endpoint_returns_200(self, client: TestClient):
         resp = client.get("/docs")

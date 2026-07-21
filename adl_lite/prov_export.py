@@ -19,35 +19,74 @@ Example usage:
 from __future__ import annotations
 
 import json
-from typing import Any
-
-from rdflib import Graph, Literal, Namespace, URIRef
-from rdflib.namespace import PROV, RDF, RDFS, XSD
+from typing import TYPE_CHECKING, Any
 
 from .models import EventChain, EventType
 
+if TYPE_CHECKING:
+    # rdflib is an optional dependency (the [gov] extra). It is imported
+    # lazily inside the functions below so that ``import adl_lite.prov_export``
+    # works in a bare (core-deps-only) installation.
+    from rdflib import Literal, Namespace, URIRef
+
 # Namespaces
-ADL = Namespace("https://adl-lite.org/ns/")
+_ADL_NS = "https://adl-lite.org/ns/"
+
+
+def __getattr__(name: str) -> Any:
+    """PEP 562 lazy access to the module-level ``ADL`` namespace.
+
+    Kept for backward compatibility (``from adl_lite.prov_export import ADL``)
+    without importing rdflib at module import time.
+    """
+    if name == "ADL":
+        from rdflib import Namespace
+
+        ns = Namespace(_ADL_NS)
+        globals()["ADL"] = ns
+        return ns
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def _require_rdflib() -> None:
+    """Raise an actionable ImportError when the optional [gov] dep is missing."""
+    try:
+        import rdflib  # noqa: F401
+    except ImportError as exc:
+        raise ImportError(
+            "PROV-O export requires the optional 'gov' extra (rdflib). "
+            "Install with: pip install adl-lite[gov]"
+        ) from exc
+
+
+def _adl_namespace() -> Namespace:
+    """Return the ADL namespace (imports rdflib lazily)."""
+    from rdflib import Namespace
+
+    return Namespace(_ADL_NS)
 
 
 def _event_uri(concept_id: str, event_index: int, event_type: EventType) -> URIRef:
     """Generate a stable URI for an event."""
-    return ADL[f"evt-{concept_id}-{event_type.value}-{event_index:03d}"]
+    return _adl_namespace()[f"evt-{concept_id}-{event_type.value}-{event_index:03d}"]
 
 
 def _actor_uri(actor: str) -> URIRef:
     """Generate a URI for an actor."""
     safe = actor.replace(" ", "_").replace("/", "_")
-    return ADL[f"actor-{safe}"]
+    return _adl_namespace()[f"actor-{safe}"]
 
 
 def _concept_uri(concept_id: str) -> URIRef:
     """Generate a URI for a concept."""
-    return ADL[concept_id]
+    return _adl_namespace()[concept_id]
 
 
 def _payload_to_literal(payload: dict[str, Any]) -> Literal:
     """Serialize payload to a JSON literal."""
+    from rdflib import Literal
+    from rdflib.namespace import XSD
+
     return Literal(json.dumps(payload, sort_keys=True, default=str), datatype=XSD.string)
 
 
@@ -57,7 +96,17 @@ def to_prov_o(chain: EventChain) -> str:
 
     Returns syntactically valid Turtle that can be loaded by rdflib
     or any standard RDF toolkit.
+
+    Raises:
+        ImportError: If rdflib is not installed (the [gov] extra).
     """
+    _require_rdflib()
+
+    from rdflib import Graph, Literal
+    from rdflib.namespace import PROV, RDF, RDFS, XSD
+
+    ADL = _adl_namespace()  # noqa: N806  (namespace constant, not a variable)
+
     g = Graph()
     g.bind("prov", PROV)
     g.bind("adl", ADL)
@@ -137,7 +186,15 @@ def to_rdfstar(chain: EventChain) -> str:
           adl:confidence 0.91 .
 
     Returns syntactically valid Turtle-star (RDF 1.2) as a string.
+
+    Raises:
+        ImportError: If rdflib is not installed (the [gov] extra).
     """
+    _require_rdflib()
+
+    from rdflib import URIRef
+
+    ADL = _adl_namespace()  # noqa: N806  (namespace constant, not a variable)
 
     # Build PROV-O base first
     prov_ttl = to_prov_o(chain)
@@ -203,7 +260,14 @@ def validate_turtle(turtle_str: str) -> bool:
     Parse Turtle string with rdflib to verify syntactic validity.
 
     Returns True if parse succeeds, False otherwise.
+
+    Raises:
+        ImportError: If rdflib is not installed (the [gov] extra).
     """
+    _require_rdflib()
+
+    from rdflib import Graph
+
     try:
         g = Graph()
         g.parse(data=turtle_str, format="turtle")

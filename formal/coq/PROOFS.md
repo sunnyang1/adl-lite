@@ -314,7 +314,7 @@ The default confidence model is a **G-Counter** (grow-only counter):
 
 | File | Axioms | Type | Justification |
 |------|--------|------|---------------|
-| `Crypto.v` | 5 | Abstract crypto primitives | Standard practice: protocol-level proofs assume EUF-CMA signatures and collision-resistant hashing. Concrete primitives (Ed25519, SHA-256) would be verified separately. |
+| `Crypto.v` | 3 | Abstract crypto primitives | Standard practice: protocol-level proofs assume EUF-CMA signatures and collision-resistant hashing. Concrete primitives (Ed25519, SHA-256) would be verified separately. |
 | All other files | **0** | — | No `Admitted`, no axioms, no parameters outside `Crypto.v`. |
 
 **Verification:**

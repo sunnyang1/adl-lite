@@ -39,6 +39,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from . import __version__
 from .api_auth import (
     RateLimitMiddleware,
     UserInfo,
@@ -348,7 +349,7 @@ def create_app(
 
     app = FastAPI(
         title="ADL Lite Consensus API",
-        version="0.5.0-alpha",
+        version=__version__,
         description="REST API for ADL Lite consensus lifecycle operations",
     )
 
