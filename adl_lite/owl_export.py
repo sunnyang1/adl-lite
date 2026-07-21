@@ -947,12 +947,32 @@ def export_ontology_turtle(include_swrl: bool = True) -> str:
     return "\n".join(lines)
 
 
+def _turtle_to_rdfxml(turtle: str) -> str:
+    """Convert a Turtle serialization to RDF/XML via rdflib.
+
+    rdflib is an optional dependency (the ``gov`` extra); it is imported
+    lazily so that Turtle-only workflows work in a bare installation.
+    """
+    try:
+        import rdflib
+    except ImportError as exc:
+        raise ImportError(
+            "RDF/XML ontology export requires the optional 'gov' extra (rdflib). "
+            "Install with: pip install adl-lite[gov]"
+        ) from exc
+    graph = rdflib.Graph()
+    graph.parse(data=turtle, format="turtle")
+    return str(graph.serialize(format="xml"))
+
+
 def export_ontology(format: str = "turtle", include_swrl: bool = True) -> str:
     """
     Export the full ADL Lite OWL 2 DL ontology (schema only, no instance data).
 
     Args:
-        format: "turtle" or "rdfxml"
+        format: "turtle" or "rdfxml".  RDF/XML is produced by parsing the
+            canonical Turtle serialization with rdflib and re-serializing, so
+            both formats carry the same triple set.
         include_swrl: Embed SWRL integrity rules.
 
     Returns:
@@ -960,10 +980,9 @@ def export_ontology(format: str = "turtle", include_swrl: bool = True) -> str:
     """
     if format == "turtle":
         return export_ontology_turtle(include_swrl=include_swrl)
-    # For RDF/XML, return the existing schema-building approach or raise
-    raise NotImplementedError(
-        "RDF/XML full-ontology export is not yet implemented. Use format='turtle'."
-    )
+    if format == "rdfxml":
+        return _turtle_to_rdfxml(export_ontology_turtle(include_swrl=include_swrl))
+    raise ValueError(f"Unsupported ontology export format: {format!r} (use 'turtle' or 'rdfxml')")
 
 
 # ---------------------------------------------------------------------------

@@ -403,6 +403,8 @@ open html/index.html  # or browse html/ADL.Chain.html
 
 4. **Unboundedness.** All Coq proofs are structural (induction on lists), not bounded. The TLA+ models provide bounded verification; the Coq proofs provide unbounded structural correctness.
 
+5. **B4 validator diversity is a Phase-1 placeholder.** In `adl_lite/trust_model.py`, the B4 diversity key is derived from the validator's *identity* rather than from organisational affiliation, so `len(diversity_keys)` always equals `distinct_validators` and the gate is effectively a no-op: **Phase-1 B4 does not prevent collusion by same-family / same-organisation validators.** Phase-2 will source diversity keys from real organisational affiliation (verified DID service endpoints or an out-of-band institution registry), at which point the gate becomes active and can be model-checked. No Coq/TLA+ property currently depends on B4 being enforced.
+
 ---
 
 ## 8. Change Log

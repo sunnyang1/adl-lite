@@ -13,6 +13,12 @@ so that results are comparable and the trust/query layers can swap backends with
 changing call sites (see ``tests/test_neo4j_adapter.py`` for a cross-backend parity
 test).
 
+Traversal semantics are **bidirectional (undirected)** in every backend: an edge
+connects its endpoints regardless of storage direction, matching the historical
+SQL ``UNION`` behaviour of :meth:`~adl_lite.memory.WarmIndex._sql_bfs`.  Edge
+metadata (``relation``, ``confidence``) is always read from the stored directed
+edge, so a reverse traversal still reports the predicate as stored.
+
 References:
     - ADL Lite PRD §5.1 / §5.2 (pluggable graph backend)
     - ADL Lite PRD §A1–A3 (Neo4j adapter + WarmIndex integration)
@@ -57,7 +63,12 @@ class GraphBackend(ABC):
 
     @abstractmethod
     def bfs(self, start_node: str, max_depth: int = 1) -> list[tuple[str, str, float]]:
-        """Bounded BFS from *start_node* returning ``(capability, relation, confidence)``."""
+        """Bounded BFS from *start_node* returning ``(capability, relation, confidence)``.
+
+        Traversal is bidirectional (undirected): edges are followed in both
+        directions, while the returned metadata always describes the stored
+        directed edge.
+        """
 
     @abstractmethod
     def __contains__(self, node_id: str) -> bool:
@@ -80,9 +91,9 @@ class GraphBackend(ABC):
 class NetworkXGraphAdapter(GraphBackend):
     """NetworkX ``DiGraph`` implementation of :class:`GraphBackend`.
 
-    This mirrors the BFS semantics historically used by
-    :meth:`~adl_lite.memory.WarmIndex._graph_bfs` so that results are identical to
-    the legacy NetworkX code path and comparable to the Neo4j backend.
+    BFS is bidirectional (undirected): both ``successors`` and ``predecessors``
+    are traversed, matching the SQL backend's ``UNION`` semantics so that all
+    backends answer the same query with the same result set.
     """
 
     def __init__(self, graph: Any | None = None) -> None:
@@ -109,10 +120,19 @@ class NetworkXGraphAdapter(GraphBackend):
             current, depth = queue.pop(0)
             if depth >= max_depth:
                 continue
-            for neighbor in self.graph.successors(current):
+            # Bidirectional (undirected) traversal: an edge connects its
+            # endpoints regardless of direction, matching the SQL backend.
+            # Edge metadata is always read from the stored directed edge.
+            neighbors: list[tuple[str, Any]] = [
+                (neighbor, self.graph.edges[current, neighbor])
+                for neighbor in self.graph.successors(current)
+            ]
+            neighbors.extend(
+                (pred, self.graph.edges[pred, current]) for pred in self.graph.predecessors(current)
+            )
+            for neighbor, edge in neighbors:
                 if neighbor not in visited:
                     visited.add(neighbor)
-                    edge = self.graph.edges[current, neighbor]
                     results.append(
                         (
                             neighbor,
@@ -180,7 +200,7 @@ class SQLGraphAdapter(GraphBackend):
             INSERT OR IGNORE INTO relations (source, predicate, target, confidence)
             VALUES (?, ?, ?, ?)
             """,
-            (source, target, relation, confidence),
+            (source, relation, target, confidence),
         )
         self.conn.commit()
 

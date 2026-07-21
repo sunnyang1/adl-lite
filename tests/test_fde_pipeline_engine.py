@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import csv
+import json
+
 import pytest
 
 from adl_lite.fde.pipeline_engine import PipelineEngine
@@ -310,3 +313,108 @@ class TestExecuteNode:
         result = PipelineEngine.execute_node(node, {})
         assert result["transformed"] is True
         assert result["rows"] == 0
+
+
+# ---------------------------------------------------------------------------
+# _execute_export — file-writing behaviour (P2-6b)
+# ---------------------------------------------------------------------------
+
+
+class TestExecuteExport:
+    """Tests for PipelineEngine._execute_export file exports."""
+
+    def test_export_json_file_roundtrip(self, tmp_path):
+        out = tmp_path / "out.json"
+        node = {
+            "id": "n1",
+            "type": "export",
+            "config": {"format": "json", "output_path": str(out)},
+        }
+        data = {"rows": [{"a": 1}], "tenant": "t1"}
+        result = PipelineEngine.execute_node(node, {"previous_output": data})
+        assert result["exported"] is True
+        assert result["format"] == "json"
+        assert result["output_path"] == str(out)
+        assert result["bytes"] == out.stat().st_size
+        assert json.loads(out.read_text(encoding="utf-8")) == data
+
+    def test_export_creates_parent_dirs(self, tmp_path):
+        out = tmp_path / "nested" / "deep" / "out.json"
+        node = {
+            "id": "n1",
+            "type": "export",
+            "config": {"output_path": str(out)},
+        }
+        PipelineEngine.execute_node(node, {"previous_output": {"k": "v"}})
+        assert out.exists()
+
+    def test_export_csv_list_of_dicts(self, tmp_path):
+        out = tmp_path / "out.csv"
+        node = {
+            "id": "n1",
+            "type": "export",
+            "config": {"format": "csv", "output_path": str(out)},
+        }
+        rows = [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25, "city": "SH"}]
+        result = PipelineEngine.execute_node(node, {"previous_output": rows})
+        assert result["exported"] is True
+        with out.open(newline="", encoding="utf-8") as fh:
+            reader = list(csv.DictReader(fh))
+        assert len(reader) == 2
+        # Header is the union of row keys, in first-seen order.
+        assert reader[0].keys() >= {"name", "age", "city"}
+        assert reader[0]["name"] == "Alice"
+        assert reader[1]["city"] == "SH"
+
+    def test_export_csv_rejects_non_list_data(self, tmp_path):
+        node = {
+            "id": "n1",
+            "type": "export",
+            "config": {"format": "csv", "output_path": str(tmp_path / "out.csv")},
+        }
+        with pytest.raises(ValueError, match="CSV export requires"):
+            PipelineEngine.execute_node(node, {"previous_output": {"not": "a list"}})
+
+    def test_export_without_output_path_keeps_echo_behaviour(self):
+        """No output_path -> report payload shape only, write nothing."""
+        node = {"id": "n1", "type": "export", "config": {"format": "json"}}
+        result = PipelineEngine.execute_node(node, {"previous_output": {"a": 1, "b": 2}})
+        assert result == {"exported": True, "format": "json", "data_keys": ["a", "b"]}
+        assert "output_path" not in result
+
+    def test_export_json_serializes_non_json_types(self, tmp_path):
+        """Non-JSON-native values fall back to str() instead of failing."""
+        import pathlib
+
+        out = tmp_path / "out.json"
+        node = {
+            "id": "n1",
+            "type": "export",
+            "config": {"output_path": str(out)},
+        }
+        result = PipelineEngine.execute_node(
+            node, {"previous_output": {"path": pathlib.Path("/tmp/x")}}
+        )
+        assert result["exported"] is True
+        assert json.loads(out.read_text(encoding="utf-8")) == {"path": "/tmp/x"}
+
+    def test_pipeline_end_to_end_export_writes_file(self, tmp_path):
+        """A full pipeline run carries previous_output into the export node."""
+        out = tmp_path / "final.json"
+        config = {
+            "nodes": [
+                {"id": "n1", "type": "export", "config": {"format": "json"}},
+                {
+                    "id": "n2",
+                    "type": "export",
+                    "config": {"format": "json", "output_path": str(out)},
+                },
+            ],
+            "edges": [{"source": "n1", "target": "n2"}],
+        }
+        result = PipelineEngine.execute_pipeline(config, {})
+        assert result["status"] == "completed"
+        # n2 exports n1's echo result as its previous_output.
+        written = json.loads(out.read_text(encoding="utf-8"))
+        assert written["exported"] is True
+        assert result["node_results"]["n2"]["output"]["output_path"] == str(out)

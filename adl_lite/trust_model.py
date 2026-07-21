@@ -230,12 +230,16 @@ class TrustValidator:
                     f"DID binding failed for actor '{actor}' on event {ev.event_id}: {exc}"
                 )
 
-        # B4: validator diversity (Phase-1 placeholder).
-        # The diversity key is currently identity-scoped (see _identity_keys), so
-        # for did:key-only chains this gate is a no-op and merely documents the
-        # intended later-phase behaviour. It becomes active once method-level
-        # diversity keys are introduced; the branch is retained as the intended
-        # later-phase logic and is harmless today.
+        # B4: validator diversity (Phase-1 placeholder — known limitation).
+        # The diversity key is derived from the validator's *identity* (see
+        # _identity_keys), so len(diversity_keys) always equals
+        # distinct_validators and this gate is effectively a no-op: in Phase-1
+        # B4 does NOT prevent collusion by same-family / same-organisation
+        # validators. Phase-2 will source diversity keys from real
+        # organisational affiliation (e.g. verified DID service endpoints or
+        # an out-of-band institution registry), at which point this branch
+        # becomes active. The check is retained now to document and pin the
+        # intended later-phase semantics.
         diversity_satisfied = True
         if resolved.enforce_validator_diversity and distinct_validators > 0:
             if len(diversity_keys) < distinct_validators:
@@ -278,15 +282,22 @@ class TrustValidator:
           resistance, B3).
         * diversity_key captures the DID method / key family for B4.
 
-          NOTE (Phase-1 placeholder): the diversity key is currently derived
-          from the *identity* (one distinct key per validator), so
-          ``len(diversity_keys)`` equals ``distinct_validators`` and the B4 gate
+          NOTE (Phase-1 placeholder — known limitation): the diversity key is
+          currently derived from the validator's *identity* (one distinct key
+          per validator), so ``len(diversity_keys)`` equals
+          ``distinct_validators`` and the B4 gate
           (``len(diversity_keys) < distinct_validators``) is effectively a no-op
-          for did:key-only chains. Method-level diversity — collapsing this key
-          to the DID *method* (e.g. ``("method", "key")`` / ``("method", "web")``)
-          so that >= 2 methods are required — is deferred to a later phase,
-          because the Phase-1 validator set is effectively all did:key
-          (did:web needs network resolution; did:ethr is explicitly unsupported).
+          for did:key-only chains. Consequently, **Phase-1 B4 does not block
+          validators from the same key family or organisation** — N
+          controllers of one institution all satisfy the gate. Phase-2 will
+          derive diversity keys from real organisational affiliation (e.g.
+          verified DID service endpoints or an out-of-band institution
+          registry) instead of identity. Method-level diversity — collapsing
+          this key to the DID *method* (e.g. ``("method", "key")`` /
+          ``("method", "web")``) — was also considered but deferred, because
+          the Phase-1 validator set is effectively all did:key
+          (did:web needs network resolution; did:ethr is explicitly
+          unsupported).
         """
         if not is_did(actor):
             return (f"actor:{actor}", ("actor", actor))

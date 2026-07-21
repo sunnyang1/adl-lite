@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import csv
+import json
 from collections import deque
+from pathlib import Path
 from typing import Any
 
 
@@ -174,14 +177,57 @@ class PipelineEngine:
 
     @staticmethod
     def _execute_export(config: dict, context: dict) -> dict:
-        """Export data (stub — actual export logic goes here)."""
+        """Export pipeline data to a file, or echo its shape when no path is set.
+
+        Config:
+            format: "json" (default) or "csv".  CSV requires the data to be a
+                list of dict rows; any other payload raises ``ValueError``.
+            output_path: Destination file.  Parent directories are created.
+                When omitted, the node only reports the payload shape
+                (``data_keys``) without writing anything.
+
+        The payload is taken from ``context["previous_output"]``.
+        """
         export_format = config.get("format", "json")
         data = context.get("previous_output", {})
-        return {
+        output_path = config.get("output_path", "")
+
+        result: dict[str, Any] = {
             "exported": True,
             "format": export_format,
             "data_keys": list(data.keys()) if isinstance(data, dict) else "list",
         }
+
+        if not output_path:
+            return result
+
+        path = Path(output_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        if export_format == "csv":
+            if not isinstance(data, list) or not all(isinstance(row, dict) for row in data):
+                raise ValueError(
+                    "CSV export requires previous_output to be a list of dict rows; "
+                    f"got {type(data).__name__}"
+                )
+            fieldnames: list[str] = []
+            for row in data:
+                for key in row:
+                    if key not in fieldnames:
+                        fieldnames.append(key)
+            with path.open("w", newline="", encoding="utf-8") as fh:
+                writer = csv.DictWriter(fh, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(data)
+        else:
+            path.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2, default=str),
+                encoding="utf-8",
+            )
+
+        result["output_path"] = str(path)
+        result["bytes"] = path.stat().st_size
+        return result
 
     @staticmethod
     def validate_pipeline(pipeline_config: dict) -> list[str]:

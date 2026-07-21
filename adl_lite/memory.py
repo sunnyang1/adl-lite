@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 from .cold_storage import ColdStorage
-from .graph_backends import GraphBackend
+from .graph_backends import GraphBackend, NetworkXGraphAdapter
 
 if TYPE_CHECKING:
     from .vector_index import VectorIndex
@@ -221,9 +221,12 @@ class WarmIndex:
         self.graph: Any = None
 
         if graph_backend is None or graph_backend == "networkx":
-            # Default behavior — keep using the in-process NetworkX DiGraph.
+            # Default behavior — in-process NetworkX DiGraph, rebuilt from the
+            # persisted relations table so that a restart never shadows
+            # historical relations (the graph is a derived cache, SQLite is
+            # the source of truth).
             self.graph_backend = None
-            self.graph = nx.DiGraph() if HAS_NETWORKX else None
+            self.graph = self._build_graph_from_store()
         elif isinstance(graph_backend, Neo4jGraphAdapter):
             # Explicit adapter instance (reuse connection / test injection).
             self.graph_backend = graph_backend
@@ -244,6 +247,34 @@ class WarmIndex:
             raise ValueError(
                 "graph_backend must be None, 'networkx', 'neo4j', or a Neo4jGraphAdapter instance"
             )
+
+    def _build_graph_from_store(self) -> Any | None:
+        """Rebuild the in-process relation graph from the SQLite relations table.
+
+        The NetworkX graph is a derived cache of the ``relations`` table; it
+        must be fully consistent with the table before it may serve queries.
+        Returns ``None`` — a clean degradation to the SQL BFS path — when
+        NetworkX is unavailable or the rebuild fails for any reason, so a
+        partially built graph never answers a query.
+        """
+        if not HAS_NETWORKX:
+            return None
+        graph = nx.DiGraph()
+        try:
+            rows = self.conn.execute(
+                "SELECT source, predicate, target, confidence FROM relations"
+            ).fetchall()
+            for row in rows:
+                graph.add_edge(
+                    row["source"],
+                    row["target"],
+                    relation=row["predicate"],
+                    confidence=row["confidence"],
+                )
+        except Exception as exc:
+            logger.warning("Relation graph rebuild failed (%s); degrading to SQL BFS path", exc)
+            return None
+        return graph
 
     # Document storage
 
@@ -324,7 +355,7 @@ class WarmIndex:
             )
             self.conn.commit()
 
-            if self.graph and HAS_NETWORKX:
+            if self.graph is not None and HAS_NETWORKX:
                 if adl_id in self.graph:
                     self.graph.remove_node(adl_id)
 
@@ -457,7 +488,12 @@ class WarmIndex:
         )
         self.conn.commit()
 
-        if self.graph and HAS_NETWORKX:
+        # The graph is either None (unavailable — SQL path serves queries) or
+        # a live mirror of the relations table.  ``is not None`` (not
+        # truthiness) is the guard: an empty-but-live graph must still
+        # receive new edges, otherwise it would silently become a partial
+        # mirror after an empty-store restart.
+        if self.graph is not None and HAS_NETWORKX:
             self.graph.add_edge(
                 rel.source, rel.target, relation=rel.relation, confidence=rel.confidence
             )
@@ -469,11 +505,17 @@ class WarmIndex:
         BFS traversal of the relation graph. Thread-safe.
         Returns list of (related_capability, relation, confidence).
         Priority order: Neo4j backend → NetworkX → SQL fallback.
+
+        Traversal is bidirectional (undirected) on every path: an edge
+        connects its endpoints regardless of storage direction.  The NetworkX
+        graph is rebuilt from the relations table at init and kept in sync by
+        ``_add_relation`` / ``delete_document``, so all paths return the same
+        result set for the same store state.
         """
         with self._lock:
             if self.graph_backend is not None:
                 return self.graph_backend.bfs(concept_id, max_depth=depth)
-            if self.graph and HAS_NETWORKX:
+            if self.graph is not None and HAS_NETWORKX:
                 return self._graph_bfs(concept_id, depth)
             return self._sql_bfs(concept_id, depth)
 
@@ -481,29 +523,9 @@ class WarmIndex:
         if not HAS_NETWORKX or self.graph is None:
             return []
 
-        results: list[tuple[str, str, float]] = []
-        visited = {concept_id}
-        queue = [(concept_id, 0)]
-
-        while queue:
-            current, d = queue.pop(0)
-            if d >= depth:
-                continue
-
-            for neighbor in self.graph.successors(current):
-                if neighbor not in visited:
-                    visited.add(neighbor)
-                    edge_data = self.graph.edges[current, neighbor]
-                    results.append(
-                        (
-                            neighbor,
-                            edge_data.get("relation", "related-to"),
-                            edge_data.get("confidence", 1.0),
-                        )
-                    )
-                    queue.append((neighbor, d + 1))
-
-        return results
+        # Delegate to the shared adapter so the NetworkX path and the SQL
+        # path share one bidirectional BFS semantics (see graph_backends.py).
+        return NetworkXGraphAdapter(self.graph).bfs(concept_id, max_depth=depth)
 
     def _sql_bfs(self, concept_id: str, depth: int) -> list[tuple[str, str, float]]:
         results: list[tuple[str, str, float]] = []
