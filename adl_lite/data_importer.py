@@ -32,7 +32,12 @@ class DataImporter:
         back to the current time.
         """
         try:
-            dt = datetime.fromisoformat(ts)
+            # Python < 3.11 fromisoformat() does not accept the "Z" suffix —
+            # normalize it to an explicit UTC offset first.
+            text = ts.strip()
+            if text.endswith(("Z", "z")):
+                text = text[:-1] + "+00:00"
+            dt = datetime.fromisoformat(text)
         except (ValueError, TypeError):
             return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         if dt.tzinfo is None:
