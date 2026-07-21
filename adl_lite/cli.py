@@ -11,11 +11,14 @@ from pathlib import Path
 
 from .consensus import ConsensusEngine
 from .exceptions import ADLConsensusError, ADLOntologyError, ADLTemplateError
+from .logging_config import get_logger
 from .memory import ADLMemory
 from .models import DiscoveryStatus, Event, EventChain
 from .ontology import OntologyManager
 from .parser import ADLParseError, parse_file
 from .validator import ADLValidator
+
+logger = get_logger(__name__)
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -618,7 +621,9 @@ def _cmd_mcp(args: argparse.Namespace) -> int:
         try:
             server.settings.port = args.port
         except AttributeError:
-            pass
+            # Older FastMCP versions expose no mutable settings.port —
+            # fall back to the library default port.
+            logger.debug("FastMCP settings.port unavailable; using library default port")
         server.run(transport="streamable-http")
     return 0
 
@@ -639,6 +644,7 @@ def _cmd_neo4j_status(args: argparse.Namespace) -> int:
     user = args.user or config["user"]
     password = args.password or config["password"]
 
+    adapter = None
     try:
         adapter = Neo4jGraphAdapter(uri=uri, user=user, password=password)
         count = adapter.node_count()
@@ -655,10 +661,11 @@ def _cmd_neo4j_status(args: argparse.Namespace) -> int:
         print(f"Neo4j connection FAILED: {exc}", file=sys.stderr)
         return 1
     finally:
-        try:
-            adapter.close()
-        except Exception:
-            pass
+        if adapter is not None:
+            try:
+                adapter.close()
+            except Exception:
+                logger.warning("Failed to close Neo4j adapter cleanly", exc_info=True)
 
     print("Neo4j connection OK")
     print(f"  URI:   {uri}")
@@ -676,6 +683,7 @@ def _cmd_neo4j_check(args: argparse.Namespace) -> int:
     user = args.user or config["user"]
     password = args.password or config["password"]
 
+    adapter = None
     try:
         adapter = Neo4jGraphAdapter(uri=uri, user=user, password=password)
         ok = adapter.verify_connectivity()
@@ -691,10 +699,11 @@ def _cmd_neo4j_check(args: argparse.Namespace) -> int:
         print(f"Neo4j health check FAILED: {exc}", file=sys.stderr)
         return 1
     finally:
-        try:
-            adapter.close()
-        except Exception:
-            pass
+        if adapter is not None:
+            try:
+                adapter.close()
+            except Exception:
+                logger.warning("Failed to close Neo4j adapter cleanly", exc_info=True)
 
     if ok:
         print("Neo4j health check OK")

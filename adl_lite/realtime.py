@@ -14,7 +14,10 @@ from collections import defaultdict
 from collections.abc import Callable
 from typing import Any
 
+from .logging_config import get_logger
 from .models import Event, EventChain, EventType
+
+logger = get_logger(__name__)
 
 
 class AlertHandler:
@@ -135,6 +138,12 @@ class RealtimeWatcher:
         with self._lock:
             self._alerts.extend(alerts)
         for alert in alerts:
+            logger.info(
+                "Alert raised: %s on concept %s (actor=%s)",
+                alert.alert_type,
+                alert.concept_id,
+                event.actor,
+            )
             self._dispatch(alert)
 
         return alerts
@@ -290,6 +299,12 @@ class RealtimeWatcher:
         """Fire registered handlers for this alert type. Thread-safe."""
         with self._lock:
             handlers = self._handlers.get(alert.alert_type, []) + self._handlers.get("*", [])
+        logger.debug(
+            "Dispatching alert %s for concept %s to %d handler(s)",
+            alert.alert_type,
+            alert.concept_id,
+            len(handlers),
+        )
         for handler in handlers:
             handler(alert)
 

@@ -391,9 +391,72 @@ class TestAuthDisabledBackwardCompat:
         assert resp.status_code == 200
 
     def test_mode_without_auth(self, no_auth_client: TestClient):
-        """POST /mode/dev without auth → 200 (auth disabled)."""
+        """POST /mode/dev without auth → 403 (anonymous is a read-only reader)."""
         resp = no_auth_client.post("/api/v1/consensus/mode/dev")
+        assert resp.status_code == 403
+        assert "Admin access required" in resp.json()["detail"]
+
+
+# ===========================================================================
+# B5: JWT secret fail-fast + OAuth2 token endpoint
+# ===========================================================================
+
+
+class TestJwtSecretRequired:
+    """Auth-enabled startup must fail fast without an explicit JWT secret."""
+
+    def test_create_app_auth_enabled_without_secret_raises(self):
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
+            state_path = f.name
+        try:
+            with pytest.raises(ValueError, match="JWT secret"):
+                create_app(state_path=state_path, auth_enabled=True)
+        finally:
+            Path(state_path).unlink(missing_ok=True)
+
+    def test_create_app_auth_disabled_without_secret_ok(self):
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
+            state_path = f.name
+        try:
+            app = create_app(state_path=state_path, auth_enabled=False)
+            assert app is not None
+        finally:
+            Path(state_path).unlink(missing_ok=True)
+
+
+class TestTokenEndpoint:
+    """POST /api/v1/auth/token — OAuth2 password flow backed by API keys."""
+
+    def test_valid_api_key_password_issues_usable_token(self, auth_client: TestClient):
+        resp = auth_client.post(
+            "/api/v1/auth/token",
+            data={"username": "svc-bot", "password": "test-key-1"},
+        )
         assert resp.status_code == 200
+        body = resp.json()
+        assert body["token_type"] == "bearer"
+        token = body["access_token"]
+        # The issued token authenticates against protected endpoints.
+        reg = auth_client.post(
+            "/api/v1/consensus/register",
+            json=_register_payload("token_flow_reg"),
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert reg.status_code == 200
+
+    def test_invalid_password_returns_401(self, auth_client: TestClient):
+        resp = auth_client.post(
+            "/api/v1/auth/token",
+            data={"username": "svc-bot", "password": "wrong-key"},
+        )
+        assert resp.status_code == 401
+
+    def test_token_endpoint_unavailable_when_auth_disabled(self, no_auth_client: TestClient):
+        resp = no_auth_client.post(
+            "/api/v1/auth/token",
+            data={"username": "svc-bot", "password": "test-key-1"},
+        )
+        assert resp.status_code == 400
 
 
 # ===========================================================================

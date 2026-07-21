@@ -28,8 +28,11 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
 from .did_resolver import is_did, resolve_did_key, verify_did_signature
+from .logging_config import get_logger
 from .merkle import MerkleProof, MerkleTree
 from .models import Event, EventChain
+
+logger = get_logger(__name__)
 
 
 class KeyRegistry:
@@ -153,7 +156,14 @@ class GitSignatureVerifier:
                 if lines:
                     return lines[0]
             except Exception:
-                pass
+                # Soft-check design: a failing git lookup (missing repo,
+                # missing git binary) falls through to the next needle and
+                # finally to "not found", but the cause must be visible.
+                logger.warning(
+                    "git log lookup failed for needle in repo %s",
+                    repo_path,
+                    exc_info=True,
+                )
         return None
 
     def _verify_commit(self, commit: str, actor: str, repo_path: str) -> bool:
@@ -198,7 +208,11 @@ class GitSignatureVerifier:
             try:
                 os.unlink(path)
             except Exception:
-                pass
+                logger.warning(
+                    "Failed to remove temporary signers file %s",
+                    path,
+                    exc_info=True,
+                )
 
 
 class TransparencyAnchor:

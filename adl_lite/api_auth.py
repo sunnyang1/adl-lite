@@ -18,6 +18,10 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import ExpiredSignatureError, JWTError, jwt
 from pydantic import BaseModel
 
+from .logging_config import get_logger
+
+logger = get_logger(__name__)
+
 # ---------------------------------------------------------------------------
 # JWT configuration defaults
 # ---------------------------------------------------------------------------
@@ -98,7 +102,10 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token", auto_error=F
 # ---------------------------------------------------------------------------
 
 # Module-level overrides — set by ``create_app()`` at startup.
-_jwt_secret: str = "change-me"
+# No default JWT secret: when auth is enabled a secret MUST be supplied
+# explicitly (see ``configure_auth``), otherwise token signing/verification
+# would silently rely on a publicly known key.
+_jwt_secret: str | None = None
 _api_keys: set[str] = set()
 _auth_enabled: bool = True
 
@@ -123,7 +130,7 @@ def resolve_api_key_tenant(key: str) -> str | None:
 
 
 def configure_auth(
-    jwt_secret: str,
+    jwt_secret: str | None,
     api_keys: set[str],
     auth_enabled: bool,
     api_key_tenants: dict[str, str] | None = None,
@@ -131,17 +138,35 @@ def configure_auth(
     """Set module-level auth configuration (called by ``create_app()``).
 
     Args:
-        jwt_secret: JWT signing secret.
+        jwt_secret: JWT signing secret. Required when ``auth_enabled=True``;
+            there is intentionally no default so deployments cannot silently
+            fall back to a publicly known key.
         api_keys: Set of valid API keys.
         auth_enabled: Whether authentication is required.
         api_key_tenants: Optional mapping of API key → tenant id, used to
             attribute a tenant to key-authenticated requests.
+
+    Raises:
+        ValueError: ``auth_enabled=True`` without an explicit ``jwt_secret``.
     """
+    if auth_enabled and not jwt_secret:
+        raise ValueError(
+            "JWT secret is required when auth_enabled=True. "
+            "Set the JWT_SECRET environment variable or pass jwt_secret=... "
+            "to create_app()/configure_auth(). Refusing to start with a "
+            "default, publicly known secret."
+        )
     global _jwt_secret, _api_keys, _auth_enabled, _api_key_tenants
     _jwt_secret = jwt_secret
     _api_keys = api_keys
     _auth_enabled = auth_enabled
     _api_key_tenants = dict(api_key_tenants) if api_key_tenants else {}
+    logger.info(
+        "Auth configured: auth_enabled=%s, api_keys=%d, tenant_mappings=%d",
+        auth_enabled,
+        len(api_keys),
+        len(_api_key_tenants),
+    )
 
 
 def require_auth(
@@ -158,10 +183,21 @@ def require_auth(
         HTTPException(401): No auth provided, or both JWT and API key invalid.
     """
     if not _auth_enabled:
-        return UserInfo(identity="anonymous", role="admin")
+        # Backward-compatibility mode: unauthenticated callers get a
+        # read-only identity. Admin-only endpoints (mode switches) reject
+        # this identity via ``require_admin``.
+        return UserInfo(identity="anonymous", role="reader")
 
     # Try JWT first
     if token:
+        if _jwt_secret is None:
+            # Should be unreachable: configure_auth() refuses auth-enabled
+            # startup without a secret. Defensive guard for direct module use.
+            logger.error("JWT presented but no JWT secret is configured")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="JWT secret is not configured on the server",
+            )
         try:
             payload = get_current_user(token, _jwt_secret)
             return UserInfo(
@@ -238,6 +274,31 @@ def verify_api_key(key: str, valid_keys: set[str]) -> str | None:
     if key in valid_keys:
         return key
     return None
+
+
+def issue_token_for_api_key(username: str, password: str) -> str | None:
+    """Issue a signed JWT for the OAuth2 password flow.
+
+    The password flow is backed by the configured API keys: ``password`` must
+    be one of the keys passed to ``configure_auth``. The issued token carries
+    ``sub=username``, ``role="user"``, and — when the key has a tenant
+    mapping — the mapped ``tenant_id`` claim.
+
+    Returns:
+        Encoded JWT string, or ``None`` when the credential is invalid or
+        token issuance is not properly configured (auth disabled / no secret).
+    """
+    if not _auth_enabled or _jwt_secret is None:
+        return None
+    if verify_api_key(password, _api_keys) is None:
+        logger.warning("Token issuance rejected: invalid credential for username=%r", username)
+        return None
+    claims: dict[str, Any] = {"sub": username, "role": "user"}
+    tenant_id = resolve_api_key_tenant(password)
+    if tenant_id is not None:
+        claims["tenant_id"] = tenant_id
+    logger.info("Issued access token for username=%r (tenant=%s)", username, tenant_id)
+    return create_access_token(claims, secret=_jwt_secret)
 
 
 # ---------------------------------------------------------------------------

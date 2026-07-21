@@ -20,16 +20,33 @@ import json
 import sqlite3
 import threading
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel
 
+from .logging_config import get_logger
+
+logger = get_logger(__name__)
+
 # Default aggregation period. Monthly = natural UTC month.
 DEFAULT_PERIOD: Literal["daily", "monthly"] = "monthly"
 
-# Storage used when no explicit metering db path is configured. ``:memory:``
-# keeps tests / dev runs self-contained and avoids polluting the CWD.
-_DEFAULT_METERING_DB = ":memory:"
+
+def _default_metering_db_path() -> str:
+    """Return the default on-disk metering database path.
+
+    Lives in the per-user data dir (``~/.adl_lite/metering.db``) so usage
+    counters — and therefore quota enforcement — survive process restarts.
+    """
+    return str(Path.home() / ".adl_lite" / "metering.db")
+
+
+# Storage used when no explicit metering db path is configured: a persistent
+# per-user SQLite file. Pass ``":memory:"`` explicitly for a volatile store
+# (tests / throwaway dev runs); in-memory mode logs a warning because quotas
+# can be bypassed by restarting the process.
+_DEFAULT_METERING_DB = _default_metering_db_path()
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS usage_meter (
@@ -118,7 +135,15 @@ class UsageMeter:
     """Persistent per-tenant usage meter backed by SQLite."""
 
     def __init__(self, db_path: str | None = None) -> None:
-        self.db_path = db_path if db_path is not None else _DEFAULT_METERING_DB
+        self.db_path = db_path if db_path is not None else _default_metering_db_path()
+        if self.db_path == ":memory:":
+            logger.warning(
+                "UsageMeter running on in-memory storage: usage counters and "
+                "quota enforcement state will NOT survive a process restart"
+            )
+        else:
+            Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+            logger.debug("UsageMeter opened persistent db at %s", self.db_path)
         self._lock = threading.Lock()
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         # Retry instead of immediately failing on locked tables.
@@ -351,11 +376,13 @@ _meter_singletons: dict[str, UsageMeter] = {}
 def get_usage_meter(db_path: str | None = None) -> UsageMeter:
     """Return a process-wide ``UsageMeter`` singleton keyed by db path.
 
-    ``None`` (or ``":memory:"``) maps to a single in-memory singleton.
+    ``None`` maps to the default persistent per-user db
+    (``~/.adl_lite/metering.db``); ``":memory:"`` maps to a single shared
+    in-memory singleton (volatile — see the ``UsageMeter`` warning).
     """
-    key = db_path if db_path is not None else ":memory:"
+    key = db_path if db_path is not None else _default_metering_db_path()
     meter = _meter_singletons.get(key)
     if meter is None:
-        meter = UsageMeter(db_path=db_path)
+        meter = UsageMeter(db_path=key)
         _meter_singletons[key] = meter
     return meter

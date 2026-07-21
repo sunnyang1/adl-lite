@@ -5,6 +5,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from ...logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 class FieldMapper:
     """Transforms data fields by renaming and type-casting."""
@@ -88,6 +92,12 @@ class FieldMapper:
                                 except ValueError:
                                     continue
                 except (ValueError, TypeError):
-                    pass  # Keep original value on cast failure
+                    # Keep original value on cast failure (data-quality note).
+                    logger.debug(
+                        "Cast of field %r to %s failed; keeping original value",
+                        field,
+                        target_type,
+                        exc_info=True,
+                    )
             result.append(new_row)
         return result

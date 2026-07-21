@@ -6,14 +6,24 @@ Reads configuration from environment variables with sensible defaults.
 import json
 import os
 
+# Default CORS allowed origins when nothing is configured: local development
+# origins only. Wildcard ("*") requires an explicit opt-in via
+# ``CORS_ALLOW_ALL=true`` or an explicit ``cors_origins=["*"]`` argument.
+DEFAULT_CORS_ORIGINS: list[str] = [
+    "http://localhost",
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+
 
 def get_cors_origins() -> list[str] | None:
-    """Read CORS allowed origins from environment variable.
+    """Read CORS allowed origins from environment variables.
 
     Returns:
-        - None if CORS_ALLOW_ALL=true (development mode, allow all origins)
+        - None if CORS_ALLOW_ALL=true (explicit dev opt-in, allow all origins)
         - List of allowed origins from CORS_ORIGINS env var (production mode)
-        - Default: None (allow all) for development convenience
+        - Default: ``DEFAULT_CORS_ORIGINS`` (localhost-only)
 
     Environment Variables:
         CORS_ALLOW_ALL: Set to "true" to allow all origins (development)
@@ -37,8 +47,8 @@ def get_cors_origins() -> list[str] | None:
         # Parse comma-separated list of origins
         return [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
 
-    # Default: None (allow all) for development convenience
-    return None
+    # Secure default: localhost origins only (no wildcard).
+    return list(DEFAULT_CORS_ORIGINS)
 
 
 def get_api_config() -> dict:
@@ -75,7 +85,9 @@ def get_api_config() -> dict:
     return {
         "cors_origins": get_cors_origins(),
         "auth_enabled": os.getenv("AUTH_ENABLED", "false").lower() == "true",
-        "jwt_secret": os.getenv("JWT_SECRET", "change-me"),
+        # No default JWT secret: when AUTH_ENABLED=true, JWT_SECRET must be
+        # set explicitly or app startup fails with a clear error.
+        "jwt_secret": os.getenv("JWT_SECRET") or None,
         "rate_limit": int(os.getenv("RATE_LIMIT", "0")),
         "api_key_tenants": api_key_tenants,
         "metering_db_path": os.getenv("METERING_DB_PATH") or None,

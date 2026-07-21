@@ -17,6 +17,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 
+from .logging_config import get_logger
 from .models import (
     ADLDocument,
     ADLFrontMatter,
@@ -27,6 +28,8 @@ from .models import (
 )
 from .ontology import OntologyManager, default_ontology
 from .relation_validator import RelationValidator
+
+logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -230,6 +233,12 @@ class ADLValidator:
         if self.shacl:
             errors.extend(str(r) for r in self._validate_shacl(doc))
 
+        if errors:
+            logger.debug(
+                "Validation of %s produced %d error(s)",
+                doc.adl_id,
+                len(errors),
+            )
         return errors
 
     def _validate_relation_governance(self, doc: ADLDocument) -> list[str]:

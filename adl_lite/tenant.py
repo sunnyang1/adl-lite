@@ -22,6 +22,9 @@ from pydantic import BaseModel
 
 from . import api_auth
 from .api_auth import UserInfo, require_auth
+from .logging_config import get_logger
+
+logger = get_logger(__name__)
 
 if TYPE_CHECKING:
     from .consensus import ConsensusEngine
@@ -73,7 +76,9 @@ def require_tenant(user: UserInfo = Depends(require_auth)) -> TenantContext:
         return TenantContext(id=user.tenant_id, user=user)  # type: ignore[attr-defined]
 
     # Authenticated but no explicit tenant claim → derive from identity.
-    return TenantContext(id=user.identity or DEFAULT_TENANT, user=user)
+    derived = user.identity or DEFAULT_TENANT
+    logger.debug("Tenant derived from identity: %s", derived)
+    return TenantContext(id=derived, user=user)
 
 
 class TenantRegistry:

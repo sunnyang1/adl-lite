@@ -63,11 +63,15 @@ def get_logger(name: str | None = None) -> logging.Logger:
 
     Args:
         name: Sub-logger name (e.g. "parser", "consensus"). If None, returns root adl_lite logger.
+            A fully-qualified module name (``__name__``, e.g. "adl_lite.parser" or
+            "adl_lite.fde.rule_engine") is used as-is, without double-prefixing.
 
     Example:
         >>> logger = get_logger("parser")
         >>> logger.info("Parsing document %s", doc_path)
     """
     if name:
+        if name == "adl_lite" or name.startswith("adl_lite."):
+            return logging.getLogger(name)
         return logging.getLogger(f"adl_lite.{name}")
     return _logger

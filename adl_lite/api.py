@@ -13,6 +13,7 @@ metered through ``meter_api_call``. Two read-only usage endpoints expose the
 per-tenant counters.
 
 Endpoints:
+    POST   /api/v1/auth/token                   — OAuth2 password-flow token issuance
     POST   /api/v1/consensus/register        — register a capability
     POST   /api/v1/consensus/transition       — transition status
     GET    /api/v1/consensus/status/{adl_id}  — query current status
@@ -25,6 +26,16 @@ Endpoints:
     GET    /api/v1/consensus/mode              — get current mode (dev/production, N_min)
     GET    /api/v1/tenants/{tenant_id}/usage          — current-period usage (same tenant / admin)
     GET    /api/v1/tenants/{tenant_id}/usage/export   — usage export CSV/JSON (same tenant / admin)
+
+Scope ACL (read path)
+---------------------
+Read endpoints enforce the document ``scope`` taxonomy
+(``public`` / ``private/<org>`` / ``user/<id>`` / ``shared/<collab>``):
+anonymous callers (auth disabled) read only ``public`` documents; an
+authenticated caller additionally reads ``private/<their tenant>`` and
+``user/<their identity>``; ``admin`` reads everything. ``/list`` filters
+invisible documents; single-document reads return 404 (existence is not
+leaked to unauthorized callers).
 """
 
 from __future__ import annotations
@@ -37,6 +48,7 @@ from typing import Any, Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 
 from . import __version__
@@ -44,10 +56,14 @@ from .api_auth import (
     RateLimitMiddleware,
     UserInfo,
     configure_auth,
+    is_auth_enabled,
+    issue_token_for_api_key,
     require_admin,
 )
+from .config import DEFAULT_CORS_ORIGINS, get_api_config
 from .consensus import ConsensusEngine
 from .exceptions import ADLConsensusError
+from .logging_config import get_logger
 from .metering import (
     DEFAULT_PERIOD,
     MeteringRecord,
@@ -55,7 +71,15 @@ from .metering import (
     compute_period_window,
     get_usage_meter,
 )
-from .models import ADLDocument, ADLFrontMatter, ADLType, DiscoveryStatus, Event, EventType
+from .models import (
+    ADLDocument,
+    ADLFrontMatter,
+    ADLType,
+    DiscoveryStatus,
+    Event,
+    EventChain,
+    EventType,
+)
 from .ontology import default_ontology
 from .quota import check_quota, configure_quota, get_quota_config
 from .tenant import (
@@ -64,6 +88,9 @@ from .tenant import (
     _safe_tenant_id,
     get_tenant_registry,
 )
+from .validator import ADLValidator
+
+logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # Request / Response models
@@ -184,8 +211,6 @@ def _load_engine(path: Path) -> ConsensusEngine:
         for cid, events_data in data.get("chains", {}).items():
             chain = engine.chains.get(cid)
             if chain is None:
-                from .models import EventChain
-
                 chain = EventChain(concept_id=cid)
             for raw in events_data:
                 event = Event(
@@ -265,6 +290,57 @@ def _save_engine(tid: str = DEFAULT_TENANT, engine: ConsensusEngine | None = Non
     target.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+# ---------------------------------------------------------------------------
+# Scope ACL helpers (read path)
+# ---------------------------------------------------------------------------
+
+# Shared validator instance — validate_scope_access is stateless.
+_SCOPE_VALIDATOR = ADLValidator()
+
+
+def _chain_scope(chain: EventChain) -> str:
+    """Derive a chain's visibility scope from its genesis event payload.
+
+    Documents registered through the API/MCP carry their front-matter scope in
+    the genesis SNAPSHOT event payload (see ``EventChain.from_parsed``). Chains
+    without scope metadata (forks, engine-level genesis REGISTER events, state
+    files written before the ACL existed) default to ``"public"``.
+    """
+    events = chain.events
+    if events:
+        scope = events[0].payload.get("scope")
+        if isinstance(scope, str) and scope:
+            return scope
+    return "public"
+
+
+def _requester_scopes(caller: TenantContext) -> list[str]:
+    """Map the caller identity to candidate requester scopes for the ACL check.
+
+    * auth disabled → the anonymous reader may only read ``public`` documents.
+    * auth enabled  → ``public`` + ``private/<tenant>`` + ``user/<identity>``.
+    """
+    if not is_auth_enabled():
+        return ["public"]
+    scopes = ["public"]
+    if caller.id and caller.id != DEFAULT_TENANT:
+        scopes.append(f"private/{caller.id}")
+    identity = caller.user.identity
+    if identity:
+        scopes.append(f"user/{identity}")
+    return scopes
+
+
+def _can_read(doc_scope: str, caller: TenantContext) -> bool:
+    """Return True when ``caller`` may read a document with ``doc_scope``."""
+    if caller.user.role == "admin":
+        return True
+    return any(
+        _SCOPE_VALIDATOR.validate_scope_access(doc_scope, requester)
+        for requester in _requester_scopes(caller)
+    )
+
+
 def meter_api_call(
     tenant: TenantContext = Depends(check_quota),
     request: Request = None,  # type: ignore[assignment]
@@ -286,7 +362,7 @@ def meter_api_call(
 def create_app(
     state_path: str | None = None,
     auth_enabled: bool = False,
-    jwt_secret: str = "change-me",
+    jwt_secret: str | None = None,
     api_keys: set[str] | None = None,
     rate_limit: int = 0,
     cors_origins: list[str] | None = None,
@@ -303,17 +379,25 @@ def create_app(
         state_path: Path to the default-tenant consensus state JSON file.
             Defaults to ``adl_consensus.json`` in the CWD.
         auth_enabled: Whether to require authentication on endpoints.
-        jwt_secret: Secret key for JWT signing/verification.
+        jwt_secret: Secret key for JWT signing/verification. **Required** when
+            ``auth_enabled=True`` — there is no default secret, so a misconfigured
+            deployment fails fast instead of silently using a known key.
         api_keys: Set of valid API keys for ``X-API-Key`` auth.
         rate_limit: Max requests per 60s window per client. ``0`` disables.
-        cors_origins: Allowed CORS origins. ``None`` allows all (dev mode).
+        cors_origins: Allowed CORS origins. ``None`` defaults to localhost
+            origins (``DEFAULT_CORS_ORIGINS``); pass ``["*"]`` explicitly for
+            wide-open development CORS.
         api_key_tenants: Optional API-key → tenant id mapping.
         state_base_dir: Base directory for per-tenant state files. Defaults
             to the parent of ``state_path``.
-        metering_db_path: Path to the SQLite metering database. Defaults to
-            an in-memory store.
+        metering_db_path: Path to the SQLite metering database. Defaults to a
+            persistent per-user file (see ``adl_lite.metering``); ``":memory:"``
+            selects a volatile in-memory store.
         quota_max_api_calls: Global max API calls per period. ``None`` = unlimited.
         quota_max_entities: Global max registered entities per period. ``None`` = unlimited.
+
+    Raises:
+        ValueError: ``auth_enabled=True`` without an explicit ``jwt_secret``.
     """
     global _state_path, _engine, _engine_cache, _state_base_dir, _meter
     if state_path is not None:
@@ -322,12 +406,19 @@ def create_app(
     _engine_cache.clear()
     _state_base_dir = Path(state_base_dir) if state_base_dir else None
 
-    # Configure auth module globals
+    # Configure auth module globals. Raises ValueError when auth is enabled
+    # without an explicit JWT secret (fail-fast on insecure configuration).
     configure_auth(  # type: ignore[call-arg]
         jwt_secret=jwt_secret,
         api_keys=api_keys or set(),
         auth_enabled=auth_enabled,
         api_key_tenants=api_key_tenants,
+    )
+    logger.info(
+        "Creating ADL Lite API app: auth_enabled=%s, state_path=%s, cors_origins=%s",
+        auth_enabled,
+        _state_path,
+        cors_origins if cors_origins is not None else DEFAULT_CORS_ORIGINS,
     )
 
     # (Re)bind the metering singleton for this app instance.
@@ -353,18 +444,17 @@ def create_app(
         description="REST API for ADL Lite consensus lifecycle operations",
     )
 
-    # Add CORS middleware
+    # Add CORS middleware. The default is a localhost-only allowlist; a
+    # wildcard requires an explicit opt-in (cors_origins=["*"]).
     if cors_origins is None:
-        # Development mode: allow all origins
         app.add_middleware(
             CORSMiddleware,
-            allow_origins=["*"],
+            allow_origins=DEFAULT_CORS_ORIGINS,
             allow_credentials=True,
-            allow_methods=["*"],
+            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             allow_headers=["*"],
         )
     else:
-        # Production mode: restrict to specified origins
         app.add_middleware(
             CORSMiddleware,
             allow_origins=cors_origins,
@@ -376,6 +466,29 @@ def create_app(
     # Add rate-limit middleware
     if rate_limit > 0:
         app.add_middleware(RateLimitMiddleware, rate_limit=rate_limit)
+
+    # ------------------------------------------------------------------
+    # POST /api/v1/auth/token — OAuth2 password-flow token issuance.
+    # Backs the ``tokenUrl`` advertised by the OAuth2 security scheme.
+    # ------------------------------------------------------------------
+    @app.post("/api/v1/auth/token", response_model=dict)
+    def issue_access_token(
+        form: OAuth2PasswordRequestForm = Depends(),
+    ) -> dict[str, Any]:
+        """Exchange an API-key credential (password field) for a signed JWT."""
+        if not is_auth_enabled():
+            raise HTTPException(
+                status_code=400,
+                detail="Token issuance is unavailable while auth_enabled=False",
+            )
+        token = issue_token_for_api_key(form.username, form.password)
+        if token is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return {"access_token": token, "token_type": "bearer"}
 
     # ------------------------------------------------------------------
     # POST /api/v1/consensus/register
@@ -472,6 +585,14 @@ def create_app(
             raise HTTPException(status_code=404, detail=f"Not registered: {adl_id}")
 
         chain = engine.chains[adl_id]
+        if not _can_read(_chain_scope(chain), caller):
+            # 404 (not 403) so unauthorized callers cannot probe existence.
+            logger.warning(
+                "Scope ACL denied status read: adl_id=%s caller=%s",
+                adl_id,
+                caller.user.identity,
+            )
+            raise HTTPException(status_code=404, detail=f"Not registered: {adl_id}")
         return StatusResponse(
             adl_id=adl_id,
             status=chain.status.value,
@@ -490,6 +611,16 @@ def create_app(
     ) -> HistoryResponse:
         tid = caller.id
         engine = _get_engine(tid)
+        chain = engine.chains.get(adl_id)
+        if chain is not None and not _can_read(_chain_scope(chain), caller):
+            logger.warning(
+                "Scope ACL denied history read: adl_id=%s caller=%s",
+                adl_id,
+                caller.user.identity,
+            )
+            chain = None
+        if chain is None:
+            raise HTTPException(status_code=404, detail=f"No history for: {adl_id}")
         history = engine.get_history(adl_id)
         if not history:
             raise HTTPException(status_code=404, detail=f"No history for: {adl_id}")
@@ -536,7 +667,15 @@ def create_app(
         if adl_id not in engine.chains:
             raise HTTPException(status_code=404, detail=f"Not registered: {adl_id}")
 
-        ok = engine.chains[adl_id].verify_integrity()
+        chain = engine.chains[adl_id]
+        if not _can_read(_chain_scope(chain), caller):
+            logger.warning(
+                "Scope ACL denied verify read: adl_id=%s caller=%s",
+                adl_id,
+                caller.user.identity,
+            )
+            raise HTTPException(status_code=404, detail=f"Not registered: {adl_id}")
+        ok = chain.verify_integrity()
         return VerifyResponse(adl_id=adl_id, integrity_ok=ok)
 
     # ------------------------------------------------------------------
@@ -555,7 +694,10 @@ def create_app(
 
         tid = caller.id
         engine = _get_engine(tid)
-        caps = sorted(engine.chains.keys())
+        # Scope ACL: only documents visible to the caller are listed.
+        caps = sorted(
+            cid for cid, chain in engine.chains.items() if _can_read(_chain_scope(chain), caller)
+        )
         total = len(caps)
         slice_caps = caps[offset : offset + limit]
         return PaginatedListResponse(
@@ -658,8 +800,6 @@ def create_app(
 # ---------------------------------------------------------------------------
 
 # Read configuration from environment variables
-from .config import get_api_config  # noqa: E402
-
 _meter = get_usage_meter()
 registry = get_tenant_registry()
 _config = get_api_config()

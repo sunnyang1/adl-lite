@@ -17,6 +17,10 @@ import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from .logging_config import get_logger
+
+logger = get_logger(__name__)
+
 if TYPE_CHECKING:
     # numpy is an optional dependency (pulled in by the [embeddings] extra).
     # It is imported lazily inside the methods that need it so that
@@ -335,7 +339,7 @@ class VectorIndex:
         try:
             self.conn.close()
         except Exception:
-            pass
+            logger.warning("Failed to close VectorIndex SQLite connection", exc_info=True)
 
     def save(self) -> None:
         """Persist the FAISS index, metadata, and a SQLite backup to disk."""

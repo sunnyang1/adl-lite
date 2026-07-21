@@ -25,17 +25,45 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from .consensus import ConsensusEngine
+from .logging_config import get_logger
 from .models import (
     ADLDocument,
     ADLFrontMatter,
     ADLType,
     DiscoveryStatus,
+    EventChain,
     EventType,
     ProvisionalNames,
 )
 from .ontology import default_ontology
 from .tools import adl_parse as _adl_parse
 from .tools import adl_validate as _adl_validate
+from .validator import ADLValidator
+
+logger = get_logger(__name__)
+
+# ---------------------------------------------------------------------------
+# Scope ACL — MCP has no tenant/user context, so read tools expose
+# public-scope documents only (writes are unaffected).
+# ---------------------------------------------------------------------------
+
+_SCOPE_VALIDATOR = ADLValidator()
+
+
+def _chain_scope(chain: EventChain) -> str:
+    """Derive a chain's visibility scope from its genesis event payload."""
+    events = chain.events
+    if events:
+        scope = events[0].payload.get("scope")
+        if isinstance(scope, str) and scope:
+            return scope
+    return "public"
+
+
+def _is_public(chain: EventChain) -> bool:
+    """Return True when the chain is readable without any tenant context."""
+    return _SCOPE_VALIDATOR.validate_scope_access(_chain_scope(chain), "public")
+
 
 # ---------------------------------------------------------------------------
 # Engine singleton — lazy init from state file (same pattern as api.py)
@@ -218,7 +246,10 @@ def create_mcp_server(state_path: str | None = None) -> FastMCP:
         Returns adl_id, status, confidence, and event_count."""
         engine = _get_engine()
 
-        if adl_id not in engine.chains:
+        chain = engine.chains.get(adl_id)
+        if chain is None or not _is_public(chain):
+            if chain is not None:
+                logger.warning("MCP scope ACL denied adl_status for adl_id=%s", adl_id)
             return {
                 "adl_id": adl_id,
                 "status": "provisional",
@@ -227,7 +258,6 @@ def create_mcp_server(state_path: str | None = None) -> FastMCP:
                 "error": "not registered",
             }
 
-        chain = engine.chains[adl_id]
         return {
             "adl_id": adl_id,
             "status": chain.status.value,
@@ -245,7 +275,8 @@ def create_mcp_server(state_path: str | None = None) -> FastMCP:
         status, and chain_length."""
         engine = _get_engine()
 
-        if adl_id not in engine.chains:
+        chain = engine.chains.get(adl_id)
+        if chain is None or not _is_public(chain):
             return {
                 "ok": False,
                 "adl_id": adl_id,
@@ -254,12 +285,12 @@ def create_mcp_server(state_path: str | None = None) -> FastMCP:
                 "error": "not registered",
             }
 
-        ok = engine.chains[adl_id].verify_integrity()
+        ok = chain.verify_integrity()
         return {
             "ok": ok,
             "adl_id": adl_id,
             "status": engine.get_status(adl_id).value,
-            "chain_length": engine.chains[adl_id].length,
+            "chain_length": chain.length,
         }
 
     # ------------------------------------------------------------------
@@ -271,6 +302,9 @@ def create_mcp_server(state_path: str | None = None) -> FastMCP:
         """Get event chain history for a capability. Returns a list of
         event dicts with event_type, actor, timestamp, and hash."""
         engine = _get_engine()
+        chain = engine.chains.get(adl_id)
+        if chain is None or not _is_public(chain):
+            return []
         return engine.get_history(adl_id)
 
     # ------------------------------------------------------------------
@@ -316,7 +350,9 @@ def create_mcp_server(state_path: str | None = None) -> FastMCP:
         """List all registered capabilities (paginated). Returns capabilities
         list, total count, offset, and limit."""
         engine = _get_engine()
-        caps = sorted(engine.chains.keys())
+        # Scope ACL: only public-scope capabilities are listed (no tenant
+        # context exists for MCP callers).
+        caps = sorted(cid for cid, chain in engine.chains.items() if _is_public(chain))
         total = len(caps)
         slice_caps = caps[offset : offset + limit]
         return {
@@ -364,10 +400,10 @@ def create_mcp_server(state_path: str | None = None) -> FastMCP:
         """Capability detail resource: status + latest event info."""
         engine = _get_engine()
 
-        if adl_id not in engine.chains:
+        chain = engine.chains.get(adl_id)
+        if chain is None or not _is_public(chain):
             return {"adl_id": adl_id, "status": "unknown", "error": "not registered"}
 
-        chain = engine.chains[adl_id]
         latest = chain.events[-1] if chain.events else None
         return {
             "adl_id": adl_id,
@@ -387,14 +423,13 @@ def create_mcp_server(state_path: str | None = None) -> FastMCP:
         """Generate a prompt template for analyzing a capability lifecycle."""
         engine = _get_engine()
 
-        if adl_id not in engine.chains:
+        chain = engine.chains.get(adl_id)
+        if chain is None or not _is_public(chain):
             return (
                 f"Analyze the capability lifecycle for '{adl_id}'. "
                 f"This capability is not yet registered in the consensus engine. "
                 f"Consider: Should it be registered? What domain and scope would be appropriate?"
             )
-
-        chain = engine.chains[adl_id]
         history = chain.history()
         status = chain.status.value
 

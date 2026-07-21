@@ -59,7 +59,7 @@ class QuotaConfig:
         self._policies: dict[str, QuotaPolicy] = {}
         self._lock = threading.Lock()
         # DB path for the UsageMeter singleton used by create_app.
-        # ``None`` means the default in-memory meter.
+        # ``None`` means the default persistent per-user meter db.
         self._meter_db_path: str | None = None
 
     # -- query ----------------------------------------------------------
@@ -154,7 +154,7 @@ def check_quota(
     window = compute_period_window(now, policy.period)
 
     # Use the same metering DB that create_app wired up (falls back to
-    # the default in-memory singleton when no explicit db_path was set).
+    # the default persistent per-user db when no explicit db_path was set).
     meter = get_usage_meter(config._meter_db_path)
     record = meter.get_record(tenant.id, window.period_start, window.period_end)
 

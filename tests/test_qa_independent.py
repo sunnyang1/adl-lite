@@ -411,7 +411,9 @@ def test_no_auth_single_tenant_endpoints_still_200() -> None:
             == 200
         )
         assert client.get("/api/v1/consensus/list").status_code == 200
-        assert client.post("/api/v1/consensus/mode/dev").status_code == 200
+        # Mode switches are admin-only; the anonymous identity is a read-only
+        # reader, so the control plane now correctly rejects it.
+        assert client.post("/api/v1/consensus/mode/dev").status_code == 403
         # Usage endpoint under disabled auth (default tenant) is reachable.
         assert client.get("/api/v1/tenants/default/usage").status_code == 200
     finally:

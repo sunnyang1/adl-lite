@@ -793,7 +793,13 @@ class ADLMemory:
             try:
                 self.vector_index.delete(adl_id)
             except Exception:
-                pass
+                # Warm tier is already deleted; a stale vector entry would
+                # keep surfacing the doc in semantic search, so log it.
+                logger.warning(
+                    "Failed to delete %s from vector index (index may be stale)",
+                    adl_id,
+                    exc_info=True,
+                )
 
     def find_related(self, adl_id: str, depth: int = 1) -> list[tuple[str, str, float]]:
         """Graph traversal for related capabilities."""
@@ -872,8 +878,16 @@ class ADLMemory:
             try:
                 self.vector_index.save()
             except Exception:
-                pass
+                # Persistence failure on shutdown: data may be lost, so this
+                # must be visible rather than silently swallowed.
+                logger.warning(
+                    "Failed to save vector index during ADLMemory.close()",
+                    exc_info=True,
+                )
             try:
                 self.vector_index.close()
             except Exception:
-                pass
+                logger.warning(
+                    "Failed to close vector index during ADLMemory.close()",
+                    exc_info=True,
+                )

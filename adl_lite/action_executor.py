@@ -21,6 +21,7 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 from .calibration import MARGINCalibrator
+from .logging_config import get_logger
 from .models import (
     ActionDef,
     ActionExecStatus,
@@ -30,6 +31,8 @@ from .models import (
     ExecutionEntry,
     PreconditionRule,
 )
+
+logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # Side-effect plugin protocol
@@ -235,6 +238,14 @@ class ActionExecutor:
                     )
                 )
                 action.execution_log = log
+                logger.warning(
+                    "Action %r on %s failed precondition: %s %s %s",
+                    action.action,
+                    doc.adl_id,
+                    rule.field,
+                    rule.comparator.value,
+                    rule.value,
+                )
                 return log
 
         # 3b. Dynamic collusion-resistance check for validate actions
@@ -304,6 +315,12 @@ class ActionExecutor:
         # 6. Update status
         action.exec_status = ActionExecStatus.EXECUTED if all_ok else ActionExecStatus.FAILED
         action.execution_log = log
+        if not all_ok:
+            logger.warning(
+                "Action %r on %s finished with failed side effect(s)",
+                action.action,
+                doc.adl_id,
+            )
         return log
 
     def _apply_transition(

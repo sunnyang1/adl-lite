@@ -29,6 +29,7 @@ except ImportError:  # pragma: no cover
     yaml = None  # type: ignore[assignment]
 
 from .l2_template import L2TemplateValidator
+from .logging_config import get_logger
 from .models import (
     ActionExecStatus,
     ADLActionBlock,
@@ -44,6 +45,8 @@ from .models import (
     MechanismType,
     ProvisionalNames,
 )
+
+logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # Regex patterns for L3 ADL blocks
@@ -102,6 +105,7 @@ class ADLParser:
         text = path.read_text(encoding="utf-8")
         doc = self.parse_text(text)
         doc.source_path = str(path)
+        logger.debug("Parsed ADL document %s from %s", doc.adl_id, path)
         return doc
 
     def parse_text(self, text: str) -> ADLDocument:
@@ -269,7 +273,9 @@ class ADLParser:
                     verified_by=kv.get("verified_by"),
                 )
             else:
-                # Unknown block type — silently skip for forward compatibility
+                # Unknown block type — skip for forward compatibility, but
+                # leave a trace so typos (e.g. ``adl:relations``) are visible.
+                logger.warning("Skipping unknown adl block type: %r", block_type)
                 return None
         except (ValueError, KeyError) as exc:
             raise ADLParseError(f"Invalid {block_type} block: {exc}") from exc

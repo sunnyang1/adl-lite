@@ -6,6 +6,10 @@ import json
 import re
 from typing import Any
 
+from ..logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 class AgentRunner:
     """Executes a single agent with either LLM or rule-engine fallback."""
@@ -145,14 +149,16 @@ class AgentRunner:
                 parsed: dict = json.loads(json_match.group(1))
                 return parsed
             except json.JSONDecodeError:
-                pass
+                # Fenced block was not valid JSON — fall through to next strategy.
+                logger.debug("Fenced JSON block in LLM output failed to parse; trying raw parse")
 
         # Try direct JSON parse
         try:
             parsed = json.loads(raw_output)
             return parsed  # type: ignore[no-any-return]
         except json.JSONDecodeError:
-            pass
+            # Expected fallback: output is free text, returned wrapped below.
+            logger.debug("LLM output is not JSON; falling back to raw_output wrapping")
 
         # Fallback: return raw output wrapped
         return {"raw_output": raw_output}

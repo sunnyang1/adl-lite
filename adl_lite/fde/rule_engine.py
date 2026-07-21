@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 class RuleEngine:
     """Predefined rule-based processing for when LLM APIs are unavailable."""
@@ -34,14 +38,16 @@ class RuleEngine:
                 int_count += 1
                 continue
             except ValueError:
-                pass
+                # Expected probe failure: value is not an int — try float next.
+                logger.debug("Column type probe: %r is not an int", s)
             # Float check
             try:
                 float(s)
                 float_count += 1
                 continue
             except ValueError:
-                pass
+                # Expected probe failure: value is not a float either.
+                logger.debug("Column type probe: %r is not a float", s)
             # Date check (simple ISO format)
             if len(s) >= 10 and (s[4] == "-" or s[2] == "/"):
                 date_count += 1
@@ -160,7 +166,8 @@ class RuleEngine:
                     try:
                         numeric_vals.append(float(v))
                     except (ValueError, TypeError):
-                        pass
+                        # Non-numeric values are excluded from std computation.
+                        logger.debug("outlier_std: skipping non-numeric value %r", v)
                 if not numeric_vals:
                     continue
                 mean = sum(numeric_vals) / len(numeric_vals)
@@ -185,7 +192,8 @@ class RuleEngine:
                                 }
                             )
                     except (ValueError, TypeError):
-                        pass
+                        # Non-numeric row value cannot be an outlier.
+                        logger.debug("outlier_std: skipping non-numeric row value %r", v)
 
         return anomalies
 

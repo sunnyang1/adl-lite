@@ -21,7 +21,10 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
 
+from .logging_config import get_logger
 from .models import Event, EventChain, EventType
+
+logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # Side Effect Queue (buffers network-dependent effects)
@@ -106,6 +109,12 @@ class SideEffectQueue:
 
         # Re-queue failed effects for next drain attempt
         self._queue = retry_queue + self._queue
+        if failed:
+            logger.warning(
+                "SideEffectQueue drain: %d succeeded, %d failed (re-queued)",
+                success,
+                failed,
+            )
         return success, failed
 
     def clear(self) -> None:
@@ -339,6 +348,12 @@ class EdgeNode:
             result["chains_synced"] = True
             result["integrity_ok"] = self.chain.verify_integrity()
             result["chain_length"] = self.chain.length
+            logger.info(
+                "Edge node %s reconnected: chain synced (length=%s, integrity=%s)",
+                self.node_id,
+                result["chain_length"],
+                result["integrity_ok"],
+            )
 
         # Drain queued side effects
         success, _ = self.queue.drain()

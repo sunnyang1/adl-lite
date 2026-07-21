@@ -24,8 +24,11 @@ from enum import Enum
 from typing import TYPE_CHECKING, Literal, cast
 
 from .exceptions import ADLConsensusError
+from .logging_config import get_logger
 from .models import ADLDocument, DiscoveryStatus, Event, EventChain, EventType
 from .ontology import OntologyManager, default_ontology
+
+logger = get_logger(__name__)
 
 if TYPE_CHECKING:
     from .trust_model import ConsensusConfig, ValidationResult
@@ -191,6 +194,7 @@ class ConsensusEngine:
                         )
                     )
                 self.chains[cid] = chain
+                logger.info("Registered capability %s (scope=%s)", cid, doc.scope)
             return self.chains[cid]
 
     def transition(
@@ -213,6 +217,12 @@ class ConsensusEngine:
             current = chain.status  # computed from chain
 
             if not self._is_valid_transition(current, to_status, self._ontology):
+                logger.warning(
+                    "Rejected invalid transition for %s: %s → %s",
+                    adl_id,
+                    current.value,
+                    to_status.value,
+                )
                 raise ADLConsensusError(f"Invalid transition: {current.value} → {to_status.value}")
 
             # Enforce dynamic minimum distinct validators for VALIDATE transitions
@@ -239,6 +249,9 @@ class ConsensusEngine:
                 payload=payload or {},
             )
             chain.append(event)
+            logger.info(
+                "Transitioned %s: %s → %s (actor=%s)", adl_id, current.value, to_status.value, actor
+            )
 
             return event
 
@@ -271,6 +284,7 @@ class ConsensusEngine:
             )
             self.chains[fork_id] = new_chain
             self.fork_manager.register_fork(original_id, fork_id, reason)
+            logger.info("Forked %s → %s (actor=%s)", original_id, fork_id, actor)
             return new_chain
 
     # -- Queries --
@@ -312,10 +326,12 @@ class ConsensusEngine:
     def set_production_mode(self) -> None:
         """Switch to production mode: N_min >= 2 (collusion-safe)."""
         self._dev_mode = False
+        logger.info("Consensus engine switched to production mode (N_min >= 2)")
 
     def set_dev_mode(self) -> None:
         """Switch to development mode: N_min = 1 (single-validator allowed)."""
         self._dev_mode = True
+        logger.info("Consensus engine switched to dev mode (N_min = 1)")
 
     @property
     def dev_mode(self) -> bool:

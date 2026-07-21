@@ -10,6 +10,9 @@ from fastapi.testclient import TestClient
 
 import adl_lite
 from adl_lite.api import create_app
+from adl_lite.api_auth import create_access_token
+
+TEST_SECRET = "test-jwt-secret-api"
 
 
 @pytest.fixture
@@ -22,6 +25,23 @@ def client() -> TestClient:
     yield tc
     # Cleanup temp file
     Path(state_path).unlink(missing_ok=True)
+
+
+@pytest.fixture
+def admin_client() -> TestClient:
+    """Auth-enabled TestClient for control-plane (admin-only) endpoints."""
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
+        state_path = f.name
+    app = create_app(state_path=state_path, auth_enabled=True, jwt_secret=TEST_SECRET)
+    tc = TestClient(app)
+    yield tc
+    Path(state_path).unlink(missing_ok=True)
+
+
+def _admin_headers() -> dict:
+    """Explicitly constructed admin identity (anonymous is now read-only)."""
+    token = create_access_token({"sub": "admin-user", "role": "admin"}, secret=TEST_SECRET)
+    return {"Authorization": f"Bearer {token}"}
 
 
 # ── Smoke tests: app creation & schema ──────────────────────────────────
@@ -48,6 +68,7 @@ class TestAppCreation:
         resp = client.get("/openapi.json")
         paths = resp.json()["paths"]
         expected = [
+            "/api/v1/auth/token",
             "/api/v1/consensus/register",
             "/api/v1/consensus/transition",
             "/api/v1/consensus/status/{adl_id}",
@@ -166,22 +187,31 @@ class TestListEndpoint:
 
 
 class TestModeEndpoints:
-    """Test /api/v1/consensus/mode/dev and /mode/production."""
+    """Test /api/v1/consensus/mode/dev and /mode/production.
 
-    def test_set_dev_mode(self, client: TestClient):
-        resp = client.post("/api/v1/consensus/mode/dev")
+    Mode switches are admin-only: the auth-disabled anonymous identity is a
+    read-only ``reader``, so these tests construct an explicit admin JWT.
+    """
+
+    def test_set_dev_mode(self, admin_client: TestClient):
+        resp = admin_client.post("/api/v1/consensus/mode/dev", headers=_admin_headers())
         assert resp.status_code == 200
         body = resp.json()
         assert body["mode"] == "dev"
         assert body["n_min"] == 1
         assert body["dev_mode"] is True
 
-    def test_set_production_mode(self, client: TestClient):
-        resp = client.post("/api/v1/consensus/mode/production")
+    def test_set_production_mode(self, admin_client: TestClient):
+        resp = admin_client.post("/api/v1/consensus/mode/production", headers=_admin_headers())
         assert resp.status_code == 200
         body = resp.json()
         assert body["mode"] == "production"
         assert body["dev_mode"] is False
+
+    def test_anonymous_reader_cannot_switch_mode(self, client: TestClient):
+        """Auth-disabled anonymous (role=reader) is rejected by admin endpoints."""
+        assert client.post("/api/v1/consensus/mode/dev").status_code == 403
+        assert client.post("/api/v1/consensus/mode/production").status_code == 403
 
 
 class TestVerifyEndpoint:
