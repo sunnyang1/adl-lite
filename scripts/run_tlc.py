@@ -104,12 +104,35 @@ def build_config(
     return "\n".join(lines) + "\n"
 
 
+def _local_tlc_jar() -> Path | None:
+    """Locate tla2tools.jar next to the bundled wrapper or in release-assets/."""
+    candidates = [
+        LOCAL_TLC.parent / "tla2tools.jar",
+        LOCAL_TLC.parent.parent.parent / "release-assets" / "tla2tools.jar",
+    ]
+    for jar in candidates:
+        if jar.is_file():
+            return jar
+    return None
+
+
 def _resolve_tlc() -> str | None:
-    """Return the TLC executable, falling back to the project-local wrapper."""
+    """Return the TLC executable, falling back to the project-local wrapper.
+
+    The bundled wrapper (tools/tla+/tlc) only counts when it can actually run:
+    it needs both ``java`` on PATH and a ``tla2tools.jar`` (which is not tracked
+    in git). On machines without them — e.g. CI runners — the wrapper is
+    reported as unavailable so callers degrade gracefully instead of failing.
+    """
     tlc = shutil.which("tlc")
     if tlc is not None:
         return tlc
-    if LOCAL_TLC.exists() and os.access(LOCAL_TLC, os.X_OK):
+    if (
+        LOCAL_TLC.exists()
+        and os.access(LOCAL_TLC, os.X_OK)
+        and shutil.which("java") is not None
+        and _local_tlc_jar() is not None
+    ):
         return str(LOCAL_TLC)
     return None
 
