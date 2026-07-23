@@ -47,6 +47,8 @@ _EXPERIMENT_MODULES = [
     "e28_10k_concurrency",
     "e29_vector_index_recall",
     "e30_llm_normalization",
+    "e31_lazy_validator_detection",
+    "e32_evidence_weighted_confidence",
     "e34_precondition_formalization",
     "e35_expert_validation_simulation",
     "proof_trace_checker",

@@ -26,7 +26,7 @@ Quick Start:
     mem.store(doc)
 """
 
-__version__ = "0.7.0-alpha"
+__version__ = "0.8.0-alpha"
 
 import importlib as _importlib
 from typing import Any as _Any
@@ -122,6 +122,14 @@ except ImportError:  # pragma: no cover
     TrustValidator = None  # type: ignore
     TrustValidationResult = None  # type: ignore
 
+from .attestation import (
+    AttestationIndex,
+    AttestationValidator,
+    attested_confidence,
+    capability_backed,
+    feed_calibrator,
+    refute_status,
+)
 from .execution_log import ExecutionLog, load_log
 from .l2_template import L2Template, L2TemplateValidator
 from .models import (
@@ -151,6 +159,13 @@ from .models import (
 )
 from .ontology import OntologyManager
 from .parser import ADLParser, extract_wiki_links, parse_file, parse_text
+from .replay import (
+    ReplayHarness,
+    ReplayOutcome,
+    append_attestation,
+    build_attest_event,
+    sha256_commitment,
+)
 from .validator import ADLValidator
 
 # ---------------------------------------------------------------------------
@@ -290,6 +305,17 @@ __all__ = [
     # Execution Attestation Layer (EAL)
     "ExecutionLog",
     "load_log",
+    "AttestationIndex",
+    "AttestationValidator",
+    "attested_confidence",
+    "capability_backed",
+    "feed_calibrator",
+    "refute_status",
+    "ReplayHarness",
+    "ReplayOutcome",
+    "append_attestation",
+    "build_attest_event",
+    "sha256_commitment",
     # Action Executor
     "ActionExecutor",
     # Consensus

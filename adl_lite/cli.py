@@ -54,6 +54,10 @@ def _load_engine(state_path: Path) -> ConsensusEngine:
                 event.hash = raw["hash"]
             if "_prev_hash" in raw:
                 event._prev_hash = raw["_prev_hash"]
+            # Preserve cryptographic evidence (EAL axiom 14 requires proofs on
+            # EXECUTE/ATTEST events to survive the state round-trip).
+            event.signature = raw.get("signature", "") or ""
+            event.proof = raw.get("proof")
             chain.append(event)
         engine.chains[cid] = chain
     return engine
@@ -64,15 +68,17 @@ def _save_engine(engine: ConsensusEngine, state_path: Path) -> None:
         "chains": {
             cid: [
                 {
-                    "event_id": e["event_id"],
-                    "event_type": e["event_type"],
-                    "actor": e["actor"],
-                    "reasoning": e["reasoning"],
-                    "timestamp": e["timestamp"],
-                    "hash": e["hash"],
-                    "payload": e.get("payload", {}),
+                    "event_id": e.event_id,
+                    "event_type": e.event_type.value,
+                    "actor": e.actor,
+                    "reasoning": e.reasoning,
+                    "timestamp": e.timestamp,
+                    "hash": e.hash,
+                    "payload": e.payload,
+                    "signature": e.signature,
+                    "proof": e.proof,
                 }
-                for e in chain.history()
+                for e in chain.events
             ]
             for cid, chain in engine.chains.items()
         }
@@ -946,6 +952,146 @@ def _cmd_execute_log(args: argparse.Namespace) -> int:
     return 0 if verified is not False else 1
 
 
+# ---------------------------------------------------------------------------
+# attest — ATTEST verdicts from independent replay (EAL, Phase 2)
+# ---------------------------------------------------------------------------
+
+
+def _cmd_attest_replay(args: argparse.Namespace) -> int:
+    """Replay an execution receipt and record a signed ATTEST verdict."""
+    from .attestation import AttestationValidator
+    from .execution_log import load_log
+    from .replay import ReplayHarness, append_attestation, build_attest_event
+
+    try:
+        doc = parse_file(args.file)
+    except (ADLParseError, OSError, ValueError) as exc:
+        print(f"attest error: {exc}", file=sys.stderr)
+        return 1
+    spec = doc.execution_spec
+    if spec is None:
+        print(f"attest error: {doc.adl_id} has no adl:execution spec block", file=sys.stderr)
+        return 1
+
+    log = load_log(args.log_dir, doc.adl_id)
+    receipt = log.get_receipt(args.execution_id)
+    if receipt is None:
+        print(f"attest error: execution {args.execution_id} not found in log", file=sys.stderr)
+        return 1
+
+    try:
+        key = _load_ed25519_private_key(args.key_file)
+    except (ValueError, OSError) as exc:
+        print(f"key error: {exc}", file=sys.stderr)
+        return 1
+
+    outcome = ReplayHarness(spec).replay_receipt(receipt, args.input_file)
+    event = build_attest_event(
+        capability_id=doc.adl_id,
+        subject_receipt=receipt,
+        outcome=outcome,
+        actor=args.actor,
+        scope=args.scope,
+        evidence_ref=args.evidence_ref,
+    )
+
+    # Validator-side consistency check before committing the verdict.
+    validator = AttestationValidator(execution_lookup=log)
+    issues = validator.validate(event)
+    hard = [i for i in issues if not i.startswith("pending:")]
+    if hard:
+        for issue in hard:
+            print(f"attest warning: {issue}", file=sys.stderr)
+
+    state_path = Path(args.state)
+    engine = _load_engine(state_path)
+    chain = engine.chains.get(doc.adl_id)
+
+    if args.json or chain is None:
+        print(
+            json.dumps(
+                {
+                    "verdict": outcome.verdict,
+                    "reason": outcome.reason,
+                    "duration_ms": outcome.duration_ms,
+                    "subject_execution": args.execution_id,
+                    "appended": chain is not None,
+                },
+                indent=2,
+            )
+        )
+        if chain is None:
+            print(
+                f"note: {doc.adl_id} not in consensus state {state_path}; verdict NOT appended",
+                file=sys.stderr,
+            )
+        return 0
+
+    append_attestation(chain, event, private_key=key, verification_method=None)
+    _save_engine(engine, state_path)
+    print(
+        f"attest {outcome.verdict}: {args.execution_id} "
+        f"({outcome.reason}; replay {outcome.duration_ms} ms)"
+    )
+    return 0 if outcome.verdict != "refute" else 2
+
+
+def _cmd_attest_list(args: argparse.Namespace) -> int:
+    """List ATTEST events on a consensus chain with refute-threshold status."""
+    from .attestation import AttestationIndex, refute_status
+    from .execution_log import load_log
+
+    state_path = Path(args.state)
+    engine = _load_engine(state_path)
+    chain = engine.chains.get(args.adl_id)
+    if chain is None:
+        print(f"not registered in consensus state: {args.adl_id}", file=sys.stderr)
+        return 1
+
+    attest_events = [e for e in chain if e.event_type.value == "attest"]
+    log = load_log(args.log_dir, args.adl_id)
+    from .attestation import AttestationValidator
+
+    index = AttestationIndex(chain.events, validator=AttestationValidator(execution_lookup=log))
+    status = refute_status(chain, index)
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "capability": args.adl_id,
+                    "attestation_count": len(attest_events),
+                    "refute_status": status,
+                    "attestations": [
+                        {
+                            "actor": e.actor,
+                            "verdict": e.payload.get("verdict"),
+                            "method": e.payload.get("method"),
+                            "subject_execution": e.payload.get("subject_execution"),
+                            "scope": e.payload.get("scope"),
+                            "timestamp": e.timestamp,
+                        }
+                        for e in attest_events
+                    ],
+                },
+                indent=2,
+            )
+        )
+        return 0
+
+    print(f"attestations: {args.adl_id} ({len(attest_events)} events)")
+    for e in attest_events:
+        print(
+            f"  {e.payload.get('verdict'):<12} by {e.actor} "
+            f"(method={e.payload.get('method')}, subject={e.payload.get('subject_execution')})"
+        )
+    print(
+        f"refute status: {status['refute_scopes']}/{status['threshold']} distinct scopes"
+        + (" — DEPRECATE proposal warranted" if status["proposal"] else "")
+    )
+    return 0
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="adl-lite",
@@ -1257,6 +1403,40 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_exec_log.add_argument("--json", action="store_true", help="Emit JSON output")
     p_exec_log.set_defaults(func=_cmd_execute_log)
+
+    p_attest = sub.add_parser(
+        "attest",
+        help="Attest to execution receipts via independent replay (EAL Phase 2)",
+    )
+    attest_sub = p_attest.add_subparsers(dest="attest_cmd", required=True)
+
+    p_att_replay = attest_sub.add_parser(
+        "replay", help="Replay a receipt and record a signed ATTEST verdict"
+    )
+    p_att_replay.add_argument("file", help="ADL Markdown file of the capability")
+    p_att_replay.add_argument("--execution-id", required=True, help="Receipt execution_id")
+    p_att_replay.add_argument("--input-file", required=True, help="Raw input for replay")
+    p_att_replay.add_argument("--log-dir", default="adl_execution_logs")
+    p_att_replay.add_argument("--actor", required=True, help="Attester id (DID or agent name)")
+    p_att_replay.add_argument("--key-file", required=True, help="Ed25519 private key file")
+    p_att_replay.add_argument(
+        "--scope",
+        default=None,
+        help="Self-declared organizational scope for diversity counting",
+    )
+    p_att_replay.add_argument("--evidence-ref", default=None, help="URI of replay evidence bundle")
+    p_att_replay.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_att_replay.add_argument("--json", action="store_true", help="Emit JSON output")
+    p_att_replay.set_defaults(func=_cmd_attest_replay)
+
+    p_att_list = attest_sub.add_parser(
+        "list", help="List attestations with refute-threshold status"
+    )
+    p_att_list.add_argument("adl_id", help="Capability adl_id")
+    p_att_list.add_argument("--log-dir", default="adl_execution_logs")
+    p_att_list.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_att_list.add_argument("--json", action="store_true", help="Emit JSON output")
+    p_att_list.set_defaults(func=_cmd_attest_list)
 
     p_mcp = sub.add_parser(
         "mcp",

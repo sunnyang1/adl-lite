@@ -5,6 +5,43 @@ All notable changes to ADL Lite are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0-alpha] — Unreleased
+
+### Added
+
+- **Execution Attestation Layer (EAL), Phase 2 — from observability to
+  enforcement** (design: `docs/design/execution-attestation.md`):
+  - `adl_lite/attestation.py` (new): `AttestationValidator` (resolves
+    `ATTEST.subject_execution` via an injected execution lookup — same
+    pattern as `RelationValidator`; checks cross-log commitment equality and
+    flags self-attestation), `AttestationIndex` (distinct-scope verdict
+    counting, payload `scope` field with actor fallback),
+    `attested_confidence()` (evidence-weighted confidence: VALIDATE events
+    discounted by α when lacking distinct-scope attestation backing;
+    monotone, opt-in — `EventChain.confidence` is unchanged),
+    `refute_status()` (distinct-scope refute threshold → DEPRECATE proposal
+    flag; never auto-transitions), `feed_calibrator()` (calibration
+    bootstrap: verdicts overturned by stronger independent attestations feed
+    `MARGINCalibrator.update_from_feedback`).
+  - `adl_lite/replay.py` (new): `ReplayHarness` — independent re-execution
+    from the `adl:execution` spec (`shell=False` + `shlex.split`, timeout
+    enforcement, explicit invocation only, never implicit). Deterministic
+    capabilities get exact commitment comparison; `stochastic` /
+    `side-effecting` receive honest `inconclusive` verdicts pending Phase 3
+    engines. `build_attest_event` / `append_attestation` (append-then-sign —
+    the LD-Proof covers final chaining fields).
+  - CLI `adl-lite attest` group: `replay` (replay a receipt and append a
+    signed ATTEST to the consensus chain; JSON-only when unregistered),
+    `list` (attestations + refute-threshold status).
+  - Consensus state persistence now round-trips event `signature` and
+    `proof` fields (`_save_engine` / `_load_engine`) — required for EAL
+    axiom 14 on reloaded chains.
+  - `tests/test_attestation.py` (new): 35 tests.
+- **Experiments**: E31 (lazy-executor detectability: 98.2% detection at
+  r=3/threshold=2 with 0% false positives vs 1.8% manual-sampling baseline)
+  and E32 (evidence-weighted vs G-Counter confidence under adversarial
+  validation: Brier 0.090 vs 0.349, −74.3% error).
+
 ## [0.7.0-alpha] — Unreleased
 
 ### Added

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "adl-lite"
-version = "0.7.0-alpha"
+version = "0.8.0-alpha"
 description = "ADL Lite — An Event-First Capability-Lifecycle Registry for LLM Agent Ecosystems"
 readme = "README.md"
 license = {text = "MIT"}
