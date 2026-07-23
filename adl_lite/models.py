@@ -128,6 +128,27 @@ class EventType(str, Enum):
     LISTEN = "listen"
     # Internal / derived events
     SNAPSHOT = "snapshot"  # L1 front matter as a recorded state
+    # Execution attestation events (EAL Phase 1: pure observability, paper §oracle)
+    # These types are NOT consumed by status LUB or confidence G-Counter
+    # derivation; they carry execution evidence only.
+    EXECUTE = "execute"  # Signed execution receipt (lives on ExecutionLog)
+    ATTEST = "attest"  # Verdict about an execution receipt (lives on main chain)
+    EXEC_ANCHOR = "exec_anchor"  # Merkle anchor of an ExecutionLog (main chain)
+
+
+# ---------------------------------------------------------------------------
+# EAL (Execution Attestation Layer) conditional axioms 13–15
+# ---------------------------------------------------------------------------
+
+# Axiom 13: required payload fields per attestation event type.
+_EAL_REQUIRED_PAYLOAD_FIELDS: dict[EventType, tuple[str, ...]] = {
+    EventType.EXECUTE: ("execution_id", "input_commitment", "output_commitment"),
+    EventType.ATTEST: ("subject_execution", "method", "verdict"),
+    EventType.EXEC_ANCHOR: ("log_merkle_root",),
+}
+
+# Axiom 14: event types that must carry a W3C LD-Proof object.
+_EAL_PROOF_REQUIRED_TYPES: frozenset[EventType] = frozenset({EventType.EXECUTE, EventType.ATTEST})
 
 
 # ---------------------------------------------------------------------------
@@ -258,7 +279,8 @@ class EventChain:
         self._cached_status_order: int = 0
         self._cached_confidence: float = 0.0
 
-        # Incremental integrity verification cache (Definition 5, 12 axioms)
+        # Incremental integrity verification cache (Definition 5: 12 base axioms
+        # + EAL conditional axioms 13–15 for attestation event types)
         self._verified_index: int = -1
         self._verified_hash: str = ""
         self._verified_seen: set[str] = set()
@@ -634,6 +656,57 @@ class EventChain:
         """Axiom 12: event_type must be a known EventType enum member."""
         return [e.event_id for e in self._events if not isinstance(e.event_type, EventType)]
 
+    def _check_wf13_evidence_schema(self) -> list[str]:
+        """Axiom 13 (EAL): attestation events carry required payload fields."""
+        violations: list[str] = []
+        for event in self._events:
+            required = _EAL_REQUIRED_PAYLOAD_FIELDS.get(event.event_type)
+            if required is None:
+                continue
+            for field_name in required:
+                value = event.payload.get(field_name)
+                if value is None or (isinstance(value, str) and not value.strip()):
+                    violations.append(event.event_id)
+                    break
+        return violations
+
+    def _check_wf14_proof_presence(self) -> list[str]:
+        """Axiom 14 (EAL): EXECUTE/ATTEST events must carry an LD-Proof object."""
+        violations: list[str] = []
+        for event in self._events:
+            if event.event_type not in _EAL_PROOF_REQUIRED_TYPES:
+                continue
+            proof = event.proof
+            if not isinstance(proof, dict) or not proof.get("type") or not proof.get("proofValue"):
+                violations.append(event.event_id)
+        return violations
+
+    def _check_wf15_verdict_consistency(self) -> list[str]:
+        """Axiom 15 (EAL): ATTEST verdicts must be self-consistent."""
+        violations: list[str] = []
+        for event in self._events:
+            if event.event_type is not EventType.ATTEST:
+                continue
+            verdict = event.payload.get("verdict")
+            if verdict not in ("confirm", "refute", "inconclusive"):
+                violations.append(event.event_id)
+                continue
+            method = event.payload.get("method")
+            replay = event.payload.get("replay")
+            if method == "replay" and verdict == "confirm":
+                if not isinstance(replay, dict) or replay.get("match") is not True:
+                    violations.append(event.event_id)
+                    continue
+                if not replay.get("input_commitment") or not replay.get("output_commitment"):
+                    violations.append(event.event_id)
+                    continue
+            if verdict == "refute":
+                has_evidence = bool(event.payload.get("evidence_ref"))
+                has_mismatch = isinstance(replay, dict) and replay.get("match") is False
+                if not has_evidence and not has_mismatch:
+                    violations.append(event.event_id)
+        return violations
+
     def _parse_event_dt(self, ts: str) -> datetime:
         """Parse an ISO timestamp, returning a minimal datetime on failure."""
         try:
@@ -782,6 +855,52 @@ class EventChain:
             if not isinstance(event.event_type, EventType):
                 return False
 
+            # Axiom 13 (EAL): evidence schema — attestation events carry their
+            # required commitment/reference fields.
+            required = _EAL_REQUIRED_PAYLOAD_FIELDS.get(event.event_type)
+            if required is not None:
+                for field_name in required:
+                    value = event.payload.get(field_name)
+                    if value is None or (isinstance(value, str) and not value.strip()):
+                        return False
+
+            # Axiom 14 (EAL): proof presence — EXECUTE and ATTEST events must
+            # carry a W3C LD-Proof object. Evidence without non-repudiation is
+            # worthless; these are new event types with no legacy chains, so the
+            # constraint is hard. Cryptographic verification of the proof itself
+            # happens above when a registry is supplied.
+            if event.event_type in _EAL_PROOF_REQUIRED_TYPES:
+                proof = event.proof
+                if (
+                    not isinstance(proof, dict)
+                    or not proof.get("type")
+                    or not proof.get("proofValue")
+                ):
+                    return False
+
+            # Axiom 15 (EAL): verdict consistency for ATTEST events.
+            if event.event_type is EventType.ATTEST:
+                verdict = event.payload.get("verdict")
+                if verdict not in ("confirm", "refute", "inconclusive"):
+                    return False
+                method = event.payload.get("method")
+                replay = event.payload.get("replay")
+                if method == "replay" and verdict == "confirm":
+                    # A confirming replay must report a positive match with
+                    # non-empty commitments. Cross-chain equality with the
+                    # subject execution's commitments is checked at the
+                    # validation layer (execution_lookup), not here.
+                    if not isinstance(replay, dict) or replay.get("match") is not True:
+                        return False
+                    if not replay.get("input_commitment") or not replay.get("output_commitment"):
+                        return False
+                if verdict == "refute":
+                    # A refutation must cite evidence or report a replay mismatch.
+                    has_evidence = bool(event.payload.get("evidence_ref"))
+                    has_mismatch = isinstance(replay, dict) and replay.get("match") is False
+                    if not has_evidence and not has_mismatch:
+                        return False
+
         self._verified_index = n - 1
         if events:
             self._verified_hash = events[-1].hash
@@ -790,7 +909,8 @@ class EventChain:
 
     def verify_integrity(self, full: bool = False, registry=None) -> bool:
         """
-        Verify that the chain is well-formed per Definition 5 (12 axioms).
+        Verify that the chain is well-formed per Definition 5 (12 base axioms
+        plus EAL conditional axioms 13–15 for EXECUTE/ATTEST/EXEC_ANCHOR events).
 
         This method is incremental: after a full verification, subsequent calls
         only examine events appended since the last check, giving O(k) cost for
@@ -864,6 +984,9 @@ class EventChain:
                 "axiom_10_hash_algorithm": self._check_wf10_hash_algorithm(),
                 "axiom_11_canonical_fields": self._check_wf11_canonical_fields(),
                 "axiom_12_event_type_valid": self._check_wf12_event_type_valid(),
+                "axiom_13_evidence_schema": self._check_wf13_evidence_schema(),
+                "axiom_14_proof_presence": self._check_wf14_proof_presence(),
+                "axiom_15_verdict_consistency": self._check_wf15_verdict_consistency(),
             }
 
     def integrity_violations(self) -> list[str]:
@@ -1176,8 +1299,47 @@ class ADLFormalSealBlock(BaseModel):
     verified_by: str | None = None
 
 
+class ADLExecutionInvocation(BaseModel):
+    """How to invoke a capability for execution/replay (EAL Phase 1)."""
+
+    type: Literal["cli", "http", "python"] = "cli"
+    command: str = Field(default="", description="Invocation template, may use {input_file}")
+    endpoint: str | None = Field(default=None, description="URL for type=http")
+    timeout_ms: int = Field(default=5000, gt=0)
+
+
+class ADLExecutionTestVector(BaseModel):
+    """A replay benchmark: committed input → expected committed output."""
+
+    input_commitment: str = Field(..., description="sha256 commitment of the input")
+    expected_output_commitment: str = Field(
+        ..., description="sha256 commitment of the expected output"
+    )
+
+
+class ADLExecutionBlock(BaseModel):
+    """
+    L3 Execution Spec — declares how a capability is invoked and replayed so
+    that validators can independently re-execute and attest (EAL Phase 1).
+
+    Unlike other L3 blocks (flat KV lines), the body is parsed as YAML because
+    the spec is nested (invocation / properties / test_vectors).
+
+    Syntax: ```adl:execution ... ```
+    """
+
+    block_type: Literal["execution"] = "execution"
+    invocation: ADLExecutionInvocation = Field(default_factory=ADLExecutionInvocation)
+    determinism: Literal["deterministic", "stochastic", "side-effecting"] = "deterministic"
+    properties: list[str] = Field(
+        default_factory=list,
+        description="Declarative property assertions checked by property-check attestations",
+    )
+    test_vectors: list[ADLExecutionTestVector] = Field(default_factory=list)
+
+
 # Union type for all L3 blocks  # noqa: UP007 — Python 3.9 compat
-ADLBlock = Union[ADLRelationBlock, ADLEvidenceBlock, ADLFormalSealBlock]  # noqa: UP007
+ADLBlock = Union[ADLRelationBlock, ADLEvidenceBlock, ADLFormalSealBlock, ADLExecutionBlock]  # noqa: UP007
 
 
 # ---------------------------------------------------------------------------
@@ -1403,6 +1565,14 @@ class ADLDocument(BaseModel):
     @property
     def seals(self) -> list[ADLFormalSealBlock]:
         return [b for b in self.adl_blocks if isinstance(b, ADLFormalSealBlock)]
+
+    @property
+    def execution_spec(self) -> ADLExecutionBlock | None:
+        """The declared execution spec (```adl:execution block), if present."""
+        for b in self.adl_blocks:
+            if isinstance(b, ADLExecutionBlock):
+                return b
+        return None
 
     @property
     def actions(self) -> list[ADLActionBlock]:

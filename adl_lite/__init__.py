@@ -26,7 +26,7 @@ Quick Start:
     mem.store(doc)
 """
 
-__version__ = "0.6.0-alpha"
+__version__ = "0.7.0-alpha"
 
 import importlib as _importlib
 from typing import Any as _Any
@@ -122,6 +122,7 @@ except ImportError:  # pragma: no cover
     TrustValidator = None  # type: ignore
     TrustValidationResult = None  # type: ignore
 
+from .execution_log import ExecutionLog, load_log
 from .l2_template import L2Template, L2TemplateValidator
 from .models import (
     ActionDef,
@@ -129,6 +130,9 @@ from .models import (
     ADLActionBlock,
     ADLDocument,
     ADLEvidenceBlock,
+    ADLExecutionBlock,
+    ADLExecutionInvocation,
+    ADLExecutionTestVector,
     ADLFormalSealBlock,
     ADLFrontMatter,
     ADLRelationBlock,
@@ -208,6 +212,9 @@ __all__ = [
     "ADLFrontMatter",
     "ADLRelationBlock",
     "ADLEvidenceBlock",
+    "ADLExecutionBlock",
+    "ADLExecutionInvocation",
+    "ADLExecutionTestVector",
     "ADLFormalSealBlock",
     "ConceptSkeleton",
     "DiscoveryStatus",
@@ -280,6 +287,9 @@ __all__ = [
     "ADLValidator",
     # Ontology
     "OntologyManager",
+    # Execution Attestation Layer (EAL)
+    "ExecutionLog",
+    "load_log",
     # Action Executor
     "ActionExecutor",
     # Consensus

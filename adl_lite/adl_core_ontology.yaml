@@ -17,6 +17,8 @@ classes:
   relation:
   evidence:
   formal_seal:
+  execution:
+  attestation:
 
 # L3 relation predicates (closed core set from corpus)
 predicates:
@@ -57,6 +59,15 @@ predicates:
     allowed_mapping_types: [ontological]
     transitive: false
     symmetric: false
+  attests:
+    description: Attestation confirming or refuting an execution receipt (EAL)
+    allowed_mapping_types: [ontological]
+  executed-by:
+    description: Execution receipt produced by the referenced agent (EAL)
+    allowed_mapping_types: [ontological]
+  anchored-by:
+    description: Execution log anchored into the governance chain (EAL)
+    allowed_mapping_types: [ontological]
 
 # mapping_type values observed in corpus (informational; not strict-validated in 2a)
 mapping_types:
@@ -215,9 +226,41 @@ actions:
     preconditions: []
     side_effects: []
 
+  execute:
+    description: Record a signed execution receipt into the capability's ExecutionLog (EAL)
+    allowed_on: [concept, execution]
+    triggers_transition: null
+    required_params: [input_commitment, output_commitment]
+    preconditions: []
+    side_effects: []
+
+  attest:
+    description: Attest to an execution receipt via replay, property-check, or manual review (EAL)
+    allowed_on: [concept, execution, attestation]
+    triggers_transition: null
+    required_params: [subject_execution, method, verdict]
+    preconditions: []
+    side_effects: []
+
+  exec_anchor:
+    description: Anchor the execution log Merkle root into the governance chain (EAL)
+    allowed_on: [concept, execution]
+    triggers_transition: null
+    required_params: [log_merkle_root]
+    preconditions: []
+    side_effects: []
+
 # Collusion resistance: minimum distinct validators required for VALIDATE
 # Paper §5.2.3: N_min ≥ 2 recommended for production deployments
 # Current default: 1 (development / single-agent mode)
 collusion_resistance:
   min_distinct_validators: 1
   description: Minimum distinct validators for VALIDATE transition
+
+# Execution Attestation Layer (EAL) policy — see docs/design/execution-attestation.md
+attestation:
+  min_distinct_scopes: 2
+  description: Minimum distinct organizational scopes whose attestations count toward evidence weight
+  evidence_factor_unbacked: 0.5
+  refute_threshold: 2
+  require_execution_spec_on_register: true

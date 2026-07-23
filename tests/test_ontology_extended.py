@@ -147,9 +147,12 @@ class TestActionRegistry:
         expected_actions = [
             "announce",
             "archive",
+            "attest",
             "calibrate",
             "deprecate",
             "evidence",
+            "exec_anchor",
+            "execute",
             "fork",
             "listen",
             "publish",
@@ -162,7 +165,7 @@ class TestActionRegistry:
         ]
         # list_actions returns sorted keys
         assert actions == sorted(expected_actions)
-        assert len(actions) >= 14
+        assert len(actions) >= 17
 
     def test_get_action_def_found(self):
         """Call get_action_def("REGISTER") — note: actions are keyed by

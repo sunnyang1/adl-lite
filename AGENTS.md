@@ -138,6 +138,7 @@ python scripts/consistency_check.py
 | `adl_lite/ontology.py` | `OntologyManager` — predicates, actions, transitions from YAML registry |
 | `adl_lite/memory.py` | Hot/Warm/Cold hybrid index (`ADLMemory`) with auto-archival |
 | `adl_lite/cold_storage.py` | JSONL and zstd+msgpack cold storage for `EventChain` |
+| `adl_lite/execution_log.py` | `ExecutionLog` — per-capability append-only log of signed `EXECUTE` receipts with Merkle anchoring (EAL Phase 1) |
 | `adl_lite/tools.py` | Agent-facing Python wrappers matching CLI semantics |
 | `adl_lite/calibration.py` | `MARGINCalibrator` + `aggregated_confidence()` + `calibrated_confidence()` + EWMA / feedback calibration |
 | `adl_lite/shacl_validation.py` | Runtime SHACL validation over PROV-O / ADLDocument |
@@ -282,6 +283,10 @@ adl-lite verify-anchor
 adl-lite verify-inclusion <adl_id> --proof ./proofs/<adl_id>.json
 adl-lite verify-batch --proofs-dir ./proofs
 
+# Execution Attestation Layer (EAL)
+adl-lite execute record <file.md> --actor <did> --key-file <ed25519.pem> --input-hash <sha256> --output-hash <sha256>
+adl-lite execute anchor <adl_id> --actor <did>
+adl-lite execute log <adl_id> --verify
 # SHACL validation (requires [gov] extra)
 adl-lite shacl examples/capital_reflux_trap.md
 
@@ -365,9 +370,9 @@ params:
 ## Ontology Registry (`adl_core_ontology.yaml` v0.2)
 
 Closed sets:
-- **classes**: `discovery`, `concept`, `relation`, `evidence`, `formal_seal`
-- **predicates**: `isomorphic-to`, `specialisation-of`, `co-occurs-with`, `related-to`, `analogical-to`, `analogical-transfer`, `dual-of`, `fork-of`, `mitigated-by`, `indexed-phrase`
-- **actions**: `register`, `validate`, `fork`, `deprecate`, `archive`, `announce`, `publish`, `sync_dashboard`, `listen`, `relate`, `evidence`, `seal`, `revoke`, `calibrate`
+- **classes**: `discovery`, `concept`, `relation`, `evidence`, `formal_seal`, `execution`, `attestation`
+- **predicates**: `isomorphic-to`, `specialisation-of`, `co-occurs-with`, `related-to`, `analogical-to`, `analogical-transfer`, `dual-of`, `fork-of`, `mitigated-by`, `indexed-phrase`, `depends-on`, `attests`, `executed-by`, `anchored-by`
+- **actions**: `register`, `validate`, `fork`, `deprecate`, `archive`, `announce`, `publish`, `sync_dashboard`, `listen`, `relate`, `evidence`, `seal`, `revoke`, `calibrate`, `execute`, `attest`, `exec_anchor`
 - **status_transitions**:
   - `provisional` → `validated` / `deprecated` / `forked` / `archived`
   - `validated` → `deprecated` / `forked` / `archived`
@@ -472,7 +477,7 @@ docker run --rm -v $(pwd)/docs/experiments:/app/docs/experiments adl-lite-repro
 - **Confidence**: G-Counter max over `VALIDATE` / `SNAPSHOT` events, clamped to `[0, 1]`.
 - **Scopes**: `public`, `private/<org>`, `user/<id>`, `shared/<collab>`.
 - **Precondition rules**: `Comparator` enum (`EQ`, `NEQ`, `GT`, `GTE`, `LT`, `LTE`, `IN`, `EXISTS`). **NO `eval()`**.
-- **Cryptographic chaining**: Each `Event` stores a SHA-256 hash that includes its predecessor's hash and `canon_version`. `EventChain.verify_integrity()` validates the full chain against 12 axioms; it is incremental, verifying only newly appended events when the prefix has already been validated.
+- **Cryptographic chaining**: Each `Event` stores a SHA-256 hash that includes its predecessor's hash and `canon_version`. `EventChain.verify_integrity()` validates the full chain against 12 base axioms plus EAL conditional axioms 13–15 (evidence schema, LD-Proof presence, verdict consistency — applied to `EXECUTE`/`ATTEST`/`EXEC_ANCHOR` events only); it is incremental, verifying only newly appended events when the prefix has already been validated.
 - **Thread safety**: `EventChain` uses a split-lock design (`_events_lock` + `_cache_lock`, both `threading.RLock`) to reduce contention. Always acquire in the order `_events_lock` → `_cache_lock`. The split-lock design targets 10k concurrent agents.
 - **Incremental integrity cache**: `EventChain` caches the verified prefix. External direct mutation of `_events` invalidates the cache and falls back to a full verification.
 - **Synthetic events**: Events reconstructed from YAML front matter during parsing are tagged `synthetic=True` in their payload to distinguish them from agent-authored actions.

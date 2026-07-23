@@ -5,6 +5,46 @@ All notable changes to ADL Lite are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0-alpha] — Unreleased
+
+### Added
+
+- **Execution Attestation Layer (EAL), Phase 1 — pure observability**
+  (design: `docs/design/execution-attestation.md`):
+  - New event types: `EXECUTE` (signed execution receipt, lives on a
+    per-capability ExecutionLog), `ATTEST` (verdict about an execution,
+    main chain), `EXEC_ANCHOR` (Merkle anchor of an ExecutionLog, main
+    chain). Status LUB and confidence G-Counter derivation are unchanged —
+    EAL event types are not consumed by either.
+  - EAL conditional axioms 13–15 in `EventChain.verify_integrity` and
+    `well_formedness_report()`: evidence schema (required payload fields),
+    proof presence (EXECUTE/ATTEST must carry an LD-Proof), and verdict
+    consistency (replay-confirm requires `match: true`; refute requires
+    evidence or a reported mismatch).
+  - `adl_lite/execution_log.py` (new): `ExecutionLog` — append-only,
+    hash-chained log of EXECUTE receipts built on `EventChain`, with Merkle
+    anchoring (`build_anchor_event`), receipt lookup, executor set
+    derivation, and JSONL persistence that preserves LD-Proofs.
+  - `adl:execution` L3 block (YAML body): capability-side execution spec
+    (invocation, determinism, properties, test vectors) enabling
+    independent replay by validators. `ADLDocument.execution_spec`.
+  - Ontology registry v0.2 sync: new classes `execution` / `attestation`,
+    predicates `attests` / `executed-by` / `anchored-by`, actions
+    `execute` / `attest` / `exec_anchor`, and the `attestation:` policy
+    section (`min_distinct_scopes`, `evidence_factor_unbacked`,
+    `refute_threshold`, `require_execution_spec_on_register`) with
+    `OntologyManager` accessors.
+  - CLI `adl-lite execute` group: `record` (signed receipt, Ed25519 key
+    from PEM or raw hex/base64), `anchor` (append EXEC_ANCHOR to the
+    consensus chain, or emit JSON when unregistered), `log --verify`.
+  - Registration policy (D5): production-mode `ConsensusEngine.register`
+    rejects new capabilities lacking an `adl:execution` spec block
+    (dev-mode relaxed; existing capabilities exempt).
+  - `tests/test_execution_attestation.py` (new): 54 tests covering axioms
+    13–15, ExecutionLog behaviour (signing, tamper detection, Merkle
+    stability, JSONL round-trip), block parsing, ontology sync, the
+    registration hook, and derivation isolation.
+
 ## [0.6.0-alpha] — 2026-07-21
 
 ### Added

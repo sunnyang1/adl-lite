@@ -36,6 +36,7 @@ from .models import (
     ADLBlock,
     ADLDocument,
     ADLEvidenceBlock,
+    ADLExecutionBlock,
     ADLFormalSealBlock,
     ADLFrontMatter,
     ADLRelationBlock,
@@ -215,6 +216,19 @@ class ADLParser:
                     action_blocks.append(action_block)
                 except (ValueError, KeyError) as exc:
                     raise ADLParseError(f"Invalid action block: {exc}") from exc
+            elif block_type == "execution":
+                # The execution spec is nested YAML (invocation / properties /
+                # test_vectors), so it bypasses the flat KV-line path.
+                try:
+                    spec_data = yaml.safe_load(block_body) or {}
+                except yaml.YAMLError as exc:
+                    raise ADLParseError(f"Invalid execution block YAML: {exc}") from exc
+                if not isinstance(spec_data, dict):
+                    raise ADLParseError("Invalid execution block: expected a YAML mapping")
+                try:
+                    l3_blocks.append(ADLExecutionBlock(**spec_data))
+                except ValueError as exc:
+                    raise ADLParseError(f"Invalid execution block: {exc}") from exc
             else:
                 kv = dict(_RE_KV_LINE.findall(block_body))
                 block = cls._dispatch_block(block_type, kv)

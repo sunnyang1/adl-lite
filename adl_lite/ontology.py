@@ -104,6 +104,42 @@ class OntologyManager:
         except (TypeError, ValueError):
             return 1
 
+    # ------------------------------------------------------------------
+    # Execution Attestation Layer (EAL) policy accessors
+    # ------------------------------------------------------------------
+
+    def attestation_policy(self) -> dict[str, Any]:
+        """Raw EAL policy section (``attestation:``) from the ontology."""
+        return dict(self._data.get("attestation", {}))
+
+    def min_distinct_scopes(self) -> int:
+        """Minimum distinct organizational scopes whose attestations count (EAL)."""
+        value = self.attestation_policy().get("min_distinct_scopes", 2)
+        try:
+            return max(1, int(value))
+        except (TypeError, ValueError):
+            return 2
+
+    def evidence_factor_unbacked(self) -> float:
+        """Confidence discount factor α for VALIDATE events lacking attestations."""
+        value = self.attestation_policy().get("evidence_factor_unbacked", 0.5)
+        try:
+            return min(1.0, max(0.0, float(value)))
+        except (TypeError, ValueError):
+            return 0.5
+
+    def refute_threshold(self) -> int:
+        """Distinct-scope refutations that trigger a DEPRECATE proposal (EAL Phase 2)."""
+        value = self.attestation_policy().get("refute_threshold", 2)
+        try:
+            return max(1, int(value))
+        except (TypeError, ValueError):
+            return 2
+
+    def require_execution_spec_on_register(self) -> bool:
+        """Whether new capability registrations must declare an execution spec (D5)."""
+        return bool(self.attestation_policy().get("require_execution_spec_on_register", False))
+
     def allowed_actions_for_class(self, adl_class: str) -> list[str]:
         """Which actions are allowed on a given ADL class."""
         actions = self._data.get("actions", {})

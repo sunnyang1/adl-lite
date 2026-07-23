@@ -182,6 +182,7 @@ class ConsensusEngine:
         cid = doc.adl_id
         with self._lock:
             if cid not in self.chains:
+                self._enforce_execution_spec(doc)
                 chain = doc.event_chain
                 # Ensure at least a genesis REGISTER event
                 if chain.length == 0:
@@ -196,6 +197,25 @@ class ConsensusEngine:
                 self.chains[cid] = chain
                 logger.info("Registered capability %s (scope=%s)", cid, doc.scope)
             return self.chains[cid]
+
+    def _enforce_execution_spec(self, doc: ADLDocument) -> None:
+        """EAL D5: production mode requires NEW capabilities to declare an
+        ```adl:execution spec block so validators can replay and attest.
+
+        Relaxed in dev_mode (same pattern as N_min) and when the ontology
+        policy ``attestation.require_execution_spec_on_register`` is false.
+        Existing (already-registered) capabilities are exempt.
+        """
+        if self._dev_mode:
+            return
+        if not self._ontology.require_execution_spec_on_register():
+            return
+        if doc.execution_spec is None:
+            raise ADLConsensusError(
+                f"Capability '{doc.adl_id}' lacks an adl:execution spec block; "
+                "production registration requires one "
+                "(attestation.require_execution_spec_on_register)"
+            )
 
     def transition(
         self,

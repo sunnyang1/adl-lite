@@ -764,6 +764,188 @@ def _cmd_neo4j_rebuild(args: argparse.Namespace) -> int:
         return 1
 
 
+# ---------------------------------------------------------------------------
+# execute — Execution Attestation Layer (EAL, Phase 1)
+# ---------------------------------------------------------------------------
+
+
+def _load_ed25519_private_key(path: str):
+    """Load an Ed25519 private key from PEM, or raw 32-byte seed as hex/base64."""
+    import base64
+    import binascii
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ed25519
+
+    raw = Path(path).read_bytes()
+    try:
+        return serialization.load_pem_private_key(raw, password=None)
+    except ValueError:
+        pass
+    text = raw.decode("utf-8", errors="ignore").strip()
+    for decode in (bytes.fromhex, base64.b64decode):
+        try:
+            seed = decode(text)
+        except (ValueError, binascii.Error):
+            continue
+        if len(seed) == 32:
+            return ed25519.Ed25519PrivateKey.from_private_bytes(seed)
+    raise ValueError(f"unsupported Ed25519 private key format: {path}")
+
+
+def _cmd_execute_record(args: argparse.Namespace) -> int:
+    """Record a signed EXECUTE receipt into the capability's ExecutionLog."""
+    from .execution_log import load_log, log_path_for
+
+    try:
+        doc = parse_file(args.file)
+    except (ADLParseError, OSError, ValueError) as exc:
+        print(f"record error: {exc}", file=sys.stderr)
+        return 1
+    try:
+        key = _load_ed25519_private_key(args.key_file)
+    except (ValueError, OSError) as exc:
+        print(f"key error: {exc}", file=sys.stderr)
+        return 1
+
+    log = load_log(args.log_dir, doc.adl_id)
+    if not log.verify_integrity():
+        print(f"execution log integrity check FAILED for {doc.adl_id}", file=sys.stderr)
+        return 1
+
+    event = log.record(
+        executor=args.actor,
+        input_commitment=args.input_hash,
+        output_commitment=args.output_hash,
+        occurred_at=args.occurred_at,
+        duration_ms=args.duration_ms,
+        reasoning=args.reason or "",
+        private_key=key,
+        verification_method=args.verification_method,
+    )
+    path = log_path_for(args.log_dir, doc.adl_id)
+    log.append_jsonl(path, event)
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "execution_id": event.payload["execution_id"],
+                    "capability": doc.adl_id,
+                    "event_hash": event.hash,
+                    "log_count": log.count,
+                    "log_merkle_root": log.merkle_root(),
+                    "log_file": str(path),
+                },
+                indent=2,
+            )
+        )
+    else:
+        print(
+            f"recorded {event.payload['execution_id']} for {doc.adl_id} "
+            f"(receipts={log.count}, root={log.merkle_root()[:12]}…)"
+        )
+    return 0
+
+
+def _cmd_execute_anchor(args: argparse.Namespace) -> int:
+    """Anchor the execution log Merkle root into the governance (consensus) chain."""
+    from .execution_log import load_log
+
+    log = load_log(args.log_dir, args.adl_id)
+    if log.count == 0:
+        print(f"no executions to anchor for {args.adl_id}", file=sys.stderr)
+        return 1
+    if not log.verify_integrity():
+        print(f"execution log integrity check FAILED for {args.adl_id}", file=sys.stderr)
+        return 1
+
+    event = log.build_anchor_event(actor=args.actor, reasoning=args.reason or "")
+    state_path = Path(args.state)
+    engine = _load_engine(state_path)
+    chain = engine.chains.get(args.adl_id)
+
+    if args.json or chain is None:
+        print(
+            json.dumps(
+                {
+                    "event_type": event.event_type.value,
+                    "concept_id": event.concept_id,
+                    "payload": event.payload,
+                    "appended": chain is not None,
+                },
+                indent=2,
+            )
+        )
+        if chain is None:
+            print(
+                f"note: {args.adl_id} not in consensus state {state_path}; anchor NOT appended",
+                file=sys.stderr,
+            )
+        return 0
+
+    chain.append(event)
+    _save_engine(engine, state_path)
+    root = event.payload["log_merkle_root"]
+    print(
+        f"anchored {log.count} executions of {args.adl_id} (root={root[:12]}…) into consensus chain"
+    )
+    return 0
+
+
+def _cmd_execute_log(args: argparse.Namespace) -> int:
+    """List execution receipts, optionally verifying log integrity."""
+    from .execution_log import load_log
+
+    log = load_log(args.log_dir, args.adl_id)
+    verified: bool | None = None
+    if args.verify:
+        # Axiom-level verification (proofs present, chain linkage valid).
+        # Cryptographic LD-Proof verification requires a DID/key registry and
+        # is performed separately via verify-anchor / key-registry tooling.
+        verified = log.verify_integrity()
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "capability": args.adl_id,
+                    "count": log.count,
+                    "log_merkle_root": log.merkle_root() or None,
+                    "verified": verified,
+                    "receipts": [
+                        {
+                            "execution_id": e.payload.get("execution_id"),
+                            "executor": e.actor,
+                            "occurred_at": e.payload.get("occurred_at"),
+                            "input_commitment": e.payload.get("input_commitment"),
+                            "output_commitment": e.payload.get("output_commitment"),
+                            "assurance": e.payload.get("assurance"),
+                            "hash": e.hash,
+                        }
+                        for e in log.receipts
+                    ],
+                },
+                indent=2,
+            )
+        )
+        return 0
+
+    print(f"execution log: {args.adl_id} ({log.count} receipts)")
+    for e in log.receipts:
+        in_c = str(e.payload.get("input_commitment", ""))[:12]
+        out_c = str(e.payload.get("output_commitment", ""))[:12]
+        print(
+            f"  {e.payload.get('execution_id')}  actor={e.actor}  "
+            f"in={in_c}… out={out_c}…  assurance={e.payload.get('assurance')}"
+        )
+    if log.count:
+        print(f"merkle root: {log.merkle_root()}")
+    if verified is not None:
+        print(f"integrity: {'OK' if verified else 'FAILED'}")
+    return 0 if verified is not False else 1
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="adl-lite",
@@ -1023,6 +1205,58 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Emit JSON output",
     )
     p_normalize.set_defaults(func=_cmd_normalize)
+
+    p_execute = sub.add_parser(
+        "execute",
+        help="Execution Attestation Layer (EAL): record, anchor, and inspect executions",
+    )
+    exec_sub = p_execute.add_subparsers(dest="execute_cmd", required=True)
+
+    p_exec_rec = exec_sub.add_parser("record", help="Record a signed execution receipt")
+    p_exec_rec.add_argument("file", help="ADL Markdown file of the capability")
+    p_exec_rec.add_argument(
+        "--log-dir",
+        default="adl_execution_logs",
+        help="Execution log directory (default: adl_execution_logs)",
+    )
+    p_exec_rec.add_argument("--actor", required=True, help="Executor id (DID or agent name)")
+    p_exec_rec.add_argument(
+        "--key-file",
+        required=True,
+        help="Ed25519 private key file (PEM, or raw 32-byte seed as hex/base64)",
+    )
+    p_exec_rec.add_argument("--input-hash", required=True, help="sha256 input commitment")
+    p_exec_rec.add_argument("--output-hash", required=True, help="sha256 output commitment")
+    p_exec_rec.add_argument("--occurred-at", default=None, help="ISO timestamp of the execution")
+    p_exec_rec.add_argument("--duration-ms", type=int, default=None)
+    p_exec_rec.add_argument("--reason", default="")
+    p_exec_rec.add_argument(
+        "--verification-method",
+        default=None,
+        help="DID URL for the LD-Proof verificationMethod",
+    )
+    p_exec_rec.add_argument("--json", action="store_true", help="Emit JSON output")
+    p_exec_rec.set_defaults(func=_cmd_execute_record)
+
+    p_exec_anchor = exec_sub.add_parser(
+        "anchor", help="Anchor the execution log Merkle root into the governance chain"
+    )
+    p_exec_anchor.add_argument("adl_id", help="Capability adl_id")
+    p_exec_anchor.add_argument("--log-dir", default="adl_execution_logs")
+    p_exec_anchor.add_argument("--actor", required=True, help="Anchor author id")
+    p_exec_anchor.add_argument("--reason", default="")
+    p_exec_anchor.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_exec_anchor.add_argument("--json", action="store_true", help="Emit JSON output")
+    p_exec_anchor.set_defaults(func=_cmd_execute_anchor)
+
+    p_exec_log = exec_sub.add_parser("log", help="List execution receipts")
+    p_exec_log.add_argument("adl_id", help="Capability adl_id")
+    p_exec_log.add_argument("--log-dir", default="adl_execution_logs")
+    p_exec_log.add_argument(
+        "--verify", action="store_true", help="Verify log integrity (axioms 1–15)"
+    )
+    p_exec_log.add_argument("--json", action="store_true", help="Emit JSON output")
+    p_exec_log.set_defaults(func=_cmd_execute_log)
 
     p_mcp = sub.add_parser(
         "mcp",
