@@ -30,6 +30,28 @@ from local nucleation cascades rather than bulk gradient coupling.
 Forked from `disc-matdo-original`: replaces global alignment with localized
 nucleation events. Competing mechanism hypothesis pending merger review.
 
+## Observation
+
+Defect-site nucleation rate predicts the onset of ordering better than the
+thermal-gradient model on the same sample set, and the materials team's
+2026-Q1 review rated the kinetic hypothesis a plausible alternative to bulk
+domain alignment.
+
+## Reasoning
+
+If ordering begins at stochastic nucleation events on defect sites, then
+local cascades — not a global ordering front — drive the observed
+anisotropy. The kinetic model needs no critical bulk threshold: thermal
+flux only biases nucleation rates, and cascade percolation produces the
+same XRD signature with fewer assumptions about grain-boundary coupling.
+
+## Conclusion
+
+Kinetic nucleation is a competitive mechanistic explanation for MATDO with
+marginally better onset prediction than the parent model. The concept stays
+provisional until the merger review arbitrates between the two hypotheses
+with new diffraction-time-series evidence.
+
 ## Related Concepts
 
 - [[Matrix Domain Ordering]] — original fork parent (deprecated interpretation)

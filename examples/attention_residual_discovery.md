@@ -31,6 +31,31 @@ The coupling mirrors peripheral-node concentration in financial flow graphs:
 local amplification in one channel (residual norm) forces global re-routing
 (attention mass) toward a few hubs.
 
+## Observation
+
+Embedding-cluster analysis shows co-movement of attention entropy and
+residual-stream L2 norm across layers, and a synthetic 12-layer transformer
+reproduces the coupling under 68% of initialization seeds: residual norm
+spikes coincide with attention entropy collapsing onto a narrow token
+subset.
+
+## Reasoning
+
+When the residual stream carries an outlier-norm channel, the pre-softmax
+logits inherit a scale imbalance; softmax then saturates, concentrating
+attention mass on a few hub tokens. The hubs further amplify the residual
+outlier through the value pathway, closing a self-reinforcing loop that
+drives representation drift in later layers — the same re-routing dynamic
+seen when flow concentrates on peripheral nodes in financial graphs.
+
+## Conclusion
+
+Attention-residual coupling is a plausible mechanism for late-layer
+representation drift, supported by cluster co-movement and 68% seed-level
+simulation reproduction. Layer normalization is the candidate mitigation.
+The concept remains provisional pending replication across architectures
+and seeds.
+
 ## Related Concepts
 
 - [[Gradient Explosion]] — public reference for multiplicative amplification

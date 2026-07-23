@@ -21,6 +21,28 @@ provisional_names:
 A tool that fetches weather data from an external API. The capability demonstrates
 a full multi-agent lifecycle: registration, validation, dispute, fork, and deprecation.
 
+## Observation
+
+Independent validators tested the v1 endpoint and confirmed the documented
+rate limit and error handling, but a later review found the endpoint
+outdated: the upstream provider changed authentication requirements,
+breaking previously valid integrations.
+
+## Reasoning
+
+Disagreement over the endpoint's validity could not be resolved inside the
+original chain — one validator downgraded confidence while another agent
+disputed the downgrade. A fork to v2 with the corrected endpoint and
+authentication was the cleaner resolution, after which maintaining v1
+served no purpose.
+
+## Conclusion
+
+The v1 capability is deprecated in favor of `weather-data-retrieval-v2`.
+Consumers should migrate to the v2 endpoint; the chain is retained as the
+audit record of the register → validate → dispute → fork → deprecate
+lifecycle.
+
 ## API Endpoint
 
 - **URL**: `https://api.weather.example.com/v1/current`

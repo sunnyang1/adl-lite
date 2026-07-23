@@ -31,6 +31,29 @@ Local grain boundary mobility couples with bulk thermal flux, creating a
 self-organizing ordering front analogous to attention mass collapse in
 transformer residual streams.
 
+## Observation
+
+X-ray diffraction measurements on polycrystalline alloy samples show peak
+sharpening whose magnitude correlates with the applied thermal gradient,
+and Monte Carlo grain-growth simulation reproduces spontaneous domain
+ordering at 71% of seeds — with no external field applied in either setting.
+
+## Reasoning
+
+Above a critical thermal gradient, grain boundary mobility rises enough for
+local energy minimization to propagate across neighboring grains. The
+ordering front then self-organizes: each aligned domain lowers the barrier
+for adjacent domains, so a bulk-scale anisotropy emerges from purely local
+coupling — structurally analogous to attention mass collapsing onto hub
+tokens in transformer residual streams.
+
+## Conclusion
+
+Matrix Domain Ordering is a candidate emergent mechanism for field-free
+anisotropy in polycrystalline alloys. The original bulk-coupling
+interpretation is contested by a kinetic nucleation fork
+(`disc-matdo-kinetic`); the concept is marked forked pending merger review.
+
 ## Related Concepts
 
 - [[Gradient Explosion]] — multiplicative amplification analogy
