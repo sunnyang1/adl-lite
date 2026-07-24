@@ -1092,6 +1092,428 @@ def _cmd_attest_list(args: argparse.Namespace) -> int:
     return 0
 
 
+# ----------------------------------------------------------------------
+# EAL Phase 3: commit–reveal challenge protocol
+# ----------------------------------------------------------------------
+
+
+def _challenge_wallclock() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _cmd_challenge_open(args: argparse.Namespace) -> int:
+    """Open a commit–reveal challenge; the plaintext seed stays local (0600)."""
+    from datetime import datetime, timedelta, timezone
+    from uuid import uuid4
+
+    from .challenge import (
+        ChallengeManager,
+        generate_seed,
+        save_seed_stub,
+        seed_commitment,
+    )
+    from .models import EventType
+    from .replay import append_attestation
+
+    try:
+        doc = parse_file(args.file)
+    except (ADLParseError, OSError, ValueError) as exc:
+        print(f"challenge error: {exc}", file=sys.stderr)
+        return 1
+
+    state_path = Path(args.state)
+    engine = _load_engine(state_path)
+    chain = engine.chains.get(doc.adl_id)
+    if chain is None:
+        print(
+            f"challenge error: {doc.adl_id} not registered in consensus state {state_path}",
+            file=sys.stderr,
+        )
+        return 1
+
+    try:
+        key = _load_ed25519_private_key(args.key_file)
+    except (ValueError, OSError) as exc:
+        print(f"key error: {exc}", file=sys.stderr)
+        return 1
+
+    challenge_id = args.challenge_id or f"chl-{uuid4().hex[:16]}"
+    manager = ChallengeManager()
+    manager.apply_chain(chain)
+    if challenge_id in manager.challenges:
+        print(f"challenge error: {challenge_id} already exists on chain", file=sys.stderr)
+        return 1
+
+    seed = generate_seed()
+    now = datetime.now(timezone.utc)
+    deadline = now + timedelta(seconds=args.reveal_in_s)
+    commitment = seed_commitment(seed)
+    payload: dict = {
+        "challenge_id": challenge_id,
+        "phase": "open",
+        "seed_commitment": commitment,
+        "reveal_deadline": deadline.isoformat(),
+        "response_window_s": args.response_window_s,
+    }
+    if args.target_executor:
+        payload["target_executor"] = args.target_executor
+
+    event = Event(
+        concept_id=doc.adl_id,
+        event_type=EventType.CHALLENGE,
+        actor=args.actor,
+        reasoning=args.reasoning or f"challenge {challenge_id} opened",
+        payload=payload,
+    )
+    append_attestation(chain, event, private_key=key)
+
+    stub_path = save_seed_stub(
+        args.log_dir,
+        challenge_id,
+        seed=seed,
+        seed_commitment_value=commitment,
+        reveal_deadline=deadline.isoformat(),
+        response_window_s=args.response_window_s,
+        target_executor=args.target_executor,
+    )
+    _save_engine(engine, state_path)
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "challenge_id": challenge_id,
+                    "capability": doc.adl_id,
+                    "seed_commitment": commitment,
+                    "reveal_deadline": deadline.isoformat(),
+                    "response_window_s": args.response_window_s,
+                    "target_executor": args.target_executor,
+                    "seed_stub": str(stub_path),
+                },
+                indent=2,
+            )
+        )
+    else:
+        print(f"challenge opened: {challenge_id} against {doc.adl_id}")
+        print(f"  reveal deadline: {deadline.isoformat()} (in {args.reveal_in_s}s)")
+        print(f"  response window: {args.response_window_s}s after reveal")
+        print(f"  plaintext seed kept LOCAL at {stub_path} (0600) until reveal")
+    return 0
+
+
+def _cmd_challenge_reveal(args: argparse.Namespace) -> int:
+    """Reveal the plaintext seed of an open challenge (before its deadline)."""
+    from datetime import datetime, timezone
+
+    from .challenge import (
+        ChallengeManager,
+        delete_seed_stub,
+        load_seed_stub,
+        seed_commitment,
+    )
+    from .models import EventType
+    from .replay import append_attestation
+
+    try:
+        doc = parse_file(args.file)
+    except (ADLParseError, OSError, ValueError) as exc:
+        print(f"challenge error: {exc}", file=sys.stderr)
+        return 1
+
+    state_path = Path(args.state)
+    engine = _load_engine(state_path)
+    chain = engine.chains.get(doc.adl_id)
+    if chain is None:
+        print(
+            f"challenge error: {doc.adl_id} not registered in consensus state {state_path}",
+            file=sys.stderr,
+        )
+        return 1
+
+    stub = load_seed_stub(args.log_dir, args.challenge_id)
+    if stub is None:
+        print(
+            f"challenge error: no local seed stub for {args.challenge_id} under "
+            f"{args.log_dir}/challenges/ — cannot reveal (challenge will lapse to void)",
+            file=sys.stderr,
+        )
+        return 1
+    seed = str(stub["seed"])
+    if seed_commitment(seed) != stub.get("seed_commitment"):
+        print(
+            f"challenge error: local seed for {args.challenge_id} does not match its own "
+            "commitment — stub corrupted, refusing to reveal",
+            file=sys.stderr,
+        )
+        return 1
+
+    manager = ChallengeManager()
+    manager.apply_chain(chain)
+    state = manager.challenges.get(args.challenge_id)
+    if state is None:
+        print(
+            f"challenge error: {args.challenge_id} not found on chain",
+            file=sys.stderr,
+        )
+        return 1
+    if state.challenger != args.actor:
+        print(
+            f"challenge error: only the challenger ({state.challenger}) may reveal",
+            file=sys.stderr,
+        )
+        return 1
+    if state.phase != "open":
+        print(
+            f"challenge error: {args.challenge_id} is already {state.phase}",
+            file=sys.stderr,
+        )
+        return 1
+    if datetime.now(timezone.utc) > state.reveal_deadline:
+        print(
+            f"challenge error: reveal deadline {state.reveal_deadline.isoformat()} has passed; "
+            "challenge will lapse to void",
+            file=sys.stderr,
+        )
+        return 1
+
+    try:
+        key = _load_ed25519_private_key(args.key_file)
+    except (ValueError, OSError) as exc:
+        print(f"key error: {exc}", file=sys.stderr)
+        return 1
+
+    event = Event(
+        concept_id=doc.adl_id,
+        event_type=EventType.CHALLENGE,
+        actor=args.actor,
+        reasoning=f"challenge {args.challenge_id} revealed",
+        payload={"challenge_id": args.challenge_id, "phase": "reveal", "seed": seed},
+    )
+    append_attestation(chain, event, private_key=key)
+    _save_engine(engine, state_path)
+    delete_seed_stub(args.log_dir, args.challenge_id)
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "challenge_id": args.challenge_id,
+                    "capability": doc.adl_id,
+                    "seed": seed,
+                    "revealed_at": _challenge_wallclock(),
+                },
+                indent=2,
+            )
+        )
+    else:
+        print(f"challenge revealed: {args.challenge_id}")
+        print(f"  seed (now public): {seed}")
+        print(f"  executor must answer within {state.response_window_s}s of the reveal")
+    return 0
+
+
+def _cmd_challenge_answer(args: argparse.Namespace) -> int:
+    """Answer a revealed challenge with an output commitment."""
+    import tempfile
+    from datetime import datetime, timezone
+
+    from .challenge import ChallengeManager
+    from .models import EventType
+    from .replay import ReplayHarness, append_attestation, sha256_commitment
+
+    if not args.output_hash and not args.auto_run:
+        print(
+            "challenge error: provide --output-hash or --auto-run",
+            file=sys.stderr,
+        )
+        return 1
+
+    try:
+        doc = parse_file(args.file)
+    except (ADLParseError, OSError, ValueError) as exc:
+        print(f"challenge error: {exc}", file=sys.stderr)
+        return 1
+
+    state_path = Path(args.state)
+    engine = _load_engine(state_path)
+    chain = engine.chains.get(doc.adl_id)
+    if chain is None:
+        print(
+            f"challenge error: {doc.adl_id} not registered in consensus state {state_path}",
+            file=sys.stderr,
+        )
+        return 1
+
+    manager = ChallengeManager()
+    manager.apply_chain(chain)
+    state = manager.challenges.get(args.challenge_id)
+    if state is None:
+        print(
+            f"challenge error: {args.challenge_id} not found on chain",
+            file=sys.stderr,
+        )
+        return 1
+    derived = manager.derived_phase(args.challenge_id, as_of=datetime.now(timezone.utc))
+    if derived != "revealed":
+        print(
+            f"challenge error: {args.challenge_id} is {derived}, not awaiting an answer",
+            file=sys.stderr,
+        )
+        return 1
+    if state.target_executor is not None and args.actor != state.target_executor:
+        print(
+            f"challenge error: challenge targets {state.target_executor}, not {args.actor}",
+            file=sys.stderr,
+        )
+        return 1
+
+    if args.output_hash:
+        output_commitment = args.output_hash
+        duration_ms = None
+    else:
+        spec = doc.execution_spec
+        if spec is None:
+            print(
+                f"challenge error: {doc.adl_id} has no adl:execution spec block; "
+                "use --output-hash instead of --auto-run",
+                file=sys.stderr,
+            )
+            return 1
+        if not state.seed:
+            print(
+                f"challenge error: no revealed seed on chain for {args.challenge_id}",
+                file=sys.stderr,
+            )
+            return 1
+        # Convention: the revealed seed IS the challenge input.
+        seed_file = Path(
+            tempfile.NamedTemporaryFile(
+                mode="w", suffix=".seed", prefix="adl-challenge-", delete=False
+            ).name
+        )
+        seed_file.write_text(state.seed, encoding="utf-8")
+        try:
+            output, duration_ms = ReplayHarness(spec).run(seed_file)
+        except Exception as exc:  # noqa: BLE001 — mapped to a clean CLI error
+            print(f"challenge error: auto-run failed: {exc}", file=sys.stderr)
+            return 1
+        finally:
+            seed_file.unlink(missing_ok=True)
+        output_commitment = sha256_commitment(output)
+
+    try:
+        key = _load_ed25519_private_key(args.key_file)
+    except (ValueError, OSError) as exc:
+        print(f"key error: {exc}", file=sys.stderr)
+        return 1
+
+    event = Event(
+        concept_id=doc.adl_id,
+        event_type=EventType.CHALLENGE,
+        actor=args.actor,
+        reasoning=f"challenge {args.challenge_id} answered",
+        payload={
+            "challenge_id": args.challenge_id,
+            "phase": "answer",
+            "output_commitment": output_commitment,
+        },
+    )
+    append_attestation(chain, event, private_key=key)
+    _save_engine(engine, state_path)
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "challenge_id": args.challenge_id,
+                    "capability": doc.adl_id,
+                    "output_commitment": output_commitment,
+                    "auto_run": bool(args.auto_run),
+                    "duration_ms": duration_ms,
+                },
+                indent=2,
+            )
+        )
+    else:
+        suffix = f" (auto-run {duration_ms} ms)" if duration_ms is not None else ""
+        print(f"challenge answered: {args.challenge_id}{suffix}")
+        print(f"  output commitment: {output_commitment}")
+    return 0
+
+
+def _cmd_challenge_status(args: argparse.Namespace) -> int:
+    """Replay the challenge state machine and report derived phases + response rates."""
+    from datetime import datetime, timezone
+
+    from .challenge import ChallengeManager
+
+    state_path = Path(args.state)
+    engine = _load_engine(state_path)
+    chain = engine.chains.get(args.adl_id)
+    if chain is None:
+        print(f"not registered in consensus state: {args.adl_id}", file=sys.stderr)
+        return 1
+
+    manager = ChallengeManager()
+    issues = manager.apply_chain(chain)
+    now = datetime.now(timezone.utc)
+
+    rows = []
+    for cid in sorted(manager.challenges):
+        st = manager.challenges[cid]
+        rows.append(
+            {
+                "challenge_id": cid,
+                "derived_phase": manager.derived_phase(cid, as_of=now),
+                "challenger": st.challenger,
+                "target_executor": st.target_executor,
+                "answer_actor": st.answer_actor,
+                "reveal_deadline": st.reveal_deadline.isoformat(),
+                "response_window_s": st.response_window_s,
+                "void_reason": st.void_reason,
+            }
+        )
+    metrics = manager.response_metrics(executor=args.executor, as_of=now)
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "capability": args.adl_id,
+                    "as_of": now.isoformat(),
+                    "challenges": rows,
+                    "response_metrics": metrics,
+                    "issues": issues,
+                },
+                indent=2,
+            )
+        )
+        return 0
+
+    print(f"challenges: {args.adl_id} ({len(rows)} total, wall-clock {now.isoformat()})")
+    for row in rows:
+        target = row["target_executor"] or "any"
+        print(
+            f"  {row['challenge_id']:<22} {row['derived_phase']:<10} "
+            f"challenger={row['challenger']} target={target}"
+            + (f" void={row['void_reason']}" if row["void_reason"] else "")
+        )
+    overall = metrics["overall"]
+    rate = overall["response_rate"]
+    rate_str = f"{rate:.1%}" if rate is not None else "n/a (no resolved challenges)"
+    scope = f"executor={args.executor}" if args.executor else "all executors"
+    print(
+        f"response rate ({scope}): {rate_str} "
+        f"[answered={overall['answered']} timed_out={overall['timed_out']} "
+        f"void={overall['void']} pending={overall['open'] + overall['revealed']}]"
+    )
+    for issue in issues:
+        print(f"  issue: {issue}", file=sys.stderr)
+    return 0
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="adl-lite",
@@ -1437,6 +1859,81 @@ def _build_parser() -> argparse.ArgumentParser:
     p_att_list.add_argument("--state", default=None, help="Consensus state JSON path")
     p_att_list.add_argument("--json", action="store_true", help="Emit JSON output")
     p_att_list.set_defaults(func=_cmd_attest_list)
+
+    p_challenge = sub.add_parser(
+        "challenge",
+        help="Commit–reveal challenges against cached answers (EAL Phase 3)",
+    )
+    chal_sub = p_challenge.add_subparsers(dest="challenge_cmd", required=True)
+
+    p_ch_open = chal_sub.add_parser(
+        "open", help="Open a challenge; plaintext seed stays local (0600) until reveal"
+    )
+    p_ch_open.add_argument("file", help="ADL Markdown file of the capability")
+    p_ch_open.add_argument("--actor", required=True, help="Challenger id")
+    p_ch_open.add_argument("--key-file", required=True, help="Ed25519 private key file")
+    p_ch_open.add_argument("--challenge-id", default=None, help="Explicit challenge id")
+    p_ch_open.add_argument(
+        "--target-executor", default=None, help="Restrict answers to this executor"
+    )
+    p_ch_open.add_argument(
+        "--reveal-in-s",
+        type=float,
+        default=300.0,
+        help="Seconds until the reveal deadline (default 300)",
+    )
+    p_ch_open.add_argument(
+        "--response-window-s",
+        type=float,
+        default=60.0,
+        help="Seconds the executor has to answer after reveal (default 60)",
+    )
+    p_ch_open.add_argument("--reasoning", default="", help="Recorded reasoning")
+    p_ch_open.add_argument("--log-dir", default="adl_execution_logs")
+    p_ch_open.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_ch_open.add_argument("--json", action="store_true", help="Emit JSON output")
+    p_ch_open.set_defaults(func=_cmd_challenge_open)
+
+    p_ch_reveal = chal_sub.add_parser(
+        "reveal", help="Reveal the plaintext seed before the deadline"
+    )
+    p_ch_reveal.add_argument("file", help="ADL Markdown file of the capability")
+    p_ch_reveal.add_argument("--challenge-id", required=True, help="Challenge id")
+    p_ch_reveal.add_argument("--actor", required=True, help="Challenger id")
+    p_ch_reveal.add_argument("--key-file", required=True, help="Ed25519 private key file")
+    p_ch_reveal.add_argument("--log-dir", default="adl_execution_logs")
+    p_ch_reveal.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_ch_reveal.add_argument("--json", action="store_true", help="Emit JSON output")
+    p_ch_reveal.set_defaults(func=_cmd_challenge_reveal)
+
+    p_ch_answer = chal_sub.add_parser(
+        "answer", help="Answer a revealed challenge with an output commitment"
+    )
+    p_ch_answer.add_argument("file", help="ADL Markdown file of the capability")
+    p_ch_answer.add_argument("--challenge-id", required=True, help="Challenge id")
+    p_ch_answer.add_argument("--actor", required=True, help="Executor id")
+    p_ch_answer.add_argument("--key-file", required=True, help="Ed25519 private key file")
+    p_ch_answer.add_argument(
+        "--output-hash", default=None, help="Precomputed output commitment (sha256:<hex>)"
+    )
+    p_ch_answer.add_argument(
+        "--auto-run",
+        action="store_true",
+        help="Run the capability spec on the revealed seed and commit its output",
+    )
+    p_ch_answer.add_argument("--log-dir", default="adl_execution_logs")
+    p_ch_answer.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_ch_answer.add_argument("--json", action="store_true", help="Emit JSON output")
+    p_ch_answer.set_defaults(func=_cmd_challenge_answer)
+
+    p_ch_status = chal_sub.add_parser(
+        "status", help="Derived challenge phases and response-rate metrics"
+    )
+    p_ch_status.add_argument("adl_id", help="Capability adl_id")
+    p_ch_status.add_argument("--executor", default=None, help="Filter metrics to one executor")
+    p_ch_status.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_ch_status.add_argument("--json", action="store_true", help="Emit JSON output")
+    p_ch_status.set_defaults(func=_cmd_challenge_status)
 
     p_mcp = sub.add_parser(
         "mcp",

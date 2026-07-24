@@ -9,7 +9,7 @@ Philosophy: Wittgenstein Tractatus §1.1 — "The world is the totality of facts
 ADL Lite is a Python 3.10+ package that implements a four-layer document model for capability representation and multi-agent consensus. Every concept/capability is an append-only, cryptographically hashed `EventChain`. Status, confidence, validators, and scope are **derived from the chain**, never stored as mutable fields.
 
 - **Name**: `adl-lite`
-- **Version**: `0.8.0-alpha` (single source: `adl_lite.__version__`; `pyproject.toml` updated on release)
+- **Version**: `0.9.0-alpha` (single source: `adl_lite.__version__`; `pyproject.toml` updated on release)
 - **Description**: ADL Lite — An Event-First Capability-Lifecycle Registry for LLM Agent Ecosystems
 - **License**: MIT
 - **Build backend**: hatchling
@@ -141,6 +141,7 @@ python scripts/consistency_check.py
 | `adl_lite/execution_log.py` | `ExecutionLog` — per-capability append-only log of signed `EXECUTE` receipts with Merkle anchoring (EAL Phase 1) |
 | `adl_lite/attestation.py` | `AttestationValidator` + `AttestationIndex` + `attested_confidence()` + `feed_calibrator()` — verdict validation, distinct-scope counting, evidence weighting (EAL Phase 2) |
 | `adl_lite/replay.py` | `ReplayHarness` — independent re-execution from `adl:execution` spec producing ATTEST verdicts (EAL Phase 2) |
+| `adl_lite/challenge.py` | `ChallengeManager` — commit–reveal CHALLENGE state machine, derived phases (answered/timed_out/void), response metrics, 0600 seed stubs (EAL Phase 3) |
 | `adl_lite/tools.py` | Agent-facing Python wrappers matching CLI semantics |
 | `adl_lite/calibration.py` | `MARGINCalibrator` + `aggregated_confidence()` + `calibrated_confidence()` + EWMA / feedback calibration |
 | `adl_lite/shacl_validation.py` | Runtime SHACL validation over PROV-O / ADLDocument |
@@ -291,6 +292,10 @@ adl-lite execute anchor <adl_id> --actor <did>
 adl-lite execute log <adl_id> --verify
 adl-lite attest replay <file.md> --execution-id <id> --input-file <path> --actor <did> --key-file <ed25519.pem>
 adl-lite attest list <adl_id>
+adl-lite challenge open <file.md> --actor <did> --key-file <ed25519.pem> [--target-executor <id>]
+adl-lite challenge reveal <file.md> --challenge-id <id> --actor <did> --key-file <ed25519.pem>
+adl-lite challenge answer <file.md> --challenge-id <id> --actor <did> --key-file <ed25519.pem> [--output-hash <sha256> | --auto-run]
+adl-lite challenge status <adl_id> [--executor <id>]
 # SHACL validation (requires [gov] extra)
 adl-lite shacl examples/capital_reflux_trap.md
 
@@ -390,7 +395,7 @@ Closed sets:
 
 - **Framework**: pytest with `pytest-cov`, `pytest-asyncio`, `pytest-benchmark`
 - **Test files**: 97 Python files under `tests/`
-- **Test count**: 1532 collected, all passing in the current Python 3.13 environment (1532 passed)
+- **Test count**: 1698 passed + 60 skipped in the current Python 3.12 environment
 - **Fixtures**: Minimal shared fixtures in `tests/conftest.py` (path setup only); 3 Markdown fixtures in `tests/fixtures/`
 - **FDE fixtures**: `tests/conftest_fde.py.bak` exists but is **not** auto-loaded by pytest, keeping the main suite lightweight
 - **Theorem tests**:
@@ -446,6 +451,7 @@ python -m experiments.runner all
 | E30 | LLM Normalization | `CanonicalizationEngine` + `VectorIndex` |
 | E31 | Lazy executor detectability (EAL vs manual baseline) | `ExecutionLog` + `AttestationIndex` |
 | E32 | Evidence-weighted confidence vs G-Counter (adversarial) | `attested_confidence` + calibration |
+| E33 | Challenge–response game: break-even challenge frequency | `ChallengeManager` + calibration |
 | E34 | Precondition Language Formalization & O(1) Benchmark | `ActionExecutor` + `PreconditionRule` |
 | E35 | Expert Validation Simulation — Inter-rater Agreement & Automation Correlation | calibration + consensus |
 

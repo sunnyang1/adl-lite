@@ -49,6 +49,7 @@ _EXPERIMENT_MODULES = [
     "e30_llm_normalization",
     "e31_lazy_validator_detection",
     "e32_evidence_weighted_confidence",
+    "e33_challenge_game",
     "e34_precondition_formalization",
     "e35_expert_validation_simulation",
     "proof_trace_checker",

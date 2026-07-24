@@ -26,7 +26,7 @@ Quick Start:
     mem.store(doc)
 """
 
-__version__ = "0.8.0-alpha"
+__version__ = "0.9.0-alpha"
 
 import importlib as _importlib
 from typing import Any as _Any
@@ -129,6 +129,16 @@ from .attestation import (
     capability_backed,
     feed_calibrator,
     refute_status,
+)
+from .challenge import (
+    ChallengeManager,
+    ChallengeState,
+    delete_seed_stub,
+    generate_seed,
+    load_seed_stub,
+    replay_challenges,
+    save_seed_stub,
+    seed_commitment,
 )
 from .execution_log import ExecutionLog, load_log
 from .l2_template import L2Template, L2TemplateValidator
@@ -316,6 +326,15 @@ __all__ = [
     "append_attestation",
     "build_attest_event",
     "sha256_commitment",
+    # EAL Phase 3: challenge–response
+    "ChallengeManager",
+    "ChallengeState",
+    "delete_seed_stub",
+    "generate_seed",
+    "load_seed_stub",
+    "replay_challenges",
+    "save_seed_stub",
+    "seed_commitment",
     # Action Executor
     "ActionExecutor",
     # Consensus

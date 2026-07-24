@@ -5,6 +5,56 @@ All notable changes to ADL Lite are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0-alpha] — Unreleased
+
+### Added
+
+- **Execution Attestation Layer (EAL), Phase 3 — commit–reveal challenge
+  protocol** (design: `docs/design/execution-attestation.md` §5.6):
+  - New event type `CHALLENGE` with phases `open` / `reveal` / `answer`.
+    A challenger commits to a secret seed (`seed_commitment = sha256:H(seed)`),
+    reveals it before a deadline, and the executor must post an
+    `output_commitment` within `response_window_s`. The revealed seed IS the
+    challenge input, so a cached answer can never match — closing the
+    "deterministic capability replays one honest answer forever" hole that
+    replay attestation alone cannot cover.
+  - Axiom extensions (`models.py`): Axiom 13 requires `challenge_id` +
+    `phase`; Axiom 14 requires an LD-Proof on every CHALLENGE event;
+    Axiom 15 validates phase membership and per-phase required fields
+    (open: `seed_commitment`, `reveal_deadline`, `response_window_s`;
+    reveal: `seed`; answer: `output_commitment`).
+  - `adl_lite/challenge.py` (new): `ChallengeManager` — the cross-event
+    state machine (commitment matching, deadline/window enforcement,
+    phase ordering, target-executor restriction) as a derived, read-only
+    projection over the chain. Time-dependent derivations take an explicit
+    `as_of` (default: chain-internal newest event time) so replays are
+    deterministic and CRDT-friendly. Derived terminal phases: `answered` /
+    `timed_out` / `void` (challenger fault — excluded from response rates).
+    `response_metrics()` aggregates response rates overall and per
+    capability, with optional executor filtering. Seed stubs
+    (`save_seed_stub` / `load_seed_stub` / `delete_seed_stub`) keep the
+    plaintext seed LOCAL under `<log_dir>/challenges/` (0600) until reveal.
+  - CLI: `adl-lite challenge open|reveal|answer|status` — open stores the
+    seed locally (0600, never on-chain until reveal); reveal verifies the
+    local stub against the on-chain commitment before appending; answer
+    accepts `--output-hash` or `--auto-run` (runs the `adl:execution` spec
+    on the revealed seed); status replays the state machine at wall-clock
+    `as_of` and reports derived phases plus response-rate metrics.
+  - `experiments/e33_challenge_game.py` (E33): analytic vs simulated
+    break-even challenge frequency for rational lazy executors
+    (E_lazy(f) = (1-f)·G − f·P against E_honest = R − C). With the real
+    `ChallengeManager` + `MARGINCalibrator`: f\* analytic 0.100 vs
+    simulated 0.094 (|err| 0.006); lazy payoff 1.0/round unchallenged vs
+    0.37/round at f=0.2 (honest 0.7); manager derivations match simulation
+    ground truth on all 16 frequency points; ~0.018 ms per challenge event.
+
+### Deferred (Phase 3b, documented in the design doc)
+
+- Statistical conformance for `stochastic` capabilities and property-check
+  verification for `side-effecting` ones remain open; TEE quote / zk-proof
+  payloads are accepted at the schema level (`tee-quote` / `zk-proof` in
+  `ATTEST_METHODS`) but not yet cryptographically verified.
+
 ## [0.8.0-alpha] — Unreleased
 
 ### Added

@@ -134,6 +134,8 @@ class EventType(str, Enum):
     EXECUTE = "execute"  # Signed execution receipt (lives on ExecutionLog)
     ATTEST = "attest"  # Verdict about an execution receipt (lives on main chain)
     EXEC_ANCHOR = "exec_anchor"  # Merkle anchor of an ExecutionLog (main chain)
+    # EAL Phase 3: commit–reveal challenge protocol against cached answers.
+    CHALLENGE = "challenge"  # Challenge open/reveal/answer phases (main chain)
 
 
 # ---------------------------------------------------------------------------
@@ -145,10 +147,36 @@ _EAL_REQUIRED_PAYLOAD_FIELDS: dict[EventType, tuple[str, ...]] = {
     EventType.EXECUTE: ("execution_id", "input_commitment", "output_commitment"),
     EventType.ATTEST: ("subject_execution", "method", "verdict"),
     EventType.EXEC_ANCHOR: ("log_merkle_root",),
+    EventType.CHALLENGE: ("challenge_id", "phase"),
 }
 
 # Axiom 14: event types that must carry a W3C LD-Proof object.
-_EAL_PROOF_REQUIRED_TYPES: frozenset[EventType] = frozenset({EventType.EXECUTE, EventType.ATTEST})
+_EAL_PROOF_REQUIRED_TYPES: frozenset[EventType] = frozenset(
+    {EventType.EXECUTE, EventType.ATTEST, EventType.CHALLENGE}
+)
+
+# Axiom 15 extension: CHALLENGE phases and their per-phase required fields.
+_CHALLENGE_PHASES: frozenset[str] = frozenset({"open", "reveal", "answer"})
+_CHALLENGE_PHASE_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
+    "open": ("seed_commitment", "reveal_deadline", "response_window_s"),
+    "reveal": ("seed",),
+    "answer": ("output_commitment",),
+}
+
+
+def _challenge_payload_well_formed(payload: dict) -> bool:
+    """Axiom 15 (EAL) extension: a CHALLENGE event must carry a valid phase and
+    that phase's required fields. Cross-event checks (seed commitment matching,
+    deadlines, phase ordering) are inherently multi-event and live in
+    ``challenge.ChallengeManager``, not in the per-event axioms."""
+    phase = payload.get("phase")
+    if phase not in _CHALLENGE_PHASES:
+        return False
+    for field_name in _CHALLENGE_PHASE_REQUIRED_FIELDS[phase]:
+        value = payload.get(field_name)
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return False
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -682,9 +710,13 @@ class EventChain:
         return violations
 
     def _check_wf15_verdict_consistency(self) -> list[str]:
-        """Axiom 15 (EAL): ATTEST verdicts must be self-consistent."""
+        """Axiom 15 (EAL): ATTEST verdicts and CHALLENGE phases must be self-consistent."""
         violations: list[str] = []
         for event in self._events:
+            if event.event_type is EventType.CHALLENGE:
+                if not _challenge_payload_well_formed(event.payload):
+                    violations.append(event.event_id)
+                continue
             if event.event_type is not EventType.ATTEST:
                 continue
             verdict = event.payload.get("verdict")
@@ -901,6 +933,11 @@ class EventChain:
                     if not has_evidence and not has_mismatch:
                         return False
 
+            # Axiom 15 (EAL) extension: phase consistency for CHALLENGE events.
+            if event.event_type is EventType.CHALLENGE:
+                if not _challenge_payload_well_formed(event.payload):
+                    return False
+
         self._verified_index = n - 1
         if events:
             self._verified_hash = events[-1].hash
@@ -910,7 +947,8 @@ class EventChain:
     def verify_integrity(self, full: bool = False, registry=None) -> bool:
         """
         Verify that the chain is well-formed per Definition 5 (12 base axioms
-        plus EAL conditional axioms 13–15 for EXECUTE/ATTEST/EXEC_ANCHOR events).
+        plus EAL conditional axioms 13–15 for EXECUTE/ATTEST/EXEC_ANCHOR/CHALLENGE
+        events).
 
         This method is incremental: after a full verification, subsequent calls
         only examine events appended since the last check, giving O(k) cost for

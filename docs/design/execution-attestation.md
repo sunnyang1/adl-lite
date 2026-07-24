@@ -1,10 +1,12 @@
 # 执行证明层（Execution Attestation Layer, EAL）设计草案 v0.1
 
-> 状态：**Phase 1 + Phase 2 已实现**（v0.7.0-alpha / v0.8.0-alpha，2026-07-23/24）。
+> 状态：**Phase 1 + Phase 2 + Phase 3（核心）已实现**（v0.7.0–v0.9.0-alpha，2026-07-23/24）。
 > Phase 1：ExecutionLog、EXECUTE/ATTEST/EXEC_ANCHOR、公理 13–15、`adl:execution` 块、本体同步、CLI `execute`、注册钩子（D5）。
 > Phase 2：AttestationValidator/AttestationIndex、ReplayHarness（真实重放）、证据加权置信度（opt-in）、
 > refute→DEPRECATE 提案标记、校准自举（feed_calibrator）、CLI `attest replay/list`、E31/E32 实验通过。
-> 未开始：Phase 3（CHALLENGE commit–reveal、响应率指标、TEE/zk 插口、统计/性质一致性引擎）。
+> Phase 3（核心）：CHALLENGE commit–reveal 挑战协议（公理 13–15 扩展）、ChallengeManager 跨事件状态机
+> （`as_of` 显式注入，链内确定性/CRDT 友好）、响应率指标、seed 本地存根（0600）、CLI `challenge`、E33 通过。
+> Phase 3b 剩余：stochastic 统计一致性、side-effecting 性质检查引擎；TEE/zk 仍为 schema 插口（密码学未验证）。
 > 起源：商业计划书对抗性审查发现的最深产品缺口——"链上记录 ≠ 事实"（预言机问题）。
 
 ## 1. 问题陈述（第一性原理）
