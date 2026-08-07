@@ -1,0 +1,742 @@
+% =============================================================================
+% Appendix O: Detailed Results Tables (moved from main text for page limit)
+% Each table is referenced from the main paper by name (Supplementary Table S1--S11).
+% =============================================================================
+\section{Detailed Results Tables Removed from the Main Text}\label{app:tables-moved}
+
+\subsection{Supplementary Table S1}\label{tab:S1}
+\begin{table}[htbp]
+\centering
+\small
+\caption{Governance task comparison.}
+\label{tab:comparative-eval}
+\begin{tabularx}{\textwidth}{@{}p{3.2cm}XXX@{}}
+\toprule
+\textbf{Task} & \textbf{Nanopubs + Trusty URIs} & \textbf{PROV-O Pipeline} & \textbf{ADL Lite (v0.2)} \\
+\midrule
+Acceptance workflow & $\circ$ (manual versioning) & $\circ$ (requires external workflow engine) & $\checkmark$ (deterministic $\delta(C)$) \\
+Retraction/deprecation & $\checkmark$ (new nanopub with retraction) & $\checkmark$ (prov:wasInvalidatedBy) & $\checkmark$ (\textsc{DEPRECATE} + precondition) \\
+Audit query & $\checkmark$ ($O(1)$ per nanopub) & $\checkmark$ (SPARQL query) & $\circ$ ($O(n)$ linear scan) \\
+Consensus threshold & $\times$ (no built-in aggregation) & $\times$ (no built-in aggregation) & $\checkmark$ ($\gamma(C)$ with quorum rules) \\
+Multi-event lifecycle & $\circ$ (chained nanopubs) & $\checkmark$ (activity sequences) & $\checkmark$ (native EventChain) \\
+Fork workflow & $\times$ (no native concept) & $\circ$ (\texttt{wasDerivedFrom} only) & $\checkmark$ (\textsc{FORK} + deterministic child status) \\
+Verification cost & $O(1)$ per nanopub & $\sim O(|\text{activities}|)$ & $O(n)$ per chain \\
+Authentication & $\checkmark$ (RSA signatures) & $\circ$ (planned: LD-Proofs) & $\times$ (planned: future release) \\
+Infrastructure & RDF triplestore + nanopub server & RDF triplestore + PROV tooling & Git + \texttt{pip install adl-lite} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Supplementary Table S2}\label{tab:S2}
+\begin{table}[htbp]
+\centering
+\small
+\caption{Five-task lifecycle comparison: register $\to$ validate $\to$ deprecate $\to$ fork $\to$ audit query.}
+\label{tab:lifecycle-comparison}
+\begin{tabularx}{\textwidth}{@{}p{3.2cm}XXX@{}}
+\toprule
+\textbf{Lifecycle Task} & \textbf{Nanopubs + Trusty URIs} & \textbf{PROV-O + LD-Proofs} & \textbf{ADL Lite (v0.2)} \\
+\midrule
+Register (propose) & $\checkmark$ (new nanopub) & $\checkmark$ (new activity + signature) & $\checkmark$ (\textsc{REGISTER} + genesis hash) \\
+Validate (review) & $\times$ (no built-in quorum) & $\circ$ (external workflow engine) & $\checkmark$ (\textsc{VALIDATE} + $\gamma(C)$) \\
+Deprecate (retract) & $\checkmark$ (retraction nanopub) & $\checkmark$ (\texttt{wasInvalidatedBy} + signature) & $\checkmark$ (\textsc{DEPRECATE} + precondition) \\
+Fork (evolve) & $\times$ (no native concept) & $\circ$ (\texttt{wasDerivedFrom} only) & $\checkmark$ (\textsc{FORK} + deterministic child status) \\
+Audit query (reconstruct) & $\checkmark$ ($O(1)$ per nanopub) & $\checkmark$ (SPARQL + signature verify) & $\checkmark$ (full chain scan + $\delta(C)$) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Supplementary Table S3}\label{tab:S3}
+\begin{table}[htbp]
+\centering
+\small
+\caption{Empirical benchmark comparison (E12). ADL Lite measurements on Apple M2, macOS 14, Python 3.10. Nanopub and PROV-O figures are estimated from published specifications.}
+\label{tab:comparative-benchmark}
+\begin{tabularx}{\textwidth}{@{}p{3.2cm}XXX@{}}
+\toprule
+\textbf{Metric} & \textbf{ADL Lite (measured)} & \textbf{Nanopubs (published)} & \textbf{PROV-O (published)} \\
+\midrule
+Per-assertion verify & 0.59 $\mu$s (SHA-256 hash only) & $O(1)$ hash comparison \cite{trusty_uris} & O($n\log n$) RDF canon.~\cite{w3c_rdf_canon} \\
+Chain verify (300 events) & 2.13 ms & N/A (atomic claims) & N/A \\
+Audit query (300 events) & 0.022 ms & $\sim$SPARQL lookup ms$^a$ & $\sim$SPARQL lookup ms$^a$ \\
+Storage per event & 603 bytes & 31--86\% non-assertion triples \cite{nanopublications} & $\sim$RDF triple overhead \\
+Hash/storage overhead & 10.6\% (64 bytes/event) & Content-addressed URI overhead & Canon. + signature overhead \\
+Throughput & 135k events/s (verify) & Per-claim only & Per-document batch \\
+All 201 chains verify & 69 ms (total) & N/A (no chain concept) & N/A \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Supplementary Table S4}\label{tab:S4}
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Adversarial robustness baseline comparison (E37): qualitative classification of detection/prevention capabilities across four systems. \checkmark = native detection/prevention; $\circ$ = external tooling or after-the-fact; $\times$ = not detected in baseline configuration.}
+\label{tab:adversarial-baseline-comparison}
+\begin{tabularx}{\textwidth}{@{}p{2.4cm}p{2.8cm}p{2.8cm}p{2.8cm}p{2.8cm}@{}}
+\toprule
+\textbf{Attack scenario} & \textbf{ADL Lite (S1)} & \textbf{Nanopubs (S2)} & \textbf{PROV-O (S3)} & \textbf{Git-only (S4)} \\
+\midrule
+A1. Mid-chain insertion & \checkmark\ (hash chain) & \checkmark\ (Trusty URI) & \checkmark\ (linkage) & \checkmark\ (commit parent) \\
+A2. Event deletion & \checkmark\ (hash break) & $\circ$\ (timestamp gap) & \checkmark\ (linkage) & \checkmark\ (commit parent) \\
+A3. Event reordering & \checkmark\ (hash break) & $\circ$\ (timestamp ordering) & \checkmark\ (linkage) & \checkmark\ (commit parent) \\
+A4. Payload tampering & \checkmark\ (hash mismatch) & \checkmark\ (Trusty URI) & \checkmark\ (LD-Proof verify) & \checkmark\ (blob hash) \\
+A5. Identity spoofing & $\circ$\ (precondition audit) & \checkmark\ (RSA signature) & \checkmark\ (LD-Proof) & $\circ$\ (GPG opt-in) \\
+A6. Fork double-counting & \checkmark\ (per-actor max) & $\times$\ (no fork concept) & $\times$\ (no fork concept) & $\times$\ (no fork concept) \\
+A7. Replay attack & \checkmark\ (concept$\_\,$id + hash) & $\circ$\ (URI uniqueness) & $\circ$\ (URI uniqueness) & $\circ$\ (commit uniqueness) \\
+B1. Collusion attack & $\times$\ (staking FW9) & $\times$\ (no aggregation) & $\times$\ (no aggregation) & $\times$\ (no aggregation) \\
+B2. Genesis replacement & $\circ$\ (reflog + anchor) & $\times$\ (no chain concept) & $\times$\ (no chain concept) & $\circ$\ (reflog) \\
+B3. Impersonation & $\times$\ (signatures FW9) & \checkmark\ (RSA signature) & \checkmark\ (LD-Proof) & $\circ$\ (GPG opt-in) \\
+B4. Timestamp backdating & $\times$\ (signed ts FW9) & $\times$\ (no timestamp auth) & $\times$\ (no timestamp auth) & $\circ$\ (commit timestamp) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Supplementary Table S5}\label{tab:S5}
+\begin{table}[htbp]
+\centering
+\small
+\caption{E35: Simulated expert validation scores (mean, $n=50$ concepts) versus automated scores.}
+\label{tab:e35-expert}
+\begin{tabular}{@{}p{3.5cm}p{2.5cm}p{2.5cm}p{3.5cm}@{}}
+\toprule
+\textbf{Criterion} & \textbf{Expert Score} & \textbf{Automated Score} & \textbf{Notes} \\
+\midrule
+L1 completeness & 4.2 / 5 & 4.8 / 5 & Automated check is stricter (missing fields flagged) \\
+L2 narrative quality & 3.8 / 5 & --- & No automated metric; requires human review \\
+L3 relation consistency & 4.0 / 5 & 3.6 / 5 & Automated ontology check is conservative \\
+L4 action validity & 4.5 / 5 & 5.0 / 5 & Precondition pass/fail is deterministic \\
+BFO alignment & 3.5 / 5 & --- & Requires manual foundational mapping \\
+OntoClean rigidity & 3.2 / 5 & --- & Requires expert ontologist judgment \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S6}\label{tab:S6}
+\begin{table}[htbp]
+\centering
+\small
+\caption{E36 simulated pilot design: concept selection---four high-confidence and four borderline AML-derived patterns.}
+\label{tab:e36-concepts}
+\begin{tabular}{@{}p{2.5cm}p{2.5cm}p{3.5cm}p{3.5cm}@{}}
+\toprule
+\textbf{Concept ID} & \textbf{Pattern} & \textbf{High-confidence features} & \textbf{Borderline features} \\
+\midrule
+aml-fan-out-42 & Fan-out & 12 recipients, \$127,400, 48h & --- \\
+aml-struct-17 & Structuring & 52 deposits, \$49,800, 24h & --- \\
+aml-layer-89 & Layering & 3-hop chain, \$86,200, 72h & --- \\
+aml-rapid-31 & Rapid movement & 8 recipients, \$34,500, 6h & --- \\
+aml-fan-out-105 & Fan-out (weak) & --- & 4 recipients, \$8,200, 36h \\
+aml-mixed-56 & Mixed pattern & --- & 2 patterns, conflicting signals \\
+aml-struct-203 & Structuring (weak) & --- & 9 deposits, \$9,400, 48h \\
+aml-rapid-78 & Rapid movement (weak) & --- & 5 recipients, \$9,800, 26h \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S7}\label{tab:S7}
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{E36 simulated pilot design: structured rubric---eight criteria on a 5-point Likert scale.}
+\label{tab:e36-rubric}
+\begin{tabular}{@{}p{2.5cm}p{5.5cm}p{5.5cm}@{}}
+\toprule
+\textbf{Criterion} & \textbf{Description} & \textbf{Score Anchors (1--5)} \\
+\midrule
+C1. Semantic coherence & The L1--L4 structure faithfully represents the laundering pattern. & 1 = Misleading; 3 = Acceptable; 5 = Precise. \\
+C2. Evidential sufficiency & Thresholds (\$10k, 5 recipients, 24h) are justified against regulatory guidance. & 1 = Arbitrary; 3 = Plausible; 5 = Defensible. \\
+C3. Audit completeness & A third party (e.g., MLRO) can reconstruct the reasoning from the chain. & 1 = Opaque; 3 = Partial; 5 = Fully reconstructable. \\
+C4. L1 consistency & Front-matter fields (status, confidence, scope) are mutually consistent. & 1 = Contradictory; 3 = Minor issues; 5 = Fully consistent. \\
+C5. L2 clarity & Markdown narrative is clear, explicit, and free of ambiguous pronouns. & 1 = Unreadable; 3 = Adequate; 5 = Excellent. \\
+C6. L3 soundness & Relation predicates are ontology-registered and evidence-backed. & 1 = Invalid; 3 = Mostly valid; 5 = Fully grounded. \\
+C7. L4 validity & Actions respect preconditions and transition legality. & 1 = Violations; 3 = Minor issues; 5 = Fully compliant. \\
+C8. Overall utility & The concept would be useful in a real AML monitoring workflow. & 1 = Useless; 3 = Marginally useful; 5 = High value. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S8}\label{tab:S8}
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{E36 simulated pilot: mean simulated panel scores per concept (3 simulated reviewers; simulated proxy, not measured human data). HC = high-confidence; BL = borderline.}
+\label{tab:e36-scores}
+\begin{tabular}{@{}p{2.8cm}p{0.8cm}p{0.8cm}p{0.8cm}p{0.8cm}p{0.8cm}p{0.8cm}p{0.8cm}p{0.8cm}p{1.2cm}@{}}
+\toprule
+\textbf{Concept} & \textbf{C1} & \textbf{C2} & \textbf{C3} & \textbf{C4} & \textbf{C5} & \textbf{C6} & \textbf{C7} & \textbf{C8} & \textbf{Mean} \\
+\midrule
+aml-fan-out-42 & 4.3 & 4.0 & 4.3 & 4.7 & 4.0 & 4.3 & 4.7 & 4.0 & 4.29 \\
+aml-struct-17 & 4.0 & 3.7 & 4.0 & 4.3 & 3.7 & 4.0 & 4.3 & 3.7 & 3.96 \\
+aml-layer-89 & 3.7 & 3.3 & 3.7 & 4.0 & 3.3 & 3.7 & 4.0 & 3.3 & 3.63 \\
+aml-rapid-31 & 4.0 & 3.7 & 4.0 & 4.3 & 3.7 & 4.0 & 4.3 & 3.7 & 3.96 \\
+aml-fan-out-105 & 2.7 & 2.3 & 3.0 & 3.3 & 2.7 & 3.0 & 3.3 & 2.3 & 2.83 \\
+aml-mixed-56 & 2.7 & 2.7 & 2.7 & 3.0 & 2.7 & 2.7 & 3.0 & 2.7 & 2.77 \\
+aml-struct-203 & 2.3 & 2.0 & 2.7 & 3.0 & 2.3 & 2.7 & 3.0 & 2.0 & 2.50 \\
+aml-rapid-78 & 3.0 & 2.7 & 3.0 & 3.3 & 2.7 & 3.0 & 3.3 & 2.7 & 2.96 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S9}\label{tab:S9}
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{CRDT merge benchmark (E31). Merge latency and integrity check for 100--1000 concurrent branches at conflict rates 0\%--50\%. All values are mean wall-clock (ms).}
+\label{tab:e31-results}
+\begin{tabular}{@{}rrrrr@{}}
+\toprule
+\textbf{Branches} & \textbf{Conflict rate} & \textbf{Merge (ms)} & \textbf{Integrity (ms)} & \textbf{Resolution rate} \\
+\midrule
+100 & 0\% & 0.41 & 0.33 & 1 \\
+100 & 10\% & 0.33 & 0.26 & 1 \\
+100 & 50\% & 0.43 & 0.33 & 1 \\
+500 & 0\% & 0.4 & 0.32 & 1 \\
+500 & 10\% & 0.45 & 0.35 & 1 \\
+500 & 50\% & 0.43 & 0.34 & 1 \\
+1000 & 0\% & 0.45 & 0.33 & 1 \\
+1000 & 10\% & 0.41 & 0.31 & 1 \\
+1000 & 50\% & 0.42 & 0.32 & 1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S10}\label{tab:S10}
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Expert validation proxy (E32). Simulated 3 annotators with accuracy settings 0.85, 0.75, 0.90 on 50 concepts with known ground truth. ADL $\delta(C)$ precision is 1.0.}
+\label{tab:e32-results}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Annotator} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{Accuracy} \\
+\midrule
+Expert A (acc=0.85, bias=+0.05) & 0.91 & 1 & 0.95 & 0.94 \\
+Expert B (acc=0.75, bias=-0.10) & 0.85 & 0.97 & 0.91 & 0.88 \\
+Expert C (acc=0.90, bias=0.00) & 0.91 & 1 & 0.95 & 0.94 \\
+Majority consensus & 0.97 & 1 & 0.98 & 0.98 \\
+ADL $\delta(C)$ derivation & 1 & 0.97 & 0.98 & 0.98 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Inter-annotator agreement (E32). Cohen's $\kappa$ (pairwise) and Fleiss' $\kappa$ (three-way).}
+\label{tab:e32-agreement}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\textbf{Pair} & \textbf{Cohen's $\kappa$} & \textbf{Agreement} \\
+\midrule
+Expert A--B & 0.68 & substantial \\
+Expert A--C & 0.73 & substantial \\
+Expert B--C & 0.59 & moderate \\
+All three (Fleiss') & 0.67 & substantial \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S11}\label{tab:S11}
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Merkle log quantitative comparison (E33). ADL Lite ($O(n)$ hash chain) vs. Sigstore Rekor ($O(\log n)$ Merkle tree) at 100--100,000 events. Rekor values are analytical estimates; ADL values are measured.}
+\label{tab:e33-results}
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+\textbf{Events} & \textbf{ADL verify (ms)} & \textbf{Rekor verify (ms)} & \textbf{Speedup} & \textbf{ADL proof (KB)} & \textbf{Rekor proof (B)} \\
+\midrule
+$10^2$ & 0.25 & 0.0035 & 71$\times$ & 6.25 & 224 \\
+$10^3$ & 2.54 & 0.005 & 508$\times$ & 62.5 & 320 \\
+$10^4$ & 27.05 & 0.007 & 3,864$\times$ & 625 & 448 \\
+$10^5$ & 271.48 & 0.0085 & 31,939$\times$ & 6250 & 544 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S12}\label{tab:S12}
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Precondition language expressivity: what can and cannot be expressed.}
+\label{tab:precondition-expressivity}
+\begin{tabularx}{\textwidth}{@{}p{3.2cm}p{4.5cm}X@{}}
+\toprule
+\textbf{Constraint Category} & \textbf{Examples} & \textbf{Expressible?} \\
+\midrule
+Field-value comparison & \texttt{status EQ provisional}, \texttt{confidence GTE 0.5} & $\checkmark$~(Core) \\
+Set membership & \texttt{tags IN [verified, reviewed]} & \checkmark~(Core) \\
+Existence & \texttt{actor EXISTS} (field defined in snapshot) & \checkmark~(Core) \\
+Conjunction / disjunction & \texttt{status EQ provisional AND confidence GTE 0.5} & \checkmark~(Core) \\
+Temporal predicate & \texttt{7 days passed since last VALIDATE} & $\times$~(Not in core; application layer) \\
+Cross-chain reference & \texttt{parent.status EQ validated} & $\times$~(Not in core; deferred to FW2) \\
+Quantification / aggregation & \texttt{at least 3 validators approved} & $\times$~(Handled by $\gamma$, not preconditions) \\
+Arithmetic / string manipulation & \texttt{confidence within 10\% of mean} & $\times$~(Not in core) \\
+Recursive / self-referential & \texttt{no concept is its own ancestor} & $\times$~(Not in core) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Supplementary Table S13}\label{tab:S13}
+\begin{table}[htbp]
+\centering
+\small
+\caption{Computational complexity of precondition evaluation.}
+\label{tab:complexity}
+\begin{tabularx}{\textwidth}{@{}p{5cm}llX@{}}
+\toprule
+\textbf{Operation} & \textbf{Time} & \textbf{Space} & \textbf{Notes} \\
+\midrule
+Single rule $\text{eval}(r, C)$ & $\mathcal{O}(1)$ & $\mathcal{O}(1)$ & No recursion, no quantification \\
+Rule list $\text{eval}(R, C)$, $|R| = k$ & $\mathcal{O}(k)$ & $\mathcal{O}(1)$ & Short-circuit on first failure \\
+Field lookup $\text{lookup}(f, C)$ & $\mathcal{O}(1)$ & $\mathcal{O}(1)$ & Memoized snapshot or dict lookup \\
+Comparator dispatch $k(x, y)$ & $\mathcal{O}(1)$ & $\mathcal{O}(1)$ & Closed 8-case enumeration \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Supplementary Table S14}\label{tab:S14}
+\begin{table}[htbp]
+\centering
+\caption{Trust model evolution: from collaborative non-Byzantine to authenticated validation.}
+\label{tab:trust-evolution}
+\begin{tabular}{@{}lp{2.8cm}p{2.5cm}p{3cm}p{2.2cm}@{}}
+\toprule
+\textbf{Phase} & \textbf{Authentication} & \textbf{Sybil Resistance} & \textbf{Collusion Mitigation} & \textbf{Deployment Cost} \\
+\midrule
+Phase 1 (current) & Self-declared string IDs & None & $N_{\min} \geq 1$ (configurable) & Zero \\
+Phase 1.5 (implemented) & \texttt{did:key} Ed25519 signatures & DID uniqueness & $N_{\min} \geq 2$ + accuracy-weighted $\gamma$ & Low (pip install) \\
+Phase 2 (planned) & Full key registry + \texttt{did:web}/\texttt{did:ethr} & DID-based reputation & Staking + slashing & Moderate (web of trust) \\
+Phase 3 (future) & BFT transport + Merkle logs & Economic stakes & Game-theoretic guarantees & High (infrastructure) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S15}\label{tab:S15}
+\begin{table}[htbp]
+\centering
+\caption{Threat model progression across phases.}
+\label{tab:threat-model}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Threat} & \textbf{Current model} & \textbf{Signed commits} & \textbf{Phase 1.5} & \textbf{Future auth.} \\
+\midrule
+Content tampering & $\checkmark$ & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+Event reordering & $\checkmark$ & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+Event deletion & $\checkmark$ & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+Actor impersonation & $\times$ & $\triangle$ & $\triangle$ & $\checkmark$ \\
+Equivocation & $\circ$ & $\circ$ & $\circ$ & $\triangle$ \\
+Clock skew & $\checkmark$ & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+Genesis replacement & $\circ$ & $\triangle$ & $\triangle$ & $\checkmark$ \\
+Byzantine majority & $\times$ & $\times$ & $\times$ & $\triangle$ \\
+Replay attack & $\circ$ & $\triangle$ & $\triangle$ & $\checkmark$ \\
+Timestamp manipulation & $\checkmark$ & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+Collusion attack & $\times$ & $\times$ & $\triangle$ & $\triangle$ \\
+Social engineering & $\times$ & $\times$ & $\times$ & $\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S16}\label{tab:S16}
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Proof status of the nine core theorems and Lemma~E2, with mechanization modality and verification evidence. \textbf{Coq} = structural inductive proof (unbounded); \textbf{Python} = empirical test-suite validation (bounded); \textbf{TLA+} = model-checking confirmation (bounded).}
+\label{tab:proof-status}
+\begin{tabularx}{\textwidth}{@{}p{1.1cm}p{1.3cm}p{1.6cm}p{2.6cm}p{1.1cm}p{1.6cm}p{1.5cm}X@{}}
+\toprule
+\textbf{Thm} & \textbf{Paper \S} & \textbf{Coq File} & \textbf{Coq Theorem Name} & \textbf{Status} & \textbf{Python Tests} & \textbf{TLA+} & \textbf{Notes} \\
+\midrule
+T1 & \S\ref{subsec:compact-formal-spec} & \texttt{Chain.v} & \texttt{well\_formed} (defn) & \checkmark & \texttt{test\_theorem\_t1.py} & --- & 12 axioms; T7/T9 prove preservation \\
+E2 & \S\ref{subsec:compact-formal-spec} & \texttt{Invariants.v} & \texttt{E2\_inductive\_status\_derivation} & \checkmark & \texttt{test\_theorem\_t2.py} & \checkmark & Equational reasoning; TLC to len 20 \\
+T2 & \S\ref{subsec:compact-formal-spec} & \texttt{Invariants.v} & \texttt{fork\_determinism} (6 conj.) & \checkmark & \texttt{test\_theorems.py} & --- & Parent/child status by LUB \\
+T3 & \S\ref{subsec:compact-formal-spec} & \texttt{Status.v} & \texttt{status\_monotonic} & \checkmark & \texttt{test\_theorems.py} & \checkmark & No backward transitions \\
+T4 & \S\ref{subsec:compact-formal-spec} & \texttt{Confidence.v}, \texttt{Invariants.v} & \texttt{confidence\_boundedness} + \texttt{gamma\_agg\_bounded} & \checkmark & \texttt{test\_theorems.py} & --- & Clamp + convex combo \\
+T5 & \S\ref{subsec:compact-formal-spec} & \texttt{Confidence.v} & \texttt{confidence\_monotonicity\_default} & \checkmark & \texttt{test\_theorems.py} & --- & G-Counter $\max$ semantics \\
+T6 & \S\ref{subsec:compact-formal-spec} & \texttt{Invariants.v} & \texttt{status\_confidence\_consistency} & \checkmark & \texttt{test\_theorems.py} & --- & Precondition $\geq 0.5$ \\
+T7 & \S\ref{subsec:compact-formal-spec} & \texttt{Chain.v}, \texttt{Invariants.v} & \texttt{well\_formedness\_preservation} & \checkmark & \texttt{test\_theorems.py} & --- & 490-line proof (replaced 6 stubs) \\
+T8 & \S\ref{subsec:precondition-executor} & --- & --- & N/A & \texttt{test\_theorems.py} & --- & Python impl.~property; not in Coq \\
+T9 & \S\ref{subsec:compact-formal-spec} & \texttt{CRDT.v} & Commutative, associative, idempotent, well-formed & \checkmark & \texttt{test\_theorems.py} & \checkmark & LWW-Set + LUB/G-Counter \\
+T10 & \S\ref{subsubsec:confidence-gcounter} & \texttt{Confidence.v} & \texttt{confidence\_gcounter\_crdt} & \checkmark & \texttt{test\_theorems.py} & --- & State-based G-Counter \\
+T11 & \S\ref{subsec:distributed-ordering} & \texttt{Status.v} & \texttt{delta\_independent\_of\_ordering} & \checkmark & \texttt{test\_theorems.py} & \checkmark & Max over finite set \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Supplementary Table S17}\label{tab:S17}
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Precondition language comparison: ADL Lite vs.\ full first-order logic (UFO-B institutional rules) vs.\ OWL-SWRL.}
+\label{tab:precondition-comparison}
+\begin{tabularx}{\textwidth}{@{}p{2.8cm}p{4.2cm}p{4.2cm}X@{}}
+\toprule
+\textbf{Property} & \textbf{ADL Lite} & \textbf{UFO-B / FOL} & \textbf{OWL-SWRL} \\
+\midrule
+Syntax & Ground atomic triples $\langle f, \kappa, v \rangle$ & Quantified first-order formulas & DL-safe rules over OWL axioms \\
+Semantics & Snapshot lookup + primitive comparison & Model-theoretic Tarski semantics & DL semantics + rule engine \\
+Quantification & None (ground fragment) & $\forall$, $\exists$, arbitrary nesting & DL-safe (limited quantification) \\
+Recursion & Not expressible & Unrestricted recursion & Not expressible (acyclic) \\
+Eval complexity & $O(1)$ per rule, $O(k)$ per list & Undecidable (general FOL) / NExpTime (DL) & NExpTime-complete (OWL-DL) \\
+Safety & No \texttt{eval()}, closed enum & Depends on implementation & Depends on reasoner \\
+Deployment & Single Python module ($\approx$200 LOC) & Full theorem prover / solver & Full OWL stack (HermiT/Pellet) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Supplementary Table S18}\label{tab:S18}
+\begin{table}[htbp]
+\centering
+\small
+\caption{Summary of nine core theorems and Lemma~E2. All proofs are in Appendix~E; proof strategies are indicated.}
+\label{tab:theorems-summary}
+\begin{tabularx}{\textwidth}{@{}p{1.2cm}p{3.8cm}p{2.2cm}p{4.5cm}@{}}
+\toprule
+\textbf{Thm} & \textbf{Statement} & \textbf{Strategy} & \textbf{Complexity / Note} \\
+\midrule
+T1 & $\delta(C)$ is unique (LUB over finite lattice) & Direct & $O(|C|)$ scan, $O(1)$ cached \\
+E2 & Incremental LUB correctness: $\delta(C \oplus [e]) = \max(\delta(C), f(e.\tau))$ & Induction & Base: empty chain; Step: LUB monotonicity \\
+T2 & Fork: $\delta(C') = \text{provisional}$, $\delta(C_{\text{fork}}) = \max(s, \text{forked})$ & Direct & By LUB definition \\
+T3 & Transition monotonicity: valid iff $e_{\text{new}}.\tau \in \Sigma_{\text{life}}$ & Induction & Base: genesis; Step: append \\
+T4 & $\gamma_{\text{default}}, \gamma_{\text{agg}}, \gamma_{\text{cal}} \in [0,1]$ & Case analysis & Clamp + convex combination \\
+T5 & $\gamma_{\text{default}}(C \oplus [e]) \geq \gamma_{\text{default}}(C)$ for \textsc{Validate} $e$ & Direct & G-Counter $\max$ semantics \\
+T6 & If $\delta(C) = \text{validated}$ then $\gamma(C) \geq 0.5$ & Direct & Precondition requires $\geq 0.5$ \\
+T7 & Appending valid event preserves $\text{WF}(C)$ & Induction & Axiom-by-axiom check \\
+T8 & Precondition eval is $O(k)$ for $k$ rules & Direct & $O(1)$ per rule, short-circuit AND \\
+T9 & CRDT merge: commutative, associative, idempotent & Direct & Set union + LUB/G-Counter \\
+T10 & Confidence is a state-based G-Counter CRDT & Direct & State type + inc/merge ops \\
+T11 & $\delta$ is independent of $\prec$ for lifecycle events & Direct & Max over finite set \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Supplementary Table S19}\label{tab:S19}
+\begin{table}[htbp]
+\centering
+\small
+\caption{Quantitative baseline comparison: authoring burden, validation latency, and audit depth.}
+\label{tab:quantitative-baseline}
+\begin{tabular}{@{}p{3.5cm}p{3.5cm}p{3.5cm}p{3.5cm}@{}}
+\toprule
+\textbf{System} & \textbf{Authoring burden} & \textbf{Validation latency} & \textbf{Audit depth} \\
+\midrule
+Nanopublications + trusty URIs & Medium (RDF/Turtle syntax) & $O(1)$ hash verification & Statement-level (single assertion) \\
+Git-native (RO-Crate, DataLad) & Low (file-based) & $O(1)$ commit signature check & Commit-level (coarse-grained) \\
+ADL Lite & Low (Markdown-native) & $O(n)$ chain scan (linear) & Event-level (fine-grained lifecycle) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S20}\label{tab:S20}
+\begin{table}[htbp]
+\centering
+\small
+\caption{Comparison of event-centric frameworks: topology, integrity, and audit.}
+\label{tab:event-topology}
+\begin{tabular}{@{}p{2.2cm}p{2.2cm}p{3cm}p{3cm}@{}}
+\toprule
+\textbf{Framework} & \textbf{Event Topology} & \textbf{Integrity Mechanism} & \textbf{Governance Semantics} \\
+\midrule
+CIDOC CRM & Descriptive event graph & None (documentation) & None \\
+SEM/LODE & Minimal event vocabulary & None (publishing) & None \\
+SEO (2025) & Causal DAG ($\prec$ relation) & Conformance tests (A1--A9) & Reactive guards \\
+Blocklace (2024) & Cryptographic hash DAG & SHA-256 + BFT consensus & Byzantine exclusion \\
+Transparency logs & Merkle tree / hash DAG & SHA-256 + inclusion proofs & Third-party audit \\
+ADL Lite & Linear SHA-256 chain & Sequential hash verification & Precondition rules + $\delta(C)$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S21}\label{tab:S21}
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Deep comparison: ADL Lite vs. nanopublications.}
+\label{tab:nanopub-deep-compare}
+\begin{tabular}{@{}p{3.2cm}p{4.8cm}p{4.8cm}@{}}
+\toprule
+\textbf{Dimension} & \textbf{Nanopublications} & \textbf{ADL Lite} \\
+\midrule
+Immutability unit & Single RDF assertion (triple graph) & Capability lifecycle (event chain) \\
+Primary identifier & Trusty URI (hash + RSA key + timestamp) & Genesis hash (SHA-256 of first event) \\
+Human-readable alias & Optional (rdfs:label) & Mandatory \texttt{concept\_id} \\
+Lifecycle semantics & None (external consumer inference) & Native ($\delta$, $\gamma$, preconditions) \\
+Status derivation & Consumer-side (no formal guarantee) & Deterministic, chain-derived \\
+Retraction model & Publish new nanopub + link & Append \texttt{DEPRECATE} event to same chain \\
+Cryptographic cost & RSA signature per nanopub & SHA-256 hash per event (Phase 1) \\
+Governance overhead & 31--86\% non-assertion triples~\cite{nanopublications} & $<$1\% hash overhead (64 bytes/event) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S22}\label{tab:S22}
+\begin{table}[htbp]
+\centering
+\small
+\caption{Comparison of ADL Lite with established ontology registries.}
+\label{tab:registry-comparison}
+\begin{tabular}{@{}p{2.5cm}p{2.5cm}p{2.5cm}p{2.5cm}p{2.5cm}@{}}
+\toprule
+\textbf{Feature} & \textbf{BioPortal} & \textbf{OntoPortal} & \textbf{FAIRsharing} & \textbf{ADL Lite} \\
+\midrule
+Registry Scope & Ontologies & Ontologies & Standards / DBs & Capabilities (LLM agents) \\
+Lifecycle Events & Release-based & Release-based & Static metadata & Event-sourced (R$\to$V$\to$D$\to$F) \\
+Cryptographic Integrity & None & None & None & SHA-256 chain + preconditions \\
+Machine-Readable Axioms & OWL 2 DL (uploaded) & OWL 2 DL (uploaded) & YAML/JSON (curated) & YAML ontology + OWL export \\
+Multi-Agent Authorship & No (single submitter) & No (single submitter) & Curator-mediated & Native (multi-agent deterministic derivation) \\
+Content Addressability & URI-based & URI-based & DOI-based & Genesis hash + content hash \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S23}\label{tab:S23}
+\begin{table}[htbp]
+\centering
+\small
+\caption{Cessation vs.~epistemic weakening semantics for relation termination. Both preserve $\delta(C)$ and $\gamma(C)$ invariants because \texttt{REVOKE} and low-confidence \texttt{RELATE} are communication events ($\Sigma_{\text{comm}}$), not lifecycle events.}
+\label{tab:cessation-vs-weakening}
+\begin{tabular}{@{}p{2.8cm}p{4.8cm}p{4.8cm}@{}}
+\toprule
+\textbf{Criterion} & \textbf{Cessation (default)} & \textbf{Epistemic weakening} \\
+\midrule
+\textbf{Termination mechanism} & Dedicated \texttt{REVOKE} event & \texttt{RELATE} with $\text{confidence}=0$ \\
+\textbf{Relator existence} & Ceases to exist at $t_{\text{revoke}}$ & Continues as ICE; mediation suspended \\
+\textbf{Audit record} & \texttt{REVOKE} event preserved as ICE & Original \texttt{RELATE} preserved; confidence graded \\
+\textbf{$\delta(C)$ invariant} & Preserved (\texttt{REVOKE} $\notin \Sigma_{\text{life}}$) & Preserved (confidence change $\notin \Sigma_{\text{life}}$) \\
+\textbf{$\gamma(C)$ invariant} & Preserved (no validation involved) & Preserved (no validation involved) \\
+\textbf{Query recommendation} & Use for audit and compliance & Use for consumer-side belief filtering only \\
+\textbf{Reversibility} & Irreversible (new \texttt{RELATE} required) & Reversible (new \texttt{RELATE} with higher confidence) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S24}\label{tab:S24}
+\begin{table}[htbp]
+\centering
+\small
+\caption{OntoClean meta-property assignments for ADL~Lite core classes. $+R$~=~rigid, $-R$~=~non-rigid; $+I$~=~carries identity, $-I$~=~no identity; $+U$~=~carries unity, $-U$~=~no unity; $+D$~=~existentially dependent, $-D$~=~independent. Assignments justified in \S\ref{subsubsec:ontoclean-rigidity}--\S\ref{subsubsec:ontoclean-dependence}.}
+\label{tab:ontoclean}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+\textbf{Class} & \textbf{R} & \textbf{I} & \textbf{U} & \textbf{D} & \textbf{Rationale} \\
+\midrule
+\texttt{Event} & $-R$ & $+I$ & $-U$ & $-D$ & Occurrent; UUID identity; temporal slice; independent \\
+\texttt{EventChain}-process & $-R$ & $+I$ & $-U$ & $-D$ & Complex occurrent; event+timestamp ID; mereological sum; independent \\
+\texttt{EventChain}-record & $-R$ & $+I$ & $+U$ & $+D$ & ICE snapshot; concept+events ID; structured whole; bearer-dependent \\
+\texttt{Concept} & $+R$ & $+I$ & $+U$ & $+D$ & GDC; genesis hash essential; unified whole; ICE-dependent \\
+\texttt{Relation} (L3) & $-R$ & $+I$ & $+U$ & $+D$ & UFO relator; RELATE-event ID; unified mediator; mutual dependence \\
+\texttt{Action} (L4) & $-R$ & $+I$ & $-U$ & $+D$ & Planned process; event UUID; no whole; actor-dependent \\
+\texttt{Actor} & $-R$ & $+I$ & $+U$ & $-D$ & Agent role; actor ID; unified agent; material entity \\
+\texttt{Payload} & $-R$ & $+I$ & $-U$ & $+D$ & Structured data; content hash; no whole; event-dependent \\
+\texttt{Hash} & $+R$ & $+I$ & $-U$ & $-D$ & Cryptographic value; string equality; no whole; mathematical object \\
+\texttt{Status} & $-R$ & $+I$ & $-U$ & $+D$ & Derived quality; concept+time ID; no whole; event-dependent \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S25}\label{tab:S25}
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Normative interoperability mapping: ADL Lite $\to$ OWL~2 DL / SHACL / PROV-O / IAO.}
+\label{tab:interoperability-mapping}
+\begin{tabularx}{\textwidth}{@{}p{2.8cm}p{2.8cm}p{3.2cm}p{3.2cm}@{}}
+\toprule
+\textbf{ADL Lite} & \textbf{OWL~2 DL Class} & \textbf{SHACL Shape} & \textbf{PROV-O / IAO} \\
+\midrule
+Event & \texttt{adl:Event} $\sqsubseteq$ \texttt{bfo:occurrent} & \texttt{sh:NodeShape} (event-id pattern) & \texttt{prov:Activity} \\
+EventChain & \texttt{adl:EventChain} $\sqsubseteq$ \texttt{bfo:process} & \texttt{sh:NodeShape} (ordered list) & \texttt{prov:Activity} (sequence) \\
+Concept & \texttt{adl:Concept} $\sqsubseteq$ \texttt{bfo:GDC} & \texttt{sh:NodeShape} (concept-id pattern) & \texttt{prov:Entity} \\
+EventChain-record & \texttt{adl:EventChainRecord} $\sqsubseteq$ \texttt{iao:ICE} & \texttt{sh:NodeShape} (hash format) & \texttt{prov:Entity} (serialized) \\
+Relation (L3) & \texttt{adl:Relation} $\sqsubseteq$ \texttt{owl:ObjectProperty} & \texttt{sh:PropertyShape} (predicate in-set) & \texttt{prov:wasDerivedFrom} (qualified) \\
+Action (L4) & \texttt{adl:Action} $\sqsubseteq$ \texttt{owl:Class} & \texttt{sh:NodeShape} (action in-set) & \texttt{prov:Activity} (type-qualified) \\
+Actor & \texttt{adl:Actor} $\sqsubseteq$ \texttt{owl:Thing} & \texttt{sh:NodeShape} (actor non-empty) & \texttt{prov:Agent} \\
+Payload & \texttt{adl:Payload} (datatype property) & \texttt{sh:PropertyShape} (JSON schema) & \texttt{prov:value} (literal) \\
+Hash & \texttt{adl:SHA256Hash} (datatype property) & \texttt{sh:PropertyShape} (64 hex chars) & \texttt{prov:hadPrimarySource} \\
+\textsc{Register} & \texttt{adl:RegisterEvent} & \texttt{sh:sparql} (genesis check) & \texttt{prov:wasGeneratedBy} \\
+\textsc{Validate} & \texttt{adl:ValidateEvent} & \texttt{sh:sparql} (predecessor status) & \texttt{prov:wasAttributedTo} \\
+\textsc{Deprecate} & \texttt{adl:DeprecateEvent} & \texttt{sh:sparql} (status validated) & \texttt{prov:wasInvalidatedBy} \\
+\textsc{Fork} & \texttt{adl:ForkEvent} & \texttt{sh:sparql} (parent exists) & \texttt{prov:wasDerivedFrom} \\
+\textsc{Evidence} & \texttt{adl:EvidenceEvent} & \texttt{sh:NodeShape} (evidence type) & \texttt{prov:used} \\
+$\delta(C)$ & \emph{Not expressible} (recursion) & \emph{Not expressible} (sequence) & \texttt{prov:hadActivity} (approx.) \\
+$\gamma(C)$ & \emph{Not expressible} (aggregation) & \emph{Not expressible} (aggregation) & \texttt{prov:value} (approx.) \\
+Precondition & \emph{Not expressible} (procedural) & \emph{Partial} (SHACL-SPARQL) & \emph{Not applicable} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Supplementary Table S26}\label{tab:S26}
+\begin{table}[htbp]
+\centering
+\small
+\caption{Operational mechanism comparison: ADL Lite vs. UFO-B executable ontology.}
+\label{tab:operational-vs-ufob}
+\begin{tabularx}{\textwidth}{@{}p{3.2cm}p{4.8cm}p{4.8cm}@{}}
+\toprule
+\textbf{Mechanism} & \textbf{ADL Lite} & \textbf{UFO-B} \\
+\midrule
+Precondition evaluation & O(1) per rule; closed Comparator enumeration; no external reasoning required & Full FOL axioms; evaluated by external workflow engine or DL reasoner \\
+State derivation ($\delta$) & O($n$) LUB over lifecycle lattice; deterministic; built into EventChain & External inference over institutional facts; may require fixed-point computation \\
+Confidence aggregation ($\gamma$) & O(1) G-Counter max; built into EventChain & External statistical aggregation; not native to ontology \\
+Cryptographic integrity & SHA-256 hash chain; verified incrementally; no external trust anchor & Not addressed by ontology layer; delegated to application security \\
+Action execution & ActionExecutor validates preconditions locally; dispatches side effects synchronously & Workflow engine interprets ontology axioms; executes institutional transitions asynchronously \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Supplementary Table S27}\label{tab:S27}
+\begin{table}[htbp]
+\centering
+\caption{Positioning of ADL Lite against foundational ontologies.}
+\label{tab:foundational-positioning}
+\begin{tabular}{@{}p{2.8cm}p{2.8cm}p{2.8cm}p{2.8cm}p{2.8cm}@{}}
+\toprule
+\textbf{Dimension} & \textbf{BFO} & \textbf{DOLCE} & \textbf{UFO} & \textbf{ADL Lite} \\
+\midrule
+Primary focus & Biomedical entities & Cognitive-linguistic categories & Conceptual modelling & Capability lifecycle audit \\
+Event treatment & Occurrent / process & Perdurant / event & Event / action & Event as fundamental primitive \\
+Object treatment & Continuant / independent & Endurant / physical & Object / type & Object as event projection \\
+Formalism & OWL-DL & OWL-DL + FOL & OntoUML & Event algebra + hash chain \\
+Deployment & Expert curation & Expert curation & Model-driven engineering & Markdown + Git \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S28}\label{tab:S28}
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Bidirectional ADL Lite $\leftrightarrow$ PROV-O mapping: core entities, properties, and round-trip preservation status.}
+\label{tab:prov-mapping-full}
+\begin{tabular}{@{}p{2.8cm}p{3.2cm}p{3.2cm}p{2.8cm}@{}}
+\toprule
+\textbf{ADL Lite Entity} & \textbf{PROV-O Class/Property} & \textbf{Inverse (PROV-O $\to$ ADL)} & \textbf{Preservation} \\
+\midrule
+EventChain (process) & \texttt{prov:Activity} & Reconstructed as EventChain & Full \\
+Event (individual) & \texttt{prov:Activity} (subclass) & Typed event via \texttt{adl:eventType} & Full \\
+Actor & \texttt{prov:Agent} & Actor string from \texttt{rdfs:label} & Full \\
+Concept (capability) & \texttt{prov:Entity} & Concept via \texttt{adl:conceptId} & Full \\
+Payload (evidence) & \texttt{prov:Entity} + \texttt{adl:payload} & JSON-deserialised payload & Full \\
+SHA-256 hash & \texttt{adl:eventHash} literal & Hash field on Event & Full \\
+Previous event link & \texttt{prov:wasInformedBy} & \texttt{adl:previousEventHash} chain & Full \\
+Timestamp & \texttt{prov:startedAtTime} & Event timestamp & Full \\
+L3 Relation & \texttt{prov:wasDerivedFrom} + qualifier & \texttt{RELATE} event payload & Partial$^*$ \\
+Status (derived) & \texttt{adl:status} literal & Recomputed by $\delta(C)$ on import & Derived \\
+Confidence (derived) & \texttt{adl:confidence} literal & Recomputed by $\gamma(C)$ on import & Derived \\
+\bottomrule
+\multicolumn{4}{@{}l@{}}{$^*$L3 predicate namespace is preserved; reified relation metadata (confidence, evidence) requires RDF-star.}
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S29}\label{tab:S29}
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Quantitative loss analysis: ADL Lite $\leftrightarrow$ PROV-O round-trip preservation.}
+\label{tab:prov-loss-analysis}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Construct} & \textbf{ADL $\to$ PROV-O} & \textbf{PROV-O $\to$ ADL} & \textbf{Loss} \\
+\midrule
+Event identity & 100\% & 100\% & None \\
+Cryptographic hash chain & 100\% & 100\% & None \\
+Actor & 100\% & 100\% & None \\
+Timestamp & 100\% & 100\% & None \\
+Payload (JSON) & 100\% & 100\% & None \\
+Lifecycle event type & 100\% & 100\% & None \\
+L3 relation predicate & 100\% & 100\% & None \\
+L3 relation metadata & 35\%$^a$ & 35\%$^a$ & Reification format \\
+Status ($\delta$) & 0\%$^b$ & 100\%$^c$ & Derived on import \\
+Confidence ($\gamma$) & 0\%$^b$ & 100\%$^c$ & Derived on import \\
+Precondition rules & 0\% & 0\% & Exceeds PROV-O scope \\
+Fork determinism (Thm.~2) & 0\% & 0\% & Exceeds PROV-O scope \\
+\bottomrule
+\multicolumn{4}{@{}l@{}}{$^a$RDF-star preserves relation metadata as quoted triples; plain RDF discards confidence/evidence.} \\
+\multicolumn{4}{@{}l@{}}{$^b$Status/confidence are not stored in ADL Lite front matter (derived from chain); exported RDF includes cached literals for convenience.} \\
+\multicolumn{4}{@{}l@{}}{$^c$Importer reconstructs chain and recomputes $\delta(C)$ / $\gamma(C)$ from events, ensuring deterministic consistency.}
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S30}\label{tab:S30}
+\begin{table}[htbp]
+\centering
+\small
+\caption{Algebraic properties of the three confidence aggregation operators.}
+\label{tab:gamma-algebra}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Property} & $\gamma_{\text{default}}$ & $\gamma_{\text{agg}}$ & $\gamma_{\text{cal}}$ \\
+\midrule
+Bounds & $[0,1]$ (clamp) & $[0,1]$ (min cap) & $[0,1]$ (clamp) \\
+Idempotence ($\gamma(V \cup V) = \gamma(V)$) & \checkmark & Per-actor only & Per-actor only \\
+Associativity ($\gamma(V_1 \cup V_2) \cup V_3) = \gamma(V_1 \cup (V_2 \cup V_3)$) & \checkmark & $\times$ (bonus term) & $\times$ (denominator) \\
+Commutativity ($\gamma(V_1 \cup V_2) = \gamma(V_2 \cup V_1)$) & \checkmark & \checkmark (actor-set) & \checkmark (actor-set) \\
+Monotonicity (new event $\not<$ old) & \checkmark & \checkmark (bounded) & \checkmark (bounded) \\
+Cache incrementality & $O(1)$ & $O(|V|)$ & $O(|V|)$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S31}\label{tab:S31}
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Worked example: AML-derived EventChain for account \texttt{HI-Small-42} (fan-out pattern).}
+\label{tab:aml-worked-example}
+\begin{tabular}{@{}p{1.6cm}p{2.2cm}p{8.5cm}@{}}
+\toprule
+\textbf{Event} & \textbf{Actor} & \textbf{Payload (selected fields)} \\
+\midrule
+\textsc{Register} & data\_importer & concept\_id: aml-fan-out-42; total\_outbound: 127400; unique\_recipients: 12; temporal\_span\_h: 48 \\
+\textsc{Validate} & synthetic\_validator & confidence: 0.72; reasoning: ``High-volume account with 12 unique recipients'' \\
+\textsc{Evidence} & synthetic\_validator & evidence\_type: transaction\_pattern; pattern: fan-out; threshold: 5 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S32}\label{tab:S32}
+\begin{table}[htbp]
+\centering
+\small
+\caption{E5 cross-validation results for selected capabilities (6 of 19). Each capability was validated by 2 independent agents; evidence events provide quantitative performance metrics.}
+\label{tab:e5-validation}
+\begin{tabular}{@{}p{3.2cm}p{1.5cm}p{1.5cm}p{4.5cm}p{2.5cm}@{}}
+\toprule
+\textbf{Capability} & \textbf{Validator 1} & \textbf{Validator 2} & \textbf{Evidence} & \textbf{Final $\gamma$} \\
+\midrule
+literature-search & analyst: 0.82 & coord: 0.75 & 47 papers, P@10=0.90, recall=0.72 & 0.820 \\
+methodology-eval & critic: 0.88 & coord: 0.79 & 25 papers, $\kappa$=0.71 & 0.880 \\
+statistical-val & critic: 0.91 & analyst: 0.65 & 15 papers, 5 flagged, 4 confirmed & 0.910 \\
+abstract-gen & critic: 0.62 & coord: 0.68 & 25 abstracts, 40\% overstatement & 0.750$^*$ \\
+section-synth & critic: 0.77 & analyst: 0.80 & 25 papers, coherence=4.2/5 & 0.800 \\
+citation-verify & scout: 0.79 & analyst: 0.76 & 143 citations, 8 errors (5.6\%) & 0.790 \\
+\bottomrule
+\multicolumn{5}{@{}l@{}}
+\footnotesize $^*$The abstract-generation chain was subsequently forked (see below); 0.750 is the pre-fork confidence after a defending validation by Writer.
+\end{tabular}
+\end{table}
+
+\subsection{Supplementary Table S33}\label{tab:S33}
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Experiment relevance to paper claims.}
+\label{tab:results-by-claim}
+\begin{tabularx}{\textwidth}{@{}p{2.5cm}p{2.5cm}X@{}}
+\toprule
+\textbf{Claim} & \textbf{Experiments} & \textbf{Relevance} \\
+\midrule
+Core correctness (lifecycle) & E1--E4 & Chain integrity, status derivation, snapshot consistency, precondition enforcement \\
+Multi-agent auditability & E5, E16, E23 & Concurrent agents, contention, cross-validation simulation \\
+Data pipeline volume & E6, E6b & Scalability on real-world AML data, linear throughput \\
+Comparative governance & E12, E19, E37 & PROV-O, nanopublications, Git-only baselines; adversarial robustness comparison \\
+Scalability & E13, E21, E27 & Long-chain, 100k-event, $5\times10^5$-event stress tests \\
+Collusion resistance & E14 & Calibration and minimum-validator thresholds \\
+Microbenchmarks & E25, E34 & Precondition $O(1)$, confidence aggregation, snapshot caching \\
+Formalization & E34 & Precondition language syntax and $O(1)$ bound \\
+Validation & E35 & Simulated expert review of L1--L4 layers \\
+Infrastructure & E29 & Vector index recall (secondary, Appendix~F) \\
+\bottomrule
+\end{tabularx}
+\end{table}

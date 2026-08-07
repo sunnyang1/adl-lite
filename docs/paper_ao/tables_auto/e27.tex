@@ -1,0 +1,21 @@
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{CRDT merge benchmark (E27). Merge latency and integrity check for 100--1000 concurrent branches at conflict rates 0\%--50\%. All values are mean wall-clock (ms).}
+\label{tab:e27-results}
+\begin{tabular}{@{}rrrrr@{}}
+\toprule
+\textbf{Branches} & \textbf{Conflict rate} & \textbf{Merge (ms)} & \textbf{Integrity (ms)} & \textbf{Resolution rate} \\
+\midrule
+100 & 0\% & 0.41 & 0.33 & 1 \\
+100 & 10\% & 0.33 & 0.26 & 1 \\
+100 & 50\% & 0.43 & 0.33 & 1 \\
+500 & 0\% & 0.4 & 0.32 & 1 \\
+500 & 10\% & 0.45 & 0.35 & 1 \\
+500 & 50\% & 0.43 & 0.34 & 1 \\
+1000 & 0\% & 0.45 & 0.33 & 1 \\
+1000 & 10\% & 0.41 & 0.31 & 1 \\
+1000 & 50\% & 0.42 & 0.32 & 1 \\
+\bottomrule
+\end{tabular}
+\end{table}

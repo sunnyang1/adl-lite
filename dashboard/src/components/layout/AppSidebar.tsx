@@ -8,6 +8,10 @@ import ListItemText from '@mui/material/ListItemText';
 import Typography from '@mui/material/Typography';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ChecklistIcon from '@mui/icons-material/Checklist';
+import RecommendIcon from '@mui/icons-material/Recommend';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import SpeedIcon from '@mui/icons-material/Speed';
+import GppGoodIcon from '@mui/icons-material/GppGood';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const DRAWER_WIDTH = 240;
@@ -15,6 +19,10 @@ const DRAWER_WIDTH = 240;
 const NAV_ITEMS = [
   { label: 'Overview', path: '/overview', icon: <DashboardIcon /> },
   { label: 'Capabilities', path: '/capabilities', icon: <ChecklistIcon /> },
+  { label: 'Agents', path: '/agents', icon: <RecommendIcon /> },
+  { label: 'Tasks', path: '/tasks', icon: <AssignmentIcon /> },
+  { label: 'Runtime', path: '/runtime', icon: <SpeedIcon /> },
+  { label: 'Trust', path: '/trust', icon: <GppGoodIcon /> },
 ];
 
 export function AppSidebar(): JSX.Element {
@@ -42,8 +50,7 @@ export function AppSidebar(): JSX.Element {
         {NAV_ITEMS.map((item) => {
           const isActive: boolean =
             location.pathname === item.path ||
-            (item.path === '/capabilities' &&
-              location.pathname.startsWith('/capabilities'));
+            location.pathname.startsWith(`${item.path}/`);
           return (
             <ListItem key={item.path} disablePadding>
               <ListItemButton

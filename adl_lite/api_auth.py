@@ -112,6 +112,8 @@ _auth_enabled: bool = True
 # API-key → tenant id mapping (injected via ``configure_auth``). Used by
 # ``resolve_api_key_tenant`` to attribute a tenant to key-authenticated calls.
 _api_key_tenants: dict[str, str] = {}
+_admin_username: str | None = None
+_admin_password: str | None = None
 
 
 def is_auth_enabled() -> bool:
@@ -134,6 +136,8 @@ def configure_auth(
     api_keys: set[str],
     auth_enabled: bool,
     api_key_tenants: dict[str, str] | None = None,
+    admin_username: str | None = None,
+    admin_password: str | None = None,
 ) -> None:
     """Set module-level auth configuration (called by ``create_app()``).
 
@@ -145,6 +149,11 @@ def configure_auth(
         auth_enabled: Whether authentication is required.
         api_key_tenants: Optional mapping of API key → tenant id, used to
             attribute a tenant to key-authenticated requests.
+        admin_username/admin_password: Optional admin credentials (e.g. from
+            ``ADMIN_USERNAME``/``ADMIN_PASSWORD`` env). When both are set, the
+            OAuth2 token endpoint issues ``role="admin"`` JWTs for them —
+            the trust-root bootstrap path for the agent control plane. When
+            unset, no admin token can be issued (unchanged behaviour).
 
     Raises:
         ValueError: ``auth_enabled=True`` without an explicit ``jwt_secret``.
@@ -157,10 +166,13 @@ def configure_auth(
             "default, publicly known secret."
         )
     global _jwt_secret, _api_keys, _auth_enabled, _api_key_tenants
+    global _admin_username, _admin_password
     _jwt_secret = jwt_secret
     _api_keys = api_keys
     _auth_enabled = auth_enabled
     _api_key_tenants = dict(api_key_tenants) if api_key_tenants else {}
+    _admin_username = admin_username
+    _admin_password = admin_password
     logger.info(
         "Auth configured: auth_enabled=%s, api_keys=%d, tenant_mappings=%d",
         auth_enabled,
@@ -279,10 +291,15 @@ def verify_api_key(key: str, valid_keys: set[str]) -> str | None:
 def issue_token_for_api_key(username: str, password: str) -> str | None:
     """Issue a signed JWT for the OAuth2 password flow.
 
-    The password flow is backed by the configured API keys: ``password`` must
-    be one of the keys passed to ``configure_auth``. The issued token carries
-    ``sub=username``, ``role="user"``, and — when the key has a tenant
-    mapping — the mapped ``tenant_id`` claim.
+    Two credential paths, checked in order:
+    1. **Admin credentials** (when ``admin_username``/``admin_password`` were
+       configured): matching username/password yields a JWT with
+       ``role="admin"`` — the trust-root bootstrap path for the agent control
+       plane (agent register / admin-validate / public-key / diversity toggle).
+    2. **API key** (existing behaviour): ``password`` must be one of the keys
+       passed to ``configure_auth``; the token carries ``sub=username``,
+       ``role="user"``, and — when the key has a tenant mapping — the mapped
+       ``tenant_id`` claim.
 
     Returns:
         Encoded JWT string, or ``None`` when the credential is invalid or
@@ -290,6 +307,12 @@ def issue_token_for_api_key(username: str, password: str) -> str | None:
     """
     if not _auth_enabled or _jwt_secret is None:
         return None
+    if _admin_username is not None and username == _admin_username and password == _admin_password:
+        logger.info("Issued ADMIN access token for username=%r", username)
+        return create_access_token(
+            {"sub": username, "role": "admin", "tenant_id": "default"},
+            secret=_jwt_secret,
+        )
     if verify_api_key(password, _api_keys) is None:
         logger.warning("Token issuance rejected: invalid credential for username=%r", username)
         return None

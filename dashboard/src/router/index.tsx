@@ -6,6 +6,11 @@ import { LoadingFallback } from '@/components/shared/LoadingFallback';
 const OverviewPage = React.lazy(() => import('@/pages/OverviewPage'));
 const CapabilitiesPage = React.lazy(() => import('@/pages/CapabilitiesPage'));
 const CapabilityDetailPageRoute = React.lazy(() => import('@/pages/CapabilityDetailPageRoute'));
+const AgentsPage = React.lazy(() => import('@/pages/AgentsPage'));
+const AgentDetailPageRoute = React.lazy(() => import('@/pages/AgentDetailPageRoute'));
+const TasksPage = React.lazy(() => import('@/pages/TasksPage'));
+const RuntimePage = React.lazy(() => import('@/pages/RuntimePage'));
+const TrustPage = React.lazy(() => import('@/pages/TrustPage'));
 
 export function AppRouter(): JSX.Element {
   return (
@@ -18,6 +23,11 @@ export function AppRouter(): JSX.Element {
           path="/capabilities/:adl_id"
           element={<CapabilityDetailPageRoute />}
         />
+        <Route path="/agents" element={<AgentsPage />} />
+        <Route path="/agents/:did" element={<AgentDetailPageRoute />} />
+        <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/runtime" element={<RuntimePage />} />
+        <Route path="/trust" element={<TrustPage />} />
       </Routes>
     </Suspense>
   );

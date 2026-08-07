@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import pytest
+
 import experiments.e23_contention_stress  # noqa: F401
 from experiments.e23_contention_stress import E23ContentionStress
 from experiments.registry import instantiate
+
+# E23 spins up 20 threads × 100 rounds of concurrent appends; it is a
+# stress test and is excluded from the fast suite (`-m "not slow"`).
+pytestmark = pytest.mark.slow
 
 
 class TestE23ContentionStress:
@@ -29,7 +35,7 @@ class TestE23ContentionStress:
         assert "race_conditions" in result.metrics
         assert result.metrics["integrity_rate"] == 1.0
         assert result.metrics["conflict_rate"] < 0.5
-        assert result.metrics["agents"] == 10
+        assert result.metrics["agents"] == 20
         assert result.metrics["concepts"] == 50
         assert result.metrics["rounds"] == 100
 

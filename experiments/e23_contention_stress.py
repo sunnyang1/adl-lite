@@ -1,6 +1,6 @@
 """E23: Concurrent Agent Contention — survival path.
 
-10 agents concurrently append to 50 shared EventChains.
+20 agents concurrently append to 50 shared EventChains.
 Target: integrity_rate=1.0, conflict_rate<0.5, zero data races.
 """
 
@@ -44,10 +44,10 @@ def _make_event(cid, actor, action, payload=None):
 class E23ContentionStress(BaseExperiment):
     experiment_id = "E23"
     name = "Concurrent Agent Contention"
-    description = "10 agents concurrently appending to 50 shared EventChains"
+    description = "20 agents concurrently appending to 50 shared EventChains"
 
     def run(self) -> ExperimentResult:
-        n_agents, n_concepts, n_rounds = 10, 50, 100
+        n_agents, n_concepts, n_rounds = 20, 50, 100
         chains: dict[str, EventChain] = {}
         for i in range(n_concepts):
             cid = f"concept-{i:02d}"

@@ -8,7 +8,7 @@
 #   - Action registry: closed core set (cf. predicates); each action declares
 #     allowed_on types, required_params, preconditions, and side_effects
 
-version: "0.2"
+version: "0.3"
 ontology_id: adl-core
 
 classes:
@@ -67,6 +67,12 @@ predicates:
     allowed_mapping_types: [ontological]
   anchored-by:
     description: Execution log anchored into the governance chain (EAL)
+  # M1a: agent predicates (planner/introspection; capability vocabulary, see agents/task.py)
+  declares-capability:
+    description: agent declares a capability tag it can execute
+    allowed_mapping_types: [domain]
+  agent-capability-of:
+    description: membership between an agent and a capability chain
     allowed_mapping_types: [ontological]
 
 # mapping_type values observed in corpus (informational; not strict-validated in 2a)
@@ -151,7 +157,7 @@ actions:
     preconditions:
       - field: status
         comparator: in
-        value: [provisional, validated, forked, deprecated]
+        value: [deprecated]
     side_effects: []
 
   announce:
@@ -247,6 +253,79 @@ actions:
     allowed_on: [concept, execution]
     triggers_transition: null
     required_params: [log_merkle_root]
+  # M1a: agent lifecycle actions (all triggers_transition: null — lifecycle is
+  # driven by AgentRegistry in code, never by ActionExecutor._apply_transition)
+  agent_register:
+    description: Register an agent identity as an EventChain
+    allowed_on: [discovery, concept]
+    triggers_transition: null
+    required_params: [did, role, name]
+    preconditions: []
+    side_effects: []
+  agent_validate:
+    description: A distinct agent (or admin) validates an agent identity
+    allowed_on: [discovery, concept]
+    triggers_transition: null
+    required_params: [agent_did]
+    preconditions: []
+    side_effects: []
+  agent_update:
+    description: Mutate an agent profile (capabilities/model/scope)
+    allowed_on: [discovery, concept]
+    triggers_transition: null
+    required_params: []
+    preconditions: []
+    side_effects: []
+  agent_deprecate:
+    description: Decommission an agent identity
+    allowed_on: [discovery, concept]
+    triggers_transition: null
+    required_params: [reason]
+    preconditions: []
+    side_effects: []
+
+  # M2: task lifecycle actions (all triggers_transition: null — task state
+  # machine lives in agents/task.py, not in ActionExecutor)
+  task_create:
+    description: Create a task as an EventChain
+    allowed_on: [discovery, concept]
+    triggers_transition: null
+    required_params: [objective]
+    preconditions: []
+    side_effects: []
+  task_assign:
+    description: Assign a task to a designated agent
+    allowed_on: [discovery, concept]
+    triggers_transition: null
+    required_params: [task_id, agent_did]
+    preconditions: []
+    side_effects: []
+  task_claim:
+    description: An agent claims a task (binds runtime lease)
+    allowed_on: [discovery, concept]
+    triggers_transition: null
+    required_params: [task_id, agent_did]
+    preconditions: []
+    side_effects: []
+  task_submit:
+    description: Deliver a task result (result_ref points to a capability chain)
+    allowed_on: [discovery, concept]
+    triggers_transition: null
+    required_params: [task_id, result_ref]
+    preconditions: []
+    side_effects: []
+  task_validate:
+    description: Accept or reject a submitted task result
+    allowed_on: [discovery, concept]
+    triggers_transition: null
+    required_params: [task_id, accepted]
+    preconditions: []
+    side_effects: []
+  task_close:
+    description: Close a task (outcome accepted/rejected/cancelled)
+    allowed_on: [discovery, concept]
+    triggers_transition: null
+    required_params: [task_id, outcome]
     preconditions: []
     side_effects: []
 

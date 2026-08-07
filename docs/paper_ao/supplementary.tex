@@ -1,5 +1,7 @@
 % ---------------------------------------------------------------------------
 % Supplementary Material for ADL Lite Paper
+% Compile from this directory:  latexmk -pdf supplementary.tex
+% All appendices referenced from the main paper are provided here.
 % ---------------------------------------------------------------------------
 \documentclass[11pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
@@ -21,15 +23,25 @@
 \usepackage{multirow}
 \usepackage{tabularx}
 
+% Theorem environments (mirroring main.tex for independent compilation)
 \theoremstyle{definition}
 \newtheorem{definition}{Definition}[section]
 \newtheorem{theorem}{Theorem}[section]
+\newtheorem{coretheorem}{Theorem}
+\newtheorem{corollary}{Corollary}[section]
 \newtheorem{lemma}{Lemma}[section]
 \newtheorem{proposition}{Proposition}[section]
-\newtheorem{corollary}[theorem]{Corollary}
 \theoremstyle{remark}
 \newtheorem{remark}{Remark}[section]
 
+% Line length
+\setlength{\textwidth}{6.5in}
+\setlength{\oddsidemargin}{0in}
+\setlength{\evensidemargin}{0in}
+\setlength{\textheight}{9in}
+\setlength{\topmargin}{-0.5in}
+
+% Listings style
 \lstset{
     basicstyle=\small\ttfamily,
     breaklines=true,
@@ -41,37 +53,81 @@
     stringstyle=\color{red},
 }
 
-\title{Supplementary Material: ADL Lite\\An Event-First Capability-Lifecycle Registry for LLM Agent Ecosystems}
-\author{Anonymous Authors}
+% Define Turtle language for listings (used in PROV-O and OWL examples)
+\lstdefinelanguage{Turtle}{
+    morekeywords={a,@prefix,@base,PREFIX,BASE,TRUE,FALSE},
+    sensitive=false,
+    morecomment=[l]{\#},
+    morestring=[b]{"},
+    morestring=[s]{<>},
+}
+
+% ---------------------------------------------------------------------------
+% Title
+% ---------------------------------------------------------------------------
+\title{ADL Lite: Supplementary Material\\An Event-First Capability-Lifecycle Registry for LLM Agent Ecosystems}
+\author{
+    Anonymous Authors \\
+    \textit{Affiliation withheld for peer review}
+}
 \date{}
 
+% ---------------------------------------------------------------------------
+% Document
+% ---------------------------------------------------------------------------
 \begin{document}
+
 \maketitle
+
+\begin{abstract}
+This document provides supplementary material for the Applied Ontology submission of ``ADL Lite: An Event-First Capability-Lifecycle Registry for LLM Agent Ecosystems.'' It contains the complete OWL~2 DL axiomatization, the SHACL shape graph, the adversarial integrity test suite, the reproducibility protocol, complete proof sketches for all formal theorems, extended comparison tables, and implementation infrastructure details that were compressed from the main paper to meet the page limit.
+\end{abstract}
 
 \appendix
 
-\section{PROV-O Export Example}\label{app:prov-o}
-\input{sections/appendix_a}
+% Appendix A -- OWL 2 DL
+\input{supplementary/appendix_a_owl_dl}
 
-\section{SHACL Shape for L3 Relation Validation}\label{app:shacl}
-\input{sections/appendix_b}
+% Appendix B -- SHACL
+\input{supplementary/appendix_b_shacl}
 
-\section{Adversarial Integrity Test Suite}\label{app:adversarial}
-\input{sections/appendix_c}
+% Appendix C -- Adversarial
+\input{supplementary/appendix_c_adversarial}
 
-\section{Experiment Runner and Reproducibility}\label{app:reproduce}
-\input{sections/appendix_d}
+% Appendix D -- Reproducibility
+\input{supplementary/appendix_d_reproducibility}
 
-\section{Proof Sketches for Formal Theorems}\label{app:proofs}
-\input{sections/appendix_e}
+% Appendix E -- Proofs
+\input{supplementary/appendix_e_proofs}
 
-\section{RDF-star Interoperability Demonstration}\label{app:rdfstar}
-\input{sections/appendix_f}
+% Appendix F -- Comparison Tables
+\input{supplementary/appendix_f_comparison_tables}
 
-\section{Implementation Infrastructure Details}\label{app:implementation}
+% Appendix G -- BNF + Inference Rules
+\input{supplementary/appendix_g_bnf}
+
+% Appendix H -- Complexity
+\input{supplementary/appendix_h_complexity}
+
+% Appendix I -- TLA+
+\input{supplementary/appendix_i_tla}
+
+% Appendix J -- Loss Analysis
+\input{supplementary/appendix_j_loss_analysis}
+
+% Appendix K -- Threat Model
+\input{supplementary/appendix_k_threat_model}
+
+% Appendix L -- E19 Methodology
+\input{supplementary/appendix_l_e19_methodology}
+
+% Appendix M -- Compression Log
+\input{supplementary/appendix_m_compression_log}
+
+% Appendix N -- Implementation Infrastructure Details
 \input{supplementary/appendix_n_implementation}
 
-\bibliographystyle{plainnat}
-\bibliography{references}
+% Appendix O -- Detailed Results Tables (moved from main text)
+\input{supplementary/appendix_o_tables}
 
 \end{document}

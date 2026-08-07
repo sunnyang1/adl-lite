@@ -34,7 +34,7 @@ All metrics are measured via actual code execution on identical hardware (Apple 
     \item \textbf{Audit completeness:} fraction of required provenance information (status, validators, confidence, deprecation actor) that is directly retrievable from the system's native data structures without additional scripts. Nanopub scores 0.82 because it lacks a native DEPRECATE mechanism (simulated with an RDF flag); all other systems score 1.0.
 \end{itemize}
 
-\textbf{Standardisation and boundary conditions.} To ensure cross-system comparability, we applied the following standardisation protocol: (i)~\textbf{No cold-start:} each system was initialised and warmed up with 100 dummy events before measurement; the reported latency excludes library import and initialisation time. (ii)~\textbf{In-memory execution:} all four systems (ADL Lite, Nanopub, PROV-O, Git-only) were executed entirely in RAM; no network I/O, no database writes, and no disk writes (except Git-only, which intentionally performs file I/O as part of its semantics). (iii)~\textbf{No caching of derived state:} ADL Lite's $\delta$ and $\gamma$ were recomputed from the event sequence for each measurement; the warm-index memoisation was disabled to measure canonical derivation time. (iv)~\textbf{Single-threaded execution:} measurements were taken on a single thread to isolate algorithmic latency from contention overhead. (v)~\textbf{Isolated Python process:} each system ran in a fresh interpreter subprocess to prevent cross-contamination of global state. ADL Lite's 0.0~ms latency reflects pure in-memory Python function calls with no I/O; Git-only's 21.25~ms reflects the cost of actual file writes and Git object creation. The comparison is therefore a \emph{functional-latency} benchmark (how fast is the audit logic?) rather than an \emph{end-to-end-deployment} benchmark (how fast under realistic infrastructure?). We report this distinction transparently to avoid the appearance that ADL Lite is ``infinitely faster'' due to missing I/O; rather, it is faster because state derivation is built into the data structure rather than delegated to external stores or parsers.
+\textbf{Standardisation and boundary conditions.} To ensure cross-system comparability, we applied the following standardisation protocol: (i)~\textbf{No cold-start:} each system was initialised and warmed up with 100 dummy events before measurement; the reported latency excludes library import and initialisation time. (ii)~\textbf{In-memory execution:} all four systems (ADL Lite, Nanopub, PROV-O, Git-only) were executed entirely in RAM; no network I/O, no database writes, and no disk writes (except Git-only, which intentionally performs file I/O as part of its semantics). (iii)~\textbf{No caching of derived state:} ADL Lite's $\delta$ and $\gamma$ were recomputed from the event sequence for each measurement; the warm-index memoisation was disabled to measure canonical derivation time. (iv)~\textbf{Single-threaded execution:} measurements were taken on a single thread to isolate algorithmic latency from contention overhead. (v)~\textbf{Isolated Python process:} each system ran in a fresh interpreter subprocess to prevent cross-contamination of global state. ADL Lite's 0.5~ms mean latency reflects pure in-memory Python function calls with no I/O; Git-only's 42.0~ms reflects the cost of actual file writes and Git object creation. The comparison is therefore a \emph{functional-latency} benchmark (how fast is the audit logic?) rather than an \emph{end-to-end-deployment} benchmark (how fast under realistic infrastructure?). We report this distinction transparently to avoid the appearance that ADL Lite is ``infinitely faster'' due to missing I/O; rather, it is faster because state derivation is built into the data structure rather than delegated to external stores or parsers.
 
 \textbf{Limitations.} The nanopub and PROV-O implementations are \emph{simulated} with Python libraries, not full production systems. A full independent benchmark with multiple developers and validated measurements is scoped to future work (E20). Nevertheless, the measurements are real and reproducible: the code is in \texttt{experiments/e19\_governance\_benchmark.py} and can be run with \texttt{python -m experiments.runner E19}.
 
@@ -48,10 +48,10 @@ Table~\ref{tab:e19-benchmark-full} presents the measured values for transparency
 \toprule
 \textbf{System} & \textbf{LOC} & \textbf{Latency (ms)} & \textbf{Errors} & \textbf{Completed} & \textbf{Audit} \\
 \midrule
-S1. ADL Lite & 27 & 0.0 & 0 & 4/4 & 1.00 \\
-S2. Nanopub + scripts & 21 & 0.5 & 0 & 4/4 & 0.82 \\
-S3. PROV-O + scripts & 50 & 1.25 & 0 & 4/4 & 1.00 \\
-S4. Git-only & 45 & 21.25 & 0 & 4/4 & 1.00 \\
+S1. ADL Lite & 27 & 0.5 & 0 & 4/4 & 1.00 \\
+S2. Nanopub + scripts & 21 & 1.0 & 0 & 4/4 & 0.82 \\
+S3. PROV-O + scripts & 53 & 2.0 & 0 & 4/4 & 1.00 \\
+S4. Git-only & 45 & 42.0 & 0 & 4/4 & 1.00 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -70,9 +70,11 @@ Table~\ref{tab:e19-per-task} provides the per-task LOC measurements, which revea
 \midrule
 S1. ADL Lite & 7 & 6 & 5 & 9 & 27 \\
 S2. Nanopub & 6 & 4 & 5 & 6 & 21 \\
-S3. PROV-O & 12 & 9 & 6 & 23 & 50 \\
+S3. PROV-O & 12 & 9 & 6 & 23 & 53$^a$ \\
 S4. Git-only & 11 & 12 & 8 & 14 & 45 \\
 \bottomrule
+\multicolumn{6}{@{}l@{}}
+\footnotesize $^a$PROV-O total (53 LOC, v0.6.0-alpha) includes three helper lines (e.g., \texttt{QualifiedName} declaration) not itemised in the per-task columns; per-task values sum to 50.
 \end{tabular}
 \end{table}
 
@@ -90,16 +92,16 @@ Table~\ref{tab:e19-scale} presents the measured $10^6$ scale results. Each syste
 \toprule
 \textbf{System} & \textbf{Scale} & \textbf{Events} & \textbf{Time (s)} & \textbf{Throughput} & \textbf{Method} \\
 \midrule
-S1. ADL Lite & $10^6$ & $2\times10^6$ & 87.0 & 22,987 evt/s & Measured \\
-S2. Nanopub & $10^6$ & $4\times10^6$ triples & 77.9 & 51,331 triple/s & Measured \\
-S3. PROV-O & $10^5$ & $2\times10^5$ & 14.6 & 13,673 evt/s & Measured \\
-\quad $\to$ extrapolated & $10^6$ & $2\times10^6$ & 146.3 & 13,673 evt/s & Linear projection \\
-S4. Git-only (batch=100) & $10^4$ & $10^4$ & 0.55 & 5.46 ms/commit & Measured \\
-\quad $\to$ extrapolated & $10^6$ & $10^6$ & 54.6 & 5.46 ms/commit & Linear projection \\
+S1. ADL Lite & $10^6$ & $2\times10^6$ & 133.9 & 14,938 evt/s & Measured \\
+S2. Nanopub & $10^6$ & $4\times10^6$ triples & 119.5 & 33,471 triple/s & Measured \\
+S3. PROV-O & $10^5$ & $2\times10^5$ & 18.7 & 10,699 evt/s & Measured \\
+\quad $\to$ extrapolated & $10^6$ & $2\times10^6$ & 186.9 & 10,699 evt/s & Linear projection \\
+S4. Git-only (batch=100) & $10^4$ & $10^4$ & 0.94 & 9.43 ms/commit & Measured \\
+\quad $\to$ extrapolated & $10^6$ & $10^6$ & 94.3 & 9.43 ms/commit & Linear projection \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{Key findings.} (i)~ADL Lite achieves 22,987 events/s at $10^6$ scale, confirming the linear throughput claim from E6. The measured time (87.0~s for 2$\times$$10^6$ events) is higher than the E6b projection (47.7~s for 1$\times$$10^6$ events) because E6b was based on CSV import throughput (20,847 events/s), whereas the E19 scale test creates independent EventChain objects with full Pydantic materialisation overhead. (ii)~Nanopub has the highest triple throughput (51,331 triples/s) but lower audit completeness (0.82) due to the lack of native deprecation. (iii)~PROV-O's throughput is lower (13,673 events/s) because every entity and activity requires a \texttt{QualifiedName} and explicit relation declaration; the projected $10^6$ time (146.3~s) is $\approx$1.7$\times$ ADL Lite. (iv)~Git-only with batch commits (100 concepts per commit) is surprisingly efficient at scale (projected 54.6~s for $10^6$) because batching amortises the per-commit overhead, but the audit trail is coarser (one commit per 100 concepts, not one per event).
+\textbf{Key findings.} (i)~ADL Lite achieves 14,938 events/s at $10^6$ scale, confirming the linear throughput claim from E6. The measured time (133.9~s for 2$\times$$10^6$ events) is higher than the E6b projection (47.7~s for 1$\times$$10^6$ events) because E6b was based on CSV import throughput (20,847 events/s), whereas the E19 scale test creates independent EventChain objects with full Pydantic materialisation overhead. (ii)~Nanopub has the highest triple throughput (33,471 triples/s) but lower audit completeness (0.82) due to the lack of native deprecation. (iii)~PROV-O's throughput is lower (10,699 events/s) because every entity and activity requires a \texttt{QualifiedName} and explicit relation declaration; the projected $10^6$ time (186.9~s) is $\approx$1.4$\times$ ADL Lite. (iv)~Git-only with batch commits (100 concepts per commit) is surprisingly efficient at scale (projected 94.3~s for $10^6$) because batching amortises the per-commit overhead, but the audit trail is coarser (one commit per 100 concepts, not one per event).
 
-\textbf{Limitations.} The S3 and S4 figures for $10^6$ are linear extrapolations from 100,000 and 10,000 respectively, not direct measurements. A full $10^6$ run for PROV-O would take $\approx$146~s (feasible but slow); a full $10^6$ run for Git-only would require 10,000 batch commits ($\approx$54.6~s). Both are feasible and will be executed in the independent replication study (E20). The S1 and S2 figures are direct measurements.
+\textbf{Limitations.} The S3 and S4 figures for $10^6$ are linear extrapolations from 100,000 and 10,000 respectively, not direct measurements. A full $10^6$ run for PROV-O would take $\approx$187~s (feasible but slow); a full $10^6$ run for Git-only would require 10,000 batch commits ($\approx$94.3~s). Both are feasible and will be executed in the independent replication study (E20). The S1 and S2 figures are direct measurements.

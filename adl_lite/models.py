@@ -136,6 +136,25 @@ class EventType(str, Enum):
     EXEC_ANCHOR = "exec_anchor"  # Merkle anchor of an ExecutionLog (main chain)
     # EAL Phase 3: commit–reveal challenge protocol against cached answers.
     CHALLENGE = "challenge"  # Challenge open/reveal/answer phases (main chain)
+    # M1a: Agent lifecycle events (agent identity chains; NOT discovery lifecycle)
+    # Agents are EventChains; status/validators derive from these events only.
+    # Deliberately absent from type_to_status / StatusOrder: agent chains must
+    # not drive the discovery lattice (see agents/identity.py chain_kind).
+    AGENT_REGISTER = "agent_register"  # genesis: agent identity registration
+    AGENT_VALIDATE = "agent_validate"  # a distinct agent / admin validates identity
+    AGENT_UPDATE = "agent_update"  # profile mutation (capabilities/model/scope)
+    AGENT_DEPRECATE = "agent_deprecate"  # decommission an agent
+    # M2: Task lifecycle events (task chains; NOT discovery lifecycle).
+    # Result status derives from these events (agents/task.py); the discovery
+    # lattice stays untouched.
+    TASK_CREATE = "task_create"  # genesis: create a task
+    TASK_ASSIGN = "task_assign"  # planner/supervisor designates an agent
+    TASK_CLAIM = "task_claim"  # agent binds itself (runtime lease)
+    TASK_SUBMIT = "task_submit"  # deliver result (payload.result_ref)
+    TASK_VALIDATE = "task_validate"  # accept/reject (accepted flag)
+    TASK_CLOSE = "task_close"  # terminal (outcome: accepted/rejected/cancelled)
+    # M2: Messaging
+    MESSAGE = "message"  # persisted bus/audit message on a chain
 
 
 # ---------------------------------------------------------------------------

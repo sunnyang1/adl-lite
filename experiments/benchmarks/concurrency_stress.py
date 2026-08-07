@@ -25,7 +25,7 @@ EVENTS_PER_THREAD = 1000
 def _run_benchmark(num_threads: int, events_per_thread: int) -> dict[str, Any]:
     chain = EventChain(concept_id="concurrency-stress")
     barrier = threading.Barrier(num_threads)
-    results = {
+    results: dict[str, Any] = {
         "thread_times": [],
         "errors": 0,
         "successful": 0,
@@ -69,7 +69,7 @@ def _run_benchmark(num_threads: int, events_per_thread: int) -> dict[str, Any]:
 
     total_events = num_threads * events_per_thread
     throughput = total_events / total_time if total_time > 0 else 0.0
-    max_latency = max(results["thread_times"]) if results["thread_times"] else 0.0
+    max_latency = max(float(v) for v in results["thread_times"]) if results["thread_times"] else 0.0
     conflicts = results["errors"]
     integrity_ok = chain.verify_integrity()
     integrity_rate = 1.0 if integrity_ok else 0.0

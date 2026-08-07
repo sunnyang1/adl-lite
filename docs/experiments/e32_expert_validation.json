@@ -1,7 +1,7 @@
 {
-  "experiment_id": "E28",
+  "experiment_id": "E32",
   "name": "Expert Annotation Validation (Simulated)",
-  "description": "Simulates 3 annotators with varying accuracy (0.85, 0.75, 0.90) and bias on 50 concepts with known ground truth. Computes precision, recall, F1, inter-annotator agreement (Cohen's \u03ba, Fleiss' \u03ba), and compares annotator consensus vs ADL Lite \u03b4(C) derivation.",
+  "description": "Simulates 3 annotators with varying accuracy (0.85, 0.75, 0.90) and bias on 50 concepts with known ground truth. Computes precision, recall, F1, inter-annotator agreement (Cohen's κ, Fleiss' κ), and compares annotator consensus vs ADL Lite δ(C) derivation.",
   "hardware": {
     "cpu": "Apple M2",
     "ram_gb": 16,

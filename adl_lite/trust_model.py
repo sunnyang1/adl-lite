@@ -40,7 +40,7 @@ from __future__ import annotations
 import base64
 import logging
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 
 from .did_resolver import DIDResolver, is_did, resolve_did_key, verify_did_signature
 from .exceptions import ADLUnsupportedDIDMethodError  # type: ignore[attr-defined]
@@ -72,6 +72,10 @@ class ConsensusConfig:
     min_distinct_validators: int | None = None
     require_did_binding: bool = True
     enforce_validator_diversity: bool = False
+    # M4: reputation floor (0.0 = disabled) + organisational diversity
+    # provider (None = Phase-1 identity-level keys, unchanged behaviour).
+    min_validator_reputation: float = 0.0
+    diversity_provider: Any | None = None
 
     def resolve(self) -> ResolvedConsensusConfig:
         """Derive the effective configuration from the declared *mode*.
@@ -109,6 +113,8 @@ class ConsensusConfig:
             min_distinct_validators=min_val,
             require_did_binding=require_did,
             enforce_validator_diversity=self.enforce_validator_diversity,
+            min_validator_reputation=self.min_validator_reputation,
+            diversity_provider=self.diversity_provider,
         )
 
 
@@ -120,6 +126,8 @@ class ResolvedConsensusConfig:
     min_distinct_validators: int
     require_did_binding: bool
     enforce_validator_diversity: bool
+    min_validator_reputation: float = 0.0
+    diversity_provider: Any | None = None
 
 
 @dataclass
@@ -148,8 +156,18 @@ class TrustValidator:
     infrastructure rather than re-implementing signature verification.
     """
 
-    def __init__(self, resolver: DIDResolver | None = None) -> None:
+    def __init__(
+        self,
+        resolver: DIDResolver | None = None,
+        diversity_provider: Any | None = None,
+        reputation_store: Any | None = None,
+    ) -> None:
         self._resolver = resolver or DIDResolver()
+        # M4: optional organisational diversity provider (DidWebAffiliationResolver)
+        # and reputation store. When both are None (default) behaviour is
+        # byte-for-byte identical to Phase-1 (zero-change guarantee).
+        self._diversity_provider = diversity_provider
+        self._reputation_store = reputation_store
 
     def validate_event_chain(
         self, chain: EventChain, config: ConsensusConfig | None = None
@@ -162,6 +180,13 @@ class TrustValidator:
         """
         config = config or ConsensusConfig()
         resolved = config.resolve()
+        # M4: the effective diversity provider = explicit config override, else
+        # the validator's constructor default (which may itself be None).
+        effective_provider = (
+            resolved.diversity_provider
+            if resolved.diversity_provider is not None
+            else self._diversity_provider
+        )
         errors: list[str] = []
 
         events = list(chain.events)
@@ -197,6 +222,11 @@ class TrustValidator:
             except Exception as exc:  # pragma: no cover - defensive
                 errors.append(f"could not resolve identity for validator '{actor}': {exc}")
                 continue
+            # M4: an organisational diversity provider overrides the
+            # identity-level diversity key (did:web org affiliation instead of
+            # the DID itself) so same-org validators collapse to one key.
+            if effective_provider is not None:
+                diversity = effective_provider.diversity_key(actor)
             identity_keys.add(ident)
             diversity_keys.add(diversity)
 
@@ -208,6 +238,16 @@ class TrustValidator:
                 f"insufficient distinct validators: got {distinct_validators}, "
                 f"need at least {resolved.min_distinct_validators} (mode={resolved.mode})"
             )
+
+        # M4: reputation floor (disabled at 0.0 — weak signal, P1-7).
+        if resolved.min_validator_reputation > 0 and self._reputation_store is not None:
+            for v in sorted({e.actor for e in validate_events}):
+                rep = self._reputation_store.formula_v2(self._reputation_store.score(v))
+                if rep < resolved.min_validator_reputation:
+                    errors.append(
+                        f"validator {v} below reputation floor "
+                        f"{resolved.min_validator_reputation} (score={rep:.3f})"
+                    )
 
         # B2: DID binding — verify signatures for every DID-signed event.
         did_bound = True
@@ -230,16 +270,14 @@ class TrustValidator:
                     f"DID binding failed for actor '{actor}' on event {ev.event_id}: {exc}"
                 )
 
-        # B4: validator diversity (Phase-1 placeholder — known limitation).
-        # The diversity key is derived from the validator's *identity* (see
-        # _identity_keys), so len(diversity_keys) always equals
-        # distinct_validators and this gate is effectively a no-op: in Phase-1
-        # B4 does NOT prevent collusion by same-family / same-organisation
-        # validators. Phase-2 will source diversity keys from real
-        # organisational affiliation (e.g. verified DID service endpoints or
-        # an out-of-band institution registry), at which point this branch
-        # becomes active. The check is retained now to document and pin the
-        # intended later-phase semantics.
+        # B4: validator diversity. Phase-1: the diversity key is identity-
+        # scoped, so the gate is a no-op for did:key chains. M4: when a
+        # `diversity_provider` is configured (DidWebAffiliationResolver), the
+        # key becomes ORGANISATIONAL (did:web org affiliation), so same-org
+        # validators collapse to one key and the gate fires (TR-01). Without a
+        # provider the Phase-1 behaviour is preserved exactly (TR-04).
+        # NOTE (P1-2): this covers DISCOVERY-chain validators only; agent
+        # registration (AGENT_VALIDATE) is not covered — see plan §5.4.
         diversity_satisfied = True
         if resolved.enforce_validator_diversity and distinct_validators > 0:
             if len(diversity_keys) < distinct_validators:

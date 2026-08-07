@@ -30,28 +30,28 @@ We decompose identity-related threats into a structured attack tree (Figure~
 ef{fig:identity-attack-tree}) with four root goals: (G1)~impersonate a legitimate actor, (G2)~fragment a concept's identity across repositories, (G3)~erase the audit trail of a concept, and (G4)~inflate confidence through Sybil validators. Each goal is refined into concrete attack vectors and mapped to the phase that mitigates them.
 
 	extbf{G1: Impersonate a legitimate actor.}
-egin{itemize}[leftmargin=2em]
+\begin{itemize}[leftmargin=2em]
     \item 	extbf{A1.1 String collision.} Choose an actor string identical to an existing validator (e.g., 	exttt{agent\_3}). \emph{Mitigation:} social detection of divergent event patterns; no technical prevention in Phase~1. Phase~1.5 (signed Git commits) binds the string to a cryptographic key; Phase~3 (DIDs) makes impersonation cryptographically infeasible without private-key theft.
     \item 	extbf{A1.2 Key theft.} Steal the Ed25519 private key of a Phase~1.5 validator. \emph{Mitigation:} Phase~2 adds key rotation and revocation events; Phase~3 adds transparency logs for key-history audit.
     \item 	extbf{A1.3 DID document takeover.} Compromise the web server hosting a 	exttt{did:web} document. \emph{Mitigation:} Phase~3 uses multi-signature DID documents and key transparency logs; the attack cost rises to compromising multiple independent infrastructure providers.
 \end{itemize}
 
 	extbf{G2: Fragment a concept's identity across repositories.}
-egin{itemize}[leftmargin=2em]
+\begin{itemize}[leftmargin=2em]
     \item 	extbf{A2.1 Formatting drift.} Re-export a chain with CRLF line endings, causing hash mismatch on re-import. \emph{Mitigation:} 	exttt{canon\_version} pins the serialization policy; the import layer normalises before verification.
     \item 	extbf{A2.2 Metadata injection.} Retroactively add a 	exttt{signature} field to legacy genesis events during migration. \emph{Mitigation:} ADL Lite enforces write-once genesis semantics; migrations must append new events rather than mutate existing ones.
     \item 	extbf{A2.3 Fork confusion.} Create a child fork and claim it is the original concept. \emph{Mitigation:} the parent chain retains the original genesis hash; the child has a new genesis hash and a 	exttt{fork-of} relation pointing to the parent, making lineage traceable.
 \end{itemize}
 
 	extbf{G3: Erase the audit trail of a concept.}
-egin{itemize}[leftmargin=2em]
+\begin{itemize}[leftmargin=2em]
     \item 	extbf{A3.1 Genesis replacement.} Force-push a rebased history with a new genesis event. \emph{Mitigation:} Phase~1 detects the hash break; Phase~1.5 detects the anchor mismatch; Phase~3 prevents rewrite via BFT quorum.
     \item 	extbf{A3.2 Selective omission.} Withhold evidence events that contradict a validator's claim. \emph{Mitigation:} no technical prevention in Phase~1--1.5; Phase~3 introduces threshold gossip protocols that make omission detectable by a quorum.
     \item 	extbf{A3.3 Truncation attack.} Truncate the chain after the genesis event to hide later validations. \emph{Mitigation:} the truncated chain is well-formed but shorter; peer recovery restores the full chain from distributed copies.
 \end{itemize}
 
 	extbf{G4: Inflate confidence through Sybil validators.}
-egin{itemize}[leftmargin=2em]
+\begin{itemize}[leftmargin=2em]
     \item 	extbf{A4.1 Pseudonymous self-validation.} Create $k$ pseudonyms and validate the same concept from each. \emph{Mitigation:} Phase~1 has no prevention; Phase~1.5 raises the cost to $k$ key pairs; Phase~3 makes this economically expensive via staking.
     \item 	extbf{A4.2 Collusion ring.} Coordinate $k$ real actors to validate mutually without independent review. \emph{Mitigation:} no technical prevention in Phase~1--1.5; Phase~3 uses reputation-weighted staking and slashing to disincentivise collusion rings.
 \end{itemize}

@@ -81,6 +81,33 @@ class TestAppCreation:
             "/api/v1/consensus/mode/production",
             "/api/v1/tenants/{tenant_id}/usage",
             "/api/v1/tenants/{tenant_id}/usage/export",
+            # M1b (reviewed assertion update): agent identity endpoints.
+            "/api/v1/agents/register",
+            "/api/v1/agents/{did}/attest",
+            "/api/v1/agents/{did}/admin-validate",
+            "/api/v1/agents/{did}/validate",
+            "/api/v1/agents/{did}/deprecate",
+            "/api/v1/agents/{did}",
+            "/api/v1/agents",
+            "/api/v1/agents/{did}/history",
+            "/api/v1/admin/public-key",
+            # M2 (reviewed assertion update): task endpoints.
+            "/api/v1/tasks/create",
+            "/api/v1/tasks/{task_id}/claim",
+            "/api/v1/tasks/{task_id}/submit",
+            "/api/v1/tasks/{task_id}/validate",
+            "/api/v1/tasks/{task_id}/close",
+            "/api/v1/tasks/{task_id}",
+            "/api/v1/tasks",
+            # M3 (reviewed assertion update): runtime control plane.
+            "/api/v1/runtime/status",
+            "/api/v1/checkpoints/{task_id}/approve",
+            # M4 (reviewed assertion update): reputation + trust control plane.
+            "/api/v1/agents/{did}/reputation",
+            "/api/v1/admin/trust/diversity",
+            # M5 (reviewed assertion update): meta — task state machine + roles.
+            "/api/v1/meta/task-transitions",
+            "/api/v1/meta/roles",
         ]
         assert len(paths) == len(expected)
         for p in expected:

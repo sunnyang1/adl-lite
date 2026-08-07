@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 from adl_lite import ADLMemory, parse_file
 
@@ -151,15 +152,16 @@ def ensure_dataset() -> Path:
     return DATA_DIR
 
 
-def load_manifest() -> dict:
+def load_manifest() -> dict[str, Any]:
     ensure_dataset()
-    return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    data = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    return data if isinstance(data, dict) else {}
 
 
-def load_queries() -> list[dict]:
+def load_queries() -> list[dict[str, Any]]:
     ensure_dataset()
     data = json.loads(QUERIES_PATH.read_text(encoding="utf-8"))
-    return data["queries"]
+    return data["queries"] if isinstance(data, dict) else []
 
 
 def index_all(db_path: str | Path) -> ADLMemory:

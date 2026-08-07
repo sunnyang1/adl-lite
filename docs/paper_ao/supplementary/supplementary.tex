@@ -53,6 +53,15 @@
     stringstyle=\color{red},
 }
 
+% Define Turtle language for listings (used in PROV-O and OWL examples)
+\lstdefinelanguage{Turtle}{
+    morekeywords={a,@prefix,@base,PREFIX,BASE,TRUE,FALSE},
+    sensitive=false,
+    morecomment=[l]{\#},
+    morestring=[b]{"},
+    morestring=[s]{<>},
+}
+
 % ---------------------------------------------------------------------------
 % Title
 % ---------------------------------------------------------------------------
@@ -114,5 +123,11 @@ This document provides supplementary material for the Applied Ontology submissio
 
 % Appendix M -- Compression Log
 \input{appendix_m_compression_log}
+
+% Appendix N -- Implementation Infrastructure Details
+\input{appendix_n_implementation}
+
+% Appendix O -- Detailed Results Tables (moved from main text)
+\input{appendix_o_tables}
 
 \end{document}

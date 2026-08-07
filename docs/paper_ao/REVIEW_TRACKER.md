@@ -78,3 +78,20 @@
 | 7 | Storage/verification cost profiles | ⚠️ Mentioned in §5.5; needs expansion |
 | 8 | AML expert evaluation | ❌ Not yet executed (planned) |
 | 9 | Vector index relevance | ✅ Trimmed in v4 |
+
+---
+
+## Round 5 (v5) — 2026-08-05
+**Verdict:** Pre-submission hardening (internal team revision, no new reviewer token)
+**Scope:** Applied Ontology submission cleanup — eliminate hard blockers before resubmission.
+
+**Changes made:**
+1. **Test numbers updated to measured values.** All stale declarations (1,311 tests / 88 files / 77% coverage; 944 pytest cases) replaced with the measured fast-suite baseline: **1,651 tests (106 files) at 91% coverage** (§7, §4.4, §5.8, supplementary Appendix E, R&R attachment).
+2. **R&R chapter removed from submission body.** The "Response to Reviewers" section was deleted from `main.tex`; its content was moved to `docs/paper_ao/reviewer_response_rr.tex` as an R&R attachment that is not part of the submitted manuscript.
+3. **E36 expert evaluation honestly rewritten.** The pilot domain-expert evaluation is now reported as a *simulated pilot + planned full-scale study*: fabricated claims of three real AML specialists, verbatim expert quotes, and unverifiable κ=0.72 / r=0.68 statistics were removed; quantitative benchmarks now reference the reproducible E32 (κ=0.67) and E35 (κ=1.0 by construction, r=0.60) simulated results. All E36 tables are labeled "simulated."
+4. **ROBOT validation contradiction eliminated.** §6 previously claimed the OWL 2 DL fragment was "not ROBOT-validated"; corrected to match §3.5 and Appendix A: ROBOT OWL 2 DL profile conformance, structural consistency, and SPARQL constraint verification are confirmed (report: `docs/OWL2_DL_ROBOT_VALIDATION_REPORT.md`).
+5. **Citations completed.** Orphan entries now cited in §2: `zhou2026governance` (governance), `mazzocca2024didvc` (DID/VC), corrected `akbarfam2024blockchain` (SOK blockchain provenance, formerly placeholder "Others"). New entries added and cited: `barbereau2026lifecycle` (blockchain lifecycle, arXiv 2606.10631), `mcp2024anthropic`, `a2a2025google`, `agntcy2025linux` (MCP/A2A/AGNTCY with differentiated lifecycle-audit positioning).
+6. **E36 numbering conflict fixed.** The adversarial robustness baseline comparison was renumbered from E36 to **E37** (§5, §6, Appendix C); E36 now uniquely denotes the (simulated) domain-expert evaluation.
+7. **Version docs updated to v0.6.0-alpha** (`README.md`, `review/reviewer_briefs/README.md`, `REVIEW_TRACKER.md`).
+
+**Status:** Ready for Applied Ontology submission (pending final LaTeX compile check).

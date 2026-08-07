@@ -1,7 +1,7 @@
 # ADL Lite 论文工作区（paper_ao）
 
 > 目标期刊：Applied Ontology（备选 ESWC/ISWC 2027）
-> 当前版本：v0.4.0-alpha（Month 3，代码-论文对齐完成）
+> 当前版本：v0.6.0-alpha（投稿前修订：测试数/覆盖率已更新、E36 模拟化、引用补充、R&R 章节移除）
 > 论文长度：35 页（正文） + 21 页（补充材料）
 
 ---
@@ -32,6 +32,8 @@ sections/
 ├── agentsafe_integration.tex   ← AgentSafe 集成（可选章节）
 ├── appendix_a.tex ~ appendix_f.tex  ← 附录 A-F（正文后附录）
 ```
+
+> **R&R 附件（不随正文投稿）：** `reviewer_response_rr.tex`（原 `sections/08_reviewer_response.tex`）已从正文移出，作为 Revise-and-Resubmit 答复材料独立保存，不参与 `main.tex` 编译，也不随投稿正文提交。如需查阅 Round 3 审稿问题答复，直接打开该文件。
 
 > 如需修改论文内容，直接编辑这些 `.tex` 文件，然后重新编译 `main.tex`。
 
@@ -95,7 +97,7 @@ review/
 ├── meta_review.md                ← 元评审汇总（3位评审员的交叉分析）
 ├── peer_review_report.md         ← 早期审稿报告
 ├── PEER_REVIEW_REPORT_v2.md      ← 第四轮审稿修复报告（17KB，当前基准）
-└── reviewer_briefs/              ← 外部专家评审包（Month 3 准备）
+└── reviewer_briefs/              ← 外部专家评审包（投稿前修订，v0.6.0-alpha）
     ├── README.md                 ← 评审包使用说明（含已知问题清单）
     ├── applied_ontology_reviewer.md    ← 本体学评审员检查清单
     ├── formal_semantics_reviewer.md      ← 形式语义评审员检查清单

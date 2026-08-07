@@ -34,12 +34,16 @@ def _build_random_chain(concept_id: str, length: int) -> EventChain:
     chain = EventChain(concept_id=concept_id)
     for _ in range(length):
         et = random.choice(EVENT_TYPES)
+        payload: dict[str, object] = {"val": random.random()}
+        # Axiom 9 (well-formedness): L4 action events must carry an action field.
+        if et == EventType.ANNOUNCE:
+            payload["action"] = "announce"
         chain.append(
             Event(
                 concept_id=concept_id,
                 event_type=et,
                 actor=f"agent_{random.randint(1, 5)}",
-                payload={"val": random.random()},
+                payload=payload,
             )
         )
     return chain

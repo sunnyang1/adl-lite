@@ -189,17 +189,22 @@ def check_theorem_1_determinism(chain: EventChain) -> bool:
 def check_theorem_2_fork_confluence(chain: EventChain) -> bool:
     """Theorem 2 (Confluence under Fork, No Merge).
 
-    We simulate a fork by appending FORK and then checking parent=forked.
+    We simulate a fork by appending FORK and then verifying that the status
+    follows CRDT LUB semantics: ``status_after = LUB(status_before, forked)``.
     A child chain is NOT created here (that would require ForkManager);
-    instead we verify the *local* effect: after FORK, parent status=forked.
+    instead we verify the *local* effect: after FORK, the parent status is the
+    lattice join of its previous status and ``forked`` (so a chain that has
+    already reached ``deprecated``/``archived`` stays there — LUB keeps the
+    highest lifecycle event, not the last one).
     """
+    from adl_lite.crdt import StatusOrder
+
     # Only test if chain has at least one event and is not already forked
     if chain.status == DiscoveryStatus.FORKED:
         # Already forked — can't fork again in a meaningful way
         return True
 
-    # Snapshot state before fork (for audit logging)
-    _ = chain.status
+    before = chain.status
 
     # Append FORK
     chain.append(
@@ -213,15 +218,20 @@ def check_theorem_2_fork_confluence(chain: EventChain) -> bool:
     )
 
     post_status = chain.status
-    return post_status == DiscoveryStatus.FORKED
+    expected = max(before, DiscoveryStatus.FORKED, key=lambda s: StatusOrder[s.name])
+    return post_status == expected
 
 
 def check_theorem_3_transition_monotonicity(chain: EventChain) -> bool:
     """Theorem 3: Transition monotonicity.
 
     Adding a non-lifecycle event must NOT change status.
-    Adding a lifecycle event must change status according to the mapping.
+    Adding a lifecycle event must change status to the LUB of the previous
+    status and the event's status (CRDT semantics — the highest lifecycle
+    event wins, not the last one).
     """
+    from adl_lite.crdt import StatusOrder
+
     original_status = chain.status
 
     # Append a communication event (must include action field for Axiom 9)
@@ -237,7 +247,7 @@ def check_theorem_3_transition_monotonicity(chain: EventChain) -> bool:
     after_comm = chain.status
     comm_ok = after_comm == original_status
 
-    # Append a lifecycle event (DEPRECATE) and verify status changes
+    # Append a lifecycle event (DEPRECATE) and verify LUB status change
     chain.append(
         Event(
             concept_id=chain.concept_id,
@@ -248,7 +258,8 @@ def check_theorem_3_transition_monotonicity(chain: EventChain) -> bool:
         )
     )
     after_deprecate = chain.status
-    deprecate_ok = after_deprecate == DiscoveryStatus.DEPRECATED
+    expected = max(original_status, DiscoveryStatus.DEPRECATED, key=lambda s: StatusOrder[s.name])
+    deprecate_ok = after_deprecate == expected
 
     return comm_ok and deprecate_ok
 

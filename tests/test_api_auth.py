@@ -39,6 +39,8 @@ TEST_API_KEYS = {"test-key-1", "test-key-2"}
 def _make_auth_client(
     auth_enabled: bool = True,
     rate_limit: int = 0,
+    admin_username: str | None = None,
+    admin_password: str | None = None,
 ) -> TestClient:
     """Create a TestClient with auth-enabled app and a temp state file."""
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
@@ -49,6 +51,8 @@ def _make_auth_client(
         jwt_secret=TEST_SECRET,
         api_keys=TEST_API_KEYS,
         rate_limit=rate_limit,
+        admin_username=admin_username,
+        admin_password=admin_password,
     )
     tc = TestClient(app)
     yield tc
@@ -59,6 +63,18 @@ def _make_auth_client(
 def auth_client() -> TestClient:
     """Auth-enabled client with rate limiting disabled."""
     gen = _make_auth_client(auth_enabled=True, rate_limit=0)
+    yield from gen
+
+
+@pytest.fixture
+def auth_admin_client() -> TestClient:
+    """Auth-enabled client with admin credentials configured (closure)."""
+    gen = _make_auth_client(
+        auth_enabled=True,
+        rate_limit=0,
+        admin_username="admin",
+        admin_password="admin-secret",
+    )
     yield from gen
 
 
@@ -457,6 +473,73 @@ class TestTokenEndpoint:
             data={"username": "svc-bot", "password": "test-key-1"},
         )
         assert resp.status_code == 400
+
+
+class TestAdminTokenIssuance:
+    """Closure: admin credentials yield role='admin' JWTs (trust root)."""
+
+    def test_admin_credentials_issue_admin_token(
+        self,
+        auth_admin_client: TestClient,
+    ) -> None:
+        resp = auth_admin_client.post(
+            "/api/v1/auth/token",
+            data={"username": "admin", "password": "admin-secret"},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["token_type"] == "bearer"
+        from adl_lite.api_auth import get_current_user
+
+        claims = get_current_user(body["access_token"], TEST_SECRET)
+        assert claims["role"] == "admin"
+        # An admin token unlocks an admin-gated endpoint.
+        reg = auth_admin_client.post(
+            "/api/v1/agents/register",
+            json={
+                "name": "root-agent",
+                "role": "discoverer",
+                "scope": "public",
+                "did": "did:key:root-agent",
+            },
+            headers={"Authorization": f"Bearer {body['access_token']}"},
+        )
+        assert reg.status_code == 200
+
+    def test_api_key_still_issues_user_token(
+        self,
+        auth_admin_client: TestClient,
+    ) -> None:
+        resp = auth_admin_client.post(
+            "/api/v1/auth/token",
+            data={"username": "svc-bot", "password": "test-key-1"},
+        )
+        assert resp.status_code == 200
+        from adl_lite.api_auth import get_current_user
+
+        claims = get_current_user(resp.json()["access_token"], TEST_SECRET)
+        assert claims["role"] == "user"
+
+    def test_wrong_admin_password_returns_401(
+        self,
+        auth_admin_client: TestClient,
+    ) -> None:
+        resp = auth_admin_client.post(
+            "/api/v1/auth/token",
+            data={"username": "admin", "password": "wrong-secret"},
+        )
+        assert resp.status_code == 401
+
+    def test_admin_login_absent_without_configuration(
+        self,
+        auth_client: TestClient,
+    ) -> None:
+        """Unconfigured admin credentials -> 401 (no existence leak)."""
+        resp = auth_client.post(
+            "/api/v1/auth/token",
+            data={"username": "admin", "password": "admin-secret"},
+        )
+        assert resp.status_code == 401
 
 
 # ===========================================================================

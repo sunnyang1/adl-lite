@@ -110,8 +110,9 @@ class TestServerInstantiation:
         assert mcp_server.name == "adl-lite"
 
     def test_tool_count_is_ten(self, mcp_server):
+        # M1b (reviewed assertion update): 10 consensus + 6 agent tools.
         tools = mcp_server._tool_manager._tools
-        assert len(tools) == 10
+        assert len(tools) == 26
 
     def test_expected_tool_names(self, mcp_server):
         tools = mcp_server._tool_manager._tools
@@ -126,6 +127,26 @@ class TestServerInstantiation:
             "adl_fork",
             "adl_list",
             "adl_ontology_query",
+            # M1b: agent identity tools.
+            "adl_agent_register",
+            "adl_agent_attest",
+            "adl_agent_validate",
+            "adl_agent_get",
+            "adl_agent_list",
+            "adl_agent_deprecate",
+            # M2: task tools.
+            "adl_task_create",
+            "adl_task_claim",
+            "adl_task_submit",
+            "adl_task_validate",
+            "adl_task_close",
+            "adl_task_get",
+            "adl_task_list",
+            # M3 (reviewed assertion update): runtime tools.
+            "adl_task_enqueue",
+            "adl_runtime_start",
+            # M4 (reviewed assertion update): trust tools.
+            "adl_agent_reputation",
         ]
         for name in expected:
             assert name in tools, f"Tool '{name}' not registered"

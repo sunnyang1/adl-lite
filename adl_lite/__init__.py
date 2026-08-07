@@ -202,6 +202,33 @@ _LAZY_ATTRS: dict[str, str] = {
     "check_near_duplicate": ".near_duplicate",
     "check_near_duplicate_embedding": ".near_duplicate",
     "suggest_merge": ".near_duplicate",
+    # M1a: native multi-agent primitives (core-only deps; lazy keeps the
+    # bare-import surface small until the agents package is actually used)
+    "AgentConfig": ".agents.config",
+    "AgentProfile": ".agents.identity",
+    "AgentRegistry": ".agents.identity",
+    "AgentRole": ".agents.identity",
+    "AgentStatus": ".agents.identity",
+    "chain_kind": ".agents.identity",
+    # M2: task lifecycle + message bus
+    "MessageBus": ".agents.bus",
+    "TaskQueue": ".agents.bus",
+    "Task": ".agents.task",
+    "TaskRegistry": ".agents.task",
+    "TaskStatus": ".agents.task",
+    "TaskStatusView": ".agents.task",
+    "derive_task_status": ".agents.task",
+    # M3: thin runtime (planner / roles / runtime loop)
+    "Planner": ".agents.planner",
+    "RoleSpec": ".agents.roles",
+    "ROLE_SPECS": ".agents.roles",
+    "AgentRuntime": ".agents.runtime",
+    "CheckpointKind": ".agents.runtime",
+    "RuntimeManager": ".agents.runtime",
+    # M4: trust closure (did:web org diversity + reputation)
+    "DidWebAffiliationResolver": ".agents.trust",
+    "Reputation": ".agents.trust",
+    "ReputationScore": ".agents.trust",
 }
 
 

@@ -18,25 +18,25 @@ We verified architectural correctness through eight structured tests: chain inte
 
 \textbf{Failure case analysis.} Three bugs were fixed during development: (i)~missing \texttt{confidence} defaulted to $0.0$; (ii)~genesis hash collision resolved by including \texttt{concept\_id}; (iii)~duplicate \texttt{event\_id}s from unsynchronized threads fixed via thread-local counter and lock. All are covered by regression tests (E4a, E15, E16).
 
-\textbf{E3: Snapshot Round-Trip Consistency.} E3 tested consistency between derived snapshot and original front matter for 11 example files and 201 AML-derived files (212/212 passed, 100\%). No status mismatches, confidence deviations exceeding $\pm 0.01$, or validator set discrepancies occurred.
+\textbf{E3: Snapshot Round-Trip Consistency.} E3 tested consistency between derived snapshot and original front matter for 39 Markdown documents (6 examples + 33 AML-derived concepts) (39/39 passed, 100\%). No status mismatches, confidence deviations exceeding $\pm 0.01$, or validator set discrepancies occurred.
 
 \textbf{E4: Precondition Enforcement.} E4 tested precondition validation on all 9 registered actions across 19 test cases, extended with 72 boundary cases and 50 multi-agent concurrency cases (141 total). Categories included concurrent execution (E4a), extreme confidence values (E4b), long-chain evaluation (E4c), multi-agent stress (E4d), and adversarial tampering (E4e, Section~\ref{subsec:adversarial-trials}). Precision, recall, and F1 were all 1.0. The closed \texttt{Comparator} enumeration eliminates runtime code injection.
 
 \subsection{Scalability on Real-World Data (E6, E6b)}\label{subsec:scalability}
 
-E6 subjected the EventChain to a volume stress using the IBM AML HI-Small dataset (9,300 transactions from 201 accounts) on an Apple M2 (8P+4E cores, 3.49~GHz), 16~GB LPDDR5, macOS~14, Python~3.10. Mean throughput was $20{,}847$ events/s ($\sigma = 312$, CV = 1.5\%), with wall-clock runtime $446$~ms ($\sigma = 7$). All 201 chains maintained integrity. Raw CSV parsing completed in $98$~ms; EventChain construction incurred a 3.5$\times$ overhead, dominated by Pydantic materialization (58.4\% of latency via \texttt{cProfile}). Full latency decomposition and reproduction environment are in Appendix~D.
+E6 subjected the EventChain to a volume stress using the IBM AML HI-Small dataset~\cite{ibm_aml} (9,300 transactions from 201 accounts) on an Apple M2 (8P+4E cores, 3.49~GHz), 16~GB LPDDR5, macOS~14, Python~3.10. Mean throughput was $20{,}847$ events/s ($\sigma = 312$, CV = 1.5\%), with wall-clock runtime $446$~ms ($\sigma = 7$). All 201 chains maintained integrity. Raw CSV parsing completed in $98$~ms; EventChain construction incurred a 3.5$\times$ overhead, dominated by Pydantic materialization (58.4\% of latency via \texttt{cProfile}). Full latency decomposition and reproduction environment are in Appendix~D.
 
 \textbf{AML-to-EventChain mapping.} The 201 chains were constructed via a 3-stage pipeline: (1) select the 201 highest-volume suspicious accounts from the dataset (3,386 flagged accounts, 5,080,714 transactions); (2) extract five features (\texttt{total\_outbound}, \texttt{unique\_recipients}, \texttt{max\_single\_amount}, \texttt{transaction\_count}, \texttt{temporal\_span\_hours}) and project into the event payload; (3) generate a 3-event chain per account: \textsc{Register} (actor: \texttt{data\_importer}, status: provisional), \textsc{Validate} (actor: \texttt{synthetic\_validator}, confidence: $0.7 \pm U(-0.1, 0.1)$), and \textsc{Evidence} (actor: \texttt{synthetic\_validator}, evidence type: ``transaction\_pattern''). Random seed was 42. All chains passed \texttt{verify\_integrity()}. They do not capture contested validations, forks, or deprecation; audit realism is tested by E17 and E4e.
 
-\textbf{E6b: Scale-up Feasibility.} On identical hardware, ADL~Lite ingested $10^6$ concepts ($2 \times 10^6$ events) in 87.0~s ($\approx$22,987 events/s), confirming linear throughput. Nanopublications (rdflib) completed $10^6$ concepts in 77.9~s; PROV-O (\texttt{prov} library) completed $10^5$ in 14.6~s (extrapolation to $10^6$: 146.3~s); Git-only (batch commits, 100 concepts per commit) completed $10^4$ in 0.55~s (extrapolation to $10^6$: 54.6~s). All ADL~Lite figures are empirical. The architecture is feasible for $10^5$--$10^6$ event deployments without redesign.
+\textbf{E6b: Scale-up Feasibility.} On identical hardware, ADL~Lite ingested $10^6$ concepts ($2 \times 10^6$ events) in 133.9~s ($\approx$14,938 events/s), confirming linear throughput. Nanopublications (rdflib) completed $10^6$ concepts in 119.5~s (33,471 triples/s); PROV-O (\texttt{prov} library) completed $10^5$ in 18.7~s (extrapolation to $10^6$: 186.9~s); Git-only (batch commits, 100 concepts per commit) completed $10^4$ in 0.94~s (extrapolation to $10^6$: 94.3~s). All ADL~Lite and nanopublication figures are empirical; PROV-O and Git-only are linearly extrapolated from smaller-scale runs. The architecture is feasible for $10^5$--$10^6$ event deployments without redesign.
 
 \textbf{AML dataset licensing and provenance.} The IBM AML Synthetic Dataset (HI-Small) is synthetic data generated by IBM for research purposes. No real customer data is included. The dataset is available under CC-BY-SA 4.0. The transformation pipeline used in E6 is: raw CSV $\rightarrow$ feature extraction (5 fields) $\rightarrow$ event generation $\rightarrow$ ADL Markdown. All intermediate artifacts are included in the repository (\texttt{data/aml/}) and are themselves released under the same CC-BY-SA 4.0 license, ensuring full reproducibility without intellectual property barriers.
 
 \subsection{Boundary Conditions and Stress Tests (E13--E16, E20--E23)}\label{subsec:boundary-experiments}
 
-Four boundary experiments (E13--E16) and three stress tests (E20--E23) quantified system limits. E13 verified linear integrity scaling to 50,000 events ($R^2 = 1.0$, $<1$~MB memory). E14 confirmed that a single colluding actor could drive $\gamma(C)$ to $0.99$ through repeated self-validation under all aggregation variants ($\gamma_{\text{default}}$, $\gamma_{\text{agg}}$, $\gamma_{\text{cal}}$). When $N_{\min} = 2$ (minimum-validator threshold) was enforced as a precondition for \textsc{Validate}, the same colluding actor could no longer trigger \texttt{validated} status, confirming Lemma~2 (Appendix~E). Full collusion resistance requires authenticated identities and economic staking (FW9). E15 showed that 4/11 malformed inputs were caught by Pydantic rather than by preconditions, revealing a gap in defence-in-depth coverage. E16 showed conflict rates rose to 95\% for $k=20$ concurrent agents, with integrity preserved but without graceful degradation. Anomalies included temporal ordering inversion (resolved by \texttt{event\_id} tiebreaker), duplicate self-validation, and partial fork visibility causing transient precondition failures. All were recorded as auditable events; no integrity violations occurred. E20 evaluated L2 template effectiveness (94\% strict / 87\% relaxed compliance, $R^2 = 0.73$ calibration); E20b confirmed $R^2 = 0.73$ correlation between per-actor accuracy and calibrated confidence; E21 stress-tested 100k events; E23 measured contention under 20 concurrent agents. Full details are in Appendix~D.
+Four boundary experiments (E13--E16) and three stress tests (E20--E23) quantified system limits. E13 verified linear integrity scaling to 50,000 events ($R^2 = 1.0$, $<1$~MB memory). E14 confirmed that a single colluding actor could drive $\gamma(C)$ to $0.99$ through repeated self-validation under all aggregation variants ($\gamma_{\text{default}}$, $\gamma_{\text{agg}}$, $\gamma_{\text{cal}}$). When $N_{\min} = 2$ (minimum-validator threshold) was enforced as a precondition for \textsc{Validate}, the same colluding actor could no longer trigger \texttt{validated} status, confirming Lemma~2 (Appendix~E). Full collusion resistance requires authenticated identities and economic staking (FW9). E15 showed that 4/11 malformed inputs were caught by Pydantic rather than by preconditions, revealing a gap in defence-in-depth coverage; two inputs bypassed both layers and were recorded as auditable events, motivating stricter precondition coverage. E16 showed conflict rates rose to 95\% for $k=20$ concurrent agents, with integrity preserved but without graceful degradation. Anomalies included temporal ordering inversion (resolved by \texttt{event\_id} tiebreaker), duplicate self-validation, and partial fork visibility causing transient precondition failures. All were recorded as auditable events; no integrity violations occurred. E20 evaluated L2 template effectiveness (94\% strict / 87\% relaxed compliance, $R^2 = 0.73$ calibration); E20b confirmed $R^2 = 0.73$ correlation between per-actor accuracy and calibrated confidence; E21 stress-tested 100k events; E23 measured contention under 20 concurrent agents (the \texttt{race\_conditions} counter records benign check-then-act retries---semantic conflicts detected and abandoned; integrity\_rate $= 1.0$ confirms no chain corruption under 20-agent contention). Full details are in Appendix~D.
 
-\textbf{E25: Microbenchmark.} We quantified precondition rule-list length and confidence aggregation variant performance. For precondition complexity, $\text{eval}(R, C)$ with $|R| = k$ rules on a 300-event chain grew linearly ($R^2 = 0.999$): $0.8\,\mu$s for $k=1$ to $12.3\,\mu$s for $k=50$, confirming the $\mathcal{O}(k)$ bound of Theorem~8. For confidence aggregation, $\gamma_{\text{default}}$ was $O(1)$ (constant $0.6\,\mu$s); $\gamma_{\text{agg}}$ and $\gamma_{\text{cal}}$ were both $O(|V|)$ ($2.1\,\mu$s and $2.4\,\mu$s for $|V|=20$), with $<15\%$ overhead for calibration. Storage per event: ADL Lite $\approx$150~bytes, Git-only $\approx$200~bytes, PROV-O $\approx$350~bytes. These validate that the design choices are computationally feasible and the overhead relative to baselines is modest.
+\textbf{E25: Microbenchmark.} We quantified precondition rule-list length and confidence aggregation variant performance. For precondition complexity, $\text{eval}(R, C)$ with $|R| = k$ rules grew linearly: $0.7\,\mu$s for $k=1$ to $31.7\,\mu$s for $k=50$ ($0.7$, $3.0$, $6.0$, $11.7$, and $31.7\,\mu$s for $k = 1, 5, 10, 20, 50$), confirming the $\mathcal{O}(k)$ bound of Theorem~8. For confidence aggregation, $\gamma_{\text{default}}$ was $O(1)$ (constant $0.2\,\mu$s); $\gamma_{\text{agg}}$ was $O(|V|)$ ($2.2\,\mu$s for $|V|=20$); $\gamma_{\text{cal}}$ was also $O(|V|)$ but with a substantially larger constant ($2{,}152.7\,\mu$s $\approx 2.15$~ms for $|V|=20$) because the calibration variant recomputes per-actor accuracy-weighted aggregation over the validator set. Calibration overhead is therefore $O(|V|)$ with a larger constant than $\gamma_{\text{agg}}$. Storage per event: ADL Lite $\approx$150~bytes, Git-only $\approx$200~bytes, PROV-O $\approx$350~bytes (computed in the E25 benchmark). These validate that the design choices are computationally feasible and the overhead relative to baselines is modest.
 
 \subsection{Domain Applicability: AML Case Study and Future Evaluation Design}\label{subsec:domain-applicability}
 
@@ -44,70 +44,25 @@ To illustrate domain structuring, the following case study models an AML launder
 
 \textbf{Illustrative case study: fan-out laundering pattern.} We modeled the ``fan-out'' pattern (source account $\rightarrow$ $\geq$5 unique recipients within 24h, volume $>$ \$10,000) as an ADL Lite capability with L1 identity, L2 narrative, L3 relations (e.g., \texttt{co-occurs-with} to \texttt{rapid-movement}), and L4 lifecycle events. Three authors independently scored the concept on semantic coherence, evidential sufficiency, and audit completeness (5-point Likert). Mean scores were $4.3$ ($\sigma = 0.6$), $3.7$ ($\sigma = 0.6$), and $4.7$ ($\sigma = 0.6$), respectively. The evidential sufficiency score reflects the absence of external ground-truth labels (addressed by the in-progress E5 evaluation with AML experts). This is preliminary and author-biased; it is not a substitute for independent expert evaluation.
 
-\textbf{Worked example: AML-derived EventChain.} To make the mapping concrete, Table~\ref{tab:aml-worked-example} shows a complete 3-event chain for a representative account (\texttt{HI-Small-42}) from the IBM dataset. The account exhibited 47 transactions totalling \$127,400 to 12 unique recipients within 48 hours, triggering the fan-out pattern. The L1 front matter captures the derived identity; the L2 Markdown body narrates the pattern; the L3 relation links to \texttt{rapid-movement}; and the L4 events record the full lifecycle from registration through synthetic validation to evidence attachment.
+\textbf{Worked example: AML-derived EventChain.} To make the mapping concrete, Supplementary Table S31 shows a complete 3-event chain for a representative account (\texttt{HI-Small-42}) from the IBM dataset. The account exhibited 47 transactions totalling \$127,400 to 12 unique recipients within 48 hours, triggering the fan-out pattern. The L1 front matter captures the derived identity; the L2 Markdown body narrates the pattern; the L3 relation links to \texttt{rapid-movement}; and the L4 events record the full lifecycle from registration through synthetic validation to evidence attachment.
 
-\begin{table}[htbp]
-\centering
-\footnotesize
-\caption{Worked example: AML-derived EventChain for account \texttt{HI-Small-42} (fan-out pattern).}
-\label{tab:aml-worked-example}
-\begin{tabular}{@{}p{1.6cm}p{2.2cm}p{8.5cm}@{}}
-\toprule
-\textbf{Event} & \textbf{Actor} & \textbf{Payload (selected fields)} \\
-\midrule
-\textsc{Register} & data\_importer & concept\_id: aml-fan-out-42; total\_outbound: 127400; unique\_recipients: 12; temporal\_span\_h: 48 \\
-\textsc{Validate} & synthetic\_validator & confidence: 0.72; reasoning: ``High-volume account with 12 unique recipients'' \\
-\textsc{Evidence} & synthetic\_validator & evidence\_type: transaction\_pattern; pattern: fan-out; threshold: 5 \\
-\bottomrule
-\end{tabular}
-\end{table}
+This chain is representative of the 201 AML-derived chains: all follow the \textsc{Register} $\to$ \textsc{Validate} $\to$ \textsc{Evidence} pattern, with feature payloads derived from the raw transaction CSV. The chain passes \texttt{verify\_integrity()} and the derived snapshot matches the L1 front matter (E3, 39/39). The \texttt{synthetic\_validator} actor string indicates that the validation was algorithmically generated from the feature threshold (confidence $= 0.7 \pm U(-0.1, 0.1)$), not by a human AML analyst. This is a deliberate limitation: the current study validates the \emph{infrastructure} (chain construction, integrity, snapshot consistency), not the \emph{domain judgment} (whether 12 recipients in 48h truly indicates laundering).
 
-This chain is representative of the 201 AML-derived chains: all follow the \textsc{Register} $\to$ \textsc{Validate} $\to$ \textsc{Evidence} pattern, with feature payloads derived from the raw transaction CSV. The chain passes \texttt{verify\_integrity()} and the derived snapshot matches the L1 front matter (E3, 212/212). The \texttt{synthetic\_validator} actor string indicates that the validation was algorithmically generated from the feature threshold (confidence $= 0.7 \pm U(-0.1, 0.1)$), not by a human AML analyst. This is a deliberate limitation: the current study validates the \emph{infrastructure} (chain construction, integrity, snapshot consistency), not the \emph{domain judgment} (whether 12 recipients in 48h truly indicates laundering).
+\textbf{AML dataset limitation and expert validation methodology.} The AML-derived dataset (E6) uses synthetic validators and synthetically injected laundering patterns; it serves as a volume stress test and a structural illustration of the L1--L4 mapping, not as a validation of laundering-pattern detection accuracy. To address the domain-validation gap, we designed an inter-annotator agreement study (target $n \geq 15$ AML analysts; 5 industry and 3 academia recruited): a 5-point Likert rubric covering semantic coherence (does the L1--L4 structure faithfully represent the pattern?), evidential sufficiency (are thresholds justified?), and audit completeness (can a third party reconstruct the reasoning?); each concept rated by 3 independent experts with discrepancies resolved via discussion and recorded as \texttt{EVIDENCE} events; metrics are Fleiss' $\kappa$, Pearson correlation between expert consensus and automated $\delta(C)$, and sensitivity/specificity against expert majority. IRB approval was obtained (protocol ADL-2025-AML-01, 2025-06-15). As an interim signal, GPT-4o (zero-shot) evaluated the same 50 concepts: Pearson correlation with the 3-author mean was $r=0.71$ (coherence), $r=0.58$ (evidential sufficiency), and $r=0.82$ (audit completeness); the lower evidential-sufficiency correlation reflects the absence of external ground-truth labels. The rubric follows established AML evaluation practice \cite{oztas2024aml,prbench2025,fatf2025}, and the approach extends the AML knowledge-graph precedent \cite{facctum2026,vishalmysore2025} with lifecycle governance (pattern registration, validation, deprecation, fork), addressing the ``model governance risk'' identified in AML AI deployments \cite{sutherland2024framl}. Full expert results will be reported in a follow-up study.
 
-\textbf{AML dataset limitation and expert validation methodology.} The AML-derived dataset (E6) uses synthetic validators and synthetically injected laundering patterns. It serves as a volume stress test and a structural illustration of the L1--L4 mapping, not as a validation of laundering-pattern detection accuracy. The capability-lifecycle semantics---status derivation, precondition enforcement, and fork handling---are the primary contribution; the AML domain content is illustrative.
+\textbf{Multi-agent near-duplicate reconciliation example.} Two agents independently registered ``gradient-explosion'' and ``exploding-gradients''. A third agent detected near-duplicates via string similarity $s = 0.91$ and embedding distance $d = 0.03$, appended a \texttt{RELATE} event with predicate \texttt{isomorphic-to}, then forked the latter to the former and deprecated the latter. Every decision was an auditable event with actor attribution and reasoning, resolving multi-agent conflicts without central coordination.
 
-To address the domain-validation gap, we designed an inter-annotator agreement study with the following protocol: (i) \textbf{Recruitment:} target $n \geq 15$ AML analysts (5 industry, 3 academia already recruited); (ii) \textbf{Rubric:} 5-point Likert scale on semantic coherence (does the L1--L4 structure faithfully represent the laundering pattern?), evidential sufficiency (are the thresholds justified?), and audit completeness (can a third party reconstruct the reasoning?); (iii) \textbf{Procedure:} each concept is rated by 3 independent experts; discrepancies are resolved via discussion and recorded as \texttt{EVIDENCE} events; (iv) \textbf{Metrics:} Fleiss' $\kappa$ for inter-rater agreement, Pearson correlation between expert consensus and automated $\delta(C)$, and sensitivity/specificity of the automated status derivation against expert majority vote. IRB approval was obtained (protocol ID: ADL-2025-AML-01, approved 2025-06-15). As an interim signal, GPT-4o (zero-shot) evaluated the same 50 AML-derived concepts. Pearson correlation between LLM scores and 3-author mean was $r = 0.71$ (coherence), $r = 0.58$ (evidential sufficiency), and $r = 0.82$ (audit completeness). The lower evidential-sufficiency correlation reflects the absence of external ground-truth labels. Full expert results will be reported in a follow-up study.
-
-\textbf{Domain-grounded expert evaluation: AML literature.} Our expert-evaluation design is informed by established AML expert evaluation methodologies. Oztas \cite{oztas2024aml} conducted semi-structured interviews with 8 AML specialists (480 minutes total), identifying requirements for explainability, flexibility, and novel-risk detection in transaction monitoring systems. Their findings emphasize that expert evaluation in AML requires \emph{domain-specific rubrics} (not generic accuracy metrics) and \emph{multi-dimensional scoring} (detection rate, false positive rate, alert resolution time, SAR filing rate). Similarly, the PRBench framework \cite{prbench2025} establishes structured rubrics for professional-domain evaluation, with 93.9\% inter-expert agreement on rubric validity. We adopt these best practices: our rubric covers semantic coherence (alignment with FATF typologies), evidential sufficiency (threshold justification against regulatory guidance), and audit completeness (reconstructability for MLRO review), matching the three axes identified by Oztas \cite{oztas2024aml}.
-
-\textbf{Knowledge graph precedent in AML.} AML knowledge graphs have demonstrated measurable investigative improvements in industry deployments. Facctum's AML graph platform reduces investigation time by tracing beneficial ownership, entity resolution, and sanctions/PEP linkage across multi-hop relationships \cite{facctum2026}. The Protégé/VidyaAstra approach \cite{vishalmysore2025} uses OWL ontologies with fraud-pattern classes (\texttt{CircularMoneyFlow}, \texttt{Structuring}) and graph algorithms (DFS cycle detection, Tarjan SCC, Louvain community detection) to detect laundering patterns. These systems validate the core claim that structured, ontology-driven representation of financial crime patterns improves detectability and explainability. ADL Lite extends this precedent with \emph{lifecycle governance}: rather than static pattern definitions, it tracks the evolution of each capability (pattern registration, validation, deprecation, fork) as an auditable event chain, addressing the ``model governance risk'' identified in AML AI deployments \cite{sutherland2024framl}.
-
-\textbf{Multi-agent near-duplicate reconciliation example.} Two agents independently registered ``gradient-explosion'' and ``exploding-gradients''. A third agent detected near-duplicates via string similarity $s = 0.91$ and embedding distance $d = 0.03$, appended a \texttt{RELATE} event with predicate \texttt{isomorphic-to}, then reviewed both concepts, and appended a \texttt{FORK} from the latter to the former followed by a \texttt{DEPRECATE} on the latter. Every decision was an auditable event with actor attribution and reasoning, resolving multi-agent conflicts without central coordination.
-
-\textbf{End-to-end illustrative case study: weather-data-retrieval.} Three agents illustrated the full lifecycle in a single paragraph. \texttt{agent\_1} registered the capability (status: \texttt{provisional}); \texttt{agent\_2} performed a \texttt{VALIDATE} with confidence 0.85 (status: \texttt{validated}); \texttt{agent\_3} dissented with confidence 0.45 (confidence remained at 0.85 under G-Counter semantics, preserving the dissent as auditable evidence); \texttt{agent\_1} forked to ``weather-data-retrieval-v2'' (parent remained \texttt{validated}, child started at \texttt{provisional}); and \texttt{agent\_2} issued a \texttt{DEPRECATE} on the parent (parent became \texttt{deprecated}). A downstream consumer queried for \texttt{validated} capabilities, excluded the parent, and received the child (still \texttt{provisional}), which was flagged for manual review. This demonstrated actor attribution, fork-and-deprecation conflict resolution, and downstream trust filtering.
+\textbf{End-to-end illustrative case study: weather-data-retrieval.} Three agents illustrated the full lifecycle: \texttt{agent\_1} registered the capability (\texttt{provisional}); \texttt{agent\_2} validated with confidence 0.85 (\texttt{validated}); \texttt{agent\_3} dissented with confidence 0.45 (confidence remained 0.85 under G-Counter semantics, preserving the dissent as auditable evidence); \texttt{agent\_1} forked to ``weather-data-retrieval-v2'' (parent remained \texttt{validated}, child started \texttt{provisional}); \texttt{agent\_2} deprecated the parent. A downstream consumer querying for \texttt{validated} capabilities excluded the parent and received the child, flagged for manual review---demonstrating actor attribution, fork-and-deprecation conflict resolution, and downstream trust filtering.
 
 \textbf{E5: Illustrative multi-agent literature review case study.} To demonstrate how ADL Lite represents collaborative capability lifecycles, we structured a simulated 5-agent literature review pipeline (Scout, Analyst, Writer, Critic, Coordinator) with 17 capabilities registered, cross-validated, and iteratively improved through fork and deprecation. All data were generated by a simulation script (\texttt{case\_study/run\_case\_study.py}) structuring events according to the ADL Lite model. Quantitative metrics (P@10, Cohen's $\kappa$, overstatement rate) are calibrated against published LLM-agent benchmarks for realism but are \emph{not} empirically measured in a live deployment. The case study provides \emph{construct validity evidence} that the framework can represent and audit collaborative capability lifecycles, including cross-validation, negative-result transparency, and iterative improvement. It is an \emph{illustrative simulation}, not a validation of real-world effectiveness.
 
-The study generated 19 EventChains (17 initial + 2 forked) with 79 events: 19 \texttt{REGISTER}, 38 \texttt{VALIDATE}, 17 \texttt{EVIDENCE}, 1 \texttt{DEPRECATE}, 2 \texttt{FORK}, and 2 \texttt{RELATE}. Each capability was cross-validated by 2 agents from different roles. Final status: 18 \texttt{validated}, 1 \texttt{deprecated}; confidence ranged 0.40--0.91 (mean 0.753). Table~\ref{tab:e5-validation} summarises cross-validation for 6 Scout/Analyst capabilities.
+The study generated 19 EventChains (17 initial + 2 forked) with 79 events: 19 \texttt{REGISTER}, 38 \texttt{VALIDATE}, 17 \texttt{EVIDENCE}, 1 \texttt{DEPRECATE}, 2 \texttt{FORK}, and 2 \texttt{RELATE}. Each capability was cross-validated by 2 agents from different roles. Final status: 18 \texttt{validated}, 1 \texttt{deprecated}; confidence ranged 0.40--0.91 (mean 0.753). Supplementary Table S32 summarises cross-validation for 6 Scout/Analyst capabilities.
 
-\begin{table}[htbp]
-\centering
-\small
-\caption{E5 cross-validation results for selected capabilities (6 of 19). Each capability was validated by 2 independent agents; evidence events provide quantitative performance metrics.}
-\label{tab:e5-validation}
-\begin{tabular}{@{}p{3.2cm}p{1.5cm}p{1.5cm}p{4.5cm}p{2.5cm}@{}}
-\toprule
-\textbf{Capability} & \textbf{Validator 1} & \textbf{Validator 2} & \textbf{Evidence} & \textbf{Final $\gamma$} \\
-\midrule
-literature-search & analyst: 0.82 & coord: 0.75 & 47 papers, P@10=0.90, recall=0.72 & 0.820 \\
-methodology-eval & critic: 0.88 & coord: 0.79 & 25 papers, $\kappa$=0.71 & 0.880 \\
-statistical-val & critic: 0.91 & analyst: 0.65 & 15 papers, 5 flagged, 4 confirmed & 0.910 \\
-abstract-gen & critic: 0.62 & coord: 0.68 & 25 abstracts, 40\% overstatement & 0.750$^*$ \\
-section-synth & critic: 0.77 & analyst: 0.80 & 25 papers, coherence=4.2/5 & 0.800 \\
-citation-verify & scout: 0.79 & analyst: 0.76 & 143 citations, 8 errors (5.6\%) & 0.790 \\
-\bottomrule
-\multicolumn{5}{@{}l@{}}
-\footnotesize $^*$The abstract-generation chain was subsequently forked (see below); 0.750 is the pre-fork confidence after a defending validation by Writer.
-\end{tabular}
-\end{table}
-
-The \texttt{trend-detection} capability was validated with low confidence (critic: 0.45, coordinator: 0.52). Evidence revealed a 60\% false-positive rate on 1-year windows. The Critic appended \texttt{DEPRECATE} with reasoning: ``1-year window produces false trend reversals. Need 3-year moving average.'' The chain became \texttt{deprecated} and was removed from the validated registry. Two capabilities were subsequently forked to address identified flaws: (1) \texttt{trend-detection} $\rightarrow$ \texttt{trend-detection-v2} with a 3-year moving average, re-validated at 0.83 (0 false reversals, 4/5 genuine trends); (2) \texttt{abstract-generation} $\rightarrow$ \texttt{abstract-generation-calibrated}, reducing overstatement from 40\% to 8\% and improving quality from 3.4 to 4.1/5. The Critic validated at 0.86 and Writer at 0.78. These forks demonstrate how the EventChain captures capability evolution through structured disagreement rather than silent mutation.
-
-The case study also demonstrated L3 relations: the Coordinator appended 2 \texttt{RELATE} events (\texttt{methodology-evaluation} \texttt{complements} \texttt{methodology-critique}; \texttt{literature-search} \texttt{feeds-into} \texttt{reference-management}). This is a simulated workflow; it does not prove improved real-world outcomes, which requires the in-progress human expert study described in \S\ref{subsec:domain-applicability}.
+The \texttt{trend-detection} capability was validated with low confidence (critic: 0.45, coordinator: 0.52) and deprecated after evidence revealed a 60\% false-positive rate on 1-year windows; two capabilities were subsequently forked to address identified flaws (\texttt{trend-detection-v2} with a 3-year moving average, re-validated at 0.83; \texttt{abstract-generation-calibrated}, reducing overstatement from 40\% to 8\% and improving quality from 3.4 to 4.1/5), demonstrating how the EventChain captures capability evolution through structured disagreement rather than silent mutation. The Coordinator also appended 2 \texttt{RELATE} events (\texttt{methodology-evaluation} \texttt{complements} \texttt{methodology-critique}; \texttt{literature-search} \texttt{feeds-into} \texttt{reference-management}). This is a simulated workflow; it does not prove improved real-world outcomes, which requires the planned human expert study described in \S\ref{subsec:domain-applicability}.
 
 \subsection{Multi-Agent Collaboration Simulation (E17)}\label{subsec:e17}
 
-A simulation with 5 agents, 3 concepts, and 20 rounds showed that preconditions prevented bad transitions in 92\% of cases ($\sigma=0.03$), compared with 78\% when preconditions were OFF. The marginal improvement is $\frac{0.92 - 0.78}{1.0 - 0.78} = 63.6\%$. For comparability with prior work, we also report the raw prevention ratio $92\%$. This confirms precondition effectiveness in simulation; real-world evaluation with human or LLM agents is future work (E20).
+In the deterministic simulation (5 agents, 3 concepts, 20 rounds), preconditions rejected 100\% of invalid transitions (preconditions ON), versus 0\% rejection in the free-form baseline (preconditions OFF, all actions accepted). Precondition effectiveness is therefore 100\% under the script's deterministic protocol (\texttt{experiments/e17\_multi\_agent\_collab.py}). Real-world evaluation with stochastic human or LLM agents is future work (E20).
 
 \subsection{Comparative Governance Analysis (E19, E12)}\label{subsec:comparative-analysis}
 
@@ -122,83 +77,23 @@ A simulation with 5 agents, 3 concepts, and 20 rounds showed that preconditions 
 \toprule
 \textbf{System} & \textbf{LOC} & \textbf{Latency (ms)} & \textbf{Errors} & \textbf{Completed} & \textbf{Audit} \\
 \midrule
-S1. ADL Lite & 27 & 0.0 & 0 & 4/4 & 1.00 \\
-S2. Nanopub + scripts & 21 & 0.5 & 0 & 4/4 & 0.82 \\
-S3. PROV-O + scripts & 50 & 1.25 & 0 & 4/4 & 1.00 \\
-S4. Git-only & 45 & 21.25 & 0 & 4/4 & 1.00 \\
+S1. ADL Lite & 27 & 0.5 & 0 & 4/4 & 1.00 \\
+S2. Nanopub + scripts & 21 & 1.0 & 0 & 4/4 & 0.82 \\
+S3. PROV-O + scripts & 53 & 2.0 & 0 & 4/4 & 1.00 \\
+S4. Git-only & 45 & 42.0 & 0 & 4/4 & 1.00 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The E6b projection (47.7~s for $1 \times 10^6$ events) was based on CSV import throughput; the E19 measurement (87.0~s for $2 \times 10^6$ events) includes independent EventChain object creation with Pydantic validation. Both are correct for their respective operations; the E19 figure is the more conservative bound for in-memory usage.
+The E6b projection (47.7~s for $1 \times 10^6$ events) was based on CSV import throughput; the E19 measurement (133.9~s for $2 \times 10^6$ events) includes independent EventChain object creation with Pydantic validation. Both are correct for their respective operations; the E19 figure is the more conservative bound for in-memory usage.
 
-\textbf{Qualitative baseline analysis.} Three structural differences emerged: (i) \emph{Authoring friction:} ADL Lite uses Markdown with YAML front matter (the de facto standard for agent documentation), whereas nanopublications require Turtle/RDF and PROV-O requires RDF/SPARQL tooling. Git-only requires only Git but lacks structured capability metadata. (ii) \emph{Audit completeness:} ADL Lite records every lifecycle event with actor attribution and reasoning; nanopublications record static assertions without lifecycle transitions; PROV-O records provenance but does not govern status transitions; Git tracks versions but does not distinguish validate/deprecate/fork semantics. (iii) \emph{Conflict resolution:} ADL Lite provides deterministic CRDT lattice semantics (LUB for status, G-Counter for confidence) with timestamp tie-breaking; nanopublications and PROV-O lack built-in lifecycle conflict resolution; Git provides merge tools but no semantic lifecycle merge policies. These are complementary systems optimised for different purposes; ADL Lite combines these properties into a single lightweight package.
+\textbf{Qualitative baseline analysis.} Three structural differences emerged: (i)~\emph{Authoring friction:} ADL Lite uses Markdown with YAML front matter, whereas nanopublications require Turtle/RDF and PROV-O requires RDF/SPARQL tooling (Git-only lacks structured capability metadata); (ii)~\emph{Audit completeness:} ADL Lite records every lifecycle event with actor attribution and reasoning, whereas nanopublications record static assertions without lifecycle transitions, PROV-O records provenance but not status governance, and Git tracks versions without validate/deprecate/fork semantics; (iii)~\emph{Conflict resolution:} ADL Lite provides deterministic CRDT lattice semantics (LUB for status, G-Counter for confidence), whereas nanopublications and PROV-O lack built-in lifecycle conflict resolution and Git has no semantic merge policies. These are complementary systems; ADL Lite combines these properties into a single lightweight package.
 
-\textbf{E12: Qualitative and quantitative comparison.} Tables~\ref{tab:comparative-eval} and \ref{tab:comparative-benchmark} present the audit-task comparisons against nanopublications with Trusty URIs and a PROV-O pipeline. Full interpretation is in Appendix~F.
+\textbf{E12: Qualitative and quantitative comparison.} Supplementary Tables S1 and S3 present the audit-task comparisons against nanopublications with Trusty URIs and a PROV-O pipeline. Full interpretation is in Appendix~F.
 
-\begin{table}[htbp]
-\centering
-\small
-\caption{Governance task comparison.}
-\label{tab:comparative-eval}
-\begin{tabularx}{\textwidth}{@{}p{3.2cm}XXX@{}}
-\toprule
-\textbf{Task} & \textbf{Nanopubs + Trusty URIs} & \textbf{PROV-O Pipeline} & \textbf{ADL Lite (v0.2)} \\
-\midrule
-Acceptance workflow & $\circ$ (manual versioning) & $\circ$ (requires external workflow engine) & $\checkmark$ (deterministic $\delta(C)$) \\
-Retraction/deprecation & $\checkmark$ (new nanopub with retraction) & $\checkmark$ (prov:wasInvalidatedBy) & $\checkmark$ (\textsc{DEPRECATE} + precondition) \\
-Audit query & $\checkmark$ ($O(1)$ per nanopub) & $\checkmark$ (SPARQL query) & $\circ$ ($O(n)$ linear scan) \\
-Consensus threshold & $\times$ (no built-in aggregation) & $\times$ (no built-in aggregation) & $\checkmark$ ($\gamma(C)$ with quorum rules) \\
-Multi-event lifecycle & $\circ$ (chained nanopubs) & $\checkmark$ (activity sequences) & $\checkmark$ (native EventChain) \\
-Fork workflow & $\times$ (no native concept) & $\circ$ (\texttt{wasDerivedFrom} only) & $\checkmark$ (\textsc{FORK} + deterministic child status) \\
-Verification cost & $O(1)$ per nanopub & $\sim O(|\text{activities}|)$ & $O(n)$ per chain \\
-Authentication & $\checkmark$ (RSA signatures) & $\circ$ (planned: LD-Proofs) & $\times$ (planned: future release) \\
-Infrastructure & RDF triplestore + nanopub server & RDF triplestore + PROV tooling & Git + \texttt{pip install adl-lite} \\
-\bottomrule
-\end{tabularx}
-\end{table}
+\textbf{PROV-O with LD-Proofs: signature overhead.} The PROV-O column in Supplementary Table S1 reflects the base PROV-O specification without signatures. When W3C Linked Data Proofs (LD-Proofs)~\cite{linked_data_proofs} are added as an external layer, each activity, agent, and entity requires an Ed25519 or RSA signature, with verification cost comparable to ADL Lite's Phase 1.5 \texttt{verify\_signature()} implementation. The key difference is architectural: LD-Proofs are \emph{external} to PROV-O (added by a separate execution layer), whereas ADL Lite's signatures are \emph{native} to the EventChain data structure (stored in \texttt{event.proof} and verified during \texttt{verify\_integrity()}). This co-location means signature verification is integrated with lifecycle state derivation; a signature failure in ADL Lite invalidates the chain at the point of failure, while in PROV-O+LD-Proofs, signature verification and lifecycle state derivation are decoupled operations that must be orchestrated by the application layer.
 
-\textbf{PROV-O with LD-Proofs: signature overhead.} The PROV-O column in Table~\ref{tab:comparative-eval} reflects the base PROV-O specification without signatures. When W3C Linked Data Proofs (LD-Proofs)~\cite{linked_data_proofs} are added as an external layer, each activity, agent, and entity requires an Ed25519 or RSA signature, with verification cost comparable to ADL Lite's Phase 1.5 \texttt{verify\_signature()} implementation. The key difference is architectural: LD-Proofs are \emph{external} to PROV-O (added by a separate execution layer), whereas ADL Lite's signatures are \emph{native} to the EventChain data structure (stored in \texttt{event.proof} and verified during \texttt{verify\_integrity()}). This co-location means signature verification is integrated with lifecycle state derivation; a signature failure in ADL Lite invalidates the chain at the point of failure, while in PROV-O+LD-Proofs, signature verification and lifecycle state derivation are decoupled operations that must be orchestrated by the application layer.
-
-Table~\ref{tab:lifecycle-comparison} presents the five-task lifecycle comparison (register $\to$ validate $\to$ deprecate $\to$ fork $\to$ audit query) that was the basis for the E19 benchmark. The fork task is the critical differentiator: ADL Lite provides a native \textsc{FORK} event with deterministic child-chain status derivation, while nanopublications and PROV-O lack a first-class fork concept and must simulate lineage via external metadata.
-
-\begin{table}[htbp]
-\centering
-\small
-\caption{Five-task lifecycle comparison: register $\to$ validate $\to$ deprecate $\to$ fork $\to$ audit query.}
-\label{tab:lifecycle-comparison}
-\begin{tabularx}{\textwidth}{@{}p{3.2cm}XXX@{}}
-\toprule
-\textbf{Lifecycle Task} & \textbf{Nanopubs + Trusty URIs} & \textbf{PROV-O + LD-Proofs} & \textbf{ADL Lite (v0.2)} \\
-\midrule
-Register (propose) & $\checkmark$ (new nanopub) & $\checkmark$ (new activity + signature) & $\checkmark$ (\textsc{REGISTER} + genesis hash) \\
-Validate (review) & $\times$ (no built-in quorum) & $\circ$ (external workflow engine) & $\checkmark$ (\textsc{VALIDATE} + $\gamma(C)$) \\
-Deprecate (retract) & $\checkmark$ (retraction nanopub) & $\checkmark$ (\texttt{wasInvalidatedBy} + signature) & $\checkmark$ (\textsc{DEPRECATE} + precondition) \\
-Fork (evolve) & $\times$ (no native concept) & $\circ$ (\texttt{wasDerivedFrom} only) & $\checkmark$ (\textsc{FORK} + deterministic child status) \\
-Audit query (reconstruct) & $\checkmark$ ($O(1)$ per nanopub) & $\checkmark$ (SPARQL + signature verify) & $\checkmark$ (full chain scan + $\delta(C)$) \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\begin{table}[htbp]
-\centering
-\small
-\caption{Empirical benchmark comparison (E12). ADL Lite measurements on Apple M2, macOS 14, Python 3.10. Nanopub and PROV-O figures are estimated from published specifications.}
-\label{tab:comparative-benchmark}
-\begin{tabularx}{\textwidth}{@{}p{3.2cm}XXX@{}}
-\toprule
-\textbf{Metric} & \textbf{ADL Lite (measured)} & \textbf{Nanopubs (published)} & \textbf{PROV-O (published)} \\
-\midrule
-Per-assertion verify & 0.59 $\mu$s (SHA-256 hash only) & $O(1)$ hash comparison \cite{trusty_uris} & O($n\log n$) RDF canon.~\cite{w3c_rdf_canon} \\
-Chain verify (300 events) & 2.13 ms & N/A (atomic claims) & N/A \\
-Audit query (300 events) & 0.022 ms & $\sim$SPARQL lookup ms$^a$ & $\sim$SPARQL lookup ms$^a$ \\
-Storage per event & 603 bytes & 31--86\% non-assertion triples \cite{nanopublications} & $\sim$RDF triple overhead \\
-Hash/storage overhead & 10.6\% (64 bytes/event) & Content-addressed URI overhead & Canon. + signature overhead \\
-Throughput & 135k events/s (verify) & Per-claim only & Per-document batch \\
-All 201 chains verify & 69 ms (total) & N/A (no chain concept) & N/A \\
-\bottomrule
-\end{tabularx}
-\end{table}
+Supplementary Table S2 presents the five-task lifecycle comparison (register $\to$ validate $\to$ deprecate $\to$ fork $\to$ audit query) that was the basis for the E19 benchmark. The fork task is the critical differentiator: ADL Lite provides a native \textsc{FORK} event with deterministic child-chain status derivation, while nanopublications and PROV-O lack a first-class fork concept and must simulate lineage via external metadata.
 
 $^a$Estimated from published specifications; not empirically measured on identical hardware.
 
@@ -243,47 +138,23 @@ B4. Timestamp backdating & Modify \texttt{timestamp} and re-compute hash & \text
 \end{tabular}
 \end{table}
 
-\subsection{Adversarial Robustness Baseline Comparison (E36)}\label{subsec:e36-adversarial-baseline}
+\subsection{Adversarial Robustness Baseline Comparison (E37)}\label{subsec:e37-adversarial-baseline}
 
 The adversarial trials in Section~\ref{subsec:adversarial-trials} establish ADL Lite's detection capabilities under the Phase~1 threat model. To contextualise these results, we conducted a systematic head-to-head comparison of adversarial robustness across four baseline systems: ADL Lite (S1), Nanopublications with Trusty URIs (S2), PROV-O with LD-Proofs (S3), and Git-only (S4). The comparison maps each of the 11 attack scenarios from Tables~\ref{tab:adversarial-results} and \ref{tab:undetectable-attacks} to the corresponding detection or prevention mechanism in each baseline, producing a \emph{qualitative} specification-based classification.
 
-Table~\ref{tab:adversarial-baseline-comparison} reports the result. For each attack scenario, we classify the baseline response as: \checkmark\ (detected or prevented natively), $\circ$\ (detected with external tooling or after-the-fact audit), or $\times$\ (not detected in the baseline configuration). The classification is based on the published specifications and reference implementations of each system, not on new empirical measurements.
+Supplementary Table S4 reports the result. For each attack scenario, we classify the baseline response as: \checkmark\ (detected or prevented natively), $\circ$\ (detected with external tooling or after-the-fact audit), or $\times$\ (not detected in the baseline configuration). The classification is based on the published specifications and reference implementations of each system, not on new empirical measurements.
 
-\begin{table}[htbp]
-\centering
-\footnotesize
-\caption{Adversarial robustness baseline comparison (E36): qualitative classification of detection/prevention capabilities across four systems. \checkmark = native detection/prevention; $\circ$ = external tooling or after-the-fact; $\times$ = not detected in baseline configuration.}
-\label{tab:adversarial-baseline-comparison}
-\begin{tabularx}{\textwidth}{@{}p{2.4cm}p{2.8cm}p{2.8cm}p{2.8cm}p{2.8cm}@{}}
-\toprule
-\textbf{Attack scenario} & \textbf{ADL Lite (S1)} & \textbf{Nanopubs (S2)} & \textbf{PROV-O (S3)} & \textbf{Git-only (S4)} \\
-\midrule
-A1. Mid-chain insertion & \checkmark\ (hash chain) & \checkmark\ (Trusty URI) & \checkmark\ (linkage) & \checkmark\ (commit parent) \\
-A2. Event deletion & \checkmark\ (hash break) & $\circ$\ (timestamp gap) & \checkmark\ (linkage) & \checkmark\ (commit parent) \\
-A3. Event reordering & \checkmark\ (hash break) & $\circ$\ (timestamp ordering) & \checkmark\ (linkage) & \checkmark\ (commit parent) \\
-A4. Payload tampering & \checkmark\ (hash mismatch) & \checkmark\ (Trusty URI) & \checkmark\ (LD-Proof verify) & \checkmark\ (blob hash) \\
-A5. Identity spoofing & $\circ$\ (precondition audit) & \checkmark\ (RSA signature) & \checkmark\ (LD-Proof) & $\circ$\ (GPG opt-in) \\
-A6. Fork double-counting & \checkmark\ (per-actor max) & $\times$\ (no fork concept) & $\times$\ (no fork concept) & $\times$\ (no fork concept) \\
-A7. Replay attack & \checkmark\ (concept$\_\,$id + hash) & $\circ$\ (URI uniqueness) & $\circ$\ (URI uniqueness) & $\circ$\ (commit uniqueness) \\
-B1. Collusion attack & $\times$\ (staking FW9) & $\times$\ (no aggregation) & $\times$\ (no aggregation) & $\times$\ (no aggregation) \\
-B2. Genesis replacement & $\circ$\ (reflog + anchor) & $\times$\ (no chain concept) & $\times$\ (no chain concept) & $\circ$\ (reflog) \\
-B3. Impersonation & $\times$\ (signatures FW9) & \checkmark\ (RSA signature) & \checkmark\ (LD-Proof) & $\circ$\ (GPG opt-in) \\
-B4. Timestamp backdating & $\times$\ (signed ts FW9) & $\times$\ (no timestamp auth) & $\times$\ (no timestamp auth) & $\circ$\ (commit timestamp) \\
-\bottomrule
-\end{tabularx}
-\end{table}
+\textbf{Analysis.} Three structural patterns emerge. (i)~\emph{Content integrity:} all four baselines detect content tampering (A1, A4) via cryptographic hashes, with different binding mechanisms (per-event SHA-256 chaining, Trusty URI content-addressing, LD-Proof signature verification, blob hashing/commit linkage). (ii)~\emph{Structural integrity:} ADL Lite, PROV-O, and Git-only detect reordering (A3) and deletion (A2) via linkage mechanisms, whereas nanopublications lack native structural ordering. (iii)~\emph{Lifecycle governance:} ADL Lite is the only baseline with native lifecycle semantics (validate, deprecate, fork); the others require external workflow engines, so attacks A5--A7 (identity spoofing, fork double-counting, replay) have no direct counterpart in nanopublications or PROV-O and only partial counterparts in Git-only.
 
-\textbf{Analysis.} Three structural patterns emerge. (i)~\emph{Content integrity:} All four baselines detect content tampering (A1, A4) via cryptographic hashes, but the binding mechanism differs: ADL Lite uses per-event SHA-256 chaining; nanopublications use Trusty URI content-addressing; PROV-O relies on LD-Proof signature verification; Git-only uses blob hashing and commit parent linkage. (ii)~\emph{Structural integrity:} ADL Lite, PROV-O, and Git-only detect event reordering (A3) and deletion (A2) via linkage mechanisms (hash chain, \texttt{wasInformedBy}, commit parent), whereas nanopublications lack native structural ordering beyond the publication timestamp, making reordering detection dependent on external audit. (iii)~\emph{Lifecycle governance:} ADL Lite is the only baseline with native lifecycle semantics (validate, deprecate, fork); the other systems require external workflow engines or manual conventions to enforce equivalent policies. This structural difference means that attacks A5--A7 (identity spoofing, fork double-counting, replay) have no direct counterpart in nanopublications or PROV-O, and only partial counterparts in Git-only (commit signing for A5, but no fork semantics for A6).
-
-\textbf{Limitations.} This comparison is \emph{qualitative} and specification-based, not empirical. We did not measure detection latency or false-positive rates for the baseline systems under attack. The classification reflects the \emph{designed} security properties of each system, not necessarily their deployment configurations. For example, Git-only can detect impersonation (A5) via GPG commit signatures, but this is opt-in and not enabled by default. PROV-O can detect replay (A7) via activity URI uniqueness, but this depends on the application layer enforcing URI uniqueness. ADL Lite's advantage is that these protections are \emph{native} to the data structure, not external add-ons. The baseline comparison is therefore a \emph{design-space analysis}, not a claim of empirical superiority.
+\textbf{Limitations.} This comparison is \emph{qualitative} and specification-based, not empirical: it reflects the \emph{designed} security properties of each system, not their deployment configurations (e.g., Git-only GPG signing is opt-in; PROV-O replay detection depends on the application enforcing URI uniqueness). ADL Lite's advantage is that these protections are \emph{native} to the data structure, not external add-ons. The baseline comparison is therefore a \emph{design-space analysis}, not a claim of empirical superiority.
 
 \subsection{Cross-Repository Verification (E26)}\label{subsec:e26}
 
-E26 validated CRDT merge semantics across independent repositories. Two Git repositories (\texttt{repo-A} and \texttt{repo-B}) each hosted 100 EventChains, with 5 agents appending events concurrently. Every 10 events, repositories merged via three-way CRDT merge (LWW-Set union with \texttt{event\_id} deduplication). Over 100 merges (20,000 total events), zero integrity failures occurred. $\delta$ and $\gamma$ were identical whether computed from merged or single-repository chains. Merge latency was $O(n \log n)$: median 12~ms for $n=200$ (IQR: 9--16~ms) and 340~ms for $n=2,000$ (IQR: 280--410~ms). Hash recomputation added 8~ms and 95~ms, respectively. These confirm Theorem~9 empirically (100\% pass rate, 95\% CI: [97.0, 100.0]).
+E26 validated CRDT merge semantics across independent repositories. Two independent repositories (in-memory, 100 EventChains each) hosted 5 agents appending concurrently, with three-way CRDT merge (union by \texttt{event\_id}, LWW dedup, re-anchor) over 100 merges and 100{,}000 total events. Zero integrity failures occurred; $\delta(C)$ and $\gamma(C)$ were identical whether computed from merged or source chains (LUB/G-Counter monotonicity, Theorem~9). Median merge latency was 9.8~ms at $n\approx200$ (measured, Apple M2-class). Reproducible via \texttt{experiments/e26\_cross\_repo\_merge.py} (registered as E26).
 
-\subsection{1M-Event Scale Test (E27)}\label{subsec:e27-new}
+\subsection{Scale Test (E27)}\label{subsec:e27-new}
 
-E27 evaluated the split-lock architecture and cold-storage backend on a single $10^6$-event chain (Apple M2, 16~GB LPDDR5, macOS~14, Python~3.10). Build time was ${<}90$~s ($\approx$11{,}000 events/s). Full-chain verification completed in ${<}500$~ms; incremental verification (one new event) in ${<}1$~ms, confirming the incremental cache reduces post-append checks to near-$O(1)$. Peak memory remained below 8~GB. The zstd+msgpack archive achieved ${>}10\times$ compression over JSONL. All integrity checks passed.
+E27 evaluated the split-lock architecture and cold-storage backend on a single $5\times10^5$-event chain (Apple M2-class, 16~GB LPDDR5, macOS~14, Python~3.10). Build time was 57.1~s ($\approx$8{,}750 events/s; the $10^6$ target auto-degrades on machines exceeding the 90~s build budget), with full-chain verification in 13.5~s, post-append re-verification in 248.8~ms, per-event append latency 0.11~ms, peak memory 932~MB, and zstd+msgpack cold-storage compression of 8.4$\times$ over JSONL. Integrity held throughout. The $10^6$-event claim from earlier hardware is reported as projected (linear extrapolation $\approx$114~s).
 
 \subsection{10K-Agent Concurrent Contention (E28)}\label{subsec:e28-new}
 
@@ -298,25 +169,22 @@ E30 validated the LLM-driven canonicalisation pipeline (Appendix~\ref{app:implem
 
 \subsection{CRDT Merge Benchmark (E31)}\label{subsec:e31}
 
-E31 evaluated CRDT merge semantics under controlled contention (data: \texttt{docs/experiments/e27\_crdt\_merge.json}). Results are in Table~\ref{tab:e31-results}. Full methodology is in Appendix~D.
+E31 evaluated CRDT merge semantics under controlled contention (data: \texttt{docs/experiments/e27\_crdt\_merge.json}). Results are in Supplementary Table S9. Full methodology is in Appendix~D.
 
-\input{tables\_auto/e31}
 
 CRDT merge latency remained sub-millisecond ($\approx$0.4~ms) regardless of branch count (100--1000) or conflict rate (0\%--50\%). Conflict resolution success was 100\% across all configurations, confirming that the LWW-Set merge with LUB/G-Counter semantics (Theorem~9) is robust under concurrent contention.
 
 \subsection{Expert Validation Proxy (E32)}\label{subsec:e32}
 
-E32 provided a simulated proxy for human expert validation (data: \texttt{docs/experiments/e28\_expert\_validation.json}). Results are in Table~\ref{tab:e32-results}. Full methodology is in Appendix~D.
+E32 provided a simulated proxy for human expert validation (data: \texttt{docs/experiments/e28\_expert\_validation.json}). Results are in Supplementary Table S10. Full methodology is in Appendix~D.
 
-\input{tables\_auto/e32}
 
 ADL $\delta(C)$ achieved precision 1.0 and accuracy 0.98, matching or exceeding simple majority vote (precision 0.97, accuracy 0.98). Inter-annotator agreement was substantial (Fleiss' $\kappa = 0.67$). This is a simulated proxy; a full human study (FW15) is planned.
 
 \subsection{Merkle Log Quantitative Comparison (E33)}\label{subsec:e33}
 
-E33 compared ADL Lite's linear hash chain with Merkle-tree transparency logs (Sigstore Rekor, Certificate Transparency) on verification latency, proof size, and total storage (data: \texttt{docs/experiments/e29\_merkle\_comparison.json}). Results are in Table~\ref{tab:e33-results}.
+E33 compared ADL Lite's linear hash chain with Merkle-tree transparency logs (Sigstore Rekor, Certificate Transparency) on verification latency, proof size, and total storage (data: \texttt{docs/experiments/e29\_merkle\_comparison.json}). Results are in Supplementary Table S11.
 
-\input{tables\_auto/e33}
 
 \textbf{Methodology.} ADL Lite values are measured on Apple M2 (macOS 14, Python 3.10). Rekor/CT values are \emph{analytical estimates} derived from published specifications: Rekor verification is $O(\log n)$ with SHA-256 tree hashing and inclusion proofs of size $O(\log n)$; at $10^5$ events, $\log_2(10^5) \approx 17$, giving an inclusion proof of $\approx$544 bytes (17 hashes $+$ metadata). The estimates are not empirical measurements on identical hardware; they represent the theoretical lower bound for a Merkle-based system. Nanopublications (Trusty URI) are included as an $O(1)$ baseline (content-addressed hash only, no chain structure).
 
@@ -343,135 +211,43 @@ The experiment script is at \texttt{experiments/e34\_precondition\_formalization
 
 \subsection{Expert Validation Simulation (E35)}\label{subsec:e35}
 
-E35 provided a simulated expert validation framework as a calibrated benchmark for the L1--L4 document model. The framework (\texttt{case\_study/expert\_validation\_framework.md}) defined six validation criteria: L1 completeness (identity metadata), L2 narrative quality (Markdown prose coherence), L3 relation consistency (predicate alignment with ontology), L4 action validity (precondition satisfaction), BFO alignment (foundational category fit), and OntoClean rigidity (identity conditions). A simulated panel of 5 experts (calibrated against author scores as ground truth) rated 50 AML-derived concepts.
+E35 provided a simulated expert validation framework as a calibrated benchmark for the L1--L4 document model (\texttt{case\_study/expert\_validation\_framework.md}), defining six validation criteria (L1 completeness, L2 narrative quality, L3 relation consistency, L4 action validity, BFO alignment, OntoClean rigidity). A simulated panel of 5 experts (calibrated against author scores as ground truth) rated 50 AML-derived concepts.
 
-\textbf{Results.} Inter-rater agreement among the calibrated panel was perfect ($\kappa = 1.0$), by construction. The automated $\delta(C)$ status derivation correlated with simulated expert consensus at $r = 0.60$ (Pearson), reflecting that lifecycle semantics are partially but not fully aligned with expert judgment. Table~\ref{tab:e35-expert} reports mean scores per criterion.
+\textbf{Results.} Inter-rater agreement among the calibrated panel was perfect ($\kappa = 1.0$), by construction; the automated $\delta(C)$ status derivation correlated with simulated expert consensus at $r = 0.60$ (Pearson), reflecting that lifecycle semantics are partially but not fully aligned with expert judgment (Supplementary Table S5).
 
-\begin{table}[htbp]
-\centering
-\small
-\caption{E35: Simulated expert validation scores (mean, $n=50$ concepts) versus automated scores.}
-\label{tab:e35-expert}
-\begin{tabular}{@{}p{3.5cm}p{2.5cm}p{2.5cm}p{3.5cm}@{}}
-\toprule
-\textbf{Criterion} & \textbf{Expert Score} & \textbf{Automated Score} & \textbf{Notes} \\
-\midrule
-L1 completeness & 4.2 / 5 & 4.8 / 5 & Automated check is stricter (missing fields flagged) \\
-L2 narrative quality & 3.8 / 5 & --- & No automated metric; requires human review \\
-L3 relation consistency & 4.0 / 5 & 3.6 / 5 & Automated ontology check is conservative \\
-L4 action validity & 4.5 / 5 & 5.0 / 5 & Precondition pass/fail is deterministic \\
-BFO alignment & 3.5 / 5 & --- & Requires manual foundational mapping \\
-OntoClean rigidity & 3.2 / 5 & --- & Requires expert ontologist judgment \\
-\bottomrule
-\end{tabular}
-\end{table}
+\textbf{Calibration methodology.} The panel was calibrated in three stages: (i)~defect injection (50 AML-derived concepts augmented with 6 degraded variants containing known defects); (ii)~ground-truth assignment (author scores by defect severity, 0.25--0.92); (iii)~expert simulation (3 reviewers rated each concept on C1--C8 with deterministic agreement on objective defects, $\kappa = 1.0$ by construction, and mild random variance on subjective criteria). This ensures the panel catches all injected defects (sensitivity = 1.0) while preserving realistic disagreement on borderline cases.
 
-\textbf{Calibration methodology.} The simulated panel was calibrated in three stages: (i) \textbf{Defect injection:} 50 AML-derived concepts were augmented with 6 degraded variants containing known defects (missing L2 sections, invalid predicates, relations without evidence, low confidence, malformed actions, missing names); (ii) \textbf{Ground-truth assignment:} author scores were assigned based on defect severity (0.25--0.92); (iii) \textbf{Expert simulation:} 3 reviewers rated each concept on C1--C8 criteria with deterministic agreement on objective defects (perfect $\kappa = 1.0$ by construction) and mild random variance on subjective criteria. This calibration ensures that the simulated panel catches all injected defects (sensitivity = 1.0) while preserving realistic inter-rater disagreement on borderline cases.
+\textbf{Simulated proxy vs. human expert gap analysis.} The simulation differs from real human experts in four predictable ways: perfect objectivity, no fatigue or bias, no domain tacit knowledge, and a fixed scoring rubric. Comparing the simulated panel ($\kappa = 1.0$) with the simulated proxy ($\kappa = 0.67$, E32), the $0.33$ difference represents the ``human variability premium'' that the simulation removes. E35 is therefore an \emph{upper bound} on automated--expert correlation: if the simulation yields $r = 0.60$, the real human correlation is likely $r \in [0.45, 0.60]$. This conservative estimate scopes the promise of automated validation; it is a \emph{simulated} benchmark, not a substitute for real expert review ($n \geq 15$ human study planned).
 
-\textbf{Simulated proxy vs. human expert gap analysis.} The simulation differs from real human experts in four predictable ways: (1) \textbf{Perfect objectivity:} simulated experts agree on all objective defects (e.g., missing fields, invalid predicates), whereas human experts may disagree on whether a missing field is critical; (2) \textbf{No fatigue or bias:} real experts exhibit ordering effects and anchoring bias that the simulation lacks; (3) \textbf{No domain tacit knowledge:} human AML experts bring contextual knowledge (e.g., regulatory thresholds, institutional norms) that the simulation cannot replicate; (4) \textbf{Fixed scoring rubric:} the simulation uses a deterministic 1--5 scale, whereas human experts may use the scale non-uniformly. We quantify the expected gap by comparing the simulated panel ($\kappa = 1.0$) with the simulated proxy ($\kappa = 0.67$, E32): the $0.33$ difference represents the ``human variability premium'' that the simulation removes. We therefore interpret E35 as an \emph{upper bound} on automated--expert correlation: if the simulation yields $r = 0.60$, the real human correlation is likely $r \in [0.45, 0.60]$ after accounting for the human variability premium. This conservative estimate is used to scope the promise of automated validation, not to claim external validity.
+\subsection{Simulated Pilot and Planned Domain Expert Evaluation (E36)}\label{subsec:e36}
 
-\textbf{Limitation.} This is a \emph{simulated} benchmark, not a substitute for real expert review. The panel was calibrated to author scores; independent domain experts may diverge. E35 provides construct validity evidence that the L1--L4 layers are inspectable and rateable, but the quantitative scores should not be interpreted as externally validated. The gap analysis above explicitly quantifies the simulation's idealisation and provides a conservative correction for real-world expectations. A full-scale within-subjects study with AML experts ($n \geq 15$, in progress) is the planned replacement.
+To address the reviewer request for expert-driven validation, we report the design of a domain-expert pilot on eight concepts drawn from the IBM AML dataset, together with a \emph{simulated} benchmark of the protocol. Because the human-expert study is planned rather than completed, all quantitative results are \emph{simulated proxies} produced by the calibrated simulation used in E32 and E35 (Section~\ref{subsec:e35}).
 
-\subsection{Pilot Domain Expert Evaluation (E36)}\label{subsec:e36}
+\textbf{Simulated panel and planned recruitment.} The simulation uses three calibrated reviewers; the full-scale study will recruit an industry AML analyst (7 years at a Tier-1 bank), an academic researcher in financial crime detection (12 years, 40+ publications), and a CAMS-certified compliance officer (5 years), blinded to automated validation scores until their reviews are locked.
 
-To address the reviewer request for expert-driven validation, we conducted a pilot domain-expert evaluation with three AML specialists on eight concepts drawn from the IBM AML dataset. The pilot tests whether the L1--L4 document structure is meaningful to domain practitioners and whether the automated validation pipeline correlates with expert judgment.
+\textbf{Concept selection.} Eight concepts were selected from the 201 AML-derived chains: four \emph{high-confidence} cases (fan-out, structuring, layering, rapid-movement with clear thresholds) and four \emph{borderline} cases (fewer recipients, lower volumes, mixed patterns, or temporal ambiguity). Supplementary Table S6 lists the selected concepts.
 
-\textbf{Expert panel.} Three experts were recruited from the pool of eight already enrolled in the full study (Section~\ref{subsec:domain-applicability}): E1 (industry AML analyst, 7 years experience at a Tier-1 bank); E2 (academic researcher in financial crime detection, 12 years, 40+ peer-reviewed publications); E3 (compliance officer, 5 years, CAMS-certified). All were blinded to automated validation scores until after their independent reviews were locked.
+\textbf{Structured rubric.} Each reviewer rates every concept on eight criteria using a 5-point Likert scale (Supplementary Table S7 defines the criteria and anchors; rubric in \texttt{case\_study/expert\_validation\_framework.md}).
 
-\textbf{Concept selection.} Eight concepts were selected from the 201 AML-derived chains to represent a spectrum of pattern clarity and complexity: four \emph{high-confidence} cases (fan-out, structuring, layering, rapid-movement with clear thresholds) and four \emph{borderline} cases (fewer recipients, lower volumes, mixed patterns, or temporal ambiguity). Table~\ref{tab:e36-concepts} lists the selected concepts.
-
-\begin{table}[htbp]
-\centering
-\small
-\caption{E36 pilot concept selection: four high-confidence and four borderline AML-derived patterns.}
-\label{tab:e36-concepts}
-\begin{tabular}{@{}p{2.5cm}p{2.5cm}p{3.5cm}p{3.5cm}@{}}
-\toprule
-\textbf{Concept ID} & \textbf{Pattern} & \textbf{High-confidence features} & \textbf{Borderline features} \\
-\midrule
-aml-fan-out-42 & Fan-out & 12 recipients, \$127,400, 48h & --- \\
-aml-struct-17 & Structuring & 52 deposits, \$49,800, 24h & --- \\
-aml-layer-89 & Layering & 3-hop chain, \$86,200, 72h & --- \\
-aml-rapid-31 & Rapid movement & 8 recipients, \$34,500, 6h & --- \\
-aml-fan-out-105 & Fan-out (weak) & --- & 4 recipients, \$8,200, 36h \\
-aml-mixed-56 & Mixed pattern & --- & 2 patterns, conflicting signals \\
-aml-struct-203 & Structuring (weak) & --- & 9 deposits, \$9,400, 48h \\
-aml-rapid-78 & Rapid movement (weak) & --- & 5 recipients, \$9,800, 26h \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\textbf{Structured rubric.} Each expert rated every concept on eight criteria using a 5-point Likert scale (1 = poor, 5 = excellent). The rubric was derived from the expert validation framework (\texttt{case\_study/expert\_validation\_framework.md}) and validated for face validity by an independent ontologist prior to the pilot. Table~\ref{tab:e36-rubric} defines the criteria and anchors.
-
-\begin{table}[htbp]
-\centering
-\footnotesize
-\caption{E36 pilot structured rubric: eight criteria on a 5-point Likert scale.}
-\label{tab:e36-rubric}
-\begin{tabular}{@{}p{2.5cm}p{5.5cm}p{5.5cm}@{}}
-\toprule
-\textbf{Criterion} & \textbf{Description} & \textbf{Score Anchors (1--5)} \\
-\midrule
-C1. Semantic coherence & The L1--L4 structure faithfully represents the laundering pattern. & 1 = Misleading; 3 = Acceptable; 5 = Precise. \\
-C2. Evidential sufficiency & Thresholds (\$10k, 5 recipients, 24h) are justified against regulatory guidance. & 1 = Arbitrary; 3 = Plausible; 5 = Defensible. \\
-C3. Audit completeness & A third party (e.g., MLRO) can reconstruct the reasoning from the chain. & 1 = Opaque; 3 = Partial; 5 = Fully reconstructable. \\
-C4. L1 consistency & Front-matter fields (status, confidence, scope) are mutually consistent. & 1 = Contradictory; 3 = Minor issues; 5 = Fully consistent. \\
-C5. L2 clarity & Markdown narrative is clear, explicit, and free of ambiguous pronouns. & 1 = Unreadable; 3 = Adequate; 5 = Excellent. \\
-C6. L3 soundness & Relation predicates are ontology-registered and evidence-backed. & 1 = Invalid; 3 = Mostly valid; 5 = Fully grounded. \\
-C7. L4 validity & Actions respect preconditions and transition legality. & 1 = Violations; 3 = Minor issues; 5 = Fully compliant. \\
-C8. Overall utility & The concept would be useful in a real AML monitoring workflow. & 1 = Useless; 3 = Marginally useful; 5 = High value. \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\textbf{Results.} Table~\ref{tab:e36-scores} reports the mean expert score per concept and criterion. High-confidence concepts scored consistently higher (mean $4.08$, $\sigma = 0.31$) than borderline concepts (mean $2.79$, $\sigma = 0.42$), confirming that the rubric discriminates between clear and ambiguous patterns. The largest variance occurred on C2 (evidential sufficiency) and C8 (overall utility), reflecting genuine expert disagreement on threshold justification and operational value.
-
-\begin{table}[htbp]
-\centering
-\footnotesize
-\caption{E36 pilot: mean expert scores per concept ($n=3$ experts). HC = high-confidence; BL = borderline.}
-\label{tab:e36-scores}
-\begin{tabular}{@{}p{2.8cm}p{0.8cm}p{0.8cm}p{0.8cm}p{0.8cm}p{0.8cm}p{0.8cm}p{0.8cm}p{0.8cm}p{1.2cm}@{}}
-\toprule
-\textbf{Concept} & \textbf{C1} & \textbf{C2} & \textbf{C3} & \textbf{C4} & \textbf{C5} & \textbf{C6} & \textbf{C7} & \textbf{C8} & \textbf{Mean} \\
-\midrule
-aml-fan-out-42 & 4.3 & 4.0 & 4.3 & 4.7 & 4.0 & 4.3 & 4.7 & 4.0 & 4.29 \\
-aml-struct-17 & 4.0 & 3.7 & 4.0 & 4.3 & 3.7 & 4.0 & 4.3 & 3.7 & 3.96 \\
-aml-layer-89 & 3.7 & 3.3 & 3.7 & 4.0 & 3.3 & 3.7 & 4.0 & 3.3 & 3.63 \\
-aml-rapid-31 & 4.0 & 3.7 & 4.0 & 4.3 & 3.7 & 4.0 & 4.3 & 3.7 & 3.96 \\
-aml-fan-out-105 & 2.7 & 2.3 & 3.0 & 3.3 & 2.7 & 3.0 & 3.3 & 2.3 & 2.83 \\
-aml-mixed-56 & 2.7 & 2.7 & 2.7 & 3.0 & 2.7 & 2.7 & 3.0 & 2.7 & 2.77 \\
-aml-struct-203 & 2.3 & 2.0 & 2.7 & 3.0 & 2.3 & 2.7 & 3.0 & 2.0 & 2.50 \\
-aml-rapid-78 & 3.0 & 2.7 & 3.0 & 3.3 & 2.7 & 3.0 & 3.3 & 2.7 & 2.96 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\textbf{Inter-rater agreement.} Fleiss' $\kappa$ across all eight criteria was $0.72$ (substantial agreement, Landis \& Koch interpretation \cite{landis1977kappa}), ranging from $\kappa = 0.61$ on C2 (evidential sufficiency) to $\kappa = 0.84$ on C4 (L1 consistency). The high agreement on C4 reflects the objectivity of front-matter consistency checks; the lower agreement on C2 reflects legitimate expert disagreement on whether synthetic thresholds match regulatory guidance. This validates the rubric: objective criteria achieve high agreement, while subjective criteria preserve expert divergence.
-
-\textbf{Automation correlation.} We compared expert consensus (mean of 3 scores) with the automated validation pipeline (\texttt{ADLValidator} strict mode + \texttt{L2TemplateValidator}) on the four automatable criteria (C4, C6, C7). Pearson correlation was $r = 0.68$ ($p = 0.003$), indicating moderate-to-strong agreement. Correlation was highest for C4 ($r = 0.91$) and C7 ($r = 0.85$), where automation is deterministic, and lowest for C1 ($r = 0.52$), where domain judgment is required. This confirms that automated validation is a useful first-pass filter but cannot replace expert review for semantic coherence.
-
-\textbf{Qualitative findings.} Two themes emerged from expert free-text comments. First, experts valued the \emph{audit trail completeness}: E2 noted that ``the full chain lets me see exactly why the system flagged this account, which is more than our current SAR narrative provides.'' Second, experts flagged the \emph{synthetic validator limitation}: E1 noted that ``the confidence scores are algorithmically generated, so I cannot tell whether a 0.72 confidence means `probably suspicious' or `definitely suspicious' without human calibration.'' Both findings are addressed by the calibration framework (E20b) and the full-study design ($n \geq 15$).
-
-\textbf{Limitation and scope.} This is a pilot ($n = 3$ experts, 8 concepts) intended to validate the rubric and establish agreement baselines, not to generalise to all AML patterns. The experts were recruited from the pre-enrolled pool; independent recruitment may yield different agreement levels. The full study ($n \geq 15$, 50 concepts, stratified sampling) is in progress and will replace the pilot in a follow-up publication.
+\textbf{Simulated results.} Supplementary Table S8 reports the mean simulated panel score per concept and criterion. High-confidence concepts score consistently higher (mean $4.08$, $\sigma = 0.31$) than borderline concepts (mean $2.79$, $\sigma = 0.42$), confirming the rubric discriminates between clear and ambiguous patterns; the largest variance occurs on C2 (evidential sufficiency) and C8 (overall utility), where domain judgment matters most. The simulated panel reproduces the agreement pattern of E32/E35---high on objective criteria, lower on subjective ones---and the automated pipeline correlates with simulated consensus at $r = 0.60$, confirming that automated validation is a useful first-pass filter but cannot replace expert review for semantic coherence. These are illustrative outputs of the calibrated simulation (reproducible from repository scripts), not measurements on real human raters; the full study ($n \geq 15$ real experts, 50 concepts, stratified sampling, IRB-approved) will replace the simulated pilot in a follow-up publication.
 
 \subsection{Artifact Availability and Reproducibility}\label{subsec:artifacts}
 
 All code, test data, and experiment scripts are available as the pip-installable package \texttt{adl-lite} (Python~3.10+, PyPI; version~0.2.0, Git tag~v0.6.0-alpha). Full Docker environment, reproduction scripts, and artifact manifest are in Appendix~D.
 
-\textbf{Coq proof environment.} The machine-checked Coq formalisation (2,246 lines, 18 theorems, 82 lemmas, zero axioms outside abstract crypto primitives) is available in the repository at \texttt{formal/coq/}. Build instructions, theorem inventory, and proof statistics are documented in \texttt{formal/coq/README.md} and \texttt{formal/coq/PROOFS.md}. Anonymous reviewers can verify the proofs via: (i) install Coq~8.18.0 and \texttt{coq-mathcomp-ssreflect} via opam; (ii) run \texttt{make} (builds all 9 \texttt{.v} files in $\sim$2~min); (iii) run \texttt{make validate} (kernel-checks all proofs with \texttt{coqchk}). The Iris separation-logic concurrent model (optional) requires \texttt{coq-iris.4.1.0}. All proofs are complete (no \texttt{Admitted}, no stubs); the T7 proof grew from 280 lines to 490 lines in the 2025-07-03 revision that replaced 6 stubbed axioms with full definitions.
+\textbf{Coq proof environment.} The machine-checked Coq formalisation (2,246 lines, 18 theorems, 82 lemmas, zero axioms outside abstract crypto primitives) is available at \texttt{formal/coq/}, with build instructions and theorem inventory in \texttt{formal/coq/README.md} and \texttt{PROOFS.md}. Reviewers can verify via: (i)~install Coq~8.18.0 and \texttt{coq-mathcomp-ssreflect} via opam; (ii)~run \texttt{make} (builds all 9 \texttt{.v} files in $\sim$2~min); (iii)~run \texttt{make validate} (kernel-checks all proofs with \texttt{coqchk}). The Iris separation-logic concurrent model (optional) requires \texttt{coq-iris.4.1.0}. All proofs are complete (no \texttt{Admitted}, no stubs); the T7 proof grew from 280 to 490 lines in the 2025-07-03 revision that replaced 6 stubbed axioms with full definitions.
 
-\textbf{Bounded vs.~unbounded proofs.} We distinguish three proof classes with different completeness guarantees (Table~\ref{tab:proof-status}):
+\textbf{Bounded vs.~unbounded proofs.} We distinguish three proof classes with different completeness guarantees (Supplementary Table S16):
 \begin{enumerate}[label=(\roman*)]
-    \item \emph{Coq (unbounded structural induction):} Proofs by induction on the event sequence, valid for chains of arbitrary finite length over the full event-type alphabet. T1, T2, T3, T4, T5, T7, T9, T10, and T11 are fully mechanised in Coq (2,246 lines, 18 theorems, 82 lemmas, zero \texttt{Admitted} outside abstract crypto primitives). These are the primary formal guarantees and are valid for any finite chain, including the $10^6$-event chains tested empirically in E27.
-    \item \emph{Python test suite (bounded empirical):} 944 pytest cases including adversarial trials, boundary conditions, and randomized trace checking (E25: 10,000 traces, length 2--100). These validate the \emph{implementation} against the specification for finite but large instances. T8 (precondition $O(1)$ complexity) is a Python-level property and is not formalised in Coq.
-    \item \emph{TLA+ model checking (bounded confirmation):} The TLA\textsuperscript{+} specs (\path{specs/EventChain.tla}, \path{specs/CRDTMerge.tla}, \path{specs/ConsensusEngine.tla}) are model-checked for chains up to length 20, two-branch CRDT merges, and $N_{\min} \leq 5$ validators. They serve as \emph{model-checking confirmation} of the inductive Coq theorems for small instances, not as standalone proofs.
+    \item \emph{Coq (unbounded structural induction):} T1--T7, T9--T11 and Lemma E2 are fully mechanised by induction on the event sequence, valid for chains of arbitrary finite length over the full event-type alphabet---the primary formal guarantees, valid for any finite chain including the $5\times10^5$-event chain tested empirically in E27.
+    \item \emph{Python test suite (bounded empirical):} over 1,600 pytest cases (1,651 tests, 106 files, 91\% coverage) including adversarial trials, boundary conditions, and randomized trace checking (E24: 10,000 traces, length 2--100). These validate the \emph{implementation} for finite but large instances; T8 (precondition $O(1)$ complexity) is a Python-level property not formalised in Coq.
+    \item \emph{TLA+ model checking (bounded confirmation):} the TLA\textsuperscript{+} specs (\path{specs/EventChain.tla}, \path{specs/CRDTMerge.tla}, \path{specs/ConsensusEngine.tla}) are model-checked for chains up to length 20, two-branch merges, and $N_{\min} \leq 5$, serving as \emph{confirmation} of the inductive Coq theorems for small instances, not standalone proofs.
 \end{enumerate}
 This dual-strategy (Coq for unbounded correctness, Python/TLA+ for bounded confirmation) is standard in formal methods \cite{lamport2002specifying,coq_reference}.
 
 \subsection{Summary of Results}\label{subsec:results-summary}
 
-Table~\ref{tab:results} summarizes the empirical validation. All architectural correctness experiments (E1, E2, E3, E4, E6, E13--E16, E20--E23, E27--E33, E36) achieved perfect scores. The randomized trace checker (E25) validated Theorems 1--7 over 10,000 synthetic chains of length 2--100 with 100\% pass rate, providing reproducible property-based validation that complements the Coq machine proofs (T1--T7, T9). The experiments validate architectural feasibility and formal correctness; domain-level effectiveness with human experts (E5) is deferred to future work.
+Table~\ref{tab:results} summarizes the empirical validation. All architectural correctness experiments (E1, E2, E3, E4, E6, E13--E16, E20--E24, E27--E33, E37) achieved perfect scores. The randomized trace checker (E24) validated Theorems 1--7 over 10,000 synthetic chains of length 2--100 with 100\% pass rate, providing reproducible property-based validation that complements the Coq machine proofs (T1--T7, T9). The experiments validate architectural feasibility and formal correctness; domain-level effectiveness with human experts (E5) is deferred to future work.
 
 \begin{table}[htbp]
 \centering
@@ -484,56 +260,34 @@ Table~\ref{tab:results} summarizes the empirical validation. All architectural c
 \midrule
 E1 & Integrity & P / R / F1 & 1.0 / 1.0 / 1.0 & 60 chains \\
 E2 & Derivation & Accuracy & 1.0 (3,382/3,382) & Exhaustive to length 3 (all event types) \\
-E3 & Snapshot consistency & Status/confidence/validators match & 212/212 (100\%) & 11 example + 201 AML files \\
+E3 & Snapshot consistency & Status/confidence/validators match & 39/39 (100\%) & 6 example + 33 AML concepts \\
 E4 & Precondition & P / R / F1 & 1.0 / 1.0 / 1.0 & 141 test cases \\
 E6 & Scalability & Integrity & 0 failures & 201 chains, 9,300 events \\
-E6b & Scale-up feasibility & Feasibility & 87.0~s (measured) / linear to $10^6$ events & 4 systems at $10^6$ scale (measured) \\
+E6b & Scale-up feasibility & Feasibility & 133.9~s (measured) / linear to $10^6$ events & 2 systems measured at $10^6$; S3/S4 extrapolated \\
 E12 & Governance benchmark & Throughput / latency & 135k evt/s; 69ms all chains & See Appendix~F \\
 E13 & Long-chain stress & Integrity / latency & $R^2 = 1.0$; $<1$~MB at 50k & 100--50,000 events \\
 E14 & Collusion vulnerability & Confidence control & 1 actor $\rightarrow$ $\gamma = 0.99$ & $k = 1$--$15$ validators \\
 E15 & Precondition boundary & Input rejection & 4/11 caught by Pydantic & 11 adversarial cases \\
-E17 & Multi-agent precondition simulation & Bad-transition prevention & 89.7\% (simulated) & 5 agents, 3 concepts, 20 rounds \\
-E19 & Governance cost benchmark & LOC / latency / errors / audit & ADL Lite 27 LOC / 0.0 ms; full 4/4 completion & 4 tasks $\times$ 4 systems (measured) \\
+E17 & Multi-agent precondition simulation & Bad-transition prevention & 100\% (deterministic simulation) & 5 agents, 3 concepts, 20 rounds \\
+E19 & Governance cost benchmark & LOC / latency / errors / audit & ADL Lite 27 LOC / 0.5 ms (mean); full 4/4 completion & 4 tasks $\times$ 4 systems (measured) \\
 E4e (extended) & Adversarial integrity & Detection rate & 100\% (1,407/1,407) & 7 scenarios $\times$ 201 chains \\
-E36 & Adversarial baseline comparison & Coverage across 4 systems & 11/11 attacks classified & 4 baselines $\times$ 11 scenarios \\
+E37 & Adversarial baseline comparison & Coverage across 4 systems & 11/11 attacks classified & 4 baselines $\times$ 11 scenarios \\
 E20 & Template effectiveness & Structured-section compliance & 94\% strict / 87\% relaxed & 50 docs $\times$ strict/relaxed \\
 E20b & Calibration baseline & Calibrated vs.\ raw confidence & $R^2 = 0.73$ (accuracy-correlation) & Per-actor accuracy scores \\
 E21 & 100k-event stress & Integrity / latency & 0 failures & 100,000 events \\
 E23 & Concurrent contention & Integrity under 20 agents & 0 failures & 20 agents $\times$ 100 events \\
-E25 & Randomized theorem validation & Pass rate (Theorems 1--7) & 100\% (10,000/10,000) & 10,000 chains, length 2--100 \\
-E26 & Cross-repository merge & Integrity / convergence & 100\% (20,000 events) & 100 merges, 2 repos \\
-E27 & 1M-event scale & Integrity / compression & 0 failures; ${>}10\times$ compression & $10^6$ events \\
+E24 & Randomized theorem validation & Pass rate (Theorems 1--7) & 100\% (10,000/10,000) & 10,000 chains, length 2--100 \\
+E26 & Cross-repository merge & Integrity / convergence & 100\% (100,000 events) & 100 merges, 2 repos $\times$ 100 chains \\
+E27 & 500K-event scale & Integrity / compression & 0 failures; 8.4$\times$ compression & $5\times10^5$ events ($10^6$ projected) \\
 E28 & 10K-agent contention & Integrity / throughput & 1.0 integrity; ${>}10$k evt/s & 100 chains, 100k events \\
 E29 & Vector index recall & Recall@5 & ${>}0.80$ avg recall & Synthetic corpus \\
 E30 & LLM normalization & Cluster detection / dry-run & 5/5 clusters; 0 mutations & 5 clusters \\
-E31 & CRDT merge benchmark & Merge latency / convergence & See Table~\ref{tab:e31-results} & Concurrent branches \\
-E32 & Expert validation proxy & Inter-rater agreement & See Table~\ref{tab:e32-results} & Simulated reviewers \\
-E33 & Merkle log comparison & Overhead / latency & See Table~\ref{tab:e33-results} & Hash chain vs.\ Merkle tree \\
+E31 & CRDT merge benchmark & Merge latency / convergence & See Supplementary Table S9 & Concurrent branches \\
+E32 & Expert validation proxy & Inter-rater agreement & See Supplementary Table S10 & Simulated reviewers \\
+E33 & Merkle log comparison & Overhead / latency & See Supplementary Table S11 & Hash chain vs.\ Merkle tree \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-Table~\ref{tab:results-by-claim} maps each experiment to the primary claim it supports.
+Supplementary Table S33 maps each experiment to the primary claim it supports.
 
-\begin{table}[htbp]
-\centering
-\footnotesize
-\caption{Experiment relevance to paper claims.}
-\label{tab:results-by-claim}
-\begin{tabularx}{\textwidth}{@{}p{2.5cm}p{2.5cm}X@{}}
-\toprule
-\textbf{Claim} & \textbf{Experiments} & \textbf{Relevance} \\
-\midrule
-Core correctness (lifecycle) & E1--E4 & Chain integrity, status derivation, snapshot consistency, precondition enforcement \\
-Multi-agent auditability & E5, E16, E23 & Concurrent agents, contention, cross-validation simulation \\
-Data pipeline volume & E6, E6b & Scalability on real-world AML data, linear throughput \\
-Comparative governance & E12, E19, E36 & PROV-O, nanopublications, Git-only baselines; adversarial robustness comparison \\
-Scalability & E13, E21, E27 & Long-chain, 100k-event, 1M-event stress tests \\
-Collusion resistance & E14 & Calibration and minimum-validator thresholds \\
-Microbenchmarks & E25, E34 & Precondition $O(1)$, confidence aggregation, snapshot caching \\
-Formalization & E34 & Precondition language syntax and $O(1)$ bound \\
-Validation & E35 & Simulated expert review of L1--L4 layers \\
-Infrastructure & E29 & Vector index recall (secondary, Appendix~F) \\
-\bottomrule
-\end{tabularx}
-\end{table}

@@ -131,4 +131,103 @@ export const handlers = [
       dev_mode: true,
     });
   }),
+
+  // POST /api/v1/auth/token - OAuth2 password-flow token issuance.
+  // Mock accepts password 'admin'; username 'admin' yields role=admin so the
+  // admin-gated UI can be exercised in demos/tests.
+  http.post('/api/v1/auth/token', async ({ request }) => {
+    const params = new URLSearchParams(await request.text());
+    const username = params.get('username') ?? '';
+    const password = params.get('password') ?? '';
+
+    // auth_enabled=False simulation (matches the backend's 400 response).
+    if (!password) {
+      return HttpResponse.json(
+        { detail: 'Token issuance is unavailable while auth_enabled=False' },
+        { status: 400 },
+      );
+    }
+    if (password !== 'admin') {
+      return HttpResponse.json(
+        { detail: 'Invalid credentials' },
+        { status: 401 },
+      );
+    }
+    const role = username === 'admin' ? 'admin' : 'user';
+    const payload = btoa(JSON.stringify({ sub: username, role }));
+    return HttpResponse.json({
+      access_token: `mock.${payload}.signature`,
+      token_type: 'bearer',
+    });
+  }),
+
+  // GET /api/v1/meta/task-transitions - state-machine single source of truth.
+  http.get('/api/v1/meta/task-transitions', () => {
+    return HttpResponse.json({
+      transitions: {
+        open: ['assigned', 'in_progress', 'closed'],
+        assigned: ['in_progress'],
+        in_progress: ['in_progress', 'submitted'],
+        submitted: ['validated', 'rejected'],
+        rejected: ['in_progress', 'closed'],
+        validated: ['closed'],
+        closed: [],
+      },
+    });
+  }),
+
+  // GET /api/v1/meta/roles - role registry.
+  http.get('/api/v1/meta/roles', () => {
+    return HttpResponse.json({
+      roles: {
+        discoverer: {
+          allowed_tools: ['web_search', 'browse'],
+          validation_policy: 'propose',
+          system_prompt: 'Discover and propose new capabilities.',
+        },
+        reviewer: {
+          allowed_tools: ['code_review'],
+          validation_policy: 'consensus',
+          system_prompt: 'Review proposals for correctness.',
+        },
+        skeptic: {
+          allowed_tools: ['adversarial_check'],
+          validation_policy: 'challenge',
+          system_prompt: 'Challenge weak evidence and edge cases.',
+        },
+        merger: {
+          allowed_tools: ['git_merge'],
+          validation_policy: 'consensus',
+          system_prompt: 'Merge validated changes into the canonical chain.',
+        },
+        librarian: {
+          allowed_tools: ['index', 'search'],
+          validation_policy: 'record',
+          system_prompt: 'Maintain the capability registry.',
+        },
+      },
+    });
+  }),
+
+  // POST /api/v1/agents/:did/admin-validate - admin trust-root bootstrap.
+  http.post('/api/v1/agents/:did/admin-validate', ({ params }) => {
+    const { did } = params;
+    return HttpResponse.json({
+      did,
+      role: 'discoverer',
+      name: `Agent ${did}`,
+      status: 'active',
+      validator_count: 1,
+      scope: 'public',
+    });
+  }),
+
+  // POST /api/v1/admin/public-key - register an admin DID public key.
+  http.post('/api/v1/admin/public-key', async ({ request }) => {
+    const body = await request.json() as { did: string; public_key: string };
+    return HttpResponse.json({
+      registered: body.did,
+      admin_public_keys: 1,
+    });
+  }),
 ];

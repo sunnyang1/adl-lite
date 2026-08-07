@@ -202,12 +202,12 @@ def _interpolate_f_star(rows: list[dict]) -> float | None:
     for row in rows:
         if row["lazy_payoff_per_round"] <= E_HONEST:
             if prev is None:
-                return row["f"]
+                return float(row["f"])
             f0, y0 = prev["f"], prev["lazy_payoff_per_round"]
             f1, y1 = row["f"], row["lazy_payoff_per_round"]
             if y1 == y0:
-                return f1
-            return round(f0 + (E_HONEST - y0) * (f1 - f0) / (y1 - y0), 4)
+                return float(f1)
+            return float(round(f0 + (E_HONEST - y0) * (f1 - f0) / (y1 - y0), 4))
         prev = row
     return None
 

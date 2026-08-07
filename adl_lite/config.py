@@ -95,6 +95,10 @@ def get_api_config() -> dict:
         "quota_max_api_calls": quota_max_api_calls,
         "quota_max_entities": quota_max_entities,
         "quota_period": os.getenv("QUOTA_PERIOD", "monthly"),
+        # Admin credentials enable role="admin" JWT issuance (trust-root
+        # bootstrap for the agent control plane). Unset = no admin login.
+        "admin_username": os.getenv("ADMIN_USERNAME") or None,
+        "admin_password": os.getenv("ADMIN_PASSWORD") or None,
     }
 
 

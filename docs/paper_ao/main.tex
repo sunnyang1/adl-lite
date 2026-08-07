@@ -108,42 +108,78 @@ agent audit; capability registry; lifecycle audit; event sourcing; multi-agent s
 \section{Discussion}\label{sec:discussion}
 \input{sections/06_discussion}
 
-\section{Response to Reviewers}\label{sec:reviewer-response}
-\input{sections/08_reviewer_response}
-
 \section{Conclusion and Future Work}\label{sec:conclusion}
 \input{sections/07_conclusion}
 
 % ---------------------------------------------------------------------------
-% Appendices: Included in main paper for revise-and-resubmit.
-% For final journal submission, these may move to supplementary material.
+% Supplementary Material
+% The full appendices (OWL 2 DL axiomatization, SHACL shapes, adversarial
+% test suite, reproducibility protocol, proof sketches, and implementation
+% details) are provided in the accompanying supplementary document
+% (supplementary.pdf). For journal submission the detailed appendices have
+% been moved out of the main text; each summary subsection below preserves
+% the cross-reference labels used in the body so that in-text
+% \ref{app:...} references continue to resolve.
 % ---------------------------------------------------------------------------
 \appendix
+\section{Supplementary Material}\label{app:supplementary}
 
-\section{OWL 2 DL Axiomatization of ADL Lite Core Categories}\label{app:owl-dl}
-\input{sections/appendix_a}
+The full paper is accompanied by an online supplementary document
+(\texttt{supplementary.pdf}; sources under \texttt{supplementary/}) that
+contains the complete OWL~2 DL axiomatization, the SHACL shape graph, the
+adversarial integrity test suite, the reproducibility protocol, proof
+sketches for all formal theorems, the extended comparison tables, and the
+implementation infrastructure details. Each item below summarises the
+corresponding appendix and indicates where the full content can be found;
+all in-text references to the appendices resolve to the summaries below.
 
-%\section{PROV-O Export Example}\label{app:prov-o}
-%\input{sections/appendix_a}
+\subsection{OWL 2 DL Axiomatization}\label{app:owl-dl}
+The complete OWL~2 DL alignment fragment---core category axioms, bridge
+axioms equating ADL~Lite classes with BFO/IAO intersections, identity axioms,
+FORK lineage axioms, L3 relation predicates, ontological dependence axioms
+(D2--D5), lifecycle event classes, and the fourteen competency questions with
+their SPARQL queries---is provided in Appendix~A of the supplementary document
+(source: \texttt{supplementary/appendix\_a\_owl\_dl.tex}; executable Turtle:
+\texttt{supplementary/adl\_lite\_core\_v2.owl}). The fragment has been
+validated with ROBOT~\cite{jackson2019robot}: OWL~2 DL profile conformance,
+structural consistency, and SPARQL constraint verification are confirmed
+(full report: \texttt{docs/OWL2\_DL\_ROBOT\_VALIDATION\_REPORT.md}).
+\label{subsec:validation-robot}
 
-\section{SHACL Shape for L3 Relation Validation}\label{app:shacl}
-\input{sections/appendix_b}
+\subsection{SHACL Shapes}\label{app:shacl}
+The SHACL shape graph for L3 relation and L4 action validation (six shapes;
+five of eight constraints in SHACL Core, three requiring SHACL-SPARQL) is
+provided in Appendix~B of the supplementary document (source:
+\texttt{supplementary/appendix\_b\_shacl.tex}).
 
-\section{Adversarial Integrity Test Suite}\label{app:adversarial}
-\input{sections/appendix_c}
+\subsection{Adversarial Integrity Test Suite}\label{app:adversarial}
+The full adversarial integrity test suite, including the undetectable-attack
+taxonomy, collusion analyses, and the E4e adversarial trials, is provided in
+Appendix~C of the supplementary document (source:
+\texttt{supplementary/appendix\_c\_adversarial.tex}).
 
-\section{Experiment Runner and Reproducibility}\label{app:reproduce}
-\input{sections/appendix_d}
+\subsection{Experiment Runner and Reproducibility}\label{app:reproduce}
+The experiment runner, environment specification, data provenance, and full
+reproducibility protocol for experiments E1--E37 are provided in Appendix~D
+of the supplementary document (source:
+\texttt{supplementary/appendix\_d\_reproducibility.tex}).
 
-\section{Proof Sketches for Formal Theorems}\label{app:proofs}
-\input{sections/appendix_e}
+\subsection{Proof Sketches for Formal Theorems}\label{app:proofs}
+Complete proof sketches for all formal results (Theorems 1--9, the status
+lattice and CRDT theorems, the decidability and complexity results, and the
+Coq-verified statements) are provided in Appendix~E of the supplementary
+document (source: \texttt{supplementary/appendix\_e\_proofs.tex}).
 
-%\section{RDF-star Interoperability Demonstration}\label{app:rdfstar}
-%\input{sections/appendix_f}
-
-\input{supplementary/appendix_n_implementation}
+\subsection{Implementation Infrastructure Details}\label{app:implementation}
+Full module descriptions of the implementation layer---calibration, Semantic
+Web interoperability, split-lock concurrency, vector search, Merkle anchors,
+LLM canonicalisation, REST API, MCP server, SHACL validation, Neo4j adapter,
+CRDT multi-way merge, multi-tenant isolation, and the trust model---are
+provided in Appendix~N of the supplementary document (source:
+\texttt{supplementary/appendix\_n\_implementation.tex}).
 
 \bibliographystyle{plainnat}
+\setlength{\bibsep}{0.0em plus 0.3ex}
 \bibliography{references}
 
 \end{document}

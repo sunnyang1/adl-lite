@@ -140,3 +140,292 @@ export interface ValidatorVote {
   timestamp: string;
   reasoning: string;
 }
+
+// ---------------------------------------------------------------------------
+// Agents (M1a)
+// ---------------------------------------------------------------------------
+
+/** Role of a consensus agent */
+export type AgentRole =
+  | 'discoverer'
+  | 'reviewer'
+  | 'skeptic'
+  | 'merger'
+  | 'librarian'
+  | 'planner';
+
+/** Lifecycle status of an agent */
+export type AgentStatus = 'pending' | 'active' | 'deprecated';
+
+/** A single consensus agent */
+export interface Agent {
+  did: string;
+  role: AgentRole;
+  name: string;
+  status: AgentStatus;
+  validator_count: number;
+  scope: string;
+}
+
+/** Paginated agent list response */
+export interface AgentListResponse {
+  agents: Agent[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
+/** Response shape for agent registration/attestation/validation/deprecation */
+export type AgentResponse = Agent;
+
+/** Register a new agent */
+export interface AgentRegisterRequest {
+  name: string;
+  role: AgentRole;
+  scope?: string;
+  did?: string;
+  model?: string;
+  capabilities?: string[];
+  org_id?: string;
+  public_key?: string;
+  genesis_signature?: string;
+}
+
+/** Attest an agent with a signature */
+export interface AgentAttestRequest {
+  signature: string;
+  proof?: string;
+}
+
+/** Validate an agent as a validator */
+export interface AgentValidateRequest {
+  validator_did: string;
+  reason?: string;
+  confidence?: number;
+  signature?: string;
+}
+
+/** Deprecate an agent */
+export interface AgentDeprecateRequest {
+  actor: string;
+  reason?: string;
+}
+
+/** Event in an agent's history chain */
+export interface AgentHistoryEvent {
+  event_id: string;
+  event_type: string;
+  actor: string;
+  reasoning: string;
+  timestamp: string;
+  payload: Record<string, unknown>;
+}
+
+/** Agent history response */
+export interface AgentHistoryResponse {
+  adl_id: string;
+  events: AgentHistoryEvent[];
+}
+
+/** Agent reputation summary */
+export interface AgentReputationResponse {
+  did: string;
+  score_v2: number;
+  validate_count: number;
+  submit_count: number;
+  accepted_count: number;
+  task_success_rate: number;
+  fork_merge_rate: number;
+  deprecation_rate: number;
+  note: string;
+}
+
+/** Admin public-key registration request */
+export interface AdminPublicKeyRequest {
+  did: string;
+  public_key: string;
+}
+
+/**
+ * Admin public-key registration response.
+ *
+ * Matches the backend implementation: `registered` is the DID that was
+ * registered (a string), and `admin_public_keys` is the total count of keys.
+ */
+export interface AdminPublicKeyResponse {
+  registered: string;
+  admin_public_keys: number;
+}
+
+// ---------------------------------------------------------------------------
+// Auth (AUTH_ENABLED deployments)
+// ---------------------------------------------------------------------------
+
+/** OAuth2 password-flow login request (username + password/API key). */
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+/** OAuth2 password-flow token response from `POST /api/v1/auth/token`. */
+export interface LoginResponse {
+  access_token: string;
+  token_type: string;
+}
+
+// ---------------------------------------------------------------------------
+// Meta (state-machine single source of truth)
+// ---------------------------------------------------------------------------
+
+/**
+ * Legal task transitions, keyed by source status.
+ *
+ * Example:
+ * ```
+ * {
+ *   "open": ["assigned", "in_progress", "closed"],
+ *   "assigned": ["in_progress"],
+ *   "in_progress": ["in_progress", "submitted"],
+ *   "submitted": ["validated", "rejected"],
+ *   "rejected": ["in_progress", "closed"],
+ *   "validated": ["closed"],
+ *   "closed": []
+ * }
+ * ```
+ */
+export interface TaskTransitionsResponse {
+  transitions: Record<string, TaskStatus[]>;
+}
+
+/** Role definition returned by `GET /api/v1/meta/roles`. */
+export interface RoleDefinition {
+  allowed_tools: string[];
+  validation_policy: string;
+  system_prompt: string;
+}
+
+/** Role registry response from `GET /api/v1/meta/roles`. */
+export interface RolesResponse {
+  roles: Record<string, RoleDefinition>;
+}
+
+// ---------------------------------------------------------------------------
+// Tasks (M2)
+// ---------------------------------------------------------------------------
+
+/** Lifecycle status of a task */
+export type TaskStatus =
+  | 'open'
+  | 'assigned'
+  | 'in_progress'
+  | 'submitted'
+  | 'validated'
+  | 'rejected'
+  | 'closed';
+
+/** Task row in a paginated list */
+export interface TaskSummary {
+  task_id: string;
+  status: TaskStatus;
+  objective: string;
+  priority: number;
+  result_ref: string | null;
+}
+
+/** Paginated task list response */
+export interface TaskListResponse {
+  tasks: TaskSummary[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
+/** Full task detail */
+export interface TaskDetail {
+  task_id: string;
+  status: TaskStatus;
+  objective: string;
+  result_ref: string | null;
+  required_capabilities: string[];
+}
+
+/** Create a new task. Backend expects `priority` as an int (0=low, 1=medium, 2=high). */
+export interface TaskCreateRequest {
+  objective: string;
+  capabilities?: string[];
+  priority?: number;
+  created_by?: string;
+}
+
+/** Common response for task actions */
+export interface TaskActionResponse {
+  task_id: string;
+  event_type: string;
+  result_ref?: string;
+}
+
+/** Create-task response (returns `status`, not `event_type`) */
+export interface TaskCreateResponse {
+  task_id: string;
+  status: TaskStatus;
+}
+
+/** Claim a task */
+export interface TaskClaimRequest {
+  agent_did: string;
+}
+
+/** Submit a task result */
+export interface TaskSubmitRequest {
+  agent_did: string;
+  result_ref: string;
+  summary?: string;
+  confidence?: number;
+}
+
+/** Validate a submitted task */
+export interface TaskValidateRequest {
+  validator_did: string;
+  accepted: boolean;
+  confidence?: number;
+  critique?: string;
+}
+
+/** Outcome of closing a task */
+export type TaskCloseOutcome = 'accepted' | 'rejected' | 'cancelled';
+
+/** Close a task */
+export interface TaskCloseRequest {
+  actor: string;
+  outcome: TaskCloseOutcome;
+  reason?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Runtime / Trust (M3 / M4)
+// ---------------------------------------------------------------------------
+
+/** Per-agent runtime state */
+export interface RuntimeAgentState {
+  role: AgentRole;
+  running: boolean;
+  tasks_done: number;
+}
+
+/** Runtime status response */
+export interface RuntimeStatusResponse {
+  pending: number;
+  queue_depth: number;
+  agents: Record<string, RuntimeAgentState>;
+}
+
+/** Trust diversity toggle response */
+export interface TrustDiversityResponse {
+  diversity_enabled: boolean;
+}
+
+/** Checkpoint approval response */
+export interface CheckpointApproveResponse {
+  task_id: string;
+  approved: boolean;
+}

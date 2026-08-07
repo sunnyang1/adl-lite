@@ -1,3 +1,7 @@
+# Python virtual environments (recreated via pip install -e ".[dev]")
+.venv/
+venv/
+env/
 __pycache__/
 *.pyc
 *.pyo

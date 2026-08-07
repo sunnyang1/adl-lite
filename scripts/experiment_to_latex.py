@@ -111,14 +111,14 @@ def generate_e27(json_path: pathlib.Path, out_dir: pathlib.Path) -> None:
         )
 
     caption = (
-        "CRDT merge benchmark (E27). Merge latency and integrity check for 100--1000 "
+        "CRDT merge benchmark (E31). Merge latency and integrity check for 100--1000 "
         "concurrent branches at conflict rates 0\\%--50\\%. All values are mean wall-clock (ms)."
     )
-    label = "tab:e27-results"
+    label = "tab:e31-results"
 
     tex = make_tabular(columns, align, rows, label, caption)
-    (out_dir / "e27.tex").write_text(tex)
-    print("Generated", out_dir / "e27.tex")
+    (out_dir / "e31.tex").write_text(tex)
+    print("Generated", out_dir / "e31.tex")
 
 
 def generate_e28(json_path: pathlib.Path, out_dir: pathlib.Path) -> None:
@@ -173,10 +173,10 @@ def generate_e28(json_path: pathlib.Path, out_dir: pathlib.Path) -> None:
     )
 
     caption1 = (
-        "Expert validation proxy (E28). Simulated 3 annotators with accuracy settings "
+        "Expert validation proxy (E32). Simulated 3 annotators with accuracy settings "
         "0.85, 0.75, 0.90 on 50 concepts with known ground truth. ADL $\\delta(C)$ precision is 1.0."
     )
-    label1 = "tab:e28-results"
+    label1 = "tab:e32-results"
 
     tex1 = make_tabular(columns1, align1, rows1, label1, caption1)
 
@@ -220,14 +220,14 @@ def generate_e28(json_path: pathlib.Path, out_dir: pathlib.Path) -> None:
         ]
     )
 
-    caption2 = "Inter-annotator agreement (E28). Cohen's $\\kappa$ (pairwise) and Fleiss' $\\kappa$ (three-way)."
-    label2 = "tab:e28-agreement"
+    caption2 = "Inter-annotator agreement (E32). Cohen's $\\kappa$ (pairwise) and Fleiss' $\\kappa$ (three-way)."
+    label2 = "tab:e32-agreement"
 
     tex2 = make_tabular(columns2, align2, rows2, label2, caption2)
 
     combined = tex1 + "\n" + tex2
-    (out_dir / "e28.tex").write_text(combined)
-    print("Generated", out_dir / "e28.tex")
+    (out_dir / "e32.tex").write_text(combined)
+    print("Generated", out_dir / "e32.tex")
 
 
 def generate_e29(json_path: pathlib.Path, out_dir: pathlib.Path) -> None:
@@ -287,15 +287,15 @@ def generate_e29(json_path: pathlib.Path, out_dir: pathlib.Path) -> None:
         )
 
     caption = (
-        "Merkle log quantitative comparison (E29). ADL Lite ($O(n)$ hash chain) vs. "
+        "Merkle log quantitative comparison (E33). ADL Lite ($O(n)$ hash chain) vs. "
         "Sigstore Rekor ($O(\\log n)$ Merkle tree) at 100--100,000 events. Rekor values are "
         "analytical estimates; ADL values are measured."
     )
-    label = "tab:e29-results"
+    label = "tab:e33-results"
 
     tex = make_tabular(columns, align, rows, label, caption)
-    (out_dir / "e29.tex").write_text(tex)
-    print("Generated", out_dir / "e29.tex")
+    (out_dir / "e33.tex").write_text(tex)
+    print("Generated", out_dir / "e33.tex")
 
 
 def main() -> int:
@@ -305,9 +305,9 @@ def main() -> int:
     tables_dir.mkdir(parents=True, exist_ok=True)
 
     files = {
-        "e27": experiments_dir / "e27_crdt_merge.json",
-        "e28": experiments_dir / "e28_expert_validation.json",
-        "e29": experiments_dir / "e29_merkle_comparison.json",
+        "e31": experiments_dir / "e31_crdt_merge.json",
+        "e32": experiments_dir / "e32_expert_validation.json",
+        "e33": experiments_dir / "e33_merkle_comparison.json",
     }
 
     for path in files.values():
@@ -315,9 +315,9 @@ def main() -> int:
             print(f"ERROR: {path} not found", file=sys.stderr)
             return 1
 
-    generate_e27(files["e27"], tables_dir)
-    generate_e28(files["e28"], tables_dir)
-    generate_e29(files["e29"], tables_dir)
+    generate_e27(files["e31"], tables_dir)
+    generate_e28(files["e32"], tables_dir)
+    generate_e29(files["e33"], tables_dir)
 
     print("Done.")
     return 0

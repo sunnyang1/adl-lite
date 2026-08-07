@@ -24,6 +24,8 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
+# P0-2: chain-type marker so discovery listing excludes agent/task chains.
+from .agents.identity import chain_kind as _chain_kind
 from .consensus import ConsensusEngine
 from .logging_config import get_logger
 from .models import (
@@ -102,14 +104,40 @@ def _get_engine() -> ConsensusEngine:
                                 event.hash = raw["hash"]
                             if "_prev_hash" in raw:
                                 event._prev_hash = raw["_prev_hash"]
+                            if "previous_event_id" in raw:
+                                event.previous_event_id = raw["previous_event_id"]
+                            if "signature" in raw:
+                                event.signature = raw["signature"]
+                            if "proof" in raw:
+                                event.proof = raw["proof"]
                             chain.append(event)
                         _engine.chains[cid] = chain
     return _engine
 
 
 def _save_engine(engine: ConsensusEngine) -> None:
-    """Persist engine state to disk."""
-    payload = {"chains": {cid: chain.history() for cid, chain in engine.chains.items()}}
+    """Persist engine state to disk (full event fields incl. signature/proof)."""
+    payload = {
+        "chains": {
+            cid: [
+                {
+                    "event_id": e.event_id,
+                    "event_type": e.event_type.value,
+                    "actor": e.actor,
+                    "reasoning": e.reasoning,
+                    "timestamp": e.timestamp,
+                    "hash": e.hash,
+                    "_prev_hash": getattr(e, "_prev_hash", ""),
+                    "previous_event_id": e.previous_event_id,
+                    "signature": e.signature,
+                    "proof": e.proof,
+                    "payload": e.payload,
+                }
+                for e in chain.events
+            ]
+            for cid, chain in engine.chains.items()
+        }
+    }
     _state_path.parent.mkdir(parents=True, exist_ok=True)
     _state_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
@@ -119,19 +147,40 @@ def _save_engine(engine: ConsensusEngine) -> None:
 # ---------------------------------------------------------------------------
 
 
-def create_mcp_server(state_path: str | None = None) -> FastMCP:
+# ---------------------------------------------------------------------------
+# MCP write-tool gate (P0-3). stdio has no auth context, so write tools are
+# rejected unless an explicit admin token is configured (streamable-http only
+# can carry it via an Authorization header — see P1-1 in the implementation
+# plan).
+# ---------------------------------------------------------------------------
+
+_MCP_ADMIN_TOKEN: str | None = None
+
+
+def _mcp_write_allowed() -> bool:
+    return bool(_MCP_ADMIN_TOKEN)
+
+
+def create_mcp_server(
+    state_path: str | None = None,
+    admin_token: str | None = None,
+) -> FastMCP:
     """Create and configure a FastMCP server for ADL Lite.
 
     Args:
         state_path: Path to consensus state JSON file. Defaults to
             ``.adl/state.json`` in the current working directory.
+        admin_token: Bearer token required for MCP write tools (P0-3/P1-1).
+            ``None`` (default) denies all write tools; only meaningful for
+            streamable-http transport (stdio has no auth context).
 
     Returns:
-        A configured FastMCP instance with 10 tools, 2 resources, 1 prompt.
+        A configured FastMCP instance with agent + consensus tools.
     """
-    global _state_path, _engine
+    global _state_path, _engine, _MCP_ADMIN_TOKEN
     if state_path is not None:
         _state_path = Path(state_path)
+    _MCP_ADMIN_TOKEN = admin_token
     _engine = None  # Reset engine so it re-loads from (potentially new) state_path
 
     mcp = FastMCP("adl-lite", instructions="ADL Lite capability-lifecycle registry MCP server")
@@ -351,8 +400,12 @@ def create_mcp_server(state_path: str | None = None) -> FastMCP:
         list, total count, offset, and limit."""
         engine = _get_engine()
         # Scope ACL: only public-scope capabilities are listed (no tenant
-        # context exists for MCP callers).
-        caps = sorted(cid for cid, chain in engine.chains.items() if _is_public(chain))
+        # context exists for MCP callers). P0-2: discovery chains only.
+        caps = sorted(
+            cid
+            for cid, chain in engine.chains.items()
+            if _is_public(chain) and _chain_kind(chain) == "discovery"
+        )
         total = len(caps)
         slice_caps = caps[offset : offset + limit]
         return {
@@ -380,6 +433,378 @@ def create_mcp_server(state_path: str | None = None) -> FastMCP:
             from_status=from_status,
             to_status=to_status,
         )
+
+    # ------------------------------------------------------------------
+    # M1b agent tools. Write tools require the admin token (P0-3); read
+    # tools expose public-scope agents only.
+    # ------------------------------------------------------------------
+
+    @mcp.tool()
+    def adl_agent_register(
+        name: str,
+        role: str,
+        capabilities: list[str] | None = None,
+        scope: str = "public",
+        public_key: str = "",
+    ) -> dict[str, Any]:
+        """Register an agent identity (write tool; requires admin token)."""
+        if not _mcp_write_allowed():
+            return {"ok": False, "error": "MCP write tools require admin token (P0-3)"}
+        from .agents.identity import AgentProfile, AgentRegistry, AgentRole
+
+        engine = _get_engine()
+        try:
+            profile = AgentProfile(
+                did="",
+                role=AgentRole(role),
+                name=name,
+                capabilities=capabilities or [],
+                scope=scope,
+            )
+            registry = AgentRegistry(engine=engine)
+            chain = registry.register_agent(profile, public_key=public_key or None)
+        except (ValueError, Exception) as exc:  # noqa: BLE001
+            return {"ok": False, "error": str(exc)}
+        _save_engine(engine)
+        return {
+            "ok": True,
+            "did": profile.did,
+            "status": registry.agent_status(profile.did).value,
+            "validator_count": len(registry._agent_validators(chain)),
+        }
+
+    @mcp.tool()
+    def adl_agent_attest(did: str, signature: str) -> dict[str, Any]:
+        """Bind a caller-side genesis signature (write tool; requires admin token)."""
+        if not _mcp_write_allowed():
+            return {"ok": False, "error": "MCP write tools require admin token (P0-3)"}
+        from .agents.identity import AgentRegistry
+
+        engine = _get_engine()
+        chain = engine.chains.get(did)
+        if chain is None or _chain_kind(chain) != "agent":
+            return {"ok": False, "did": did, "error": "not registered"}
+        chain.events[0].signature = signature
+        _save_engine(engine)
+        registry = AgentRegistry(engine=engine)
+        return {"ok": True, "did": did, "status": registry.agent_status(did).value}
+
+    @mcp.tool()
+    def adl_agent_validate(
+        did: str,
+        actor_did: str,
+        reason: str = "",
+        confidence: float = 0.9,
+        signature: str = "",
+        admin: bool = False,
+    ) -> dict[str, Any]:
+        """Validate an agent identity (write tool; requires admin token)."""
+        if not _mcp_write_allowed():
+            return {"ok": False, "error": "MCP write tools require admin token (P0-3)"}
+        from .agents.identity import AgentRegistry
+
+        engine = _get_engine()
+        registry = AgentRegistry(engine=engine, admin_calls_allowed=admin)
+        try:
+            event = registry.validate_agent(
+                did,
+                actor_did,
+                reason=reason,
+                confidence=confidence,
+                signature=signature,
+                admin=admin,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "did": did, "error": str(exc)}
+        _save_engine(engine)
+        return {
+            "ok": True,
+            "did": did,
+            "event_type": event.event_type.value,
+            "status": registry.agent_status(did).value,
+        }
+
+    @mcp.tool()
+    def adl_agent_get(did: str) -> dict[str, Any]:
+        """Get an agent profile (public scope only)."""
+        from .agents.identity import AgentRegistry
+
+        engine = _get_engine()
+        chain = engine.chains.get(did)
+        if chain is None or _chain_kind(chain) != "agent":
+            return {"did": did, "error": "not registered"}
+        if not _is_public(chain):
+            return {"did": did, "error": "not registered"}
+        registry = AgentRegistry(engine=engine)
+        profile = registry.resolve_profile(chain)
+        return {
+            "did": did,
+            "role": profile.role.value,
+            "name": profile.name,
+            "capabilities": profile.capabilities,
+            "scope": profile.scope,
+            "status": registry.agent_status(did).value,
+        }
+
+    @mcp.tool()
+    def adl_agent_list(offset: int = 0, limit: int = 50) -> dict[str, Any]:
+        """List registered agents (public scope only)."""
+        from .agents.identity import AgentRegistry
+
+        engine = _get_engine()
+        registry = AgentRegistry(engine=engine)
+        profiles = [p for p in registry.list_agents() if _is_public(engine.chains[p.did])]
+        total = len(profiles)
+        slice_items = profiles[offset : offset + limit]
+        return {
+            "agents": [
+                {
+                    "did": p.did,
+                    "role": p.role.value,
+                    "name": p.name,
+                    "status": registry.agent_status(p.did).value,
+                }
+                for p in slice_items
+            ],
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+        }
+
+    @mcp.tool()
+    def adl_agent_deprecate(did: str, actor: str, reason: str = "") -> dict[str, Any]:
+        """Decommission an agent (write tool; requires admin token)."""
+        if not _mcp_write_allowed():
+            return {"ok": False, "error": "MCP write tools require admin token (P0-3)"}
+        from .agents.identity import AgentRegistry
+
+        engine = _get_engine()
+        registry = AgentRegistry(engine=engine)
+        try:
+            registry.deprecate_agent(did, actor, reason)
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "did": did, "error": str(exc)}
+        _save_engine(engine)
+        return {"ok": True, "did": did, "status": registry.agent_status(did).value}
+
+    # ------------------------------------------------------------------
+    # M2 task tools. Write tools require the admin token (P0-3).
+    # ------------------------------------------------------------------
+
+    @mcp.tool()
+    def adl_task_create(
+        objective: str, capabilities: list[str] | None = None, priority: int = 0
+    ) -> dict[str, Any]:
+        """Create a task chain (write tool; requires admin token)."""
+        if not _mcp_write_allowed():
+            return {"ok": False, "error": "MCP write tools require admin token (P0-3)"}
+        from .agents.task import TaskRegistry
+
+        engine = _get_engine()
+        registry = TaskRegistry(engine=engine)
+        task = registry.create_task(
+            objective=objective, required_capabilities=capabilities or [], priority=priority
+        )
+        _save_engine(engine)
+        return {"ok": True, "task_id": task.task_id, "status": task.status.value}
+
+    @mcp.tool()
+    def adl_task_claim(task_id: str, agent_did: str) -> dict[str, Any]:
+        """Claim a task (write tool; requires admin token)."""
+        if not _mcp_write_allowed():
+            return {"ok": False, "error": "MCP write tools require admin token (P0-3)"}
+        from .agents.task import TaskRegistry
+
+        engine = _get_engine()
+        registry = TaskRegistry(engine=engine)
+        try:
+            ev = registry.claim(task_id, agent_did)
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "task_id": task_id, "error": str(exc)}
+        _save_engine(engine)
+        return {"ok": True, "task_id": task_id, "event_type": ev.event_type.value}
+
+    @mcp.tool()
+    def adl_task_submit(
+        task_id: str, agent_did: str, result_ref: str, summary: str = "", confidence: float = 0.5
+    ) -> dict[str, Any]:
+        """Submit a task result (write tool; requires admin token)."""
+        if not _mcp_write_allowed():
+            return {"ok": False, "error": "MCP write tools require admin token (P0-3)"}
+        from .agents.task import TaskRegistry
+
+        engine = _get_engine()
+        registry = TaskRegistry(engine=engine)
+        try:
+            ev = registry.submit(task_id, agent_did, result_ref, summary, confidence)
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "task_id": task_id, "error": str(exc)}
+        _save_engine(engine)
+        return {"ok": True, "task_id": task_id, "event_type": ev.event_type.value}
+
+    @mcp.tool()
+    def adl_task_validate(
+        task_id: str,
+        validator_did: str,
+        accepted: bool,
+        confidence: float = 0.8,
+        critique: str = "",
+    ) -> dict[str, Any]:
+        """Accept/reject a task submission (write tool; requires admin token)."""
+        if not _mcp_write_allowed():
+            return {"ok": False, "error": "MCP write tools require admin token (P0-3)"}
+        from .agents.task import TaskRegistry
+
+        engine = _get_engine()
+        registry = TaskRegistry(engine=engine)
+        try:
+            ev = registry.validate_result(task_id, validator_did, accepted, confidence, critique)
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "task_id": task_id, "error": str(exc)}
+        _save_engine(engine)
+        return {"ok": True, "task_id": task_id, "event_type": ev.event_type.value}
+
+    @mcp.tool()
+    def adl_task_close(task_id: str, actor: str, outcome: str, reason: str = "") -> dict[str, Any]:
+        """Close a task (write tool; requires admin token)."""
+        if not _mcp_write_allowed():
+            return {"ok": False, "error": "MCP write tools require admin token (P0-3)"}
+        from .agents.task import TaskRegistry
+
+        engine = _get_engine()
+        registry = TaskRegistry(engine=engine)
+        try:
+            ev = registry.close(task_id, actor, outcome, reason)  # type: ignore[arg-type]
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "task_id": task_id, "error": str(exc)}
+        _save_engine(engine)
+        return {"ok": True, "task_id": task_id, "event_type": ev.event_type.value}
+
+    @mcp.tool()
+    def adl_task_get(task_id: str) -> dict[str, Any]:
+        """Get a task's derived status and result reference."""
+        from .agents.task import TaskRegistry
+
+        engine = _get_engine()
+        if task_id not in engine.chains:
+            return {"ok": False, "task_id": task_id, "error": "not registered"}
+        registry = TaskRegistry(engine=engine)
+        t = registry.get_task(task_id)
+        return {
+            "ok": True,
+            "task_id": task_id,
+            "status": t.status.value,
+            "objective": t.objective,
+            "result_ref": t.result_ref,
+        }
+
+    @mcp.tool()
+    def adl_task_list(status: str = "", offset: int = 0, limit: int = 50) -> dict[str, Any]:
+        """List tasks (optionally filtered by status)."""
+        from .agents.task import TaskRegistry, TaskStatus
+
+        engine = _get_engine()
+        registry = TaskRegistry(engine=engine)
+        st = TaskStatus(status) if status else None
+        tasks = [
+            {
+                "task_id": t.task_id,
+                "status": t.status.value,
+                "objective": t.objective,
+                "priority": t.priority,
+            }
+            for t in registry.list_tasks(status=st)
+        ]
+        total = len(tasks)
+        return {
+            "tasks": tasks[offset : offset + limit],
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+        }
+
+    # ------------------------------------------------------------------
+    # M3: runtime tools. adl_task_enqueue is fire-and-forget: it lands the
+    # task on the chain (persistent); the run_forever loop consumes it via
+    # the volatile queue (results polled through adl_task_get — plan risk 5).
+    # ------------------------------------------------------------------
+
+    @mcp.tool()
+    def adl_task_enqueue(
+        objective: str,
+        capabilities: list[str] | None = None,
+        input_ref: str = "",
+        priority: int = 0,
+    ) -> dict[str, Any]:
+        """Enqueue a task for the runtime (write tool; requires admin token).
+        Fire-and-forget: returns immediately with a task_id; poll
+        adl_task_get for the result."""
+        if not _mcp_write_allowed():
+            return {"ok": False, "error": "MCP write tools require admin token (P0-3)"}
+        from .agents.task import TaskRegistry
+
+        engine = _get_engine()
+        registry = TaskRegistry(engine=engine)
+        task = registry.create_task(
+            objective=objective,
+            required_capabilities=capabilities or [],
+            priority=priority,
+            input_ref=input_ref or None,
+            created_by="mcp",
+        )
+        _save_engine(engine)
+        return {
+            "ok": True,
+            "task_id": task.task_id,
+            "status": task.status.value,
+            "note": "fire-and-forget: poll adl_task_get for the result",
+        }
+
+    @mcp.tool()
+    def adl_runtime_start(did: str) -> dict[str, Any]:
+        """Validate an agent for runtime execution (read tool). The
+        run_forever loop itself is started in-process via ``adl-lite run``
+        (single-process deployment, P1-4); this tool confirms the agent is
+        registered and reports its status."""
+        from .agents.identity import AgentRegistry
+
+        engine = _get_engine()
+        registry = AgentRegistry(engine=engine)
+        profile = registry.get_agent(did)
+        if profile is None:
+            return {"ok": False, "did": did, "error": "not registered"}
+        return {
+            "ok": True,
+            "did": did,
+            "role": profile.role.value,
+            "status": registry.agent_status(did).value,
+            "note": "run_forever loop: adl-lite run --did <did> (single-process)",
+        }
+
+    @mcp.tool()
+    def adl_agent_reputation(did: str) -> dict[str, Any]:
+        """Weak-signal reputation for an agent (M4, read tool; ranking only,
+        P1-7). Public-scope agents only (no tenant context in MCP)."""
+        from .agents.identity import AgentRegistry, chain_kind
+        from .agents.trust import Reputation
+
+        engine = _get_engine()
+        chain = engine.chains.get(did)
+        if chain is None or chain_kind(chain) != "agent" or not _is_public(chain):
+            return {"ok": False, "did": did, "error": "not registered or not public"}
+        rep = Reputation(engine, AgentRegistry(engine=engine))
+        s = rep.score(did)
+        return {
+            "ok": True,
+            "did": did,
+            "score_v2": rep.formula_v2(s),
+            "validate_count": s.validate_count,
+            "submit_count": s.submit_count,
+            "accepted_count": s.accepted_count,
+            "task_success_rate": s.task_success_rate,
+            "fork_merge_rate": s.fork_merge_rate,
+            "deprecation_rate": s.deprecation_rate,
+        }
 
     # ------------------------------------------------------------------
     # Resource 1: adl://ontology
@@ -479,9 +904,15 @@ def main() -> None:
         default=8000,
         help="Port for streamable-http transport (default: 8000)",
     )
+    parser.add_argument(
+        "--admin-token",
+        default=None,
+        help="Bearer token required for write tools (streamable-http only; "
+        "stdio has no auth context and denies writes — P0-3/P1-1)",
+    )
     args = parser.parse_args()
 
-    server = create_mcp_server(state_path=args.state_path)
+    server = create_mcp_server(state_path=args.state_path, admin_token=args.admin_token)
 
     if args.transport == "stdio":
         server.run(transport="stdio")

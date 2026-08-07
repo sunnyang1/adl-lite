@@ -13,6 +13,16 @@
   year = {2013}
 }
 
+@book{moreau2013prov,
+  title     = {{Provenance: An Introduction to PROV}},
+  author    = {Moreau, Luc and Groth, Paul},
+  publisher = {Morgan \& Claypool Publishers},
+  series    = {Synthesis Lectures on the Semantic Web: Theory and Technology},
+  year      = {2013},
+  doi       = {10.2200/S00528ED1V01Y201308WBE007},
+  note      = {Comprehensive survey of the W3C PROV data model and ontology}
+}
+
 @misc{w3c_shacl,
   title = {{SHACL Shapes Constraint Language}},
   author = {{W3C}},
@@ -27,7 +37,7 @@
   year = {2024}
 }
 
-% Note: guha2016schemaorg replaces schema_org; update citations accordingly.
+% orphan: intentionally kept (superseded by guha2016schemaorg, which is cited in the text)
 @misc{schema_org,
   title = {{Schema.org}},
   author = {{Schema.org Consortium}},
@@ -147,6 +157,7 @@
   year = {2021}
 }
 
+% orphan: intentionally kept (duplicate of rfc6962, which is cited in the text; kept for reference completeness)
 @misc{cert_transparency,
   title = {{Certificate Transparency}},
   author = {Laurie, Ben and Langley, Adam and Kasper, Emilia},
@@ -516,6 +527,7 @@
   year = {2025}
 }
 
+% orphan: intentionally kept (vendor documentation; reserved for future RDF-star interoperability appendix)
 @inproceedings{graphdb_rdfstar,
   title = {{RDF-star Support in GraphDB}},
   author = {{Ontotext}},
@@ -833,13 +845,46 @@
   publisher = {BioMed Central}
 }
 
-@article{provo_survey_2024,
-  title     = {{PROV-O} in Scientific Data Provenance: A Systematic Survey of Adoption, Extensions, and Challenges},
-  author    = {Others},
+@article{akbarfam2024blockchain,
+  title     = {{SOK}: Blockchain for Provenance},
+  author    = {Akbarfam, Asma Jodeiri and Maleki, Hoda},
   journal   = {arXiv preprint arXiv:2407.17699},
   year      = {2024},
   url       = {https://arxiv.org/abs/2407.17699},
-  note      = {Comprehensive survey of PROV-O adoption patterns, extensions for domain-specific provenance, and interoperability challenges in scientific workflows}
+  note      = {Systematization of knowledge on blockchain-based provenance: challenges in single-source, collaborative, and cross-organisation environments, and design considerations for provenance-oriented blockchains}
+}
+
+@article{barbereau2026lifecycle,
+  title     = {From Transactions to Records: Reconceptualizing Blockchain Systems through a Lifecycle Lens},
+  author    = {Barbereau, Tom and Montalto, Ruggero and Beyer, Christian},
+  journal   = {arXiv preprint arXiv:2606.10631},
+  year      = {2026},
+  url       = {https://arxiv.org/abs/2606.10631},
+  note      = {Seven-stage lifecycle framework for blockchain data grounded in ISO 15489-1:2016 records management; blockchain systems as record-management systems}
+}
+
+@misc{mcp2024anthropic,
+  title     = {{Model Context Protocol} ({MCP})},
+  author    = {{Anthropic}},
+  howpublished = {\url{https://modelcontextprotocol.io/}},
+  year      = {2024},
+  note      = {Open protocol standardizing how applications provide context to LLMs; the MCP Registry provides agent capability registration and discovery primitives}
+}
+
+@misc{a2a2025google,
+  title     = {{Agent2Agent} ({A2A}) Protocol},
+  author    = {{Google}},
+  howpublished = {\url{https://a2a-protocol.org/}},
+  year      = {2025},
+  note      = {Open protocol for communication and interoperability among autonomous agents}
+}
+
+@misc{agntcy2025linux,
+  title     = {{AGNTCY}: {Linux Foundation} Open Agent Schema Framework},
+  author    = {{Linux Foundation}},
+  howpublished = {\url{https://agntcy.org/}},
+  year      = {2025},
+  note      = {Open agent schema framework defining agent identity, capability, and interaction standards}
 }
 
 @article{oztas2024aml,

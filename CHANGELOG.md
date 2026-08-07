@@ -131,6 +131,267 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     13–15, ExecutionLog behaviour (signing, tamper detection, Merkle
     stability, JSONL round-trip), block parsing, ontology sync, the
     registration hook, and derivation isolation.
+## [Unreleased] — Multi-agent closure + dashboard platform (2026-08-07)
+
+### Added
+
+- **Runtime 5-role toolchains** (`adl_lite/agents/runtime.py`): `AgentRuntime._execute`
+  now runs a real toolchain for every role — REVIEWER (`adl_validate` →
+  `adl_consensus_transition(validated)`), SKEPTIC (`adl_consensus_verify` →
+  `transition(forked)` on challenge), MERGER (`verify` → `transition(validated)`
+  on forked chains), LIBRARIAN (`adl_store` → `adl_query_related`) — all
+  whitelist-gated and audit-logged. Closes the "1-role-only" gap in the
+  5-role consensus narrative.
+- **Meta single-source-of-truth endpoints**: `GET /api/v1/meta/task-transitions`
+  (serialized `_TASK_TRANSITIONS`) and `GET /api/v1/meta/roles` (serialized
+  `ROLE_SPECS`) so clients consume the state machine instead of hardcoding it.
+- **Admin JWT issuance** (`adl_lite/api_auth.py`): `configure_auth` accepts
+  optional `admin_username`/`admin_password` (env `ADMIN_USERNAME`/`ADMIN_PASSWORD`);
+  the OAuth2 token endpoint issues `role="admin"` JWTs for those credentials
+  (default unset = unchanged behaviour). Fixes the trust-root bootstrap hole.
+- **Dashboard platform** (`dashboard/`): auth store + axios Bearer interceptor,
+  login dialog (username/password or API key, demo-mode detection), admin
+  validate + admin public-key panels, Agents/Tasks/Runtime/Trust pages; task
+  actions and role dropdowns now consume the meta endpoints with hardcoded
+  fallback.
+
+### Fixed
+
+- **Runtime event signing (trust-closure)**: `AgentRuntime` accepts an optional
+  `signer` (`Callable[[bytes], str]`); tool calls that produce DID-actor chain
+  events (`adl_consensus_transition` → VALIDATE/FORK) attach a signature so
+  strict trust checks (B2) can verify them. Event hashes exclude signature
+  (integrity-safe, same pattern as the API attest endpoint). Default `None`
+  keeps the loose behaviour unchanged. Closes the last trust-loop gap found
+  by the Acme case demo (strict `trust-check` previously rejected runtime
+  transitions as "event has no signature").
+- `_mem_store` called the nonexistent `ADLMemory.store_document` → now
+  `mem.store(doc)` (LIBRARIAN toolchain would have crashed).
+- `dashboard/src/api/types.ts` `AdminPublicKeyResponse` matched the real
+  backend shape (`registered: str`, `admin_public_keys: int`).
+- TaskExplorer actions aligned with `_TASK_TRANSITIONS` (no more 409s on
+  assigned/submitted rows); task priority is a number per the backend.
+
+## [Unreleased] — Native multi-agent M4 (2026-08-07)
+
+### Added
+
+- **Trust closure** (`adl_lite/agents/trust.py`): `DidWebAffiliationResolver`
+  (offline-first did:web org lookup — preset cache or None, never hard-fails,
+  TTL 7d; `diversity_key` → `("org", org)` for did:web, `("key", actor)` else)
+  + `ReputationScore`/`Reputation` (weak-signal behavioural stats: discovery
+  events v1 + per-task-dedup task component v2; `formula_v1`/`formula_v2`;
+  `_count_merged_forks` conservative proxy).
+- **B4 activation** (`adl_lite/trust_model.py`): `ConsensusConfig` gains
+  `min_validator_reputation` (0.0 = disabled) and `diversity_provider`;
+  `TrustValidator` accepts provider/reputation and uses org-level diversity
+  keys when configured. **Zero-change guarantee**: defaults keep Phase-1
+  identity-scoped keys, so existing behaviour is byte-identical (TR-04).
+- **Surfaces**: `adl-lite agent reputation|trust-check --diversity`; API
+  `GET /api/v1/agents/{did}/reputation` + `GET/POST /api/v1/admin/trust/diversity`
+  (P1-8 operational switch, env `ADL_AGENT_DIVERSITY` default on); MCP
+  `adl_agent_reputation` (public-scope ACL).
+- **Weak-signal declaration (P1-7)**: reputation is ranking/visibility only —
+  never gates security admission (docstring + API note).
+
+### Notes
+
+- P1-2 known limitation: B4 covers discovery-chain VALIDATE validators only;
+  agent-registration (AGENT_VALIDATE) same-org collusion is NOT blocked.
+
+## [Unreleased] — Native multi-agent M3 (2026-08-07)
+
+### Added
+
+- **Thin runtime** (`adl_lite/agents/runtime.py`): `AgentRuntime` (dequeue →
+  reason → whitelisted tools → audit every action), `RuntimeManager` (multi-
+  agent lifecycle + P1-6 backlog visibility via `status()`), `CheckpointKind`
+  + in-process human checkpoint (P0-1-adjacent recovery: a rejected/blocked
+  checkpoint releases the lease; idempotent re-claim retries the task).
+- **Role whitelist** (`adl_lite/agents/roles.py`): `RoleSpec` + `ROLE_SPECS`
+  for the 5 harness roles (discoverer/reviewer/skeptic/merger/librarian) —
+  `_call_tool` rejects out-of-whitelist tools with `PermissionError` (RT-02).
+- **Schema-first planner** (`adl_lite/agents/planner.py`): LLM decomposition
+  with P1-3 capability vocabulary gating (ontology predicates ∪ registered
+  discovery ids — same vocabulary as `TaskRegistry`/`TaskQueue` matching).
+- **In-memory tool registry**: `runtime._default_tools` binds tools to the
+  runtime's own engine (the `tools.py` wrappers reload the state file per
+  call and would race an in-memory engine); sync `LLMBackend.complete` is
+  bridged via `asyncio.to_thread`.
+- **Surfaces**: `adl-lite run` / `adl-lite approve` (single-process, P1-4);
+  API `GET /api/v1/runtime/status` + `POST /api/v1/checkpoints/{task_id}/approve`;
+  MCP `adl_task_enqueue` (fire-and-forget) + `adl_runtime_start` (validate).
+- **Idempotent re-claim** (`agents/task.py`): `IN_PROGRESS → IN_PROGRESS` is
+  now a legal transition so a failed execution (tool error / rejected
+  checkpoint) can be retried by the next dequeue — no task deadlock.
+
+### Changed
+
+- `EventType` unchanged (M3 adds no new event types); ontology untouched.
+
+## [Unreleased] — Native multi-agent M2 (2026-08-06)
+
+### Added
+
+- **Task lifecycle as EventChains** (`adl_lite/agents/task.py`): `TaskStatus`
+  enum + `_TASK_TRANSITIONS` + `derive_task_status` (deterministic fold,
+  supports the REJECTED→resubmit rework loop), `TaskStatusView` (tail-hash
+  cached, incl. `result_ref`), `Task` (status = snapshot; authoritative value
+  derives from the chain), `TaskRegistry` (create/assign/claim/submit/
+  validate_result/close). Capability vocabulary unified (P1-3): ontology
+  predicates ∪ registered discovery chain ids.
+- **MessageBus + TaskQueue** (`adl_lite/agents/bus.py`): asyncio in-process
+  pub/sub with lazy Redis backend (`[v1]` hint ImportError) and a closed
+  request/reply protocol (`reply_loop`, P2-2); TaskQueue with at-most-one
+  claim, lease/TTL, cross-thread atomicity (single lock, P1-5) and the
+  P0-1 no-task-loss guarantee (failed claims re-queued; expired leases
+  re-enqueued by `requeue_expired`).
+- **EventType extension**: `TASK_CREATE/ASSIGN/CLAIM/SUBMIT/VALIDATE/CLOSE`
+  + `MESSAGE` — still excluded from the discovery lattice.
+- **Ontology v0.3 → 24 actions**: 6 task actions (all `triggers_transition: null`).
+- **Surfaces**: REST `/api/v1/tasks/*` (create/claim/submit/validate/close/
+  get/list, tenant-scoped), CLI `adl-lite task ...` (7 subcommands), tools
+  `adl_task_*` (8 wrappers), MCP 7 task tools (write tools admin-token gated,
+  tool count 16 → 23). `_LAZY_ATTRS` extended.
+- **Tests**: `test_agents_task.py` (13 cases: derivation table, rework,
+  invalid transitions, dual-state restart, discovery isolation) +
+  `test_agents_bus.py` (15 cases: pub/sub, request/reply, at-most-one claim,
+  lease expiry re-enqueue, cross-thread atomicity, redis hint). Full fast
+  suite green (1697 passed). Reviewed assertion updates: openapi paths (+7),
+  MCP tool count/names, ontology action list.
+
+## [Unreleased] — Native multi-agent M1b (2026-08-06)
+
+### Added
+
+- **REST agent endpoints** (`/api/v1/agents/*`): `register` (admin-gated),
+  `attest`, `admin-validate` (P0-1 trust-root, admin-gated), `validate`,
+  `deprecate` (admin-gated), `get`, paginated `list`, `history`; plus
+  `POST /api/v1/admin/public-key` (P0-3: API-key ↔ DID-signature binding
+  point). Admin public-key whitelist persists in the state file.
+- **CLI**: `adl-lite agent register|attest|validate|list|show|deprecate`.
+- **tools.py**: `adl_agent_register/attest/validate/list/get/deprecate`
+  (load → mutate → save → dict convention; admin path off by default, P0-3).
+- **MCP**: `adl_agent_register/attest/validate/get/list/deprecate`; write
+  tools require an admin token (`--admin-token`; stdio has no auth context and
+  denies writes, P1-1). Tool count 10 → 16.
+- **P0-2 discovery isolation**: `/api/v1/consensus/list`, `consensus/status`,
+  and MCP `adl_list` filter by `chain_kind` — agent chains never surface as
+  provisional concepts.
+- **Agent chain scope ACL**: genesis payload now carries a top-level `scope`
+  so `_chain_scope()` enforces private-scope reads on agent chains.
+- **api.py serialization fidelity**: `_load_engine`/`_save_engine` preserve
+  `signature`/`proof`/`previous_event_id` (M1a fix completed for the API layer).
+- **Tests**: `test_agents_surfaces.py` (16 cases incl. P0 adversarial
+  acceptances); full fast suite green (1669 passed). Reviewed assertion
+  updates: openapi paths list, MCP tool count.
+
+## [Unreleased] — Native multi-agent M1a (2026-08-06)
+
+### Added
+
+- **Agent identity layer (M1a)**: new `adl_lite/agents/` package — `AgentProfile`,
+  `AgentRole`, `AgentStatus`, `AgentRegistry` (agents as EventChains with
+  `AGENT_REGISTER` genesis), `chain_kind()` chain-type marker (P0-2), and
+  `AgentConfig` (dual-track LLM backend: mock default / openai / anthropic).
+- **EventType extension**: `AGENT_REGISTER`, `AGENT_VALIDATE`, `AGENT_UPDATE`,
+  `AGENT_DEPRECATE` — deliberately excluded from the discovery lattice
+  (`type_to_status` / `StatusOrder`) so agent chains never drive
+  DiscoveryStatus (zero-regression guarded).
+- **Ontology v0.3**: 4 agent lifecycle actions (all `triggers_transition: null`)
+  and predicates `declares-capability` / `agent-capability-of`.
+- **Trust-root bootstrap (P0-1/P0-3)**: admin attestation path requires a
+  DID signature from a registered admin public key plus an internal
+  `_admin_calls_allowed` guard (admin-gated API only); N_min ≥ 2 enforced in
+  production mode mirroring `ConsensusEngine._effective_n_min`.
+- **State serialization fidelity**: `cli._save_engine` and
+  `mcp_server._save_engine` now persist `signature`, `proof`,
+  `previous_event_id` (previously dropped); loaders fall back to defaults for
+  legacy state files.
+- **Tests**: `test_agents_identity.py` (13 cases) + `test_agents_zero_regression.py`
+  (discovery-lattice guards, legacy-state compat); full fast suite green
+  (1653 passed).
+
+## [Unreleased] — Applied Ontology submission prep (2026-08-05)
+
+### Added
+
+- **Competency question verification (P2)**: `scripts/verify_competency_questions.py`
+  runs the paper's 14 CQs (CQ1–CQ14) as SPARQL queries against
+  `supplementary/adl_lite_core_v2.owl`, cross-checked verbatim against
+  `appendix_a.tex` (14/14 exact match, exit 0). Shipped OWL fragment was
+  missing 5 axioms (`forkOf ⊑ wasDerivedFrom` etc.) — patched (+31 lines,
+  sourced from `formal/owl/adl_lite_ontology.ttl`) so CQ14 is reproducible.
+- **BFO/IAO alignment audit (P2)**: `scripts/verify_ontology_alignment.py`
+  extracts and whitelist-checks all bridge axioms (5 class + 3 property),
+  84.6% core-class coverage (transitive closure); LogMap jar download
+  unavailable → honest fallback to bridge-axiom verification.
+- **Orphan citation cleanup (P2)**: 25 orphan bib entries resolved — 22 cited
+  into contextually correct sections (garijo2025llmoe, openai_agents,
+  langchain, llamaindex, guarino_1998, event_sourcing_fowler, cqrs,
+  lamport_clocks, vector_clocks, fatf2025, ibm_aml, …), 3 kept with
+  `% orphan` comments; new `moreau2013prov` (PROV book) cited in §2.4;
+  `provo_survey_2024` residual citations zeroed.
+- **Manuscript compression (P2)**: main.tex 128 → 65 pages (appendices A–F
+  moved to supplementary as "Supplementary Material" with preserved label
+  anchors; 33 tables relocated to `supplementary/appendix_o_tables.tex`;
+  γ/precondition/proof narrative tightened; `\bibsep` compaction). 0 compile
+  errors, 0 undefined refs/citations; all prior numeric revisions preserved.
+
+### Fixed
+
+- **E1 chain integrity experiment fixture**: `_build_random_chain` generated
+  L4 action events (e.g. `ANNOUNCE`) without the `action` payload field
+  required by well-formedness Axiom 9, so genuinely valid chains were rejected
+  by `verify_integrity()` — stored `valid_chain_pass_rate` was 0.32 while the
+  paper claimed 1.0. Fixture now emits the required `action` field; E1 rerun
+  passes with P/R/F1 = 1.0 (regression tests: `tests/test_e1_experiment_fixture.py`).
+- **Proof trace checker T2/T3 (E24)**: `check_theorem_2_fork_confluence` and
+  `check_theorem_3_transition_monotonicity` assumed last-writer-wins semantics
+  ("after FORK status == FORKED"), but ADL Lite derives status as the CRDT LUB
+  over all lifecycle events. Chains that already reached DEPRECATED/ARCHIVED
+  were incorrectly flagged as violations (stored T2 pass rate 3.27%, T3 12.03%).
+  Checks now use LUB semantics; E24 rerun passes T1–T7 at 100%
+  (`tests/test_proof_trace_checker_lub.py`).
+- **OWL 2 DL fragment guard**: new tests pin that the shipped
+  `docs/paper_ao/supplementary/adl_lite_core_v2.owl` parses with rdflib,
+  declares the core classes/datatype properties, and contains the expected
+  OWL 2 DL constructs (`tests/test_owl_fragment_shipped.py`).
+- **E4 archive precondition (P0)**: `adl_core_ontology.yaml` allowed `archive`
+  from any status (`in [provisional, validated, forked, deprecated]`), but the
+  paper (§4.2) and A7 tests forbid archiving a never-validated concept. Tightened
+  to `[deprecated]`; E4 rerun passes P/R/F1 = 1.0 (was 0.889 precision).
+- **E19 head-to-head benchmark (P0)**: could not run (missing `pygit2`/`prov`
+  optional deps). Dependencies installed; full 4-systems × 4-tasks + scale
+  benchmark now measured (S1: 27 LOC / 0.5 ms / audit 1.0; S1 scale 1M concepts
+  = 2M events @ 14,938 evt/s). Status-determination logic no longer penalises
+  ADL Lite for having slightly more LOC than nanopub.
+- **E23 contention config (P1)**: agent count 10 → 20 to match the paper claim;
+  rerun gives integrity_rate = 1.0, 0 chain failures.
+- **E26 cross-repo merge (P0)**: was a paper claim with no script/data. Added
+  `experiments/e26_cross_repo_merge.py` — 2 repos × 100 chains, 100 merges,
+  100,000 events, 0 integrity failures, δ/γ consistency (Theorem 9)
+  (`tests/test_e26_cross_repo_merge.py`).
+- **E27 1M-event scale (P1)**: previously `failed` (missing zstd/msgpack).
+  Now runs: 500k events (1M auto-degrades on this machine), 8.4× compression,
+  integrity OK — stored honestly as `partial` with projected 1M figures.
+- **E31/E32/E33 data-file alignment (P1)**: renamed `e27_crdt_merge.json` /
+  `e28_expert_validation.json` / `e29_merkle_comparison.json` →
+  `e31_crdt_merge.json` / `e32_expert_validation.json` / `e33_merkle_comparison.json`
+  (internal `experiment_id` updated); `scripts/experiment_to_latex.py` mapping
+  and generated `tables_auto/e31|e32|e33.tex` captions/labels now use E31–E33,
+  matching the paper's citations.
+
+### Added
+
+- **Paper–code consistency guard**: `scripts/check_paper_code_consistency.py`
+  detects drift between numeric claims in `docs/paper_ao/sections/*.tex`
+  (test counts, coverage %, ADL Lite version) and the current repository
+  state (via `pytest --collect-only` / `--cov`). Exit code 1 on drift.
+- **Applied Ontology submission improvement plan**:
+  `docs/paper_ao/planning/APPLIED_ONTOLOGY_IMPROVEMENT_PLAN_2026-08.md`
+  (synthesised from expert-team diagnosis: journal fit, literature audit,
+  claims-consistency audit).
 
 ## [0.6.0-alpha] — 2026-07-21
 

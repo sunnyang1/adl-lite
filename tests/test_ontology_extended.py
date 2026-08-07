@@ -144,7 +144,13 @@ class TestActionRegistry:
         actions = mgr.list_actions()
 
         # The YAML defines these actions
+        # M1a (reviewed assertion update): +4 agent lifecycle actions added by
+        # the native multi-agent plan (all triggers_transition: null).
         expected_actions = [
+            "agent_deprecate",
+            "agent_register",
+            "agent_update",
+            "agent_validate",
             "announce",
             "archive",
             "attest",
@@ -161,11 +167,17 @@ class TestActionRegistry:
             "revoke",
             "seal",
             "sync_dashboard",
+            "task_assign",
+            "task_claim",
+            "task_close",
+            "task_create",
+            "task_submit",
+            "task_validate",
             "validate",
         ]
         # list_actions returns sorted keys
         assert actions == sorted(expected_actions)
-        assert len(actions) >= 17
+        assert len(actions) >= 24
 
     def test_get_action_def_found(self):
         """Call get_action_def("REGISTER") — note: actions are keyed by

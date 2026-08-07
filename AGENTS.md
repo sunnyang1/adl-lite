@@ -157,6 +157,9 @@ python scripts/consistency_check.py
 | `adl_lite/realtime.py` | Real-time event watcher and stream ingestion |
 | `adl_lite/sync_manager.py` | Edge-to-core sync coordination |
 | `adl_lite/l2_template.py` | L2 template schema + validation |
+| `adl_lite/agents/` | Native multi-agent governance: `identity` (DID chain + admin trust root + Sybil), `task` (dual-state lifecycle, idempotent re-claim), `bus` (at-most-one lease queue + message bus), `roles` (5-role tool whitelists), `planner` (schema-first decomposition), `runtime` (thin loop: dequeue → whitelisted tools → audit; real toolchains for all 5 roles), `trust` (B4 org diversity + weak-signal reputation) |
+| `adl_lite/trust_model.py` | B1-B4 trust validation: N_min, DID binding, Sybil collapse, org-level validator diversity (B4 active when a `diversity_provider` is configured) |
+| `adl_lite/api.py` meta | `GET /api/v1/meta/task-transitions` + `/api/v1/meta/roles` export the state machine and role whitelists (single source of truth for clients) |
 | `adl_lite/key_registry.py` | Ed25519 keys, Git signatures, Merkle transparency anchors |
 | `adl_lite/did_resolver.py` | `DIDResolver` — `did:key`, `did:web`, `did:ethr` |
 | `adl_lite/ld_proof.py` | W3C Linked Data Proofs (`Ed25519Signature2020`, `EcdsaSecp256k1Signature2019`) |

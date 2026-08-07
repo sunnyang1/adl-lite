@@ -9,6 +9,7 @@ import json
 import sys
 from pathlib import Path
 
+from .agents.identity import AgentRole
 from .consensus import ConsensusEngine
 from .exceptions import ADLConsensusError, ADLOntologyError, ADLTemplateError
 from .logging_config import get_logger
@@ -47,17 +48,16 @@ def _load_engine(state_path: Path) -> ConsensusEngine:
                 timestamp=raw.get("timestamp", ""),
                 payload=raw.get("payload", {}),
             )
-            # Preserve original event_id, hash, and prev_hash for round-trip fidelity
-            if "event_id" in raw:
-                event.event_id = raw["event_id"]
-            if "hash" in raw:
-                event.hash = raw["hash"]
-            if "_prev_hash" in raw:
-                event._prev_hash = raw["_prev_hash"]
-            # Preserve cryptographic evidence (EAL axiom 14 requires proofs on
-            # EXECUTE/ATTEST events to survive the state round-trip).
-            event.signature = raw.get("signature", "") or ""
-            event.proof = raw.get("proof")
+            # Preserve original event_id, hash, prev_hash, and (M1a) signature /
+            # proof / previous_event_id for round-trip fidelity. Old state files
+            # without these keys fall back to defaults (backward compatible).
+            # EAL axiom 14 requires proofs on EXECUTE/ATTEST events to survive
+            # the state round-trip — covered by the generic loop below.
+            for key in ("event_id", "hash", "_prev_hash", "previous_event_id", "signature"):
+                if key in raw:
+                    setattr(event, key, raw[key])
+            if "proof" in raw:
+                event.proof = raw["proof"]
             chain.append(event)
         engine.chains[cid] = chain
     return engine
@@ -74,9 +74,11 @@ def _save_engine(engine: ConsensusEngine, state_path: Path) -> None:
                     "reasoning": e.reasoning,
                     "timestamp": e.timestamp,
                     "hash": e.hash,
-                    "payload": e.payload,
+                    "_prev_hash": getattr(e, "_prev_hash", ""),
+                    "previous_event_id": e.previous_event_id,
                     "signature": e.signature,
                     "proof": e.proof,
+                    "payload": e.payload,
                 }
                 for e in chain.events
             ]
@@ -599,6 +601,329 @@ def _cmd_consensus_verify(args: argparse.Namespace) -> int:
         return 0
     print(f"{args.adl_id}: chain INTEGRITY FAILED", file=sys.stderr)
     return 1
+
+
+# ---------------------------------------------------------------------------
+# Agent identity commands (M1b)
+# ---------------------------------------------------------------------------
+
+
+def _cmd_agent_register(args: argparse.Namespace) -> int:
+    from .tools import adl_agent_register
+
+    caps = [c.strip() for c in (args.capabilities or "").split(",") if c.strip()]
+    result = adl_agent_register(
+        args.name,
+        args.role,
+        model=args.model,
+        capabilities=caps,
+        scope=args.scope,
+        public_key=args.public_key,
+        state=args.state,
+    )
+    if not result.get("ok"):
+        print(f"agent register error: {result.get('error')}", file=sys.stderr)
+        return 1
+    print(
+        f"registered agent {result['did']} "
+        f"(status={result['status']}, validators={result['validator_count']})"
+    )
+    return 0
+
+
+def _cmd_agent_attest(args: argparse.Namespace) -> int:
+    from .tools import adl_agent_attest
+
+    result = adl_agent_attest(args.did, args.signature, proof=None, state=args.state)
+    if not result.get("ok"):
+        print(f"agent attest error: {result.get('error')}", file=sys.stderr)
+        return 1
+    print(f"attested {result['did']} (status={result['status']})")
+    return 0
+
+
+def _cmd_agent_validate(args: argparse.Namespace) -> int:
+    from .tools import adl_agent_validate
+
+    result = adl_agent_validate(
+        args.did,
+        args.actor_did,
+        reason=args.reason,
+        confidence=args.confidence,
+        signature=args.signature,
+        admin=args.admin,
+        state=args.state,
+    )
+    if not result.get("ok"):
+        print(f"agent validate error: {result.get('error')}", file=sys.stderr)
+        return 1
+    print(f"validated {result['did']} via {result['actor']} (status={result['status']})")
+    return 0
+
+
+def _cmd_agent_list(args: argparse.Namespace) -> int:
+    from .tools import adl_agent_list
+
+    result = adl_agent_list(scope=args.scope, state=args.state)
+    for a in result.get("agents", []):
+        print(f"{a['did']}\t{a['role']}\t{a['status']}\t{a['name']}")
+    print(f"total: {result.get('total', 0)}")
+    return 0
+
+
+def _cmd_agent_show(args: argparse.Namespace) -> int:
+    from .tools import adl_agent_get
+
+    result = adl_agent_get(args.did, state=args.state)
+    if not result.get("ok"):
+        print(f"agent show error: {result.get('error')}", file=sys.stderr)
+        return 1
+    for key in ("did", "role", "name", "model", "scope", "status"):
+        print(f"{key}: {result.get(key, '')}")
+    print("capabilities: " + ", ".join(result.get("capabilities", [])))
+    return 0
+
+
+def _cmd_agent_deprecate(args: argparse.Namespace) -> int:
+    from .tools import adl_agent_deprecate
+
+    result = adl_agent_deprecate(args.did, args.actor, reason=args.reason, state=args.state)
+    if not result.get("ok"):
+        print(f"agent deprecate error: {result.get('error')}", file=sys.stderr)
+        return 1
+    print(f"deprecated {result['did']} (status={result['status']})")
+    return 0
+
+
+def _cmd_agent_reputation(args: argparse.Namespace) -> int:
+    """M4: weak-signal reputation for an agent (ranking only, P1-7)."""
+    from .tools import adl_agent_reputation
+
+    result = adl_agent_reputation(args.did, state=args.state)
+    if not result.get("ok"):
+        print(f"agent reputation error: {result.get('error')}", file=sys.stderr)
+        return 1
+    print(f"did: {result['did']}")
+    print(f"score_v2: {result['score_v2']:.3f} (weak signal — ranking only)")
+    print(
+        f"validate_count: {result['validate_count']} | "
+        f"submit/accepted: {result['submit_count']}/{result['accepted_count']}"
+    )
+    print(
+        f"task_success_rate: {result['task_success_rate']:.2f} | "
+        f"fork_merge_rate: {result['fork_merge_rate']:.2f} | "
+        f"deprecation_rate: {result['deprecation_rate']:.2f}"
+    )
+    return 0
+
+
+def _cmd_agent_trust_check(args: argparse.Namespace) -> int:
+    """M4: run the trust model (B1-B4) against a discovery chain."""
+    from .tools import adl_agent_trust_check
+
+    result = adl_agent_trust_check(
+        args.did,
+        state=args.state,
+        diversity=args.diversity,
+        min_reputation=args.min_reputation,
+    )
+    if not result.get("ok") and "error" in result:
+        print(f"trust-check error: {result.get('error')}", file=sys.stderr)
+        return 1
+    print(f"did: {result['did']} | valid: {result.get('valid')}")
+    for err in result.get("errors", []):
+        print(f"  - {err}")
+    print(
+        f"distinct_validators: {result.get('distinct_validators')} | "
+        f"diversity_satisfied: {result.get('diversity_satisfied')}"
+    )
+    return 0 if result.get("valid") else 1
+
+
+def _cmd_runtime_run(args: argparse.Namespace) -> int:
+    """M3: run one agent runtime loop in-process (single-process deployment,
+    P1-4), enqueue a task, wait for it, then stop."""
+    import asyncio
+    import time
+
+    from .agents.bus import TaskQueue
+    from .agents.identity import AgentProfile, AgentRegistry, AgentRole
+    from .agents.runtime import RuntimeManager
+    from .agents.task import TaskRegistry
+
+    state_path = Path(args.state) if args.state else _default_state_path(None)
+    engine = _load_engine(state_path)
+    agent_registry = AgentRegistry(engine=engine)
+    task_registry = TaskRegistry(engine=engine)
+    queue = TaskQueue(task_registry, lease_ttl=args.lease_ttl)
+    mgr = RuntimeManager(engine, task_registry, queue, agent_registry)
+
+    did = args.did or f"did:key:cli-{args.name or 'runtime'}"
+    profile = agent_registry.get_agent(did)
+    if profile is None:
+        profile = AgentProfile(
+            did=did,
+            role=AgentRole(args.role),
+            name=args.name or did,
+            capabilities=args.capabilities or ["depends-on"],
+        )
+        agent_registry.register_agent(profile)
+
+    task = task_registry.create_task(
+        objective=args.objective or "land a capability from the task material",
+        required_capabilities=args.capabilities or ["depends-on"],
+        created_by=did,
+        input_ref=args.input,
+    )
+
+    async def _run_once() -> dict:
+        # start() creates asyncio tasks -> must run inside a live loop
+        # (single-process deployment, P1-4).
+        mgr.start(did, profile)
+        await queue.enqueue(task)
+        deadline = time.time() + args.timeout
+        while time.time() < deadline:
+            st = mgr.status()
+            if st["agents"].get(did, {}).get("tasks_done", 0) >= 1:
+                break
+            await asyncio.sleep(0.1)
+        final = mgr.status()  # capture BEFORE stop_all (stop clears agents)
+        await mgr.stop_all()
+        return final
+
+    status = asyncio.run(_run_once())
+    done = status["agents"].get(did, {}).get("tasks_done", 0)
+    if done < 1:
+        print(f"runtime run timed out after {args.timeout}s (no task completed)", file=sys.stderr)
+        return 1
+    view = task_registry.get_task(task.task_id)
+    print(f"task {task.task_id} -> {view.status.value} result_ref={view.result_ref}")
+    print(f"runtime status: {status}")
+    return 0
+
+
+def _cmd_runtime_approve(args: argparse.Namespace) -> int:
+    """M3: approve a pending human checkpoint (single-process only, P1-4)."""
+    from .agents.runtime import approve_checkpoint, pending_checkpoints
+
+    if args.task_id == "all":
+        ids = pending_checkpoints()
+        ok = sum(1 for t in ids if approve_checkpoint(t, approved=not args.reject))
+        print(f"approved {ok}/{len(ids)} checkpoints: {ids}")
+        return 0
+    ok = approve_checkpoint(args.task_id, approved=not args.reject)
+    if not ok:
+        print(f"no pending checkpoint for {args.task_id}", file=sys.stderr)
+        return 1
+    print(f"{'rejected' if args.reject else 'approved'} checkpoint {args.task_id}")
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# Task commands (M2)
+# ---------------------------------------------------------------------------
+
+
+def _cmd_task_create(args: argparse.Namespace) -> int:
+    from .tools import adl_task_create
+
+    caps = [c.strip() for c in (args.capabilities or "").split(",") if c.strip()]
+    result = adl_task_create(
+        args.objective,
+        capabilities=caps,
+        created_by=args.created_by,
+        priority=args.priority,
+        scope=args.scope,
+        state=args.state,
+    )
+    if not result.get("ok"):
+        print(f"task create error: {result.get('error')}", file=sys.stderr)
+        return 1
+    print(f"created {result['task_id']} (status={result['status']})")
+    return 0
+
+
+def _cmd_task_claim(args: argparse.Namespace) -> int:
+    from .tools import adl_task_claim
+
+    result = adl_task_claim(args.task_id, args.agent_did, state=args.state)
+    if not result.get("ok"):
+        print(f"task claim error: {result.get('error')}", file=sys.stderr)
+        return 1
+    print(f"claimed {result['task_id']}")
+    return 0
+
+
+def _cmd_task_submit(args: argparse.Namespace) -> int:
+    from .tools import adl_task_submit
+
+    result = adl_task_submit(
+        args.task_id,
+        args.agent_did,
+        args.result_ref,
+        summary=args.summary,
+        confidence=args.confidence,
+        state=args.state,
+    )
+    if not result.get("ok"):
+        print(f"task submit error: {result.get('error')}", file=sys.stderr)
+        return 1
+    print(f"submitted {result['task_id']} -> {result['result_ref']}")
+    return 0
+
+
+def _cmd_task_validate(args: argparse.Namespace) -> int:
+    from .tools import adl_task_validate
+
+    result = adl_task_validate(
+        args.task_id,
+        args.validator_did,
+        args.accept,
+        confidence=args.confidence,
+        critique=args.critique,
+        state=args.state,
+    )
+    if not result.get("ok"):
+        print(f"task validate error: {result.get('error')}", file=sys.stderr)
+        return 1
+    print(f"validated {result['task_id']} (accepted={args.accept})")
+    return 0
+
+
+def _cmd_task_close(args: argparse.Namespace) -> int:
+    from .tools import adl_task_close
+
+    result = adl_task_close(
+        args.task_id, args.outcome, args.actor, reason=args.reason, state=args.state
+    )
+    if not result.get("ok"):
+        print(f"task close error: {result.get('error')}", file=sys.stderr)
+        return 1
+    print(f"closed {result['task_id']} (outcome={args.outcome})")
+    return 0
+
+
+def _cmd_task_list(args: argparse.Namespace) -> int:
+    from .tools import adl_task_list
+
+    result = adl_task_list(status=args.status, state=args.state)
+    for t in result.get("tasks", []):
+        print(f"{t['task_id']}\t{t['status']}\tprio={t['priority']}\t{t['objective'][:50]}")
+    print(f"total: {result.get('total', 0)}")
+    return 0
+
+
+def _cmd_task_show(args: argparse.Namespace) -> int:
+    from .tools import adl_task_get
+
+    result = adl_task_get(args.task_id, state=args.state)
+    if not result.get("ok"):
+        print(f"task show error: {result.get('error')}", file=sys.stderr)
+        return 1
+    for key in ("task_id", "status", "objective", "result_ref"):
+        print(f"{key}: {result.get(key, '')}")
+    print("required_capabilities: " + ", ".join(result.get("required_capabilities", [])))
+    return 0
 
 
 def _cmd_mcp(args: argparse.Namespace) -> int:
@@ -1672,6 +1997,139 @@ def _build_parser() -> argparse.ArgumentParser:
     p_verify.add_argument("--state", default=None, help="Consensus state JSON path")
     p_verify.set_defaults(func=_cmd_consensus_verify)
 
+    # -- adl-lite agent ... (M1b) ------------------------------------------
+    p_agent = sub.add_parser("agent", help="Agent identity lifecycle (M1b)")
+    agent_sub = p_agent.add_subparsers(dest="agent_cmd", required=True)
+
+    p_ag_reg = agent_sub.add_parser("register", help="Register an agent identity")
+    p_ag_reg.add_argument("--name", required=True, help="Agent display name")
+    p_ag_reg.add_argument(
+        "--role", required=True, choices=[r.value for r in AgentRole], help="Agent role"
+    )
+    p_ag_reg.add_argument("--model", default="", help="Preferred LLM model")
+    p_ag_reg.add_argument("--capabilities", default="", help="Comma-separated capability tags")
+    p_ag_reg.add_argument("--scope", default="public", help="Visibility scope")
+    p_ag_reg.add_argument("--public-key", default=None, help="Base64 Ed25519 public key")
+    p_ag_reg.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_ag_reg.set_defaults(func=_cmd_agent_register)
+
+    p_ag_att = agent_sub.add_parser("attest", help="Bind genesis signature/proof")
+    p_ag_att.add_argument("did", help="Agent DID")
+    p_ag_att.add_argument("--signature", required=True, help="Base64 Ed25519 signature")
+    p_ag_att.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_ag_att.set_defaults(func=_cmd_agent_attest)
+
+    p_ag_val = agent_sub.add_parser("validate", help="Validate an agent identity")
+    p_ag_val.add_argument("did", help="Agent DID to validate")
+    p_ag_val.add_argument("--actor-did", required=True, help="Validating agent DID")
+    p_ag_val.add_argument("--reason", default="", help="Validation rationale")
+    p_ag_val.add_argument("--confidence", type=float, default=0.9, help="0..1")
+    p_ag_val.add_argument("--signature", default="", help="Base64 signature (admin path)")
+    p_ag_val.add_argument(
+        "--admin",
+        action="store_true",
+        help="Trust-root admin attestation (P0-1; requires signature)",
+    )
+    p_ag_val.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_ag_val.set_defaults(func=_cmd_agent_validate)
+
+    p_ag_list = agent_sub.add_parser("list", help="List registered agents")
+    p_ag_list.add_argument("--scope", default=None, help="Filter by scope")
+    p_ag_list.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_ag_list.set_defaults(func=_cmd_agent_list)
+
+    p_ag_show = agent_sub.add_parser("show", help="Show an agent profile")
+    p_ag_show.add_argument("did", help="Agent DID")
+    p_ag_show.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_ag_show.set_defaults(func=_cmd_agent_show)
+
+    p_ag_dep = agent_sub.add_parser("deprecate", help="Decommission an agent")
+    p_ag_dep.add_argument("did", help="Agent DID")
+    p_ag_dep.add_argument("--actor", required=True, help="Actor DID (owner or admin)")
+    p_ag_dep.add_argument("--reason", default="", help="Reason text")
+    p_ag_dep.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_ag_dep.set_defaults(func=_cmd_agent_deprecate)
+
+    # M4: reputation + trust-check.
+    p_ag_rep = agent_sub.add_parser("reputation", help="Weak-signal reputation score (M4)")
+    p_ag_rep.add_argument("did", help="Agent DID")
+    p_ag_rep.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_ag_rep.set_defaults(func=_cmd_agent_reputation)
+
+    p_ag_tc = agent_sub.add_parser("trust-check", help="Run trust model B1-B4 (M4)")
+    p_ag_tc.add_argument("did", help="Discovery chain adl_id")
+    p_ag_tc.add_argument(
+        "--diversity", action="store_true", help="Activate B4 with did:web org diversity"
+    )
+    p_ag_tc.add_argument(
+        "--min-reputation", type=float, default=0.0, help="Reputation floor (0.0 = disabled)"
+    )
+    p_ag_tc.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_ag_tc.set_defaults(func=_cmd_agent_trust_check)
+
+    # -- adl-lite task ... (M2) -------------------------------------------
+    p_task = sub.add_parser("task", help="Task lifecycle (M2)")
+    task_sub = p_task.add_subparsers(dest="task_cmd", required=True)
+
+    p_tk_create = task_sub.add_parser("create", help="Create a task chain")
+    p_tk_create.add_argument("objective", help="Task objective")
+    p_tk_create.add_argument("--capabilities", default="", help="Comma-separated capability tags")
+    p_tk_create.add_argument("--created-by", default="planner", help="Creator actor")
+    p_tk_create.add_argument("--priority", type=int, default=0, help="Higher = sooner")
+    p_tk_create.add_argument("--scope", default="public", help="Visibility scope")
+    p_tk_create.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_tk_create.set_defaults(func=_cmd_task_create)
+
+    p_tk_claim = task_sub.add_parser("claim", help="Claim a task")
+    p_tk_claim.add_argument("task_id", help="Task id")
+    p_tk_claim.add_argument("--agent-did", required=True, help="Claiming agent DID")
+    p_tk_claim.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_tk_claim.set_defaults(func=_cmd_task_claim)
+
+    p_tk_submit = task_sub.add_parser("submit", help="Submit a task result")
+    p_tk_submit.add_argument("task_id", help="Task id")
+    p_tk_submit.add_argument("--agent-did", required=True, help="Submitting agent DID")
+    p_tk_submit.add_argument("--result-ref", required=True, help="Produced capability adl_id")
+    p_tk_submit.add_argument("--summary", default="", help="Result summary")
+    p_tk_submit.add_argument("--confidence", type=float, default=0.5, help="0..1")
+    p_tk_submit.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_tk_submit.set_defaults(func=_cmd_task_submit)
+
+    p_tk_val = task_sub.add_parser("validate", help="Accept/reject a submission")
+    p_tk_val.add_argument("task_id", help="Task id")
+    p_tk_val.add_argument("--validator-did", required=True, help="Validating agent DID")
+    p_tk_val.add_argument(
+        "--accept/--reject",
+        dest="accept",
+        action="store_true",
+        default=False,
+        help="Accept (default: reject)",
+    )
+    p_tk_val.add_argument("--confidence", type=float, default=0.8, help="0..1")
+    p_tk_val.add_argument("--critique", default="", help="Review note")
+    p_tk_val.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_tk_val.set_defaults(func=_cmd_task_validate)
+
+    p_tk_close = task_sub.add_parser("close", help="Close a task")
+    p_tk_close.add_argument("task_id", help="Task id")
+    p_tk_close.add_argument(
+        "--outcome", required=True, choices=["accepted", "rejected", "cancelled"]
+    )
+    p_tk_close.add_argument("--actor", required=True, help="Closing actor")
+    p_tk_close.add_argument("--reason", default="", help="Reason text")
+    p_tk_close.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_tk_close.set_defaults(func=_cmd_task_close)
+
+    p_tk_list = task_sub.add_parser("list", help="List tasks")
+    p_tk_list.add_argument("--status", default=None, help="Filter by status")
+    p_tk_list.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_tk_list.set_defaults(func=_cmd_task_list)
+
+    p_tk_show = task_sub.add_parser("show", help="Show a task")
+    p_tk_show.add_argument("task_id", help="Task id")
+    p_tk_show.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_tk_show.set_defaults(func=_cmd_task_show)
+
     p_anchor = sub.add_parser("anchor", help="Compute transparency anchor over consensus chains")
     p_anchor.add_argument("--state", default=None, help="Consensus state JSON path")
     p_anchor.add_argument("--output", default="ANCHOR.md", help="Anchor file path")
@@ -1957,6 +2415,31 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Port for streamable-http transport (default: 8000)",
     )
     p_mcp.set_defaults(func=_cmd_mcp)
+
+    # -- adl-lite run / approve (M3 thin runtime) -------------------------
+    p_run = sub.add_parser("run", help="Run one agent runtime loop (M3, single-process)")
+    p_run.add_argument(
+        "--role",
+        default="discoverer",
+        choices=["discoverer", "reviewer", "skeptic", "merger", "librarian"],
+        help="Agent role (default: discoverer)",
+    )
+    p_run.add_argument("--name", default=None, help="Agent display name")
+    p_run.add_argument("--did", default=None, help="Agent DID (reuse existing profile)")
+    p_run.add_argument("--input", default=None, help="Input ADL material path (input_ref)")
+    p_run.add_argument("--objective", default=None, help="Task objective text")
+    p_run.add_argument(
+        "--capabilities", default=None, help="Comma-separated capability tags (ontology predicates)"
+    )
+    p_run.add_argument("--lease-ttl", type=float, default=300.0, help="Lease TTL seconds")
+    p_run.add_argument("--timeout", type=float, default=30.0, help="Wait timeout seconds")
+    p_run.add_argument("--state", default=None, help="Consensus state JSON path")
+    p_run.set_defaults(func=_cmd_runtime_run)
+
+    p_approve = sub.add_parser("approve", help="Approve a pending human checkpoint (M3)")
+    p_approve.add_argument("task_id", help="Task id, or 'all' for every pending checkpoint")
+    p_approve.add_argument("--reject", action="store_true", help="Reject instead of approve")
+    p_approve.set_defaults(func=_cmd_runtime_approve)
 
     return parser
 

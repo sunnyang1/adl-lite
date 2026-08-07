@@ -96,6 +96,37 @@ adl:mitigatedBy rdf:type owl:ObjectProperty ;
   owl:members ( adl:isomorphicTo adl:specialisationOf adl:forkOf adl:relatedTo adl:analogicalTo adl:coOccursWith adl:mitigatedBy )
 ] .
 
+# (3b) Identity, FORK Lineage, and CRDT Merge Properties (CQ11-CQ14)
+# Source: formal/owl/adl_lite_ontology.ttl lines 550-599.
+adl:hasGenesisHash rdf:type owl:DatatypeProperty ,
+                         owl:FunctionalProperty ;
+    rdfs:domain adl:Concept ;
+    rdfs:range xsd:string ;
+    rdfs:label "has genesis hash" ;
+    rdfs:comment "SHA-256 genesis hash of the concept; functional property ensuring exactly one identity criterion per concept (Axiom I2)." .
+
+adl:wasDerivedFrom rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:Concept ;
+    rdfs:range adl:Concept ;
+    rdfs:label "was derived from" ;
+    rdfs:comment "PROV-O alignment: a concept (especially a fork) was derived from another concept." .
+
+adl:forkOf rdfs:subPropertyOf adl:wasDerivedFrom ;
+    rdfs:comment "Lineage link from fork to original concept (transitive, irreflexive). A fork is a specific kind of derivation." .
+
+adl:hasParentConcept rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:Concept ;
+    rdfs:range adl:Concept ;
+    rdfs:subPropertyOf adl:forkOf ;
+    rdfs:label "has parent concept" ;
+    rdfs:comment "Links a forked concept directly to its immediate parent concept (single step in the fork lineage)." .
+
+adl:mergedFrom rdf:type owl:ObjectProperty ;
+    rdfs:domain adl:EventChain ;
+    rdfs:range adl:EventChain ;
+    rdfs:label "merged from" ;
+    rdfs:comment "Links a merged event chain to one of its source branches (CRDT merge)." .
+
 # (4) Lifecycle event types
 adl:LifecycleEvent rdf:type owl:Class ;
     rdfs:subClassOf adl:Event ;

@@ -1,5 +1,5 @@
 {
-  "experiment_id": "E29",
+  "experiment_id": "E33",
   "name": "Merkle Log Comparison",
   "description": "Synthetic head-to-head comparison: ADL Lite vs Sigstore Rekor, Certificate Transparency (CT), and nanopublications (Trusty URI) on verification time, proof size, and storage.",
   "hardware": {
