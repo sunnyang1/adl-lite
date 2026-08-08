@@ -44,7 +44,7 @@ ADL Lite 已具备一组在"可审计 AI / 智能体能力注册表"赛道中显
 
 #### 2.3 产品化断层识别
 - **路线图 100% 学术向**：[规划文档](https://github.com/sunnyang1/adl-lite/tree/main/docs/paper_ao/planning) 的 WS1–WS5 全部是 OWL 模块扩展、OntoClean、身份/依赖公理、γ 代数与定理机械化；[plan_revision.md（对应仓库 plan_v2.md）](https://github.com/sunnyang1/adl-lite/blob/main/docs/paper_ao/planning/plan_v2.md) 全部是 Applied Ontology 评审意见回应。无任何定价、GTM 或产品化条目。这是最大断层。
-- **工程缺口（可补齐类）**：pygit2 依赖未声明导致 E19 失败；[prod](PostgreSQL)/[v1](redis/celery) 生产扩展仅作可选 extras 默认未启用；关系图基于 NetworkX 内存存储进程重启即丢失——Neo4j 适配仅停留在 [P2 级 PRD](https://github.com/sunnyang1/adl-lite/blob/main/PRD_F25_Neo4j_Adapter.md)，仍为可选 extra。
+- **工程缺口（可补齐类）**：pygit2 依赖未声明导致 E19 失败；[prod](PostgreSQL)/[v1](redis/celery) 生产扩展仅作可选 extras 默认未启用；关系图基于 NetworkX 内存存储进程重启即丢失——Neo4j 适配仅停留在 [P2 级 PRD](https://github.com/sunnyang1/adl-lite/blob/main/docs/prd/PRD_F25_Neo4j_Adapter.md)，仍为可选 extra。
 - **信任模型弱（可信度阻塞类）**：[plan_v2.md](https://github.com/sunnyang1/adl-lite/blob/main/docs/paper_ao/planning/plan_v2.md) 承认单演员可自我验证到 0.99，DID 层是 Phase 1.5 预实现，Sybil 抵抗列为后续工作；[AGENTS.md](https://github.com/sunnyang1/adl-lite/blob/main/AGENTS.md) 显示 min_distinct_validators 默认仅为 1（论文建议生产 ≥2）。注册表在受监管场景下无法为能力证据真实性背书。
 
 ### 三、分析（多元观点与判断）
@@ -221,7 +221,7 @@ EU AI Act 将"可重建日志/血缘证据"列为高风险 AI 义务，罚则最
 ### 论据
 
 #### 5.1 三阶段路线图
-- **阶段一（0–6 月）· 地基**：修复信任模型（DID 绑定 + Sybil 抵抗 + N_min 生产化 ≥2）；启用持久化（Neo4j/PostgreSQL 替代 NetworkX 内存图，[PRD_F25_Neo4j_Adapter](https://github.com/sunnyang1/adl-lite/blob/main/PRD_F25_Neo4j_Adapter.md)）；声明 pygit2 依赖；产出"合规就绪构建"；启动 GTM 与定价设计。
+- **阶段一（0–6 月）· 地基**：修复信任模型（DID 绑定 + Sybil 抵抗 + N_min 生产化 ≥2）；启用持久化（Neo4j/PostgreSQL 替代 NetworkX 内存图，[PRD_F25_Neo4j_Adapter](https://github.com/sunnyang1/adl-lite/blob/main/docs/prd/PRD_F25_Neo4j_Adapter.md)）；声明 pygit2 依赖；产出"合规就绪构建"；启动 GTM 与定价设计。
 - **阶段二（6–18 月）· 产品化与首客**：上线托管能力注册表 SaaS（按量计量）；签下 1–2 个受监管行业设计伙伴（金融/医疗）；取得 SOC2 Type II（审计成本约 $50k–$100k，[Bright Defense 2026 SOC 2 成本](https://www.brightdefense.com/resources/soc-2-certification-cost/)）；发布公开定价；以 MCP server 作为分发杠杆。
 - **阶段三（18–36 月）· 规模化与造血**：拓展至多受监管垂直行业；若 provenance-backed 能力目录成标准，开启市场抽成；ARR 达中性 SOM $1.5M–$3.5M，运营现金流转正。
 
