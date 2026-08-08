@@ -67,11 +67,13 @@ jobs:
           pip install -e .
 
       - name: Build standalone executable (PyInstaller)
+        shell: bash
         run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then SEP=";"; else SEP=":"; fi
           pyinstaller \
             --onefile \
             --name adl-lite \
-            --add-data "adl_lite/adl_core_ontology.yaml:adl_lite" \
+            --add-data "adl_lite/adl_core_ontology.yaml${SEP}adl_lite" \
             --hidden-import pydantic \
             --hidden-import pydantic.deprecated.decorator \
             --hidden-import yaml \
