@@ -38,6 +38,7 @@ jobs:
   build-binary:
     needs: []
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -70,7 +71,7 @@ jobs:
           pyinstaller \
             --onefile \
             --name adl-lite \
-            --add-data "adl_lite/ontology/registry.yaml:adl_lite/ontology" \
+            --add-data "adl_lite/adl_core_ontology.yaml:adl_lite" \
             --hidden-import pydantic \
             --hidden-import pydantic.deprecated.decorator \
             --hidden-import yaml \
@@ -118,6 +119,10 @@ jobs:
           done
           # Copy checksum files
           find release-artifacts -type f -name '*.sha256' | while read f; do
+            cp "$f" release-assets/
+          done
+          # Also include the Python wheel + sdist built by build-python
+          find release-artifacts -type f \( -name '*.whl' -o -name '*.tar.gz' \) | while read f; do
             cp "$f" release-assets/
           done
           # Generate a master checksums file
