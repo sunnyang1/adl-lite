@@ -5,7 +5,7 @@ All notable changes to ADL Lite are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.9.0-alpha] — Unreleased
+## [0.9.0-alpha] — 2026-08-08
 
 ### Added
 
@@ -55,9 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   payloads are accepted at the schema level (`tee-quote` / `zk-proof` in
   `ATTEST_METHODS`) but not yet cryptographically verified.
 
-## [0.8.0-alpha] — Unreleased
 
-### Added
+### EAL Phase 2
 
 - **Execution Attestation Layer (EAL), Phase 2 — from observability to
   enforcement** (design: `docs/design/execution-attestation.md`):
@@ -92,9 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and E32 (evidence-weighted vs G-Counter confidence under adversarial
   validation: Brier 0.090 vs 0.349, −74.3% error).
 
-## [0.7.0-alpha] — Unreleased
 
-### Added
+### EAL Phase 1
 
 - **Execution Attestation Layer (EAL), Phase 1 — pure observability**
   (design: `docs/design/execution-attestation.md`):
@@ -131,7 +129,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     13–15, ExecutionLog behaviour (signing, tamper detection, Merkle
     stability, JSONL round-trip), block parsing, ontology sync, the
     registration hook, and derivation isolation.
-## [Unreleased] — Multi-agent closure + dashboard platform (2026-08-07)
+### Multi-agent closure + dashboard platform
 
 ### Added
 
@@ -183,7 +181,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   v0.9.0-alpha (unreleased) row; `dashboard/` added to the project structure;
   MCP server module + test docstrings synced to the 26-tool surface.
 
-## [Unreleased] — Native multi-agent M4 (2026-08-07)
+### Native multi-agent M4
 
 ### Added
 
@@ -210,7 +208,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - P1-2 known limitation: B4 covers discovery-chain VALIDATE validators only;
   agent-registration (AGENT_VALIDATE) same-org collusion is NOT blocked.
 
-## [Unreleased] — Native multi-agent M3 (2026-08-07)
+### Native multi-agent M3
 
 ### Added
 
@@ -240,7 +238,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `EventType` unchanged (M3 adds no new event types); ontology untouched.
 
-## [Unreleased] — Native multi-agent M2 (2026-08-06)
+### Native multi-agent M2
 
 ### Added
 
@@ -271,7 +269,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   suite green (1697 passed). Reviewed assertion updates: openapi paths (+7),
   MCP tool count/names, ontology action list.
 
-## [Unreleased] — Native multi-agent M1b (2026-08-06)
+### Native multi-agent M1b
 
 ### Added
 
@@ -297,7 +295,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   acceptances); full fast suite green (1669 passed). Reviewed assertion
   updates: openapi paths list, MCP tool count.
 
-## [Unreleased] — Native multi-agent M1a (2026-08-06)
+### Native multi-agent M1a
 
 ### Added
 
@@ -323,7 +321,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (discovery-lattice guards, legacy-state compat); full fast suite green
   (1653 passed).
 
-## [Unreleased] — Applied Ontology submission prep (2026-08-05)
+### Applied Ontology submission prep
 
 ### Added
 
