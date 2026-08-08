@@ -2,8 +2,8 @@
 
 Covers:
     - Server instantiation & tool/resource/prompt counts
-    - All 10 MCP tools (adl_parse, adl_validate, adl_register, adl_transition,
-      adl_status, adl_verify, adl_history, adl_fork, adl_list, adl_ontology_query)
+    - All 26 MCP tools (10 core registry + 7 agent/trust + 8 task lifecycle +
+      adl_runtime_start)
     - 2 MCP resources (adl://ontology, adl://capability/{adl_id})
     - 1 MCP prompt (adl_lifecycle_prompt)
     - Error handling for nonexistent capabilities

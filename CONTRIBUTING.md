@@ -112,7 +112,7 @@ The `[dev]` extra installs `pytest`, `pytest-cov`, `pytest-asyncio`,
 
 - New features must ship with tests. Test files live in `tests/` and match
   `test_<module>.py`; extended suites use `test_<module>_extended.py`.
-- The project currently has **1638 tests** with **87% coverage** across 20+
+- The project currently has **1881 tests** with **86% coverage** across 20+
   modules — keep the trend upward.
 - Mark genuinely long-running tests with `@pytest.mark.slow` so
   `pytest tests/ -m "not slow"` stays fast. Slow tests run in CI on `main`

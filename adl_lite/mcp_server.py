@@ -1,8 +1,8 @@
 """ADL Lite — FastMCP tool server for the capability-lifecycle registry.
 
-Exposes 10 tools, 2 resources, and 1 prompt via the official MCP Python SDK's
+Exposes 26 tools, 2 resources, and 1 prompt via the official MCP Python SDK's
 FastMCP class. Tools wrap the existing consensus engine, parser, validator,
-and ontology subsystems.
+ontology subsystems, agent identity/trust, and task lifecycle.
 
 Usage:
     # stdio transport (for Claude Desktop, etc.)

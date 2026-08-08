@@ -172,6 +172,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TaskExplorer actions aligned with `_TASK_TRANSITIONS` (no more 409s on
   assigned/submitted rows); task priority is a number per the backend.
 
+### Docs
+
+- **README/AGENTS/CONTRIBUTING refreshed to the v0.9.0-alpha reality**
+  (2026-08-08): badges and counts corrected to measured values — 1881 tests
+  collected / 1851 passing fast-path, 86% coverage, 33 registered experiments
+  (E1–E35), 26 MCP tools, 60+ core modules; new CLI/REST/MCP surface
+  documented (multi-agent control plane: `agent`/`task`/`run`/`approve`/
+  `trust-check`; EAL: `execute`/`attest`/`challenge`); roadmap gains the
+  v0.9.0-alpha (unreleased) row; `dashboard/` added to the project structure;
+  MCP server module + test docstrings synced to the 26-tool surface.
+
 ## [Unreleased] — Native multi-agent M4 (2026-08-07)
 
 ### Added

@@ -170,7 +170,7 @@ python scripts/consistency_check.py
 | `adl_lite/api_auth.py` | API auth (API keys / JWT) + rate-limit middleware |
 | `adl_lite/config.py` | Central settings (`pydantic-settings`): Neo4j, API, quota env config |
 | `adl_lite/graph_backends.py` | `GraphBackend` protocol + NetworkX / SQL adapters for pluggable persistence |
-| `adl_lite/mcp_server.py` | FastMCP tool server — 10 tools, 2 resources, 1 prompt (`adl-lite mcp`) |
+| `adl_lite/mcp_server.py` | FastMCP tool server — 26 tools, 2 resources, 1 prompt (`adl-lite mcp`) |
 | `adl_lite/metering.py` | Usage metering with daily/monthly period windows (`UsageMeter`) |
 | `adl_lite/neo4j_adapter.py` | Neo4j `GraphBackend` adapter (optional `[neo4j]` extra) |
 | `adl_lite/prov_export.py` | PROV-O / RDF-star Turtle export (rdflib lazy, `[gov]` extra) |
@@ -416,7 +416,7 @@ pytest tests/ -v
 python -m experiments.runner all
 ```
 
-## Experiments (30 registered in runner, E1–E35)
+## Experiments (33 registered in runner, E1–E35)
 
 ```bash
 python -m experiments.runner all
@@ -560,8 +560,8 @@ adl-lite/
 │   ├── embeddings.py
 │   ├── vector_index.py
 │   └── canonicalization.py
-├── tests/                 # pytest suite (1532 collected, all passing)
-├── experiments/           # 30 registered experiments
+├── tests/                 # pytest suite (1881 collected, all passing)
+├── experiments/           # 33 registered experiments
 ├── examples/              # Sample ADL Markdown files
 ├── data/aml/              # AML dataset + concepts
 ├── docs/                  # Current paper + operational docs

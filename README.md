@@ -2,9 +2,9 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version: 0.6.0-alpha](https://img.shields.io/badge/version-v0.6.0--alpha-blue.svg)](https://github.com/sunnyang1/adl-lite/releases/tag/v0.6.0-alpha)
-[![Tests: 1638](https://img.shields.io/badge/tests-1638-brightgreen.svg)]()
-[![Coverage: 87%](https://img.shields.io/badge/coverage-87%25-brightgreen.svg)]()
+[![Version: 0.9.0-alpha](https://img.shields.io/badge/version-v0.9.0--alpha-blue.svg)](https://github.com/sunnyang1/adl-lite/releases)
+[![Tests: 1881](https://img.shields.io/badge/tests-1881-brightgreen.svg)]()
+[![Coverage: 86%](https://img.shields.io/badge/coverage-86%25-brightgreen.svg)]()
 [![Applied Ontology: under revision](https://img.shields.io/badge/Journal-Applied%20Ontology-orange.svg)](https://www.iospress.nl/journal/applied-ontology/)
 
 > **"The world is the totality of facts, not of things." — Wittgenstein, Tractatus §1.1**
@@ -19,8 +19,10 @@ ADL Lite is a **Markdown-native, event-first capability registry** for LLM agent
 - **Multi-agent consensus** — `register → validate → fork → deprecate` lifecycle with dynamic `N_min` (1 in dev, ≥2 in production for collusion resistance), SHA-256 hash-link integrity, and **N≥3 CRDT branch merge**.
 - **Trust & provenance** — DID resolution (`did:key` / `did:web`), linked-data proofs, Merkle transparency anchors with batch verification, PROV-O / RDF-star / OWL 2 DL / JSON-LD exports, runtime SHACL (opt-in).
 - **Pluggable persistence** — NetworkX (default), SQL, and **Neo4j** graph backends behind a common `GraphBackend` protocol; Hot/Warm/Cold memory with auto-archival.
-- **Multiple interfaces** — CLI, FastAPI REST API (multi-tenant, JWT/API-key auth, rate limiting, metering, per-tenant quota), and an **MCP tool server**.
-- **Verified** — 1638 tests, 87% coverage, TLA⁺ specs, Coq/Iris proof skeletons, and 30+ registered experiments (E1–E35).
+- **Native multi-agent governance** — DID-based agent identity with an admin trust-root bootstrap, task lifecycle + lease-based message bus, a thin runtime with 5-role tool whitelists, and B4 organizational-diversity trust checks (M1a–M4).
+- **Execution attestation** — signed `EXECUTE`/`ATTEST` receipts with independent replay, evidence-weighted confidence, and a commit–reveal challenge protocol (EAL Phases 1–3).
+- **Multiple interfaces** — CLI, FastAPI REST API (multi-tenant, JWT/API-key auth, rate limiting, metering, per-tenant quota), and an **MCP tool server** (26 tools).
+- **Verified** — 1881 tests, 86% coverage, TLA⁺ specs, Coq/Iris proof skeletons, and 33 registered experiments (E1–E35).
 
 ---
 
@@ -53,7 +55,7 @@ pip install -e ".[dev]"
 Verify the install:
 
 ```bash
-python -c "import adl_lite; print(adl_lite.__version__)"   # 0.6.0-alpha
+python -c "import adl_lite; print(adl_lite.__version__)"   # 0.9.0-alpha
 adl-lite --help
 ```
 
@@ -159,6 +161,25 @@ adl-lite normalize --input-dir ./concepts --threshold 0.92 --llm-provider mock  
 adl-lite normalize --input-dir ./concepts --threshold 0.92 --execute   # apply (needs [embeddings])
 adl-lite neo4j status                                     # Neo4j backend health (needs [neo4j])
 adl-lite mcp --transport stdio                            # MCP tool server (needs [mcp])
+
+# Multi-agent control plane (M1a–M4 + closure)
+adl-lite agent register --name alice --role discoverer    # agent identity (admin bootstrap)
+adl-lite agent list                                       # registered agents
+adl-lite agent validate did:key:z... --actor-did did:key:z...   # cross-validate identity
+adl-lite agent reputation did:key:z...                    # weak-signal reputation (M4)
+adl-lite agent trust-check cap-fraud-detection --diversity  # B1–B4 trust model
+adl-lite task create "analyze fraud" --capabilities concept-fraud-detection
+adl-lite task claim <task-id> --agent-did did:key:z...
+adl-lite task submit <task-id> --agent-did did:key:z... --result-ref cap-fraud-v1
+adl-lite run --role discoverer --name alice               # thin runtime loop (M3)
+adl-lite approve <task-id>                                # approve a human checkpoint
+
+# Execution attestation (EAL Phases 1–3)
+adl-lite execute record cap.md --actor <did> --key-file alice.pem \
+  --input-hash sha256:... --output-hash sha256:...          # signed EXECUTE receipt
+adl-lite execute log --verify
+adl-lite attest replay <receipt-id>                       # independent re-execution
+adl-lite challenge open|reveal|answer|status <cap-id>     # commit–reveal protocol
 ```
 
 Run `adl-lite --help` (or `<subcommand> --help`) for the full reference.
@@ -258,6 +279,8 @@ curl http://localhost:8000/api/v1/tasks                               # task lif
 curl http://localhost:8000/api/v1/runtime/status                      # backlog (P1-6)
 curl http://localhost:8000/api/v1/meta/task-transitions               # state machine
 curl http://localhost:8000/api/v1/meta/roles                          # role whitelists
+curl http://localhost:8000/api/v1/agents/<did>/reputation             # weak-signal score
+curl -X POST http://localhost:8000/api/v1/admin/trust/diversity       # B4 diversity switch
 ```
 
 Production hardening is opt-in via `create_app()`: JWT/API-key auth,
@@ -297,9 +320,13 @@ pip install -e ".[mcp]"
 adl-lite mcp --transport stdio          # or --transport streamable-http --port 8000
 ```
 
-The server publishes **10 tools** (register / transition / status / history /
-fork / validate / anchor / verify-batch / ontology query / normalize), 2
-resources, and 1 prompt. Programmatic access:
+The server publishes **26 tools** — core registry (parse / validate /
+register / transition / status / verify / history / fork / list / ontology
+query), agent identity & trust (register / attest / validate / get / list /
+deprecate / reputation), task lifecycle (create / claim / submit / validate /
+close / get / list / enqueue), and runtime control (`adl_runtime_start`) —
+plus 2 resources (`adl://ontology`, `adl://capability/{adl_id}`) and 1 prompt.
+Programmatic access:
 `from adl_lite.mcp_server import create_mcp_server; server = create_mcp_server()`.
 
 ---
@@ -336,17 +363,18 @@ Markdown file (L1/L2/L3/L4) → ADLParser → EventChain → ConsensusEngine →
 
 | Status | Item |
 |--------|------|
+| 🔄 v0.9.0-alpha (unreleased) | Native multi-agent governance (M1a–M4), EAL Phases 1–3 (execution attestation + challenge protocol), closure & dashboard platform |
 | ✅ v0.6.0-alpha | Complete version: multi-tenant API + quota, N≥3 CRDT merge, Merkle batch verify, MCP server, E34/E35 |
 | ✅ v0.5.0-alpha | Formal methods (TLA⁺/Coq), scale arch (split-lock, zstd), REST API |
 | ✅ v0.4.0-alpha | DID (did:web/ethr), SHACL, expert calibration, vector + LLM |
 | ✅ v0.3.5 | CRDT migration (LUB status + G-Counter confidence) |
-| 🔄 Active | Applied Ontology journal — under major revision (39pp, 9 theorems) |
+| 🔄 Active | Applied Ontology journal — under major revision (7 theorems + 9 Coq proofs) |
 
 ---
 
 ## Experiments
 
-30 registered experiments (E1–E35). Run them:
+33 registered experiments (E1–E35). Run them:
 
 ```bash
 python -m experiments.runner list
@@ -364,9 +392,10 @@ Key results: E21 100k events < 1GB memory, E24 10k synthetic chains T1–T7 vali
 
 ```
 adl-lite/
-├── adl_lite/            # Core package (55+ modules)
-├── experiments/         # 30 registered experiments (E1–E35)
-├── tests/               # 1638 tests, 87% coverage
+├── adl_lite/            # Core package (60+ modules, incl. agents/)
+├── experiments/         # 33 registered experiments (E1–E35)
+├── tests/               # 1881 tests, 86% coverage
+├── dashboard/           # Multi-agent management UI (Vite + React)
 ├── docs/                # Paper submission, runbooks, ontology artifacts
 ├── specs/               # TLA+ formal specifications
 ├── formal/coq/          # Coq/Iris proof skeleton
