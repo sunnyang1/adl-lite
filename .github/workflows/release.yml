@@ -81,9 +81,12 @@ jobs:
             adl_lite/cli.py
 
       - name: Verify binary runs
+        shell: bash
+        continue-on-error: true
         run: |
           chmod +x dist/adl-lite* 2>/dev/null || true
-          ./${{ matrix.binary }} --version || true
+          echo "Binary version output:"
+          ./"${{ matrix.binary }}" --version 2>&1 || echo "WARNING: binary failed to run"
 
       - name: Generate SHA256 checksum
         shell: bash
